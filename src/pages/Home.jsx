@@ -1269,13 +1269,13 @@ function LoginPage({ onLogin, users }) {
           <label style={{ display:"block", fontSize:13, fontWeight:700, color:"#374151", marginBottom:6 }}>🔑 Mật khẩu</label>
           <div style={{ position:"relative" }}>
             <input
-              type={showPw?"text":"password"}
+              id="login-pw"
               value={password} onChange={e => { setPassword(e.target.value); setErr(""); }}
               onKeyDown={e => e.key==="Enter" && doLogin()}
               placeholder="Nhập mật khẩu..."
-              style={{ width:"100%", height:50, borderRadius:12, border:`2px solid ${err?"#ef4444":"#e5e7eb"}`, padding:"0 50px 0 16px", fontSize:15, outline:"none", boxSizing:"border-box" }}
+              style={{ width:"100%", height:50, borderRadius:12, border:`2px solid ${err?"#ef4444":"#e5e7eb"}`, padding:"0 50px 0 16px", fontSize:15, outline:"none", boxSizing:"border-box", WebkitTextSecurity: showPw ? "none" : "disc", letterSpacing: showPw ? "normal" : "0.1em" }}
             />
-            <button onClick={() => setShowPw(v=>!v)}
+            <button onClick={() => setShowPw(v=>!v)} type="button"
               style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:20, color:"#9ca3af" }}>
               {showPw ? "🙈" : "👁️"}
             </button>
