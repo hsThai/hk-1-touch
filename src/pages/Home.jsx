@@ -1288,7 +1288,7 @@ function LoginPage({ onLogin, users }) {
           </div>
         )}
 
-        <button onClick={doLogin} disabled={loading}
+        <button id="login-btn" onClick={doLogin} disabled={loading}
           style={{ width:"100%", height:54, background:loading?"#a5b4fc":"#4f46e5", color:"#fff", border:"none", borderRadius:14, fontSize:18, fontWeight:800, cursor:loading?"not-allowed":"pointer", transition:"background .2s" }}>
           {loading ? "⏳ Đang kiểm tra..." : "🚀 Đăng Nhập"}
         </button>
