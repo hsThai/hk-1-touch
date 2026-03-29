@@ -1845,7 +1845,7 @@ export default function Home() {
               </div>
 
               {/* Quy tắc KPI */}
-              <div style={{ background:"#fff", borderRadius:16, padding:16, boxShadow:"0 1px 4px rgba(0,0,0,.06)" }}>
+              <div style={{ background:"#fff", borderRadius:16, padding:16, boxShadow:"0 1px 4px rgba(0,0,0,.06)", marginBottom:16 }}>
                 <div style={{ fontWeight:800, fontSize:15, marginBottom:12 }}>🏆 Quy Tắc KPI</div>
                 {[
                   { icon:"⚠️", rule:"Không nhận máy sau 15 phút", delta:"-1 KPI", color:"#d97706" },
@@ -1860,6 +1860,104 @@ export default function Home() {
                   </div>
                 ))}
               </div>
+
+              {/* API Keys */}
+              {(() => {
+                const API_KEYS_DEFAULT = [
+                  { id:"kiotviet",  label:"KiotViet",      icon:"🛒", hint:"Client ID / Secret", fields:[{key:"client_id",label:"Client ID"},{key:"client_secret",label:"Client Secret"},{key:"retailer",label:"Retailer (tên cửa hàng)"}] },
+                  { id:"zalo",      label:"Zalo OA",        icon:"💬", hint:"Access Token / OA ID",  fields:[{key:"access_token",label:"Access Token"},{key:"oa_id",label:"OA ID"}] },
+                  { id:"sms",       label:"SMS Gateway",    icon:"📱", hint:"API Key gửi SMS",        fields:[{key:"api_key",label:"API Key"},{key:"brand_name",label:"Brand Name"}] },
+                  { id:"custom",    label:"Tuỳ chỉnh",      icon:"🔌", hint:"API tích hợp khác",      fields:[{key:"name",label:"Tên dịch vụ"},{key:"api_key",label:"API Key"},{key:"endpoint",label:"Endpoint URL"}] },
+                ];
+                const [apiKeys, setApiKeys] = React.useState(() => {
+                  try { return JSON.parse(localStorage.getItem("api_keys")||"{}"); } catch{ return {}; }
+                });
+                const [expanded, setExpanded] = React.useState(null);
+                const [edited, setEdited] = React.useState({});
+                const [saved, setSaved] = React.useState(null);
+                const [showSecret, setShowSecret] = React.useState({});
+
+                const toggleExpand = (id) => { setExpanded(v => v===id?null:id); setEdited(apiKeys[id]||{}); };
+                const saveKey = (id) => {
+                  const next = {...apiKeys, [id]: edited};
+                  setApiKeys(next);
+                  localStorage.setItem("api_keys", JSON.stringify(next));
+                  setSaved(id); setTimeout(()=>setSaved(null), 2000);
+                };
+                const clearKey = (id) => {
+                  const next = {...apiKeys}; delete next[id];
+                  setApiKeys(next);
+                  localStorage.setItem("api_keys", JSON.stringify(next));
+                  setExpanded(null);
+                };
+
+                const isConfigured = (id) => apiKeys[id] && Object.values(apiKeys[id]).some(v=>v?.trim());
+
+                return (
+                  <div style={{ background:"#fff", borderRadius:16, padding:16, boxShadow:"0 1px 4px rgba(0,0,0,.06)" }}>
+                    <div style={{ fontWeight:800, fontSize:15, marginBottom:4 }}>🔑 API Keys & Tích Hợp</div>
+                    <div style={{ fontSize:12, color:"#9ca3af", marginBottom:14 }}>Kết nối hệ thống với các dịch vụ bên ngoài</div>
+
+                    {API_KEYS_DEFAULT.map(svc => (
+                      <div key={svc.id}>
+                        <div onClick={() => toggleExpand(svc.id)}
+                          style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 0", borderBottom:"1px solid #f3f4f6", cursor:"pointer", userSelect:"none" }}>
+                          <span style={{ fontSize:24 }}>{svc.icon}</span>
+                          <div style={{ flex:1 }}>
+                            <div style={{ fontWeight:700, fontSize:14 }}>{svc.label}</div>
+                            <div style={{ fontSize:11, color:"#9ca3af" }}>{svc.hint}</div>
+                          </div>
+                          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                            {isConfigured(svc.id)
+                              ? <span style={{ background:"#ecfdf5", color:"#059669", fontSize:11, padding:"3px 10px", borderRadius:20, fontWeight:700 }}>✅ Đã cấu hình</span>
+                              : <span style={{ background:"#f3f4f6", color:"#9ca3af", fontSize:11, padding:"3px 10px", borderRadius:20, fontWeight:600 }}>Chưa cấu hình</span>
+                            }
+                            <span style={{ color:"#9ca3af", fontSize:16 }}>{expanded===svc.id?"▲":"▼"}</span>
+                          </div>
+                        </div>
+
+                        {expanded===svc.id && (
+                          <div style={{ background:"#f8fafc", borderRadius:12, padding:16, margin:"8px 0 4px", border:"1px solid #e5e7eb" }}>
+                            {svc.fields.map(f => (
+                              <div key={f.key} style={{ marginBottom:12 }}>
+                                <label style={{ display:"block", fontSize:12, fontWeight:700, color:"#374151", marginBottom:5 }}>{f.label}</label>
+                                <div style={{ position:"relative" }}>
+                                  <input
+                                    type={showSecret[svc.id+f.key] ? "text" : (f.key.includes("secret")||f.key.includes("token")||f.key.includes("api_key") ? "password" : "text")}
+                                    value={edited[f.key]||""}
+                                    onChange={e => setEdited(p=>({...p,[f.key]:e.target.value}))}
+                                    placeholder={`Nhập ${f.label}...`}
+                                    style={{ width:"100%", height:42, borderRadius:9, border:"1.5px solid #e5e7eb", padding:"0 40px 0 12px", fontSize:13, outline:"none", boxSizing:"border-box", background:"#fff" }}
+                                  />
+                                  {(f.key.includes("secret")||f.key.includes("token")||f.key.includes("api_key")) && (
+                                    <button onClick={() => setShowSecret(p=>({...p,[svc.id+f.key]:!p[svc.id+f.key]}))} type="button"
+                                      style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:16, color:"#9ca3af" }}>
+                                      {showSecret[svc.id+f.key]?"🙈":"👁️"}
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                            <div style={{ display:"flex", gap:8, marginTop:4 }}>
+                              {isConfigured(svc.id) && (
+                                <button onClick={() => clearKey(svc.id)}
+                                  style={{ height:38, padding:"0 14px", borderRadius:9, border:"1.5px solid #fca5a5", background:"#fef2f2", color:"#dc2626", fontWeight:700, cursor:"pointer", fontSize:13 }}>
+                                  🗑️ Xoá
+                                </button>
+                              )}
+                              <button onClick={() => saveKey(svc.id)}
+                                style={{ flex:1, height:38, borderRadius:9, border:"none", background: saved===svc.id?"#059669":"#4f46e5", color:"#fff", fontWeight:800, cursor:"pointer", fontSize:14, transition:"background .3s" }}>
+                                {saved===svc.id ? "✅ Đã lưu!" : "💾 Lưu"}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+
             </div>
           )}
         </div>
