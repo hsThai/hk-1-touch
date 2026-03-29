@@ -1311,6 +1311,8 @@ export default function Home() {
     ...(user.role!=="technician"?[{key:"board",icon:"📋",label:"Bảng theo dõi"},{key:"new",icon:"➕",label:"Tạo đơn mới"}]:[]),
     {key:"tasks",icon:"✅",label:user.role==="manager"?"Tất cả việc":"Việc của tôi"},
     ...(user.role!=="receptionist"?[{key:"kpi",icon:"🏆",label:"KPI Kỹ thuật"}]:[]),
+    ...(user.role!=="technician"?[{key:"customers",icon:"👥",label:"Khách hàng"}]:[]),
+    ...(user.role==="manager"?[{key:"settings",icon:"⚙️",label:"Cài đặt"}]:[]),
   ];
 
   const Sidebar = () => (
@@ -1575,6 +1577,111 @@ export default function Home() {
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* CUSTOMERS */}
+          {page==="customers" && (
+            <div>
+              <div style={{ fontWeight:800, fontSize:20, marginBottom:16 }}>👥 Quản Lý Khách Hàng</div>
+              <div style={{ background:"#fff", borderRadius:16, padding:16, boxShadow:"0 1px 4px rgba(0,0,0,.06)", marginBottom:12 }}>
+                <input placeholder="🔍 Tìm tên, SĐT khách hàng..." value={search} onChange={e => setSearch(e.target.value)}
+                  style={{ width:"100%", height:42, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 14px", fontSize:14, outline:"none", boxSizing:"border-box" }} />
+              </div>
+              {MOCK_CUSTOMERS.filter(c =>
+                c.full_name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search)
+              ).map(cust => {
+                const custOrders = orders.filter(o => o.customer_id === cust.id);
+                return (
+                  <div key={cust.id} style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:10, boxShadow:"0 1px 4px rgba(0,0,0,.06)" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                      <div>
+                        <div style={{ fontWeight:800, fontSize:16 }}>👤 {cust.full_name}</div>
+                        <div style={{ fontSize:13, color:"#6b7280", marginTop:3 }}>📞 {cust.phone}</div>
+                        {cust.address && <div style={{ fontSize:13, color:"#6b7280" }}>📍 {cust.address}</div>}
+                      </div>
+                      <div style={{ textAlign:"right" }}>
+                        <div style={{ background:"#eef2ff", color:"#4f46e5", fontSize:12, fontWeight:700, padding:"4px 12px", borderRadius:20 }}>
+                          {custOrders.length} đơn
+                        </div>
+                      </div>
+                    </div>
+                    {custOrders.length > 0 && (
+                      <div style={{ marginTop:10, paddingTop:10, borderTop:"1px solid #f3f4f6" }}>
+                        <div style={{ fontSize:12, color:"#9ca3af", marginBottom:6 }}>Đơn gần đây:</div>
+                        {custOrders.slice(0,3).map(o => {
+                          const col = STATUS_COLS.find(s => s.key===o.status);
+                          return (
+                            <div key={o.id} onClick={() => setSelectedOrder(o)}
+                              style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"6px 0", cursor:"pointer", borderBottom:"1px solid #f9fafb" }}>
+                              <div>
+                                <div style={{ fontSize:13, fontWeight:700 }}>{o.device_model}</div>
+                                <div style={{ fontSize:11, color:"#818cf8" }}>{o.id}</div>
+                              </div>
+                              <span style={{ fontSize:11, background:col?.bg, color:col?.color, padding:"3px 10px", borderRadius:20, fontWeight:700 }}>{col?.icon} {o.status}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* SETTINGS */}
+          {page==="settings" && user.role==="manager" && (
+            <div style={{ maxWidth:600, margin:"0 auto" }}>
+              <div style={{ fontWeight:800, fontSize:20, marginBottom:16 }}>⚙️ Cài Đặt Hệ Thống</div>
+
+              {/* Nhân viên */}
+              <div style={{ background:"#fff", borderRadius:16, padding:16, boxShadow:"0 1px 4px rgba(0,0,0,.06)", marginBottom:16 }}>
+                <div style={{ fontWeight:800, fontSize:15, marginBottom:12 }}>👨‍💼 Danh Sách Nhân Viên</div>
+                {users.map(u => (
+                  <div key={u.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 0", borderBottom:"1px solid #f3f4f6" }}>
+                    <div style={{ width:40, height:40, borderRadius:"50%", background:"#4f46e5", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:800, fontSize:16 }}>{u.name[0]}</div>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontWeight:700, fontSize:14 }}>{u.name}</div>
+                      <div style={{ fontSize:12, color:"#6b7280" }}>{ROLE_LABELS[u.role]}</div>
+                    </div>
+                    <div style={{ background:"#f3f4f6", borderRadius:20, padding:"3px 12px", fontSize:12, fontWeight:700, color:"#374151" }}>
+                      KPI: {u.kpi}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Trạng thái đơn */}
+              <div style={{ background:"#fff", borderRadius:16, padding:16, boxShadow:"0 1px 4px rgba(0,0,0,.06)", marginBottom:16 }}>
+                <div style={{ fontWeight:800, fontSize:15, marginBottom:12 }}>📋 Trạng Thái Đơn Hàng</div>
+                {STATUS_COLS.map(s => (
+                  <div key={s.key} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 0", borderBottom:"1px solid #f3f4f6" }}>
+                    <span style={{ fontSize:20 }}>{s.icon}</span>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontWeight:700, fontSize:14 }}>{s.key}</div>
+                    </div>
+                    <span style={{ background:s.bg, color:s.color, fontSize:11, padding:"3px 10px", borderRadius:20, fontWeight:700 }}>{s.icon} {s.key}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Quy tắc KPI */}
+              <div style={{ background:"#fff", borderRadius:16, padding:16, boxShadow:"0 1px 4px rgba(0,0,0,.06)" }}>
+                <div style={{ fontWeight:800, fontSize:15, marginBottom:12 }}>🏆 Quy Tắc KPI</div>
+                {[
+                  { icon:"⚠️", rule:"Không nhận máy sau 15 phút", delta:"-1 KPI", color:"#d97706" },
+                  { icon:"🔄", rule:"Bị reassign sau 60 phút", delta:"-1 KPI", color:"#d97706" },
+                  { icon:"🚨", rule:"Đơn quá 1300-1500 phút", delta:"-2 KPI", color:"#dc2626" },
+                  { icon:"✅", rule:"Hoàn thành đơn hàng", delta:"+2 KPI", color:"#059669" },
+                ].map((r, i) => (
+                  <div key={i} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 0", borderBottom:"1px solid #f3f4f6" }}>
+                    <span style={{ fontSize:20 }}>{r.icon}</span>
+                    <div style={{ flex:1, fontSize:14 }}>{r.rule}</div>
+                    <span style={{ fontWeight:800, color:r.color, fontSize:14 }}>{r.delta}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
