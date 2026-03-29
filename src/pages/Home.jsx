@@ -307,10 +307,10 @@ function QRPrintModal({ order, onClose }) {
 //  MOCK DATA
 // ══════════════════════════════════════════════
 const MOCK_USERS = [
-  { id:"u1", name:"Nguyễn Quản Lý",  role:"manager",      kpi:10 },
-  { id:"u2", name:"Trần Tiếp Tân",   role:"receptionist", kpi:0  },
-  { id:"u3", name:"Lê Kỹ Thuật",     role:"technician",   kpi:8  },
-  { id:"u4", name:"Phạm KTV 2",       role:"technician",   kpi:6  },
+  { id:"u1", name:"Nguyễn Quản Lý",  username:"admin",   password:"admin123",  role:"manager",      kpi:10, phone:"", note:"" },
+  { id:"u2", name:"Trần Tiếp Tân",   username:"tieptan", password:"123456",    role:"receptionist", kpi:0,  phone:"", note:"" },
+  { id:"u3", name:"Lê Kỹ Thuật",     username:"ktv1",    password:"123456",    role:"technician",   kpi:8,  phone:"", note:"" },
+  { id:"u4", name:"Phạm KTV 2",       username:"ktv2",    password:"123456",    role:"technician",   kpi:6,  phone:"", note:"" },
 ];
 const MOCK_CUSTOMERS = [
   { id:"c1", phone:"0901234567", full_name:"Nguyễn Văn A" },
@@ -1223,31 +1223,82 @@ function KPIPage({ users, orders }) {
 // ══════════════════════════════════════════════
 //  LOGIN
 // ══════════════════════════════════════════════
-function LoginPage({ onLogin }) {
-  const [sel, setSel] = useState("u1");
+function LoginPage({ onLogin, users }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const doLogin = () => {
+    if (!username.trim() || !password.trim()) { setErr("Vui lòng nhập đầy đủ thông tin!"); return; }
+    setLoading(true);
+    setErr("");
+    setTimeout(() => {
+      const found = users.find(u => u.username === username.trim() && u.password === password.trim() && u.active !== false);
+      if (found) {
+        onLogin(found);
+      } else {
+        setErr("Tên đăng nhập hoặc mật khẩu không đúng!");
+        setLoading(false);
+      }
+    }, 400);
+  };
+
   return (
-    <div style={{ minHeight:"100vh", background:"linear-gradient(135deg,#3730a3,#4f46e5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-      <div style={{ background:"#fff", borderRadius:24, padding:40, width:"100%", maxWidth:380, boxShadow:"0 24px 64px rgba(0,0,0,.25)" }}>
-        <div style={{ textAlign:"center", marginBottom:28 }}>
-          <div style={{ fontSize:52 }}>🔧</div>
-          <div style={{ fontWeight:800, fontSize:22, color:"#3730a3", marginTop:8 }}>Quản Lý Sửa Chữa</div>
-          <div style={{ color:"#6b7280", fontSize:13 }}>Hệ thống nội bộ · Demo</div>
+    <div style={{ minHeight:"100vh", background:"linear-gradient(135deg,#1e1b4b,#4f46e5,#7c3aed)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+      <div style={{ background:"#fff", borderRadius:24, padding:40, width:"100%", maxWidth:400, boxShadow:"0 24px 64px rgba(0,0,0,.3)" }}>
+        <div style={{ textAlign:"center", marginBottom:32 }}>
+          <div style={{ fontSize:56 }}>🔧</div>
+          <div style={{ fontWeight:900, fontSize:24, color:"#1e1b4b", marginTop:8 }}>Quản Lý Sửa Chữa</div>
+          <div style={{ color:"#9ca3af", fontSize:13, marginTop:4 }}>Hệ thống nội bộ</div>
         </div>
-        {MOCK_USERS.map(u => (
-          <div key={u.id} onClick={() => setSel(u.id)}
-            style={{ padding:"14px 16px", borderRadius:12, border:`2px solid ${sel===u.id?"#4f46e5":"#e5e7eb"}`, marginBottom:8, cursor:"pointer", background:sel===u.id?"#eef2ff":"#fff", display:"flex", alignItems:"center", gap:12 }}>
-            <div style={{ width:40, height:40, borderRadius:"50%", background:"#4f46e5", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, fontSize:16 }}>{u.name[0]}</div>
-            <div>
-              <div style={{ fontWeight:700, fontSize:15 }}>{u.name}</div>
-              <div style={{ fontSize:12, color:"#6b7280" }}>{ROLE_LABELS[u.role]} · KPI: {u.kpi}</div>
-            </div>
-            {sel===u.id && <div style={{ marginLeft:"auto", color:"#4f46e5", fontSize:20 }}>✓</div>}
+
+        <div style={{ marginBottom:16 }}>
+          <label style={{ display:"block", fontSize:13, fontWeight:700, color:"#374151", marginBottom:6 }}>👤 Tên đăng nhập</label>
+          <input
+            value={username} onChange={e => { setUsername(e.target.value); setErr(""); }}
+            onKeyDown={e => e.key==="Enter" && doLogin()}
+            placeholder="Nhập username..."
+            style={{ width:"100%", height:50, borderRadius:12, border:`2px solid ${err?"#ef4444":"#e5e7eb"}`, padding:"0 16px", fontSize:15, outline:"none", boxSizing:"border-box", transition:"border .2s" }}
+            autoFocus
+          />
+        </div>
+
+        <div style={{ marginBottom:20 }}>
+          <label style={{ display:"block", fontSize:13, fontWeight:700, color:"#374151", marginBottom:6 }}>🔑 Mật khẩu</label>
+          <div style={{ position:"relative" }}>
+            <input
+              type={showPw?"text":"password"}
+              value={password} onChange={e => { setPassword(e.target.value); setErr(""); }}
+              onKeyDown={e => e.key==="Enter" && doLogin()}
+              placeholder="Nhập mật khẩu..."
+              style={{ width:"100%", height:50, borderRadius:12, border:`2px solid ${err?"#ef4444":"#e5e7eb"}`, padding:"0 50px 0 16px", fontSize:15, outline:"none", boxSizing:"border-box" }}
+            />
+            <button onClick={() => setShowPw(v=>!v)}
+              style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:20, color:"#9ca3af" }}>
+              {showPw ? "🙈" : "👁️"}
+            </button>
           </div>
-        ))}
-        <button onClick={() => onLogin(MOCK_USERS.find(u => u.id===sel))}
-          style={{ width:"100%", height:54, background:"#4f46e5", color:"#fff", border:"none", borderRadius:14, fontSize:18, fontWeight:800, cursor:"pointer", marginTop:8 }}>
-          Đăng Nhập
+        </div>
+
+        {err && (
+          <div style={{ background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:10, padding:"10px 14px", marginBottom:16, fontSize:13, color:"#dc2626", fontWeight:600 }}>
+            ⚠️ {err}
+          </div>
+        )}
+
+        <button onClick={doLogin} disabled={loading}
+          style={{ width:"100%", height:54, background:loading?"#a5b4fc":"#4f46e5", color:"#fff", border:"none", borderRadius:14, fontSize:18, fontWeight:800, cursor:loading?"not-allowed":"pointer", transition:"background .2s" }}>
+          {loading ? "⏳ Đang kiểm tra..." : "🚀 Đăng Nhập"}
         </button>
+
+        <div style={{ marginTop:20, padding:14, background:"#f8fafc", borderRadius:12, fontSize:12, color:"#6b7280" }}>
+          <div style={{ fontWeight:700, marginBottom:6 }}>💡 Tài khoản demo:</div>
+          <div>👑 admin / admin123 — Quản lý</div>
+          <div>🗂️ tieptan / 123456 — Tiếp tân</div>
+          <div>🔧 ktv1 / 123456 — Kỹ thuật viên</div>
+        </div>
       </div>
     </div>
   );
@@ -1272,7 +1323,7 @@ export default function Home() {
   const [highlightId, setHighlightId] = useState(null);
   const [createdOrder, setCreatedOrder] = useState(null); // toast xác nhận tạo đơn
 
-  if (!user) return <LoginPage onLogin={u => { setUser(u); setPage(u.role==="technician"?"tasks":u.role==="receptionist"?"new":"dashboard"); }} />;
+  if (!user) return <LoginPage users={users} onLogin={u => { setUser(u); setPage(u.role==="technician"?"tasks":u.role==="receptionist"?"new":"dashboard"); }} />;
 
   function updateOrder(id, patch, kpiEvent) {
     setOrders(p => p.map(o => o.id===id ? {...o,...patch} : o));
@@ -1312,7 +1363,7 @@ export default function Home() {
     {key:"tasks",icon:"✅",label:user.role==="manager"?"Tất cả việc":"Việc của tôi"},
     ...(user.role!=="receptionist"?[{key:"kpi",icon:"🏆",label:"KPI Kỹ thuật"}]:[]),
     ...(user.role!=="technician"?[{key:"customers",icon:"👥",label:"Khách hàng"}]:[]),
-    ...(user.role==="manager"?[{key:"settings",icon:"⚙️",label:"Cài đặt"}]:[]),
+    ...(user.role==="manager"?[{key:"staff",icon:"👨‍💼",label:"Nhân viên"},{key:"settings",icon:"⚙️",label:"Cài đặt"}]:[]),
   ];
 
   const Sidebar = () => (
@@ -1629,6 +1680,133 @@ export default function Home() {
               })}
             </div>
           )}
+
+          {/* STAFF MANAGEMENT */}
+          {page==="staff" && user.role==="manager" && (() => {
+            const [staffForm, setStaffForm] = React.useState({ name:"", username:"", password:"", role:"technician", phone:"", note:"" });
+            const [editId, setEditId] = React.useState(null);
+            const [showForm, setShowForm] = React.useState(false);
+            const [showPw, setShowPw] = React.useState(false);
+            const [confirmDel, setConfirmDel] = React.useState(null);
+
+            const openAdd = () => { setStaffForm({ name:"", username:"", password:"", role:"technician", phone:"", note:"" }); setEditId(null); setShowForm(true); setShowPw(false); };
+            const openEdit = (u) => { setStaffForm({ name:u.name, username:u.username, password:u.password, role:u.role, phone:u.phone||"", note:u.note||"" }); setEditId(u.id); setShowForm(true); setShowPw(false); };
+            const saveStaff = () => {
+              if (!staffForm.name.trim() || !staffForm.username.trim() || !staffForm.password.trim()) { alert("Vui lòng nhập đủ Tên, Username và Mật khẩu!"); return; }
+              const dup = users.find(u => u.username===staffForm.username.trim() && u.id!==editId);
+              if (dup) { alert("Username đã tồn tại!"); return; }
+              if (editId) {
+                setUsers(prev => prev.map(u => u.id===editId ? {...u, ...staffForm, name:staffForm.name.trim(), username:staffForm.username.trim() } : u));
+              } else {
+                const newId = "u"+Date.now();
+                setUsers(prev => [...prev, { id:newId, name:staffForm.name.trim(), username:staffForm.username.trim(), password:staffForm.password.trim(), role:staffForm.role, kpi:10, phone:staffForm.phone, note:staffForm.note, active:true }]);
+              }
+              setShowForm(false);
+            };
+            const deleteStaff = (id) => { setUsers(prev => prev.filter(u => u.id!==id)); setConfirmDel(null); };
+            const toggleActive = (id) => { setUsers(prev => prev.map(u => u.id===id ? {...u, active: u.active===false ? true : false} : u)); };
+
+            return (
+              <div style={{ maxWidth:600, margin:"0 auto" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+                  <div style={{ fontWeight:800, fontSize:20 }}>👨‍💼 Quản Lý Nhân Viên</div>
+                  <button onClick={openAdd}
+                    style={{ height:40, padding:"0 18px", background:"#4f46e5", color:"#fff", border:"none", borderRadius:10, fontWeight:700, fontSize:14, cursor:"pointer" }}>
+                    ＋ Thêm nhân viên
+                  </button>
+                </div>
+
+                {users.map(u => (
+                  <div key={u.id} style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:10, boxShadow:"0 1px 4px rgba(0,0,0,.06)", opacity:u.active===false?0.55:1 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                      <div style={{ width:44, height:44, borderRadius:"50%", background:u.active===false?"#9ca3af":"#4f46e5", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:800, fontSize:18, flexShrink:0 }}>{u.name[0]}</div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                          <div style={{ fontWeight:800, fontSize:15 }}>{u.name}</div>
+                          {u.active===false && <span style={{ background:"#f3f4f6", color:"#9ca3af", fontSize:10, padding:"2px 8px", borderRadius:20, fontWeight:700 }}>Ngừng HĐ</span>}
+                        </div>
+                        <div style={{ fontSize:12, color:"#6b7280", marginTop:2 }}>
+                          {ROLE_LABELS[u.role]} · @{u.username} · KPI: {u.kpi}
+                        </div>
+                        {u.phone && <div style={{ fontSize:12, color:"#6b7280" }}>📞 {u.phone}</div>}
+                      </div>
+                      <div style={{ display:"flex", gap:6, flexShrink:0 }}>
+                        <button onClick={() => openEdit(u)}
+                          style={{ height:34, padding:"0 12px", background:"#eef2ff", color:"#4f46e5", border:"none", borderRadius:8, fontWeight:700, fontSize:13, cursor:"pointer" }}>✏️</button>
+                        <button onClick={() => toggleActive(u.id)}
+                          style={{ height:34, padding:"0 12px", background:u.active===false?"#ecfdf5":"#fef2f2", color:u.active===false?"#059669":"#dc2626", border:"none", borderRadius:8, fontWeight:700, fontSize:12, cursor:"pointer" }}>
+                          {u.active===false?"✅ Kích hoạt":"⛔ Khóa"}
+                        </button>
+                        {u.id!==user.id && (
+                          <button onClick={() => setConfirmDel(u.id)}
+                            style={{ height:34, padding:"0 12px", background:"#fef2f2", color:"#dc2626", border:"none", borderRadius:8, fontWeight:700, fontSize:13, cursor:"pointer" }}>🗑️</button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Form thêm/sửa */}
+                {showForm && (
+                  <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.5)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+                    <div style={{ background:"#fff", borderRadius:20, padding:28, width:"100%", maxWidth:420, maxHeight:"90vh", overflowY:"auto" }}>
+                      <div style={{ fontWeight:800, fontSize:18, marginBottom:20 }}>{editId?"✏️ Sửa nhân viên":"➕ Thêm nhân viên"}</div>
+                      {[
+                        { label:"👤 Họ tên *", key:"name", placeholder:"Nguyễn Văn A" },
+                        { label:"🔑 Username *", key:"username", placeholder:"username đăng nhập" },
+                        { label:"📞 Số điện thoại", key:"phone", placeholder:"0901234567" },
+                        { label:"📝 Ghi chú", key:"note", placeholder:"..." },
+                      ].map(f => (
+                        <div key={f.key} style={{ marginBottom:14 }}>
+                          <label style={{ display:"block", fontSize:13, fontWeight:700, color:"#374151", marginBottom:6 }}>{f.label}</label>
+                          <input value={staffForm[f.key]} onChange={e => setStaffForm(p=>({...p,[f.key]:e.target.value}))}
+                            placeholder={f.placeholder}
+                            style={{ width:"100%", height:46, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 14px", fontSize:14, outline:"none", boxSizing:"border-box" }} />
+                        </div>
+                      ))}
+                      <div style={{ marginBottom:14 }}>
+                        <label style={{ display:"block", fontSize:13, fontWeight:700, color:"#374151", marginBottom:6 }}>🔒 Mật khẩu *</label>
+                        <div style={{ position:"relative" }}>
+                          <input type={showPw?"text":"password"} value={staffForm.password} onChange={e => setStaffForm(p=>({...p,password:e.target.value}))}
+                            placeholder="Nhập mật khẩu..."
+                            style={{ width:"100%", height:46, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 46px 0 14px", fontSize:14, outline:"none", boxSizing:"border-box" }} />
+                          <button onClick={() => setShowPw(v=>!v)} style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:18 }}>{showPw?"🙈":"👁️"}</button>
+                        </div>
+                      </div>
+                      <div style={{ marginBottom:20 }}>
+                        <label style={{ display:"block", fontSize:13, fontWeight:700, color:"#374151", marginBottom:6 }}>🎭 Vai trò *</label>
+                        <select value={staffForm.role} onChange={e => setStaffForm(p=>({...p,role:e.target.value}))}
+                          style={{ width:"100%", height:46, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 14px", fontSize:14, outline:"none", background:"#fff" }}>
+                          <option value="manager">👑 Quản lý</option>
+                          <option value="receptionist">🗂️ Tiếp tân</option>
+                          <option value="technician">🔧 Kỹ thuật viên</option>
+                        </select>
+                      </div>
+                      <div style={{ display:"flex", gap:10 }}>
+                        <button onClick={() => setShowForm(false)} style={{ flex:1, height:46, borderRadius:10, border:"1.5px solid #e5e7eb", background:"#fff", fontWeight:700, cursor:"pointer", fontSize:14 }}>Huỷ</button>
+                        <button onClick={saveStaff} style={{ flex:2, height:46, borderRadius:10, border:"none", background:"#4f46e5", color:"#fff", fontWeight:800, cursor:"pointer", fontSize:14 }}>💾 Lưu</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Confirm xóa */}
+                {confirmDel && (
+                  <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.5)", zIndex:1100, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+                    <div style={{ background:"#fff", borderRadius:20, padding:28, maxWidth:340, width:"100%", textAlign:"center" }}>
+                      <div style={{ fontSize:48, marginBottom:12 }}>🗑️</div>
+                      <div style={{ fontWeight:800, fontSize:17, marginBottom:8 }}>Xoá nhân viên?</div>
+                      <div style={{ fontSize:14, color:"#6b7280", marginBottom:20 }}>Hành động này không thể khôi phục.</div>
+                      <div style={{ display:"flex", gap:10 }}>
+                        <button onClick={() => setConfirmDel(null)} style={{ flex:1, height:46, borderRadius:10, border:"1.5px solid #e5e7eb", background:"#fff", fontWeight:700, cursor:"pointer" }}>Huỷ</button>
+                        <button onClick={() => deleteStaff(confirmDel)} style={{ flex:1, height:46, borderRadius:10, border:"none", background:"#dc2626", color:"#fff", fontWeight:800, cursor:"pointer" }}>Xoá</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* SETTINGS */}
           {page==="settings" && user.role==="manager" && (
