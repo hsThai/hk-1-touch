@@ -1,6 +1,10 @@
 /* v1774860462-8691 */
 import { useState, useEffect } from "react";
-import { SparePart, SparePartUsage, RepairChat, RepairOrder } from "@/api/entities";
+import { base44 } from "@/api/base44Client";
+const SparePart = base44.entities.SparePart;
+const SparePartUsage = base44.entities.SparePartUsage;
+const RepairChat = base44.entities.RepairChat;
+const RepairOrder = base44.entities.RepairOrder;
 
 // ── Màn hình linh kiện cho KTV ──
 // Props:

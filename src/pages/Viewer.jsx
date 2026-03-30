@@ -1,7 +1,5 @@
 /* v1774860462-9241 */
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage } from "@/api/entities";
-import { uploadFile } from "@/api/storage";
+import React, { useState, useEffect, useRef } from "react";
 
 function timeAgo(d) {
   const diff = Math.floor((Date.now()-new Date(d))/60000);
@@ -10,35 +8,36 @@ function timeAgo(d) {
 }
 function genOrderId() { return "SC24"+String(Math.floor(Math.random()*9000)+1000); }
 
-// ── KPI Timeline per sơ đồ ──────────────────────
-// accept_stage:
-//   0 = vừa gán, chưa "Cập nhật" lần nào
-//   1 = đã "Cập nhật" lần 1 (dừng đếm T=0→60)
-//   2 = đã "Cập nhật" lần 2 (dừng đếm T=60→120)
-//   3 = Hoàn tất
-// kpi_stage1_penalized: true = đã bị -1 KPI mốc 60'
-// kpi_stage2_penalized: true = đã bị -3 KPI mốc 120'
 function getKpiTimerInfo(order) {
   if (!order.assigned_to || !order.assigned_at) return null;
   if (order.accept_stage >= 3) return null;
   const assignedAt = new Date(order.assigned_at).getTime();
   const stage = order.accept_stage || 0;
-  // Giai đoạn 1: T=0 → T=60'  (chỉ hiện nếu stage=0, chưa Cập nhật lần 1)
+  const now = Date.now();
+  let timeStr = "";
+  let urgent = false;
+  let label = "";
+  let deadline;
+
   if (stage === 0) {
-    const deadline = assignedAt + 60 * 60000;
-    return { phase: 1, label: "Giai đoạn 1 (0→60')", deadline: new Date(deadline), penalized: !!order.kpi_stage1_penalized };
+    deadline = assignedAt + 60 * 60000;
+    label = "Giai đoạn 1 (0→60')";
+  } else if (stage === 1 && order.stage1_at) {
+    deadline = assignedAt + 120 * 60000;
+    label = "Giai đoạn 2 (60'→120')";
+  } else {
+    return null;
   }
-  // Giai đoạn 2: T=60' → T=120' (chỉ hiện nếu stage=1, chưa Cập nhật lần 2)
-  if (stage === 1 && order.stage1_at) {
-    const deadline = assignedAt + 120 * 60000;
-    return { phase: 2, label: "Giai đoạn 2 (60'→120')", deadline: new Date(deadline), penalized: !!order.kpi_stage2_penalized };
-  }
-  return null;
+
+  const rem = Math.max(0, deadline - now);
+  const mins = Math.floor(rem / 60000);
+  const secs = Math.floor((rem % 60000) / 1000);
+  urgent = rem < 5 * 60000;
+  timeStr = rem === 0 ? "Quá hạn!" : `${mins}:${secs.toString().padStart(2,"0")}`;
+
+  return { phase: stage === 0 ? 1 : 2, label, deadline: new Date(deadline), timeStr, urgent, penalized: stage === 0 ? !!order.kpi_stage1_penalized : !!order.kpi_stage2_penalized };
 }
 
-// ══════════════════════════════════════════════
-//  MEDIA VIEWER — fullscreen lightbox
-// ══════════════════════════════════════════════
 function MediaViewer({ items, startIndex, onClose }) {
   const [idx, setIdx] = useState(startIndex || 0);
   const [shareStatus, setShareStatus] = useState("");
@@ -57,30 +56,15 @@ function MediaViewer({ items, startIndex, onClose }) {
     const url = isVideo ? videoSrc : imgSrc;
     if (!url) { setShareStatus("❌ Không có file để chia sẻ"); return; }
     try {
-      // Thử Web Share API (native share sheet — Zalo, Facebook, v.v.)
       if (navigator.share) {
-        if (navigator.canShare && url.startsWith("blob:")) {
-          // Share as file
-          const res = await fetch(url);
-          const blob = await res.blob();
-          const ext = isVideo ? "mp4" : "jpg";
-          const file = new File([blob], `repair_media.${ext}`, { type: blob.type });
-          if (navigator.canShare({ files: [file] })) {
-            await navigator.share({ files: [file], title: "Ảnh/Video sửa chữa" });
-            setShareStatus("✅ Đã mở menu chia sẻ!");
-            return;
-          }
-        }
-        // Share URL
         await navigator.share({ url, title: "Ảnh/Video sửa chữa" });
         setShareStatus("✅ Đã mở menu chia sẻ!");
       } else {
-        // Fallback: copy link
         await navigator.clipboard.writeText(url);
         setShareStatus("✅ Đã copy link! Dán vào Zalo/Messenger.");
       }
     } catch (e) {
-      if (e.name !== "AbortError") setShareStatus("❌ Không chia sẻ được. Thử tải về máy.");
+      if (e.name !== "AbortError") setShareStatus("❌ Không chia sẻ được.");
     }
     setTimeout(() => setShareStatus(""), 3000);
   }
@@ -96,9 +80,7 @@ function MediaViewer({ items, startIndex, onClose }) {
       a.href = URL.createObjectURL(blob);
       a.download = `repair_${Date.now()}.${ext}`;
       a.click();
-      setShareStatus("✅ Đang tải về máy...");
     } catch {
-      // fallback: open in new tab
       window.open(url, "_blank");
     }
     setTimeout(() => setShareStatus(""), 3000);
@@ -107,31 +89,28 @@ function MediaViewer({ items, startIndex, onClose }) {
   return (
     <div style={{ position:"fixed", inset:0, zIndex:6000, background:"rgba(0,0,0,.95)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}
       onClick={onClose}>
-      {/* Header */}
       <div style={{ position:"absolute", top:0, left:0, right:0, padding:"12px 16px", display:"flex", justifyContent:"space-between", alignItems:"center", background:"linear-gradient(rgba(0,0,0,.7),transparent)", zIndex:1 }}
         onClick={e=>e.stopPropagation()}>
         <div style={{ color:"#fff", fontSize:13, fontWeight:600 }}>{idx+1} / {items.length}</div>
         <div style={{ display:"flex", gap:8 }}>
           <button onClick={handleShare}
-            style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", height:36, padding:"0 14px", borderRadius:20, fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
+            style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", height:36, padding:"0 14px", borderRadius:20, fontSize:13, fontWeight:700, cursor:"pointer" }}>
             📤 Chia sẻ
           </button>
           <button onClick={handleDownload}
-            style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", height:36, padding:"0 14px", borderRadius:20, fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
+            style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", height:36, padding:"0 14px", borderRadius:20, fontSize:13, fontWeight:700, cursor:"pointer" }}>
             ⬇️ Tải về
           </button>
           <button onClick={onClose} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:38, height:38, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
         </div>
       </div>
 
-      {/* Status toast */}
       {shareStatus && (
         <div style={{ position:"absolute", top:70, left:"50%", transform:"translateX(-50%)", background:"#1e1b4b", color:"#fff", padding:"10px 20px", borderRadius:12, fontSize:13, fontWeight:700, zIndex:10, whiteSpace:"nowrap" }}>
           {shareStatus}
         </div>
       )}
 
-      {/* Media */}
       <div onClick={e=>e.stopPropagation()} style={{ maxWidth:"100vw", maxHeight:"80vh", display:"flex", alignItems:"center", justifyContent:"center" }}>
         {isVideo ? (
           videoSrc && videoSrc.startsWith("blob:") ? (
@@ -140,15 +119,13 @@ function MediaViewer({ items, startIndex, onClose }) {
           ) : (
             <div style={{ textAlign:"center", color:"#fff" }}>
               <div style={{ fontSize:72, marginBottom:16 }}>🎥</div>
-              <div style={{ fontSize:14, color:"#9ca3af" }}>Video: {item.replace("video:","")}</div>
             </div>
           )
         ) : (
-          <img src={imgSrc} style={{ maxWidth:"96vw", maxHeight:"78vh", objectFit:"contain", borderRadius:12, boxShadow:"0 4px 40px rgba(0,0,0,.5)" }} alt="" />
+          <img src={imgSrc} style={{ maxWidth:"96vw", maxHeight:"78vh", objectFit:"contain", borderRadius:12 }} alt="" />
         )}
       </div>
 
-      {/* Prev / Next */}
       {items.length > 1 && (
         <>
           {idx > 0 && (
@@ -162,7 +139,6 @@ function MediaViewer({ items, startIndex, onClose }) {
         </>
       )}
 
-      {/* Thumbnails */}
       {items.length > 1 && (
         <div onClick={e=>e.stopPropagation()} style={{ position:"absolute", bottom:16, left:0, right:0, display:"flex", justifyContent:"center", gap:8, padding:"0 16px", flexWrap:"wrap" }}>
           {items.map((it,i) => (
@@ -173,27 +149,10 @@ function MediaViewer({ items, startIndex, onClose }) {
           ))}
         </div>
       )}
-
-      {/* Bottom share bar */}
-      <div onClick={e=>e.stopPropagation()} style={{ position:"absolute", bottom: items.length>1 ? 90 : 20, left:0, right:0, display:"flex", justifyContent:"center", gap:10 }}>
-        <button onClick={handleShare}
-          style={{ height:44, padding:"0 24px", background:"#0068ff", color:"#fff", border:"none", borderRadius:22, fontWeight:800, fontSize:14, cursor:"pointer", boxShadow:"0 4px 16px rgba(0,104,255,.4)" }}>
-          📤 Chia sẻ qua Zalo / App khác
-        </button>
-        <button onClick={handleDownload}
-          style={{ height:44, padding:"0 20px", background:"rgba(255,255,255,.15)", color:"#fff", border:"1.5px solid rgba(255,255,255,.3)", borderRadius:22, fontWeight:700, fontSize:14, cursor:"pointer" }}>
-          ⬇️ Tải về
-        </button>
-      </div>
     </div>
   );
 }
 
-
-// ══════════════════════════════════════════════
-//  ACCEPT TIMER
-// ══════════════════════════════════════════════
-// ── Checklist modal khi nhận máy lần 1 ──
 const EST_OPTIONS = [
   { label:"1 giờ",    value:60 },
   { label:"2 giờ",    value:120 },
@@ -224,7 +183,6 @@ function AcceptChecklistModal({ order, onConfirm, onClose }) {
   return (
     <div style={{ position:"fixed", inset:0, zIndex:4500, background:"rgba(0,0,0,.65)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
       <div style={{ background:"#fff", borderRadius:"24px 24px 0 0", width:"100%", maxWidth:520, maxHeight:"90vh", overflowY:"auto", boxShadow:"0 -8px 40px rgba(0,0,0,.25)" }}>
-        {/* Handle */}
         <div style={{ display:"flex", justifyContent:"center", padding:"12px 0 4px" }}>
           <div style={{ width:40, height:4, background:"#e5e7eb", borderRadius:4 }} />
         </div>
@@ -237,7 +195,6 @@ function AcceptChecklistModal({ order, onConfirm, onClose }) {
             <button onClick={onClose} style={{ background:"#f3f4f6", border:"none", width:36, height:36, borderRadius:"50%", fontSize:17, cursor:"pointer" }}>✕</button>
           </div>
 
-          {/* Checklist */}
           <div style={{ marginBottom:18 }}>
             <div style={{ fontWeight:700, fontSize:14, marginBottom:10, color:"#374151" }}>☑️ Kiểm tra trước khi nhận:</div>
             <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
@@ -254,7 +211,6 @@ function AcceptChecklistModal({ order, onConfirm, onClose }) {
             <div style={{ fontSize:12, color:"#9ca3af", marginTop:8 }}>{checked.length}/{CHECKLIST_ITEMS.length} mục đã kiểm tra</div>
           </div>
 
-          {/* Thời gian dự kiến */}
           <div style={{ marginBottom:18 }}>
             <div style={{ fontWeight:700, fontSize:14, marginBottom:10, color:"#374151" }}>⏱️ Thời gian dự kiến hoàn thành: <span style={{ color:"#dc2626" }}>*</span></div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
@@ -267,7 +223,6 @@ function AcceptChecklistModal({ order, onConfirm, onClose }) {
             </div>
           </div>
 
-          {/* Ghi chú */}
           <div style={{ marginBottom:20 }}>
             <div style={{ fontWeight:700, fontSize:14, marginBottom:8, color:"#374151" }}>📝 Ghi chú kỹ thuật:</div>
             <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Tình trạng thực tế khi nhận máy..."
@@ -292,7 +247,6 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
   if (!order.assigned_to) return null;
   if (order.assigned_to !== currentUser.id && currentUser.role !== "manager") return null;
 
-  // Giai đoạn 1 đã nhận (accept_stage>=1) — hiển thị trạng thái đã nhận mờ
   if ((order.accept_stage||0) >= 1 && (order.accept_stage||0) < 2) {
     return (
       <div style={{ background:"#f3f4f6", border:"2px solid #d1d5db", borderRadius:14, padding:"12px 14px", marginBottom:14, opacity:0.6 }}>
@@ -357,17 +311,8 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
           </button>
         )
       )}
-      {!isMyOrder && currentUser.role === "manager" && info.phase === 2 && expired && (
-        <div style={{ marginTop: 8, fontSize: 13, color: "#dc2626", fontWeight: 700, textAlign: "center" }}>
-          🔔 Hệ thống đã báo quản lý — có thể "Đổi KTV" bên dưới
-        </div>
-      )}
     </div>
   );
 }
-
-// ══════════════════════════════════════════════
-//  ORDER DRAWER
-// ══════════════════════════════════════════════
 
 export { timeAgo, genOrderId, getKpiTimerInfo, MediaViewer, AcceptChecklistModal, AcceptTimer };

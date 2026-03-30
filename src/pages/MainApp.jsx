@@ -1,38 +1,18 @@
-/* v4-loginv2-real-db */
-import React, { lazy, Suspense, useState, useEffect, useRef, useCallback } from "react";
-import { RepairChat, Notification, Staff, RepairOrder, Customer } from "@/api/entities";
-import { uploadFile } from "@/api/storage";
-const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ default: ({ onClose }) => (
-  <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}}>
-    <div style={{background:"#fff",borderRadius:16,padding:32,textAlign:"center"}}>
-      <div style={{fontSize:32}}>⚠️</div>
-      <div style={{fontWeight:700,marginTop:8}}>Module không tải được</div>
-      <button onClick={onClose} style={{marginTop:16,padding:"10px 24px",background:"#4f46e5",color:"#fff",border:"none",borderRadius:8,cursor:"pointer"}}>Đóng</button>
-    </div>
-  </div>
-)})));
-const StaffManagerPage = lazy(() => import("./StaffManager").catch(() => ({ default: () => (
-  <div style={{padding:32,textAlign:"center"}}>
-    <div style={{fontSize:32}}>⚠️</div>
-    <div style={{fontWeight:700,marginTop:8}}>Module không tải được</div>
-  </div>
-)})));
-const SettingsPage = lazy(() => import("./Settings").catch(() => ({ default: () => (
-  <div style={{padding:32,textAlign:"center"}}>
-    <div style={{fontSize:32}}>⚠️</div>
-    <div style={{fontWeight:700,marginTop:8}}>Module không tải được</div>
-  </div>
-)})));
+/* v5-renamed-pages */
+import React, { lazy, Suspense, useState, useEffect } from "react";
+import { base44 } from "@/api/base44Client";
 
+const Staff = base44.entities.Staff;
+const RepairOrder = base44.entities.RepairOrder;
 
-// Components loaded from OrderComponents
-import { QRScanModal, QRPrintModal } from "./QRComponents";
-import { MediaViewer, AcceptChecklistModal, AcceptTimer, timeAgo, genOrderId, getKpiTimerInfo } from "./MediaViewer";
-import { OrderDrawer } from "./OrderDrawer";
-import { NewOrderModal, KPIPage } from "./OrderForms";
-import LoginPage from "./LoginV2";
+const StaffManagerPage = lazy(() => import("./Staff"));
+const SettingsPage = lazy(() => import("./Config"));
 
-const _BUILD_V4 = "loginv2-real-db";
+import { QRScanModal, QRPrintModal } from "./QR";
+import { MediaViewer, timeAgo, getKpiTimerInfo } from "./Viewer";
+import { OrderDrawer } from "./Drawer";
+import { NewOrderModal, KPIPage } from "./Forms";
+import LoginPage from "./AuthV2";
 
 export default function MainApp() {
   const [user, setUser] = useState(null);
@@ -49,16 +29,15 @@ export default function MainApp() {
   const [qrOrder, setQrOrder] = useState(null);
   const [showQRScan, setShowQRScan] = useState(false);
   const [highlightId, setHighlightId] = useState(null);
-  const [createdOrder, setCreatedOrder] = useState(null); // toast xác nhận tạo đơn
+  const [createdOrder, setCreatedOrder] = useState(null);
 
-  // ── Load real data from entities ──────────────────────────
   useEffect(() => {
     async function loadData() {
       try {
         setDataLoading(true);
         const [staffList, orderList] = await Promise.all([
           Staff.list(),
-          RepairOrder.list({ sort: "-created_date", limit: 200 }),
+          RepairOrder.list("-created_date", 200),
         ]);
         const mappedUsers = staffList.map(s => ({
           id: s.id,
@@ -102,11 +81,10 @@ export default function MainApp() {
     loadData();
   }, []);
 
-  // ── Auto KPI deduction per timeline diagram ──────────────
   useEffect(() => {
     const iv = setInterval(() => {
       const now = Date.now();
-      let kpiChanges = []; // { userId, delta }
+      let kpiChanges = [];
       let notifMsgs = [];
 
       setOrders(prev => {
@@ -119,7 +97,6 @@ export default function MainApp() {
           const assignedAt = new Date(o.assigned_at).getTime();
           let patch = {};
 
-          // Mốc 1: T=60' — chưa cập nhật lần 1, chưa bị trừ
           if ((o.accept_stage||0) === 0 && !o.kpi_stage1_penalized && now >= assignedAt + 60*60000) {
             patch.kpi_stage1_penalized = true;
             kpiChanges.push({ userId: o.assigned_to, delta: -1 });
@@ -127,7 +104,6 @@ export default function MainApp() {
             changed = true;
           }
 
-          // Mốc 2: T=120' — chưa cập nhật lần 2, chưa bị trừ
           if ((o.accept_stage||0) < 2 && !o.kpi_stage2_penalized && now >= assignedAt + 120*60000) {
             patch.kpi_stage2_penalized = true;
             patch.needs_reassign = true;
@@ -142,7 +118,6 @@ export default function MainApp() {
         return changed ? next : prev;
       });
 
-      // Apply KPI changes after orders update
       if (kpiChanges.length > 0) {
         setUsers(u => {
           let next = [...u];
@@ -158,7 +133,7 @@ export default function MainApp() {
           ...n
         ].slice(0, 10));
       }
-    }, 15000); // check mỗi 15 giây
+    }, 15000);
     return () => clearInterval(iv);
   }, []);
 
@@ -190,7 +165,6 @@ export default function MainApp() {
     const p = orders.find(o => o.assigned_to===user.id && (o.accept_stage||0)<2 && o.assigned_at);
     if (p) { setHighlightId(p.id); setTimeout(() => setHighlightId(null), 3000); }
   }
-
   function handleGlobalQRScan(result) {
     setShowQRScan(false);
     if (result.type === "order") setSelectedOrder(result.data);
@@ -200,14 +174,12 @@ export default function MainApp() {
   const filtered = myOrders.filter(o => {
     if (!search) return true;
     const q = search.toLowerCase().trim();
-    const nameMatch = (o.customer_name||"").toLowerCase().includes(q);
-    const phoneMatch = (o.customer_phone||"").includes(q);
-    const deviceMatch = (o.device_model||"").toLowerCase().includes(q);
-    const idMatch = (o.id||"").toLowerCase().includes(q);
-    const qrMatch = (o.qr_code||"").toLowerCase().includes(q);
-    const imeiMatch = (o.imei_serial||"").includes(q);
-    const noteMatch = (o.notes||"").toLowerCase().includes(q);
-    return nameMatch || phoneMatch || deviceMatch || idMatch || qrMatch || imeiMatch || noteMatch;
+    return (o.customer_name||"").toLowerCase().includes(q) ||
+      (o.customer_phone||"").includes(q) ||
+      (o.device_model||"").toLowerCase().includes(q) ||
+      (o.id||"").toLowerCase().includes(q) ||
+      (o.imei_serial||"").includes(q) ||
+      (o.notes||"").toLowerCase().includes(q);
   });
   const pendingAccepts = orders.filter(o => o.assigned_to===user.id && (o.accept_stage||0)<2 && o.assigned_at && !["Hoàn Thành","Đã Giao"].includes(o.status));
 
@@ -220,7 +192,6 @@ export default function MainApp() {
     ...(user.role==="admin"||user.role==="manager"?[{key:"staff",icon:"👤",label:"Nhân viên"},{key:"settings",icon:"⚙️",label:"Cài đặt"}]:[]),
   ];
 
-  // ── Kanban Board ─────────────────────────────────────────
   const COLUMNS = ["Mới Nhận","Đang Kiểm Tra","Chờ Linh Kiện","Đang Sửa","Hoàn Thành","Đã Giao"];
   const colColors = { "Mới Nhận":"#dbeafe","Đang Kiểm Tra":"#fef3c7","Chờ Linh Kiện":"#fce7f3","Đang Sửa":"#ede9fe","Hoàn Thành":"#dcfce7","Đã Giao":"#f1f5f9" };
   const colBorder = { "Mới Nhận":"#93c5fd","Đang Kiểm Tra":"#fcd34d","Chờ Linh Kiện":"#f9a8d4","Đang Sửa":"#c4b5fd","Hoàn Thành":"#86efac","Đã Giao":"#cbd5e1" };
@@ -237,7 +208,20 @@ export default function MainApp() {
                   <span>{col}</span>
                   <span style={{ background:"#fff", borderRadius:99, padding:"2px 10px", fontSize:12 }}>{colOrders.length}</span>
                 </div>
-                {colOrders.map(o => <OrderCard key={o.id} order={o} highlight={highlightId===o.id} onClick={() => setSelectedOrder(o)} users={users} />)}
+                {colOrders.map(o => {
+                  const ktv = users.find(u => u.id===o.assigned_to);
+                  const timerInfo = ktv ? getKpiTimerInfo(o) : null;
+                  return (
+                    <div key={o.id} onClick={() => setSelectedOrder(o)} style={{ background:"#fff", borderRadius:12, padding:12, marginBottom:8, cursor:"pointer", boxShadow:highlightId===o.id?"0 0 0 3px #f59e0b":"0 1px 4px rgba(0,0,0,.08)", border:highlightId===o.id?"2px solid #f59e0b":"2px solid transparent" }}>
+                      <div style={{ fontWeight:800, fontSize:13, color:"#1e1b4b", marginBottom:4 }}>{o.id}</div>
+                      <div style={{ fontSize:12, color:"#374151", marginBottom:2 }}>👤 {o.customer_name||"?"} · {o.customer_phone||""}</div>
+                      <div style={{ fontSize:12, color:"#6b7280", marginBottom:4 }}>📱 {o.device_model}</div>
+                      {(o.issues||[]).length>0 && <div style={{ fontSize:11, color:"#7c3aed", marginBottom:4 }}>{o.issues.slice(0,2).join(" · ")}</div>}
+                      {ktv && <div style={{ fontSize:11, color:"#059669" }}>🔧 {ktv.name}</div>}
+                      {timerInfo && <div style={{ fontSize:11, color:timerInfo.urgent?"#dc2626":"#d97706", fontWeight:700 }}>⏱ {timerInfo.timeStr}</div>}
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
@@ -246,26 +230,6 @@ export default function MainApp() {
     );
   }
 
-  function OrderCard({ order: o, highlight, onClick, users }) {
-    const ktv = users.find(u => u.id===o.assigned_to);
-    const timerInfo = ktv ? getKpiTimerInfo(o) : null;
-    return (
-      <div onClick={onClick} style={{ background:"#fff", borderRadius:12, padding:12, marginBottom:8, cursor:"pointer", boxShadow:highlight?"0 0 0 3px #f59e0b":"0 1px 4px rgba(0,0,0,.08)", border:highlight?"2px solid #f59e0b":"2px solid transparent", transition:"box-shadow .2s" }}>
-        <div style={{ fontWeight:800, fontSize:13, color:"#1e1b4b", marginBottom:4 }}>{o.id}</div>
-        <div style={{ fontSize:12, color:"#374151", marginBottom:2 }}>👤 {o.customer_name||"?"} · {o.customer_phone||""}</div>
-        <div style={{ fontSize:12, color:"#6b7280", marginBottom:4 }}>📱 {o.device_model}</div>
-        {o.issues?.length>0 && <div style={{ fontSize:11, color:"#7c3aed", marginBottom:4 }}>{o.issues.slice(0,2).join(" · ")}</div>}
-        {ktv && <div style={{ fontSize:11, color:"#059669", marginBottom:timerInfo?4:0 }}>🔧 {ktv.name}</div>}
-        {timerInfo && (
-          <div style={{ fontSize:11, color:timerInfo.urgent?"#dc2626":"#d97706", fontWeight:700 }}>
-            ⏱ {timerInfo.label}: {timerInfo.timeStr}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // ── Tasks list ───────────────────────────────────────────
   function TaskList() {
     const list = user.role==="technician" ? filtered : filtered.filter(o => !["Đã Giao"].includes(o.status));
     return (
@@ -273,7 +237,6 @@ export default function MainApp() {
         {pendingAccepts.length > 0 && user.role==="technician" && (
           <div style={{ background:"#fef3c7", borderRadius:14, padding:14, marginBottom:12, border:"2px solid #fcd34d" }}>
             <div style={{ fontWeight:800, color:"#d97706" }}>⏰ Có {pendingAccepts.length} đơn cần xác nhận!</div>
-            <div style={{ fontSize:12, color:"#92400e", marginTop:4 }}>Nhớ cập nhật trạng thái để tránh bị trừ KPI nhé!</div>
           </div>
         )}
         {list.length===0 && <div style={{ textAlign:"center", color:"#9ca3af", padding:40 }}>Không có đơn nào</div>}
@@ -289,7 +252,7 @@ export default function MainApp() {
               </div>
               <div style={{ fontSize:13, color:"#374151", marginBottom:2 }}>👤 {o.customer_name} · 📱 {o.device_model}</div>
               {ktv && <div style={{ fontSize:12, color:"#6b7280" }}>🔧 {ktv.name}</div>}
-              {timerInfo && <div style={{ fontSize:12, color:timerInfo.urgent?"#dc2626":"#d97706", fontWeight:700, marginTop:4 }}>⏱ {timerInfo.label}: {timerInfo.timeStr}</div>}
+              {timerInfo && <div style={{ fontSize:12, color:timerInfo.urgent?"#dc2626":"#d97706", fontWeight:700, marginTop:4 }}>⏱ {timerInfo.timeStr}</div>}
               {o.needs_reassign && <div style={{ fontSize:12, color:"#ef4444", fontWeight:700, marginTop:4 }}>🚨 Cần chuyển KTV khác!</div>}
             </div>
           );
@@ -298,14 +261,12 @@ export default function MainApp() {
     );
   }
 
-  // ── Customer List ─────────────────────────────────────────
   function CustomerList() {
     const custMap = {};
     orders.forEach(o => {
       if (o.customer_phone) {
         if (!custMap[o.customer_phone]) custMap[o.customer_phone] = { name:o.customer_name, phone:o.customer_phone, orders:0, lastOrder:o.created };
         custMap[o.customer_phone].orders++;
-        if (o.created > custMap[o.customer_phone].lastOrder) custMap[o.customer_phone].lastOrder = o.created;
       }
     });
     const custs = Object.values(custMap).sort((a,b) => b.orders - a.orders);
@@ -323,7 +284,6 @@ export default function MainApp() {
     );
   }
 
-  // ── Dashboard ─────────────────────────────────────────────
   function Dashboard() {
     const stats = {
       total: orders.length,
@@ -376,7 +336,7 @@ export default function MainApp() {
           <div style={{ position:"absolute", inset:0, background:"rgba(0,0,0,.4)" }} onClick={() => setSidebarOpen(false)} />
           <div style={{ position:"absolute", left:0, top:0, bottom:0, width:260, background:"#fff", boxShadow:"4px 0 20px rgba(0,0,0,.15)", display:"flex", flexDirection:"column" }}>
             <div style={{ background:"#1e1b4b", padding:24, color:"#fff" }}>
-              <div style={{ fontSize:40 }}>{user.avatar_url ? <img src={user.avatar_url} style={{width:48,height:48,borderRadius:"50%"}} alt="" /> : "👤"}</div>
+              <div style={{ fontSize:40 }}>👤</div>
               <div style={{ fontWeight:800, fontSize:16, marginTop:8 }}>{user.name}</div>
               <div style={{ fontSize:12, color:"#c7d2fe", marginTop:2 }}>{user.role} · KPI: {user.kpi}</div>
             </div>
@@ -462,14 +422,13 @@ export default function MainApp() {
           order={selectedOrder}
           onClose={() => setSelectedOrder(null)}
           onUpdate={(id, patch, kpiEvent) => { updateOrder(id, patch, kpiEvent); }}
-          onAcceptStage={(id, stage) => updateOrder(id, { accept_stage:stage, assigned_at: stage===1 ? new Date().toISOString() : selectedOrder.assigned_at })}
           users={users}
           currentUser={user}
-          onGoToPendingAccept={goToPendingAccept}
+          onShowQR={(order) => { setSelectedOrder(null); setQrOrder(order); }}
         />
       )}
       {qrOrder && <QRPrintModal order={qrOrder} onClose={() => setQrOrder(null)} />}
-      {showQRScan && <QRScanModal onClose={() => setShowQRScan(false)} onResult={handleGlobalQRScan} orders={orders} />}
+      {showQRScan && <QRScanModal onClose={() => setShowQRScan(false)} onFound={handleGlobalQRScan} orders={orders} />}
 
       {/* Created order toast */}
       {createdOrder && (

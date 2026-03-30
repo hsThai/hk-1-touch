@@ -1,6 +1,7 @@
 /* v1774860462-2019 */
 import { useState } from "react";
-import { Staff } from "@/api/entities";
+import { base44 } from "@/api/base44Client";
+const Staff = base44.entities.Staff;
 
 export default function ChangePassword({ staff, onDone }) {
   const [newPass, setNewPass] = useState("");

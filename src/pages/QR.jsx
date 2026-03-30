@@ -1,13 +1,17 @@
 /* v1774860462-4890 */
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, SparePartUsage } from "@/api/entities";
-import { uploadFile } from "@/api/storage";
+import React, { useState, useEffect, useRef } from "react";
+import { base44 } from "@/api/base44Client";
 
+const SparePart = base44.entities.SparePart;
+const SparePartUsage = base44.entities.SparePartUsage;
+
+let _qrLibLoaded = false;
+let _qrLibCallbacks = [];
 
 function loadQRLib(cb) {
   if (_qrLibLoaded) { cb(); return; }
   _qrLibCallbacks.push(cb);
-  if (_qrLibCallbacks.length > 1) return; // đang load rồi
+  if (_qrLibCallbacks.length > 1) return;
   const s = document.createElement("script");
   s.src = "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";
   s.onload = () => {
@@ -16,7 +20,6 @@ function loadQRLib(cb) {
     _qrLibCallbacks = [];
   };
   s.onerror = () => {
-    // fallback
     const s2 = document.createElement("script");
     s2.src = "https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs@master/qrcode.min.js";
     s2.onload = () => {
@@ -46,8 +49,6 @@ function loadJsQR(cb) {
   document.head.appendChild(s);
 }
 
-// QRCanvas — mỗi text khác nhau → QR khác nhau
-// QUAN TRỌNG: luôn truyền key={text} từ cha để force remount
 function QRCanvas({ text, size = 160 }) {
   const divRef = useRef();
   useEffect(() => {
@@ -79,12 +80,7 @@ function getQRDataUrl(containerEl) {
   return canvas ? canvas.toDataURL() : "";
 }
 
-// ══════════════════════════════════════════════
-//  QR SCANNER — camera + nhập tay
-//  mode="search"  → tìm đơn theo mã quét được
-//  mode="capture" → chỉ trả về chuỗi raw, không tìm
-// ══════════════════════════════════════════════
-function QRScanModal({ onClose, onFound, orders = [], mode = "search" }) {
+function QRScanModal({ onClose, onFound, onResult, orders = [], mode = "search" }) {
   const videoRef = useRef();
   const canvasRef = useRef();
   const rafRef = useRef();
@@ -95,7 +91,6 @@ function QRScanModal({ onClose, onFound, orders = [], mode = "search" }) {
   const [manual, setManual] = useState("");
   const isCapture = mode === "capture";
 
-  // load jsQR
   useEffect(() => {
     loadJsQR(() => setLibOk(true));
     return () => {
@@ -104,7 +99,6 @@ function QRScanModal({ onClose, onFound, orders = [], mode = "search" }) {
     };
   }, []);
 
-  // start camera khi lib xong
   useEffect(() => {
     if (!libOk) return;
     navigator.mediaDevices?.getUserMedia({ video: { facingMode: "environment", width: 640, height: 640 } })
@@ -137,10 +131,19 @@ function QRScanModal({ onClose, onFound, orders = [], mode = "search" }) {
   }
 
   function handleRaw(raw) {
-    if (isCapture) { onFound({ type: "raw", code: raw }); onClose(); return; }
-    // search mode
+    if (isCapture) {
+      const cb = onFound || onResult;
+      cb && cb({ type: "raw", code: raw });
+      onClose();
+      return;
+    }
     const order = orders.find(o => o.id === raw || o.qr_code === raw);
-    if (order) { onFound({ type: "order", data: order }); onClose(); return; }
+    if (order) {
+      const cb = onFound || onResult;
+      cb && cb({ type: "order", data: order });
+      onClose();
+      return;
+    }
     setErr(`Không tìm thấy mã "${raw}" trong hệ thống`);
   }
 
@@ -152,7 +155,6 @@ function QRScanModal({ onClose, onFound, orders = [], mode = "search" }) {
   return (
     <div style={{ position:"fixed", inset:0, zIndex:4000, background:"rgba(0,0,0,.92)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:16 }}>
       <div style={{ width:"100%", maxWidth:400 }}>
-        {/* Header */}
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
           <div>
             <div style={{ color:"#fff", fontWeight:800, fontSize:20 }}>
@@ -166,27 +168,15 @@ function QRScanModal({ onClose, onFound, orders = [], mode = "search" }) {
             style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:40, height:40, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
         </div>
 
-        {/* Camera */}
         <div style={{ position:"relative", borderRadius:18, overflow:"hidden", background:"#000", aspectRatio:"1", marginBottom:14 }}>
           <video ref={videoRef} playsInline muted style={{ width:"100%", height:"100%", objectFit:"cover" }} />
           <canvas ref={canvasRef} style={{ display:"none" }} />
-          {/* Overlay */}
           <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none" }}>
             <div style={{ width:"60%", height:"60%", position:"relative" }}>
               <div style={{ position:"absolute", inset:0, boxShadow:"0 0 0 9999px rgba(0,0,0,.5)", borderRadius:12 }} />
               <div style={{ position:"absolute", inset:0, border:"3px solid #a5b4fc", borderRadius:12 }} />
-              {/* corners */}
-              {[[0,0],[0,1],[1,0],[1,1]].map(([t,r],i) => (
-                <div key={i} style={{ position:"absolute", width:20, height:20,
-                  ...(t===0 ? {top:-2} : {bottom:-2}), ...(r===0 ? {left:-2} : {right:-2}),
-                  borderTop: t===0?"3px solid #818cf8":"none", borderBottom: t===1?"3px solid #818cf8":"none",
-                  borderLeft: r===0?"3px solid #818cf8":"none", borderRight: r===1?"3px solid #818cf8":"none",
-                  borderRadius: `${t===0&&r===0?"4":t===0&&r===1?"0":t===1&&r===0?"0":"0"}px ${t===0&&r===1?"4":"0"}px ${t===1&&r===1?"4":"0"}px ${t===1&&r===0?"4":"0"}px`
-                }} />
-              ))}
             </div>
           </div>
-          {/* Status */}
           <div style={{ position:"absolute", bottom:10, left:0, right:0, textAlign:"center" }}>
             {!libOk && <span style={{ background:"rgba(0,0,0,.7)", color:"#fcd34d", padding:"5px 14px", borderRadius:20, fontSize:12 }}>⏳ Đang tải thư viện QR...</span>}
             {libOk && !camReady && !err && <span style={{ background:"rgba(0,0,0,.7)", color:"#fff", padding:"5px 14px", borderRadius:20, fontSize:12 }}>📷 Đang mở camera...</span>}
@@ -194,7 +184,6 @@ function QRScanModal({ onClose, onFound, orders = [], mode = "search" }) {
           </div>
         </div>
 
-        {/* Error */}
         {err && (
           <div style={{ background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:12, padding:"10px 14px", marginBottom:12, color:"#dc2626", fontSize:13, fontWeight:600, textAlign:"center" }}>
             {err}
@@ -202,7 +191,6 @@ function QRScanModal({ onClose, onFound, orders = [], mode = "search" }) {
           </div>
         )}
 
-        {/* Manual */}
         <div style={{ background:"rgba(255,255,255,.08)", borderRadius:14, padding:14 }}>
           <div style={{ color:"#e5e7eb", fontSize:13, fontWeight:600, marginBottom:8 }}>
             {isCapture ? "Hoặc nhập mã QR thủ công:" : "Hoặc nhập mã đơn thủ công:"}
@@ -221,8 +209,62 @@ function QRScanModal({ onClose, onFound, orders = [], mode = "search" }) {
   );
 }
 
-// ══════════════════════════════════════════════
-//  QR PRINT MODAL
-// ══════════════════════════════════════════════
+function QRPrintModal({ order, onClose }) {
+  const qrRef = useRef();
+
+  useEffect(() => {
+    if (!qrRef.current || !order?.id) return;
+    const el = qrRef.current;
+    el.innerHTML = "";
+    loadQRLib(() => {
+      if (!el || !window.QRCode) return;
+      el.innerHTML = "";
+      try {
+        new window.QRCode(el, {
+          text: order.id,
+          width: 200,
+          height: 200,
+          colorDark: "#1e1b4b",
+          colorLight: "#ffffff",
+          correctLevel: window.QRCode.CorrectLevel.M,
+        });
+      } catch(e) {}
+    });
+  }, [order?.id]);
+
+  function handlePrint() {
+    window.print();
+  }
+
+  if (!order) return null;
+
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:5000, background:"rgba(0,0,0,.7)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+      <div style={{ background:"#fff", borderRadius:24, padding:32, width:"100%", maxWidth:360, textAlign:"center", boxShadow:"0 24px 64px rgba(0,0,0,.3)" }}>
+        <div style={{ fontWeight:900, fontSize:18, color:"#1e1b4b", marginBottom:4 }}>🖨️ Phiếu QR Sửa Chữa</div>
+        <div style={{ fontSize:13, color:"#6b7280", marginBottom:20 }}>Dán lên thiết bị để tra cứu nhanh</div>
+
+        <div style={{ background:"#f9fafb", borderRadius:16, padding:20, marginBottom:20, border:"2px dashed #a5b4fc", display:"inline-block" }}>
+          <div ref={qrRef} style={{ display:"inline-block" }} />
+          <div style={{ fontWeight:900, fontSize:20, color:"#1e1b4b", marginTop:10 }}>{order.id}</div>
+          <div style={{ fontSize:13, color:"#374151", marginTop:4 }}>{order.customer_name}</div>
+          <div style={{ fontSize:12, color:"#6b7280" }}>{order.device_model}</div>
+        </div>
+
+        <div style={{ display:"flex", gap:10 }}>
+          <button onClick={onClose}
+            style={{ flex:1, height:48, background:"#f3f4f6", border:"none", borderRadius:12, fontWeight:700, fontSize:14, cursor:"pointer" }}>
+            Đóng
+          </button>
+          <button onClick={handlePrint}
+            style={{ flex:2, height:48, background:"#1e1b4b", color:"#fff", border:"none", borderRadius:12, fontWeight:800, fontSize:14, cursor:"pointer" }}>
+            🖨️ In ngay
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export { loadQRLib, loadJsQR, QRCanvas, getQRDataUrl, QRScanModal, QRPrintModal };
+export default QRScanModal;

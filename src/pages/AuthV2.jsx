@@ -1,6 +1,7 @@
 /* LoginV2 - standalone login component connecting to Staff entity */
 import React, { useState } from "react";
-import { Staff } from "@/api/entities";
+import { base44 } from "@/api/base44Client";
+const Staff = base44.entities.Staff;
 
 export default function LoginV2({ onLogin }) {
   const [username, setUsername] = useState("");

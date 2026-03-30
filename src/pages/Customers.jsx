@@ -1,6 +1,8 @@
 /* v1774860462-1148 */
 import { useState, useEffect } from "react";
-import { Customer, RepairOrder } from "@/api/entities";
+import { base44 } from "@/api/base44Client";
+const Customer = base44.entities.Customer;
+const RepairOrder = base44.entities.RepairOrder;
 
 const EMPTY = { full_name:"", phone:"", address:"", note:"" };
 

@@ -1,6 +1,7 @@
 /* v1774860462-5573 */
 import { useState, useEffect } from "react";
-import { Staff } from "@/api/entities";
+import { base44 } from "@/api/base44Client";
+const Staff = base44.entities.Staff;
 
 const ROLES = [
   { value:"manager",      label:"Quản lý",        color:"#7c3aed", bg:"#f5f3ff", icon:"👑" },
