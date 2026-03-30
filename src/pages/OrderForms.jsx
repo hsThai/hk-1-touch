@@ -1,4 +1,4 @@
-/* BUILD:1774859185-72587 */
+
 // cache-bust: 1774858634
 // v3.0
 import React, { useState, useEffect, useRef, useCallback } from "react";
@@ -21,12 +21,12 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
         const q = custSearch.toLowerCase();
         const extra = [];
         if (typeof orders !== "undefined") orders.forEach(o => {
-          if (o.customer_name && o.customer_phone && !extra.find(c=>c.full_name===o.customer_name && c.phone===o.customer_phone)) {
-            extra.push({ id:o.customer_name, full_name:o.customer_name, phone:o.customer_phone });
+          if (o.customer_name && o.customer_phone && !MOCK_CUSTOMERS.find(c=>c.id===o.customer_id) && !extra.find(c=>c.id===o.customer_id)) {
+            extra.push({ id:o.customer_id, full_name:o.customer_name, phone:o.customer_phone });
           }
         });
-        return extra.filter(c =>
-          (c.full_name||"").toLowerCase().includes(q) || (c.phone||"").includes(custSearch)
+        return [...MOCK_CUSTOMERS, ...extra].filter(c =>
+          c.full_name.toLowerCase().includes(q) || c.phone.includes(custSearch)
         );
       })()
     : [];
@@ -44,7 +44,7 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
     const prevOrder = orders.find(o => o.qr_code === code);
     if (prevOrder) {
       // Đã có data → load thông tin vào form, báo cho user
-      const cust = prevOrder.customer_name ? { full_name: prevOrder.customer_name, phone: prevOrder.customer_phone } : null;
+      const cust = MOCK_CUSTOMERS.find(c => c.id === prevOrder.customer_id);
       set("qr_code", code);
       set("device_model", prevOrder.device_model);
       set("imei_serial", prevOrder.imei_serial || "");
@@ -63,8 +63,7 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
   function submit() {
     if (!form.customer_id || !form.device_model) { alert("Vui lòng chọn khách hàng và nhập thiết bị!"); return; }
     const imgUrls = mediaFiles.map(m => m.type==="video" ? `video:${m.name}` : m.url);
-    // customer_id is actually the full_name key now
-    const custObj = filteredCusts.find(c => c.id === form.customer_id) || null;
+    const custObj = MOCK_CUSTOMERS.find(c => c.id === form.customer_id);
     onCreate({ ...form, id:genOrderId(), created:new Date().toISOString(), assigned_at:form.assigned_to?new Date().toISOString():null, accept_stage:0, status:"Mới Nhận", images:imgUrls, customer_name: custObj?.full_name||"", customer_phone: custObj?.phone||"" });
     onClose();
   }
@@ -342,7 +341,9 @@ function LoginScreen({ onLogin, users }) {
       // Password stored as btoa(password) — same as StaffManager
       const hashedInput = btoa(unescape(encodeURIComponent(password.trim())));
       console.log("Username input:", username.trim());
+      console.log("Hashed input:", hashedInput);
       const found = staffList.find(s => {
+        console.log("Checking:", s.username, s.password_hash, s.is_active);
         return s.username === username.trim() &&
           s.password_hash === hashedInput &&
           s.is_active !== false;
@@ -377,7 +378,7 @@ function LoginScreen({ onLogin, users }) {
       <div style={{ background:"#fff", borderRadius:24, padding:40, width:"100%", maxWidth:400, boxShadow:"0 24px 64px rgba(0,0,0,.3)" }}>
         <div style={{ textAlign:"center", marginBottom:32 }}>
           <div style={{ fontSize:56 }}>🔧</div>
-          <div style={{ fontWeight:900, fontSize:24, color:"#1e1b4b", marginTop:8 }}>Quản Lý Sửa Chữa</div>
+          <div style={{ fontWeight:900, fontSize:24, color:"#1e1b4b", marginTop:8 }}>Quản Lý Sửa Chữa v2</div>
           <div style={{ color:"#9ca3af", fontSize:13, marginTop:4 }}>Hệ thống nội bộ</div>
         </div>
 
