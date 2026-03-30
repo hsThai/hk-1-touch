@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from "react";
-import { RepairOrder, Customer, RepairChat, Staff } from "@/api/entities";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { RepairOrder, Customer, RepairChat, Staff, Notification } from "@/api/entities";
+import { uploadFile } from "@/api/storage";
 
 const STATUSES = ["Mới Nhận","Đang Sửa","Chờ Linh Kiện","Hoàn Thành","Đã Giao"];
 const STATUS_STYLE = {
@@ -115,40 +116,149 @@ function ListView({ orders, onSelect }) {
 }
 
 // ── Order Detail Drawer ──
-function OrderDrawer({ order, staff, onClose, onUpdate, onRefresh }) {
+function OrderDrawer({ order, staff, onClose, onUpdate, onRefresh, allStaff }) {
   const [chats, setChats] = useState([]);
-  const [msg, setMsg]     = useState("");
-  const [sending, setSending] = useState(false);
-  const [tab, setTab]     = useState("info");
-  const chatEndRef        = useRef(null);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatUploading, setChatUploading] = useState(false);
+  const [showMention, setShowMention] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionCursor, setMentionCursor] = useState(0);
+  const [mentionList, setMentionList] = useState([]);
+  const [pendingMentions, setPendingMentions] = useState([]);
+  const [recording, setRecording] = useState(false);
+  const [tab, setTab] = useState("info");
+  const chatEndRef = useRef(null);
+  const chatInputRef = useRef(null);
+  const mediaRecRef = useRef(null);
+  const audioChunksRef = useRef([]);
 
-  useEffect(() => { loadChats(); }, [order.id]);
+  useEffect(() => {
+    if (tab !== "chat") return;
+    let cancelled = false;
+    setChatLoading(true);
+    RepairChat.filter({ order_id: order.id })
+      .then(c => { if (!cancelled) { setChats(c.sort((a,b)=>new Date(a.created_date)-new Date(b.created_date))); setChatLoading(false); } })
+      .catch(() => { if (!cancelled) setChatLoading(false); });
+    return () => { cancelled = true; };
+  }, [order.id, tab]);
+
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior:"smooth" }); }, [chats]);
 
-  async function loadChats() {
-    try {
-      const c = await RepairChat.filter({ order_id: order.id });
-      setChats(c.sort((a,b) => new Date(a.created_date)-new Date(b.created_date)));
-    } catch {}
+  const getMentionCandidates = useCallback(() => {
+    return (allStaff||[]).filter(u => {
+      if (u.id === staff.id) return false;
+      return ["manager","receptionist","warehouse"].includes(u.role) || u.id === order.assigned_to;
+    });
+  }, [allStaff, staff.id, order.assigned_to]);
+
+  function handleChatInputChange(e) {
+    const val = e.target.value;
+    setChatInput(val);
+    const cursor = e.target.selectionStart;
+    const textBefore = val.slice(0, cursor);
+    const atMatch = textBefore.match(/@(\w*)$/);
+    if (atMatch) {
+      const q = atMatch[1].toLowerCase();
+      setMentionQuery(q);
+      const filtered = getMentionCandidates().filter(u =>
+        (u.full_name||"").toLowerCase().includes(q) || (u.username||"").toLowerCase().includes(q)
+      );
+      setMentionList(filtered);
+      setMentionCursor(0);
+      setShowMention(filtered.length > 0);
+    } else {
+      setShowMention(false);
+    }
   }
 
-  async function sendMsg() {
-    if (!msg.trim() || sending) return;
-    setSending(true);
+  function pickMention(u) {
+    const cursor = chatInputRef.current?.selectionStart || chatInput.length;
+    const textBefore = chatInput.slice(0, cursor);
+    const textAfter = chatInput.slice(cursor);
+    const replaced = textBefore.replace(/@(\w*)$/, `@${u.full_name} `);
+    setChatInput(replaced + textAfter);
+    setShowMention(false);
+    setPendingMentions(prev => prev.find(p=>p.id===u.id) ? prev : [...prev, { id:u.id, name:u.full_name }]);
+    setTimeout(() => chatInputRef.current?.focus(), 50);
+  }
+
+  async function sendMsg(type="text", mediaUrl=null, mediaText=null) {
+    const msgText = type==="text" ? chatInput.trim() : (mediaText||"");
+    if (type==="text" && !msgText) return;
+    const mentioned_ids = pendingMentions.map(m=>m.id);
+    const mentioned_names = pendingMentions.map(m=>m.name);
+    const newMsg = {
+      order_id: order.id, order_code: order.order_code,
+      sender_id: staff.id, sender_name: staff.full_name,
+      message: msgText, message_type: type,
+      media_url: mediaUrl||"", mentioned_ids, mentioned_names,
+    };
+    const tempId = "tmp_"+Math.random().toString(36);
+    setChats(p => [...p, { ...newMsg, id:tempId, created_date:new Date().toISOString() }]);
+    if (type==="text") { setChatInput(""); setPendingMentions([]); }
     try {
-      await RepairChat.create({ order_id:order.id, order_code:order.order_code, sender_id:staff.id, sender_name:staff.full_name, message:msg.trim(), message_type:"text" });
-      setMsg("");
-      loadChats();
-    } catch {}
-    setSending(false);
+      const saved = await RepairChat.create(newMsg);
+      setChats(p => p.map(m => m.id===tempId ? saved : m));
+      if (mentioned_ids.length > 0) {
+        mentioned_ids.forEach((uid,i) => {
+          Notification.create({ user_id:uid, user_name:mentioned_names[i]||"", title:`💬 Bạn được nhắc đến trong ${order.order_code||order.id}`, message:`${staff.full_name}: ${msgText.slice(0,80)}`, order_id:order.id, order_code:order.order_code||order.id, type:"mention", is_read:false }).catch(()=>{});
+        });
+      }
+    } catch(err) {
+      setChats(p => p.filter(m => m.id!==tempId));
+      alert("Gửi thất bại!");
+    }
+  }
+
+  async function handleMediaUpload(file, type) {
+    if (!file) return;
+    setChatUploading(true);
+    try {
+      const url = await uploadFile(file);
+      let msgType = type;
+      if (!msgType) {
+        if (file.type?.startsWith("image")) msgType = "image";
+        else if (file.type?.startsWith("video")) msgType = "video";
+        else if (file.type?.startsWith("audio")) msgType = "audio";
+        else msgType = "image";
+      }
+      await sendMsg(msgType, url, msgType==="image"?"📷 Ảnh":msgType==="video"?"🎥 Video":"🎤 Ghi âm");
+    } catch(e) { alert("Upload thất bại!"); }
+    finally { setChatUploading(false); }
+  }
+
+  async function toggleRecording() {
+    if (recording) {
+      mediaRecRef.current?.stop();
+      setRecording(false);
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+        const mr = new MediaRecorder(stream);
+        audioChunksRef.current = [];
+        mr.ondataavailable = e => audioChunksRef.current.push(e.data);
+        mr.onstop = async () => {
+          stream.getTracks().forEach(t=>t.stop());
+          const blob = new Blob(audioChunksRef.current, { type:"audio/webm" });
+          const file = new File([blob], "voice_"+Date.now()+".webm", { type:"audio/webm" });
+          await handleMediaUpload(file, "audio");
+        };
+        mr.start();
+        mediaRecRef.current = mr;
+        setRecording(true);
+      } catch(e) { alert("Không thể ghi âm. Kiểm tra quyền microphone!"); }
+    }
   }
 
   async function changeStatus(newStatus) {
     await RepairOrder.update(order.id, { status:newStatus, ...(newStatus==="Hoàn Thành"?{done_date:new Date().toISOString()}:{}) });
     onUpdate(order.id, { status:newStatus });
     await RepairChat.create({ order_id:order.id, order_code:order.order_code, sender_id:staff.id, sender_name:staff.full_name, message:`🔄 → ${newStatus}`, message_type:"system" }).catch(()=>{});
-    loadChats();
+    setChats(p => [...p, { id:"sys_"+Date.now(), message:`🔄 → ${newStatus}`, message_type:"system", created_date:new Date().toISOString() }]);
   }
+
+
 
   const sc = STATUS_STYLE[order.status] || STATUS_STYLE["Mới Nhận"];
   const canChangeStatus = ["manager","receptionist"].includes(staff.role) || order.assigned_to === staff.id;
@@ -235,8 +345,9 @@ function OrderDrawer({ order, staff, onClose, onUpdate, onRefresh }) {
             </div>
           )}
           {tab === "chat" && (
-            <div style={{ padding:16, display:"flex", flexDirection:"column", gap:8 }}>
-              {chats.length === 0 && <div style={{ textAlign:"center", color:"#9ca3af", padding:20, fontSize:13 }}>Chưa có tin nhắn nào</div>}
+            <div style={{ padding:"12px 14px", display:"flex", flexDirection:"column", gap:10 }}>
+              {chatLoading && <div style={{ textAlign:"center", color:"#9ca3af", padding:20, fontSize:13 }}>⏳ Đang tải...</div>}
+              {!chatLoading && chats.length===0 && <div style={{ textAlign:"center", color:"#9ca3af", padding:20, fontSize:13 }}>Chưa có tin nhắn nào</div>}
               {chats.map(c => {
                 const isMe = c.sender_id === staff.id;
                 const isSys = c.message_type === "system";
@@ -245,14 +356,27 @@ function OrderDrawer({ order, staff, onClose, onUpdate, onRefresh }) {
                     <span style={{ background:"#f1f5f9", color:"#64748b", fontSize:12, padding:"4px 12px", borderRadius:20 }}>{c.message}</span>
                   </div>
                 );
+                const hasMention = c.mentioned_names?.length > 0;
                 return (
                   <div key={c.id} style={{ display:"flex", flexDirection:isMe?"row-reverse":"row", gap:8, alignItems:"flex-end" }}>
-                    <div style={{ width:30, height:30, borderRadius:"50%", background:isMe?"#4f46e5":"#e2e8f0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:isMe?"#fff":"#374151", flexShrink:0 }}>
+                    <div style={{ width:32, height:32, borderRadius:"50%", background:isMe?"#4f46e5":"#818cf8", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", flexShrink:0 }}>
                       {(c.sender_name||"?")[0]}
                     </div>
-                    <div style={{ maxWidth:"70%" }}>
-                      {!isMe && <div style={{ fontSize:11, color:"#9ca3af", marginBottom:2 }}>{c.sender_name}</div>}
-                      <div style={{ background:isMe?"#4f46e5":"#f1f5f9", color:isMe?"#fff":"#1e1b4b", padding:"10px 14px", borderRadius:isMe?"18px 18px 4px 18px":"18px 18px 18px 4px", fontSize:14, lineHeight:1.4 }}>{c.message}</div>
+                    <div style={{ maxWidth:"75%" }}>
+                      {!isMe && <div style={{ fontSize:11, color:"#4f46e5", fontWeight:700, marginBottom:2 }}>{c.sender_name}</div>}
+                      {hasMention && !isMe && <div style={{ fontSize:11, color:"#f59e0b", fontWeight:600, marginBottom:2 }}>👉 {c.mentioned_names.map(n=>`@${n}`).join(" ")}</div>}
+                      <div style={{ padding: c.message_type==="text"?"10px 14px":"6px", borderRadius:isMe?"18px 18px 4px 18px":"18px 18px 18px 4px", background:isMe?"#4f46e5":"#f1f5f9", color:isMe?"#fff":"#1e1b4b", fontSize:14, lineHeight:1.4 }}>
+                        {c.message_type==="image" && c.media_url && <img src={c.media_url} alt="ảnh" style={{ maxWidth:200, maxHeight:200, borderRadius:10, display:"block", cursor:"pointer", objectFit:"cover" }} onClick={()=>window.open(c.media_url,"_blank")} />}
+                        {c.message_type==="video" && c.media_url && <video src={c.media_url} controls style={{ maxWidth:200, borderRadius:10, display:"block" }} />}
+                        {c.message_type==="audio" && c.media_url && <audio src={c.media_url} controls style={{ maxWidth:200 }} />}
+                        {(c.message_type==="text" || !c.media_url) && (
+                          <span style={{ whiteSpace:"pre-wrap", wordBreak:"break-word" }}>
+                            {(c.message||"").split(/(@\S+)/g).map((part,i) =>
+                              part.startsWith("@") ? <span key={i} style={{ color:isMe?"#c7d2fe":"#4f46e5", fontWeight:700 }}>{part}</span> : part
+                            )}
+                          </span>
+                        )}
+                      </div>
                       <div style={{ fontSize:11, color:"#9ca3af", marginTop:2, textAlign:isMe?"right":"left" }}>{timeAgo(c.created_date)}</div>
                     </div>
                   </div>
@@ -264,13 +388,66 @@ function OrderDrawer({ order, staff, onClose, onUpdate, onRefresh }) {
         </div>
 
         {tab === "chat" && (
-          <div style={{ padding:12, borderTop:"1px solid #f1f5f9", display:"flex", gap:8, flexShrink:0 }}>
-            <input value={msg} onChange={e=>setMsg(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendMsg()}
-              placeholder="Nhập tin nhắn..." style={{ flex:1, height:44, borderRadius:12, border:"1.5px solid #e2e8f0", padding:"0 14px", fontSize:14, outline:"none" }} />
-            <button onClick={sendMsg} disabled={!msg.trim()||sending}
-              style={{ height:44, padding:"0 18px", borderRadius:12, border:"none", background:"#4f46e5", color:"#fff", fontWeight:800, fontSize:14, cursor:"pointer", opacity:!msg.trim()||sending?0.5:1 }}>
-              Gửi
-            </button>
+          <div style={{ borderTop:"1px solid #f1f5f9", background:"#fff", flexShrink:0, position:"relative" }}>
+            {/* @mention popup */}
+            {showMention && mentionList.length > 0 && (
+              <div style={{ position:"absolute", bottom:"100%", left:12, right:12, background:"#fff", borderRadius:14, boxShadow:"0 -4px 24px rgba(0,0,0,.15)", border:"1.5px solid #e5e7eb", zIndex:100, overflow:"hidden", maxHeight:200 }}>
+                <div style={{ padding:"8px 14px", fontSize:12, color:"#6b7280", fontWeight:700, background:"#f9fafb", borderBottom:"1px solid #f3f4f6" }}>👥 Chọn người nhắc đến</div>
+                {mentionList.map((u,idx) => (
+                  <div key={u.id} onClick={()=>pickMention(u)}
+                    style={{ padding:"10px 14px", cursor:"pointer", background:idx===mentionCursor?"#eef2ff":"#fff", borderBottom:"1px solid #f9fafb", display:"flex", gap:10, alignItems:"center" }}>
+                    <div style={{ width:30, height:30, borderRadius:"50%", background:u.role==="manager"?"#7c3aed":u.role==="technician"?"#2563eb":"#059669", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, fontSize:12 }}>{(u.full_name||"?")[0]}</div>
+                    <div>
+                      <div style={{ fontWeight:700, fontSize:14 }}>{u.full_name}</div>
+                      <div style={{ fontSize:12, color:"#9ca3af" }}>{u.role==="manager"?"👑 Quản lý":u.role==="technician"?"🔧 Kỹ thuật":u.role==="receptionist"?"🗂️ Tiếp tân":"🏪 Kho"}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* Pending mention tags */}
+            {pendingMentions.length > 0 && (
+              <div style={{ padding:"6px 12px", background:"#eef2ff", display:"flex", flexWrap:"wrap", gap:6, borderBottom:"1px solid #e5e7eb" }}>
+                {pendingMentions.map(m => (
+                  <span key={m.id} style={{ background:"#4f46e5", color:"#fff", borderRadius:20, padding:"2px 10px", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", gap:4 }}>
+                    @{m.name}
+                    <span onClick={()=>setPendingMentions(p=>p.filter(x=>x.id!==m.id))} style={{ cursor:"pointer", opacity:.7 }}>✕</span>
+                  </span>
+                ))}
+              </div>
+            )}
+            {/* Media buttons */}
+            <div style={{ display:"flex", gap:8, padding:"10px 12px 0" }}>
+              <label style={{ flex:1, height:40, borderRadius:10, border:"1.5px solid #e5e7eb", background:"#f9fafb", display:"flex", alignItems:"center", justifyContent:"center", gap:5, cursor:"pointer", fontSize:13, fontWeight:600, color:"#374151" }}>
+                📷 Ảnh
+                <input type="file" accept="image/*" capture="environment" style={{ display:"none" }} onChange={e=>e.target.files[0]&&handleMediaUpload(e.target.files[0],"image")} />
+              </label>
+              <label style={{ flex:1, height:40, borderRadius:10, border:"1.5px solid #e5e7eb", background:"#f9fafb", display:"flex", alignItems:"center", justifyContent:"center", gap:5, cursor:"pointer", fontSize:13, fontWeight:600, color:"#374151" }}>
+                🎥 Video
+                <input type="file" accept="video/*" capture="environment" style={{ display:"none" }} onChange={e=>e.target.files[0]&&handleMediaUpload(e.target.files[0],"video")} />
+              </label>
+              <button onClick={toggleRecording}
+                style={{ flex:1, height:40, borderRadius:10, border:`1.5px solid ${recording?"#dc2626":"#e5e7eb"}`, background:recording?"#fef2f2":"#f9fafb", color:recording?"#dc2626":"#374151", cursor:"pointer", fontSize:13, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
+                {recording?"⏹ Dừng":"🎤 Ghi âm"}
+              </button>
+            </div>
+            {/* Text input */}
+            <div style={{ display:"flex", gap:8, padding:"8px 12px 12px", position:"relative" }}>
+              {chatUploading && <div style={{ position:"absolute", inset:0, background:"rgba(255,255,255,.85)", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", zIndex:10, fontSize:13, color:"#4f46e5", fontWeight:700 }}>⏳ Đang gửi...</div>}
+              <input ref={chatInputRef} value={chatInput} onChange={handleChatInputChange}
+                onKeyDown={e=>{
+                  if(showMention){
+                    if(e.key==="ArrowDown"){e.preventDefault();setMentionCursor(c=>Math.min(c+1,mentionList.length-1));}
+                    else if(e.key==="ArrowUp"){e.preventDefault();setMentionCursor(c=>Math.max(c-1,0));}
+                    else if(e.key==="Enter"){e.preventDefault();if(mentionList[mentionCursor])pickMention(mentionList[mentionCursor]);}
+                    else if(e.key==="Escape")setShowMention(false);
+                  } else if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMsg();}
+                }}
+                placeholder="Nhắn tin... (@ để nhắc người)"
+                style={{ flex:1, height:44, borderRadius:22, border:"1.5px solid #e2e8f0", padding:"0 14px", fontSize:14, outline:"none" }} />
+              <button onClick={()=>sendMsg()}
+                style={{ width:44, height:44, borderRadius:"50%", border:"none", background:"#4f46e5", color:"#fff", fontSize:20, cursor:"pointer", flexShrink:0 }}>➤</button>
+            </div>
           </div>
         )}
       </div>
@@ -459,8 +636,9 @@ export default function MainBoard({ currentStaff }) {
   const [search, setSearch]   = useState("");
   const [selected, setSelected] = useState(null);
   const [showNew, setShowNew] = useState(false);
+  const [allStaff, setAllStaff] = useState([]);
 
-  useEffect(() => { loadOrders(); }, []);
+  useEffect(() => { loadOrders(); Staff.filter({ is_active:true }).then(setAllStaff).catch(()=>{}); }, []);
   useEffect(() => { const t = setInterval(loadOrders, 20000); return () => clearInterval(t); }, []);
 
   async function loadOrders() {
@@ -515,7 +693,7 @@ export default function MainBoard({ currentStaff }) {
         <ListView orders={filtered} onSelect={setSelected} />
       )}
 
-      {selected && <OrderDrawer order={selected} staff={currentStaff} onClose={()=>setSelected(null)} onUpdate={updateOrder} onRefresh={loadOrders} />}
+      {selected && <OrderDrawer order={selected} staff={currentStaff} onClose={()=>setSelected(null)} onUpdate={updateOrder} onRefresh={loadOrders} allStaff={allStaff} />}
       {showNew && <NewOrderModal staff={currentStaff} onClose={()=>setShowNew(false)} onCreated={()=>{setShowNew(false);loadOrders();}} />}
     </div>
   );
