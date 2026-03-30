@@ -1,5 +1,4 @@
-/* rebuild-1774861693-455060 */
-/* v1774860462-7391 */
+/* v2-clean */
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, SparePartUsage } from "@/api/entities";
 import { uploadFile } from "@/api/storage";
@@ -11,7 +10,7 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
   const [custSearch, setCustSearch] = useState("");
   const [mediaFiles, setMediaFiles] = useState([]);
   const [showQRScan, setShowQRScan] = useState(false);
-  const [qrMsg, setQrMsg] = useState(null); // { type:"new"|"found", code, prevOrder }
+  const [qrMsg, setQrMsg] = useState(null);
   const photoRef = useRef(); const videoRef = useRef(); const fileRef = useRef();
 
   const set = (k, v) => setForm(f => ({ ...f, [k]:v }));
@@ -39,10 +38,8 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
     setShowQRScan(false);
     if (result.type !== "raw") return;
     const code = result.code;
-    // Tìm đơn cũ theo qr_code
     const prevOrder = orders.find(o => o.qr_code === code);
     if (prevOrder) {
-      // Đã có data → load thông tin vào form, báo cho user
       const cust = prevOrder.customer_name ? { full_name: prevOrder.customer_name, phone: prevOrder.customer_phone } : null;
       set("qr_code", code);
       set("device_model", prevOrder.device_model);
@@ -53,7 +50,6 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
       if (cust) { set("customer_id", prevOrder.customer_id); setCustSearch(`${cust.full_name} — ${cust.phone}`); }
       setQrMsg({ type:"found", code, prevOrder });
     } else {
-      // Chưa có → ghi nhận mã QR mới vào đơn
       set("qr_code", code);
       setQrMsg({ type:"new", code });
     }
@@ -74,14 +70,12 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
   return (
     <div style={{ position:"fixed", inset:0, zIndex:2000, background:"rgba(0,0,0,.55)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
       <div style={{ background:"#fff", borderRadius:22, width:"100%", maxWidth:540, maxHeight:"92vh", overflowY:"auto", boxShadow:"0 24px 64px rgba(0,0,0,.25)" }}>
-        {/* Header */}
         <div style={{ position:"sticky", top:0, background:"#3730a3", padding:"16px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", borderRadius:"22px 22px 0 0" }}>
           <div style={{ color:"#fff", fontWeight:800, fontSize:18 }}>➕ Tạo Đơn Mới</div>
           <button onClick={onClose} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:34, height:34, borderRadius:"50%", fontSize:16, cursor:"pointer" }}>✕</button>
         </div>
 
         <div style={{ padding:"20px 20px 8px" }}>
-          {/* ── QR SECTION ── */}
           <div style={{ ...sec, background:"#eef2ff", border:"1.5px solid #a5b4fc" }}>
             <div style={{ fontWeight:800, fontSize:14, color:"#3730a3", marginBottom:10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <span>📲 Mã QR Máy</span>
@@ -93,13 +87,10 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
             <input value={form.qr_code} onChange={e => { set("qr_code", e.target.value); setQrMsg(null); }}
               placeholder="Quét hoặc nhập mã QR trên máy..."
               style={{ ...inp, fontFamily:"monospace", background:form.qr_code?"#f0fdf4":"#fff", borderColor:form.qr_code?"#6ee7b7":"#e5e7eb" }} />
-
-            {/* QR result message */}
             {qrMsg?.type === "found" && (
               <div style={{ marginTop:10, background:"#fffbeb", borderRadius:12, padding:"10px 14px", border:"1.5px solid #fcd34d" }}>
                 <div style={{ fontWeight:800, color:"#d97706", marginBottom:4 }}>⚡ Đã tìm thấy dữ liệu cũ — điền tự động!</div>
                 <div style={{ fontSize:13, color:"#374151" }}>Đơn gần nhất: <strong>{qrMsg.prevOrder.id}</strong> · {qrMsg.prevOrder.status}</div>
-                <div style={{ fontSize:12, color:"#6b7280", marginTop:2 }}>Thông tin thiết bị đã được tải vào form. Kiểm tra lại rồi tạo đơn mới.</div>
               </div>
             )}
             {qrMsg?.type === "new" && (
@@ -110,7 +101,6 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
             )}
           </div>
 
-          {/* ── KHÁCH HÀNG ── */}
           <div style={{ ...sec, background:"#f0f9ff" }}>
             <div style={{ fontWeight:800, fontSize:14, color:"#0369a1", marginBottom:10 }}>👤 Khách Hàng</div>
             <label style={lbl}>Tìm theo SĐT hoặc tên *</label>
@@ -129,7 +119,6 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
             )}
           </div>
 
-          {/* ── THIẾT BỊ ── */}
           <div style={sec}>
             <div style={{ fontWeight:800, fontSize:14, color:"#3730a3", marginBottom:10 }}>📱 Thiết Bị</div>
             <label style={lbl}>Tên / Model máy *</label>
@@ -147,7 +136,6 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
             </div>
           </div>
 
-          {/* ── TÌNH TRẠNG ── */}
           <div style={sec}>
             <div style={{ fontWeight:800, fontSize:14, color:"#3730a3", marginBottom:10 }}>🛠️ Tình Trạng Lỗi</div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:10 }}>
@@ -163,7 +151,6 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
               style={{ ...inp, height:"auto", padding:"12px 14px", resize:"vertical" }} />
           </div>
 
-          {/* ── ẢNH / VIDEO ── */}
           <div style={{ ...sec, background:"#f0fdf4", border:"1.5px solid #6ee7b7" }}>
             <div style={{ fontWeight:800, fontSize:14, color:"#065f46", marginBottom:10 }}>📸 Hình Ảnh & Video Tình Trạng</div>
             <input ref={photoRef} type="file" accept="image/*" capture="environment" multiple style={{ display:"none" }} onChange={handleFiles} />
@@ -190,7 +177,6 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
             )}
           </div>
 
-          {/* ── PHÂN CÔNG ── */}
           <div style={sec}>
             <div style={{ fontWeight:800, fontSize:14, color:"#3730a3", marginBottom:10 }}>👨‍🔧 Phân Công KTV</div>
             <select value={form.assigned_to} onChange={e => set("assigned_to", e.target.value)} style={{ ...inp, background:"#fff" }}>
@@ -203,10 +189,9 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
             )}
           </div>
 
-          {/* Buttons */}
           <div style={{ display:"flex", gap:10, marginBottom:20 }}>
             <button onClick={onClose} style={{ flex:1, height:52, borderRadius:14, border:"1.5px solid #e5e7eb", background:"#fff", fontSize:16, cursor:"pointer" }}>Huỷ</button>
-            <button onClick={submit} style={{ flex:2, height:56, borderRadius:14, background:"#4f46e5", color:"#fff", border:"none", fontSize:16, fontWeight:800, cursor:"pointer", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>🚀 Tạo Đơn</button>
+            <button onClick={submit} style={{ flex:2, height:56, borderRadius:14, background:"#4f46e5", color:"#fff", border:"none", fontSize:16, fontWeight:800, cursor:"pointer" }}>🚀 Tạo Đơn</button>
           </div>
         </div>
       </div>
@@ -223,17 +208,12 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
   );
 }
 
-// ══════════════════════════════════════════════
-//  KPI PAGE
-// ══════════════════════════════════════════════
 function KPIPage({ users, orders }) {
   const techs = users.filter(u => u.role === "technician");
   return (
     <div style={{ maxWidth:700, margin:"0 auto" }}>
       <div style={{ fontWeight:800, fontSize:22, marginBottom:4 }}>🏆 Đánh Giá KPI Kỹ Thuật</div>
       <div style={{ color:"#6b7280", fontSize:13, marginBottom:20 }}>Theo dõi hiệu suất nhận và xử lý đơn sửa chữa</div>
-
-      {/* Rules */}
       <div style={{ background:"#fff", borderRadius:18, padding:20, marginBottom:20, boxShadow:"0 1px 8px rgba(0,0,0,.07)" }}>
         <div style={{ fontWeight:800, fontSize:15, marginBottom:12, color:"#3730a3" }}>📋 Quy Tắc KPI</div>
         <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
@@ -258,8 +238,6 @@ function KPIPage({ users, orders }) {
           </tbody>
         </table>
       </div>
-
-      {/* Cards */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(290px,1fr))", gap:16, marginBottom:20 }}>
         {techs.map(u => {
           const myOrd = orders.filter(o => o.assigned_to===u.id);
@@ -296,8 +274,6 @@ function KPIPage({ users, orders }) {
           );
         })}
       </div>
-
-      {/* Leaderboard */}
       <div style={{ background:"#fff", borderRadius:18, padding:20, boxShadow:"0 1px 8px rgba(0,0,0,.07)" }}>
         <div style={{ fontWeight:800, fontSize:15, marginBottom:12, color:"#3730a3" }}>🏅 Bảng Xếp Hạng</div>
         {[...techs].sort((a,b)=>b.kpi-a.kpi).map((u,i) => {
@@ -319,10 +295,7 @@ function KPIPage({ users, orders }) {
   );
 }
 
-// ══════════════════════════════════════════════
-//  LOGIN
-// ══════════════════════════════════════════════
-function LoginForm({ onLogin, users }) {
+function LoginScreen({ onLogin }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -334,19 +307,13 @@ function LoginForm({ onLogin, users }) {
     setLoading(true);
     setErr("");
     try {
-      // Load all staff then filter client-side (avoid filter API issues)
       const staffList = await Staff.list();
-      console.log("Staff list:", JSON.stringify(staffList));
-      // Password stored as btoa(password) — same as StaffManager
       const hashedInput = btoa(unescape(encodeURIComponent(password.trim())));
-      console.log("Username input:", username.trim());
-      console.log("Hashed input:", hashedInput);
-      const found = staffList.find(s => {
-        console.log("Checking:", s.username, s.password_hash, s.is_active);
-        return s.username === username.trim() &&
-          s.password_hash === hashedInput &&
-          s.is_active !== false;
-      });
+      const found = staffList.find(s =>
+        s.username === username.trim() &&
+        s.password_hash === hashedInput &&
+        s.is_active !== false
+      );
       if (found) {
         onLogin({
           id: found.id,
@@ -362,7 +329,7 @@ function LoginForm({ onLogin, users }) {
       } else {
         const matchUser = staffList.find(s => s.username === username.trim());
         if (!matchUser) setErr("Không tìm thấy username!");
-        else if (matchUser.password_hash !== hashedInput) setErr(`Sai mật khẩu! DB: ${matchUser.password_hash} | Input: ${hashedInput}`);
+        else if (matchUser.password_hash !== hashedInput) setErr(`Sai mật khẩu! Hash DB: ${matchUser.password_hash} | Input: ${hashedInput}`);
         else setErr("Tài khoản bị vô hiệu hóa!");
         setLoading(false);
       }
@@ -377,8 +344,8 @@ function LoginForm({ onLogin, users }) {
       <div style={{ background:"#fff", borderRadius:24, padding:40, width:"100%", maxWidth:400, boxShadow:"0 24px 64px rgba(0,0,0,.3)" }}>
         <div style={{ textAlign:"center", marginBottom:32 }}>
           <div style={{ fontSize:56 }}>🔧</div>
-          <div style={{ fontWeight:900, fontSize:24, color:"#1e1b4b", marginTop:8 }}>Quản Lý Sửa Chữa v2</div>
-          <div style={{ color:"#9ca3af", fontSize:13, marginTop:4 }}>Hệ thống nội bộ</div>
+          <div style={{ fontWeight:900, fontSize:24, color:"#1e1b4b", marginTop:8 }}>Quản Lý Sửa Chữa</div>
+          <div style={{ color:"#9ca3af", fontSize:13, marginTop:4 }}>Hệ thống nội bộ — Vui lòng đăng nhập</div>
         </div>
 
         <div style={{ marginBottom:16 }}>
@@ -387,7 +354,7 @@ function LoginForm({ onLogin, users }) {
             value={username} onChange={e => { setUsername(e.target.value); setErr(""); }}
             onKeyDown={e => e.key==="Enter" && doLogin()}
             placeholder="Nhập username..."
-            style={{ width:"100%", height:50, borderRadius:12, border:`2px solid ${err?"#ef4444":"#e5e7eb"}`, padding:"0 16px", fontSize:15, outline:"none", boxSizing:"border-box", transition:"border .2s" }}
+            style={{ width:"100%", height:50, borderRadius:12, border:`2px solid ${err?"#ef4444":"#e5e7eb"}`, padding:"0 16px", fontSize:15, outline:"none", boxSizing:"border-box" }}
             autoFocus
           />
         </div>
@@ -396,7 +363,6 @@ function LoginForm({ onLogin, users }) {
           <label style={{ display:"block", fontSize:13, fontWeight:700, color:"#374151", marginBottom:6 }}>🔑 Mật khẩu</label>
           <div style={{ position:"relative" }}>
             <input
-              id="login-pw"
               value={password} onChange={e => { setPassword(e.target.value); setErr(""); }}
               onKeyDown={e => e.key==="Enter" && doLogin()}
               placeholder="Nhập mật khẩu..."
@@ -410,23 +376,18 @@ function LoginForm({ onLogin, users }) {
         </div>
 
         {err && (
-          <div style={{ background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:10, padding:"10px 14px", marginBottom:16, fontSize:13, color:"#dc2626", fontWeight:600 }}>
+          <div style={{ background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:10, padding:"10px 14px", marginBottom:16, fontSize:13, color:"#dc2626", fontWeight:600, wordBreak:"break-all" }}>
             ⚠️ {err}
           </div>
         )}
 
-        <button id="login-btn" onClick={doLogin} disabled={loading}
-          style={{ width:"100%", height:54, background:loading?"#a5b4fc":"#4f46e5", color:"#fff", border:"none", borderRadius:14, fontSize:18, fontWeight:800, cursor:loading?"not-allowed":"pointer", transition:"background .2s" }}>
+        <button onClick={doLogin} disabled={loading}
+          style={{ width:"100%", height:54, background:loading?"#a5b4fc":"#4f46e5", color:"#fff", border:"none", borderRadius:14, fontSize:18, fontWeight:800, cursor:loading?"not-allowed":"pointer" }}>
           {loading ? "⏳ Đang kiểm tra..." : "🚀 Đăng Nhập"}
         </button>
-
-
       </div>
     </div>
   );
 }
 
-
-
-export const BUILD_TS = "1774861693-455060";
-export { NewOrderModal, KPIPage, LoginPage: LoginForm, LoginScreen: LoginForm };
+export { NewOrderModal, KPIPage, LoginPage: LoginScreen, LoginScreen };
