@@ -1633,13 +1633,17 @@ function LoginPage({ onLogin, users }) {
     try {
       // Load all staff then filter client-side (avoid filter API issues)
       const staffList = await Staff.list();
+      console.log("Staff list:", JSON.stringify(staffList));
       // Password stored as btoa(password) — same as StaffManager
       const hashedInput = btoa(unescape(encodeURIComponent(password.trim())));
-      const found = staffList.find(s =>
-        s.username === username.trim() &&
-        s.password_hash === hashedInput &&
-        s.is_active !== false
-      );
+      console.log("Username input:", username.trim());
+      console.log("Hashed input:", hashedInput);
+      const found = staffList.find(s => {
+        console.log("Checking:", s.username, s.password_hash, s.is_active);
+        return s.username === username.trim() &&
+          s.password_hash === hashedInput &&
+          s.is_active !== false;
+      });
       if (found) {
         onLogin({
           id: found.id,
@@ -1653,7 +1657,10 @@ function LoginPage({ onLogin, users }) {
           avatar_url: found.avatar_url || "",
         });
       } else {
-        setErr("Tên đăng nhập hoặc mật khẩu không đúng!");
+        const matchUser = staffList.find(s => s.username === username.trim());
+        if (!matchUser) setErr("Không tìm thấy username!");
+        else if (matchUser.password_hash !== hashedInput) setErr(`Sai mật khẩu! DB: ${matchUser.password_hash} | Input: ${hashedInput}`);
+        else setErr("Tài khoản bị vô hiệu hóa!");
         setLoading(false);
       }
     } catch(e) {
