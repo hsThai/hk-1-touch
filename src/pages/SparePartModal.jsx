@@ -378,37 +378,7 @@ export default function SparePartModal({ order, currentStaff, onClose, onDone })
           )}
         </div>
 
-        {/* Footer — nút Sửa Xong */}
-        {tab === "used" && (
-          <div style={{ padding:"12px 20px 20px", flexShrink:0, borderTop:"1.5px solid #e5e7eb", background:"#fff", borderRadius:"0 0 24px 24px" }}>
-            {confirming ? (
-              <div style={{ background:"#fffbeb", border:"1.5px solid #fde68a", borderRadius:14, padding:14, marginBottom:10 }}>
-                <div style={{ fontWeight:800, color:"#92400e", fontSize:14, marginBottom:6 }}>⚠️ Xác nhận SỬA XONG?</div>
-                <div style={{ fontSize:13, color:"#374151", marginBottom:10 }}>
-                  Sau khi xác nhận:<br/>
-                  • Trạng thái → <b>Hoàn thành</b><br/>
-                  • KiotViet sẽ trừ kho <b>{activeUsages.length} linh kiện</b><br/>
-                  • Bill tổng: <b style={{ color:"#4f46e5" }}>{totalBill.toLocaleString()}đ</b>
-                </div>
-                <div style={{ display:"flex", gap:8 }}>
-                  <button onClick={() => setConfirming(false)}
-                    style={{ flex:1, height:44, borderRadius:12, border:"1.5px solid #e5e7eb", background:"#f9fafb", fontWeight:700, fontSize:14, cursor:"pointer" }}>
-                    Huỷ
-                  </button>
-                  <button onClick={handleFinish} disabled={finishing}
-                    style={{ flex:2, height:44, borderRadius:12, border:"none", background:"#059669", color:"#fff", fontWeight:800, fontSize:14, cursor:"pointer" }}>
-                    {finishing ? "Đang xử lý..." : "✅ Xác nhận Sửa Xong"}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button onClick={() => setConfirming(true)}
-                style={{ width:"100%", height:52, background:"linear-gradient(135deg,#059669,#047857)", color:"#fff", border:"none", borderRadius:16, fontWeight:900, fontSize:16, cursor:"pointer", boxShadow:"0 4px 16px rgba(5,150,105,.4)" }}>
-                ✅ SỬA XONG — Trừ kho KiotViet
-              </button>
-            )}
-          </div>
-        )}
+
 
         {tab === "list" && usages.length > 0 && (
           <div style={{ padding:"12px 20px 20px", flexShrink:0, borderTop:"1.5px solid #e5e7eb", background:"#fff" }}>
