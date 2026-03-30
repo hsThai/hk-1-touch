@@ -12,6 +12,7 @@ import SparePartModal from './pages/SparePartModal';
 import MediaViewer from './pages/MediaViewer';
 import CustomerManager from './pages/CustomerManager';
 import ForceRebuild from './pages/ForceRebuild';
+import LoginV2 from './pages/LoginV2';
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
         <Route path="/MediaViewer" element={<MediaViewer />} />
         <Route path="/CustomerManager" element={<CustomerManager />} />
         <Route path="/ForceRebuild" element={<ForceRebuild />} />
+        <Route path="/LoginV2" element={<LoginV2 />} />
       </Routes>
     </BrowserRouter>
   )
