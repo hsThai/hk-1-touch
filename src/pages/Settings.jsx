@@ -1,3 +1,4 @@
+/* BUILD:1774859185-72587 */
 import { useState, useEffect, useRef } from "react";
 import { AppSettings } from "@/api/entities";
 

@@ -1,7 +1,4 @@
-
-// cache-bust: 1774858634
-
-// REBUILD_TOKEN: 264187
+/* BUILD:1774859185-72587 */
 import React, { lazy, Suspense, useState, useEffect, useRef, useCallback } from "react";
 import { RepairChat, Notification, Staff, RepairOrder, Customer } from "@/api/entities";
 import { uploadFile } from "@/api/storage";
