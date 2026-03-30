@@ -1,3 +1,4 @@
+/* rebuild-1774861524-35360 */
 /* v1774860462-7391 */
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, SparePartUsage } from "@/api/entities";
@@ -321,7 +322,7 @@ function KPIPage({ users, orders }) {
 // ══════════════════════════════════════════════
 //  LOGIN
 // ══════════════════════════════════════════════
-function LoginScreen({ onLogin, users }) {
+function LoginForm({ onLogin, users }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -426,4 +427,4 @@ function LoginScreen({ onLogin, users }) {
 }
 
 
-export { NewOrderModal, KPIPage, LoginPage: LoginScreen, LoginScreen };
+export { NewOrderModal, KPIPage, LoginPage: LoginForm, LoginScreen: LoginForm };
