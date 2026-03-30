@@ -1,3 +1,4 @@
+/* v1774860462-7212 */
 import { useState, useEffect, useRef } from "react";
 import { AppSettings } from "@/api/entities";
 

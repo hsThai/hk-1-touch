@@ -1,5 +1,4 @@
-
-// cache-bust: 1774858634
+/* v1774860462-5727 */
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage } from "@/api/entities";
 import { uploadFile } from "@/api/storage";
@@ -180,7 +179,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
     }
   }
 
-  const cust = MOCK_CUSTOMERS.find(c => c.id === order.customer_id) || (order.customer_name ? { full_name: order.customer_name, phone: order.customer_phone } : null);
+  const cust = order.customer_name ? { full_name: order.customer_name, phone: order.customer_phone } : null;
   const assignee = users.find(u => u.id === order.assigned_to);
   const col = STATUS_COLS.find(s => s.key === order.status);
   const isKTV = currentUser.role === "technician";

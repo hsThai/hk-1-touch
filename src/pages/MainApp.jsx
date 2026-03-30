@@ -1,8 +1,4 @@
-
-// cache-bust: 1774858634
-
-// REBUILD_TOKEN: 264187
-const _CACHE_BUST = true;
+/* v1774860454 */
 import React, { lazy, Suspense, useState, useEffect, useRef, useCallback } from "react";
 import { RepairChat, Notification, Staff, RepairOrder, Customer } from "@/api/entities";
 import { uploadFile } from "@/api/storage";
@@ -36,7 +32,7 @@ import { OrderDrawer } from "./OrderDrawer";
 import { NewOrderModal, KPIPage, LoginScreen } from "./OrderForms";
 const LoginPage = LoginScreen;
 
-export default function Home() {
+export default function MainApp() {
   const [user, setUser] = useState(null);
   const [orders, setOrders] = useState([]);
   const [users, setUsers] = useState([]);
@@ -205,7 +201,7 @@ export default function Home() {
     const q = search.toLowerCase().trim();
     const nameMatch = (o.customer_name||"").toLowerCase().includes(q);
     const phoneMatch = (o.customer_phone||"").includes(q);
-    const c = MOCK_CUSTOMERS.find(x => x.id===o.customer_id);
+    const c = null;
     const mockNameMatch = (c?.full_name||"").toLowerCase().includes(q);
     const mockPhoneMatch = (c?.phone||"").includes(q);
     const deviceMatch = (o.device_model||"").toLowerCase().includes(q);
@@ -361,7 +357,7 @@ export default function Home() {
               <div style={{ background:"#fff", borderRadius:16, padding:16, boxShadow:"0 1px 4px rgba(0,0,0,.06)" }}>
                 <div style={{ fontWeight:700, marginBottom:12 }}>🕐 Đơn gần đây</div>
                 {orders.slice(0,8).map(o => {
-                  const c = MOCK_CUSTOMERS.find(x => x.id===o.customer_id) || (o.customer_name ? { full_name:o.customer_name, phone:o.customer_phone } : null);
+                  const c = o.customer_name ? { full_name:o.customer_name, phone:o.customer_phone } : null;
                   const col = STATUS_COLS.find(s => s.key===o.status);
                   return (
                     <div key={o.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 0", borderBottom:"1px solid #f3f4f6", cursor:"pointer" }} onClick={() => setSelectedOrder(o)}>
@@ -396,7 +392,7 @@ export default function Home() {
                       </div>
                       <div style={{ minHeight:60 }}>
                         {colOrders.map(o => {
-                          const cust = MOCK_CUSTOMERS.find(c => c.id===o.customer_id) || (o.customer_name ? { full_name:o.customer_name, phone:o.customer_phone } : null);
+                          const cust = o.customer_name ? { full_name:o.customer_name, phone:o.customer_phone } : null;
                           const needsAction = o.assigned_to===user.id && (o.accept_stage||0)<2 && o.assigned_at;
                           return (
                             <div key={o.id} onClick={() => setSelectedOrder(o)}
@@ -449,7 +445,7 @@ export default function Home() {
                 </div>
               )}
               {filtered.map(order => {
-                const cust = MOCK_CUSTOMERS.find(c => c.id===order.customer_id) || (order.customer_name ? { full_name:order.customer_name, phone:order.customer_phone } : null);
+                const cust = order.customer_name ? { full_name:order.customer_name, phone:order.customer_phone } : null;
                 const col = STATUS_COLS.find(s => s.key===order.status);
                 const isHL = highlightId===order.id;
                 const needAccept = order.assigned_to===user.id && (order.accept_stage||0)<2 && order.assigned_at;
@@ -499,7 +495,7 @@ export default function Home() {
                 <input placeholder="🔍 Tìm tên, SĐT khách hàng..." value={search} onChange={e => setSearch(e.target.value)}
                   style={{ width:"100%", height:42, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 14px", fontSize:14, outline:"none", boxSizing:"border-box" }} />
               </div>
-              {MOCK_CUSTOMERS.filter(c =>
+              {[].filter(c =>
                 c.full_name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search)
               ).map(cust => {
                 const custOrders = orders.filter(o => o.customer_id === cust.id);
@@ -571,7 +567,7 @@ export default function Home() {
           <div style={{ fontWeight:800, fontSize:17 }}>Tạo đơn thành công!</div>
           <div style={{ fontSize:14, color:"#a5b4fc", fontWeight:600 }}>{createdOrder.id}</div>
           <div style={{ fontSize:13, color:"#c7d2fe" }}>👤 {createdOrder.customer_name||""} · 📱 {createdOrder.device_model}</div>
-          {createdOrder.assigned_to && (() => { const u = MOCK_USERS.find(x=>x.id===createdOrder.assigned_to); return <div style={{ fontSize:13, color:"#fcd34d" }}>⏰ Đã giao {u?.name} — Quy trình KPI đã bắt đầu!</div>; })()}
+          {createdOrder.assigned_to && (() => { const u = users.find(x=>x.id===createdOrder.assigned_to); return <div style={{ fontSize:13, color:"#fcd34d" }}>⏰ Đã giao {u?.name} — Quy trình KPI đã bắt đầu!</div>; })()}
           <div style={{ display:"flex", gap:10, marginTop:4 }}>
             <button onClick={() => { setSelectedOrder(createdOrder); setCreatedOrder(null); }}
               style={{ padding:"8px 18px", borderRadius:10, background:"rgba(255,255,255,.15)", border:"1px solid rgba(255,255,255,.3)", color:"#fff", fontWeight:700, cursor:"pointer", fontSize:13 }}>
