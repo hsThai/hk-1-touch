@@ -14,6 +14,12 @@ const StaffManagerPage = lazy(() => import("./StaffManager").catch(() => ({ defa
     <div style={{fontWeight:700,marginTop:8}}>Module không tải được</div>
   </div>
 )})));
+const SettingsPage = lazy(() => import("./Settings").catch(() => ({ default: () => (
+  <div style={{padding:32,textAlign:"center"}}>
+    <div style={{fontSize:32}}>⚠️</div>
+    <div style={{fontWeight:700,marginTop:8}}>Module không tải được</div>
+  </div>
+)})));
 
 // ══════════════════════════════════════════════
 //  QR CODE — qrcodejs từ CDN (load 1 lần)
@@ -2083,45 +2089,11 @@ export default function Home() {
 
           {/* SETTINGS */}
           {page==="settings" && user.role==="manager" && (
-            <div style={{ maxWidth:600, margin:"0 auto" }}>
-              <div style={{ fontWeight:800, fontSize:20, marginBottom:16 }}>⚙️ Cài Đặt Hệ Thống</div>
-
-              {/* Trạng thái đơn */}
-              <div style={{ background:"#fff", borderRadius:16, padding:16, boxShadow:"0 1px 4px rgba(0,0,0,.06)", marginBottom:16 }}>
-                <div style={{ fontWeight:800, fontSize:15, marginBottom:12 }}>📋 Trạng Thái Đơn Hàng</div>
-                {STATUS_COLS.map(s => (
-                  <div key={s.key} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 0", borderBottom:"1px solid #f3f4f6" }}>
-                    <span style={{ fontSize:20 }}>{s.icon}</span>
-                    <div style={{ flex:1 }}>
-                      <div style={{ fontWeight:700, fontSize:14 }}>{s.key}</div>
-                    </div>
-                    <span style={{ background:s.bg, color:s.color, fontSize:11, padding:"3px 10px", borderRadius:20, fontWeight:700 }}>{s.icon} {s.key}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Quy tắc KPI */}
-              <div style={{ background:"#fff", borderRadius:16, padding:16, boxShadow:"0 1px 4px rgba(0,0,0,.06)", marginBottom:16 }}>
-                <div style={{ fontWeight:800, fontSize:15, marginBottom:12 }}>🏆 Quy Tắc KPI</div>
-                {[
-                  { icon:"⏱️", rule:"Không Cập nhật trong 60 phút đầu", delta:"-1 KPI", color:"#d97706" },
-                  { icon:"🚨", rule:"Không Cập nhật trong 60→120 phút", delta:"-3 KPI", color:"#dc2626" },
-                  { icon:"🔄", rule:"Bị chuyển việc sau mốc 120 phút", delta:"QL xử lý", color:"#7c3aed" },
-                  { icon:"✅", rule:"Bấm Hoàn tất đơn hàng", delta:"+2 KPI", color:"#059669" },
-                ].map((r, i) => (
-                  <div key={i} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 0", borderBottom:"1px solid #f3f4f6" }}>
-                    <span style={{ fontSize:20 }}>{r.icon}</span>
-                    <div style={{ flex:1, fontSize:14 }}>{r.rule}</div>
-                    <span style={{ fontWeight:800, color:r.color, fontSize:14 }}>{r.delta}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* API Keys */}
-              <ApiKeysPanel />
-
-            </div>
+            <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#6b7280"}}>⏳ Đang tải...</div>}>
+              <SettingsPage />
+            </Suspense>
           )}
+
         </div>
       </div>
 
