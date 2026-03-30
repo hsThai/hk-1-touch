@@ -624,10 +624,28 @@ function AcceptChecklistModal({ order, onConfirm, onClose }) {
 
 function AcceptTimer({ order, currentUser, onUpdate }) {
   const [now, setNow] = useState(Date.now());
+  const [done, setDone] = useState(false);
   useEffect(() => { const iv = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(iv); }, []);
 
-  if (!order.assigned_to || order.accept_stage >= 3) return null;
+  if (!order.assigned_to) return null;
   if (order.assigned_to !== currentUser.id && currentUser.role !== "manager") return null;
+
+  // Giai đoạn 1 đã nhận (accept_stage>=1) — hiển thị trạng thái đã nhận mờ
+  if ((order.accept_stage||0) >= 1 && (order.accept_stage||0) < 2) {
+    return (
+      <div style={{ background:"#f3f4f6", border:"2px solid #d1d5db", borderRadius:14, padding:"12px 14px", marginBottom:14, opacity:0.6 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <div style={{ fontSize:22 }}>✅</div>
+          <div>
+            <div style={{ fontWeight:800, fontSize:14, color:"#6b7280" }}>Đã nhận máy</div>
+            <div style={{ fontSize:12, color:"#9ca3af" }}>Giai đoạn 1 hoàn tất — tiếp tục sửa chữa</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (order.accept_stage >= 3) return null;
 
   const info = getKpiTimerInfo(order);
   if (!info) return null;
@@ -639,9 +657,10 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
   const urgent = rem < 5 * 60000;
   const isMyOrder = order.assigned_to === currentUser.id;
 
-  function handleCapNhat() {
-    const stage = info.phase; // 1 hoặc 2
+  function handleNhanMay() {
+    const stage = info.phase;
     const key = `stage${stage}_at`;
+    setDone(true);
     onUpdate(order.id, { accept_stage: stage, [key]: new Date().toISOString() }, null);
   }
 
@@ -655,7 +674,7 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
           <div style={{ fontSize: 12, color: "#6b7280" }}>
             {expired
               ? (info.penalized ? (info.phase === 1 ? "Đã trừ -1 KPI" : "Đã trừ -3 KPI") : "Đang xử lý KPI...")
-              : `Còn ${mins}:${secs.toString().padStart(2, "0")} — bấm Cập nhật ngay!`}
+              : `Còn ${mins}:${secs.toString().padStart(2, "0")} — bấm nhận máy ngay!`}
           </div>
         </div>
         {!expired && (
@@ -665,10 +684,16 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
         )}
       </div>
       {isMyOrder && (
-        <button onClick={handleCapNhat}
-          style={{ width: "100%", height: 52, borderRadius: 14, border: "none", background: expired ? "#dc2626" : "#4f46e5", color: "#fff", fontWeight: 800, fontSize: 17, cursor: "pointer" }}>
-          ✅ Cập nhật (Dừng đếm{info.phase === 1 ? " Giai đoạn 1" : " Giai đoạn 2"})
-        </button>
+        done ? (
+          <div style={{ width:"100%", height:52, borderRadius:14, background:"#d1d5db", color:"#6b7280", fontWeight:800, fontSize:17, display:"flex", alignItems:"center", justifyContent:"center", opacity:0.7 }}>
+            ✅ Đã nhận máy
+          </div>
+        ) : (
+          <button onClick={handleNhanMay}
+            style={{ width:"100%", height:52, borderRadius:14, border:"none", background: expired ? "#dc2626" : "#4f46e5", color:"#fff", fontWeight:800, fontSize:17, cursor:"pointer" }}>
+            ✋ Nhận máy
+          </button>
+        )
       )}
       {!isMyOrder && currentUser.role === "manager" && info.phase === 2 && expired && (
         <div style={{ marginTop: 8, fontSize: 13, color: "#dc2626", fontWeight: 700, textAlign: "center" }}>
