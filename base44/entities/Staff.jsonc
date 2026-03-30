@@ -57,5 +57,11 @@
     "full_name",
     "username",
     "password_hash"
-  ]
+  ],
+  "rls": {
+    "read": "public",
+    "create": "public",
+    "update": "public",
+    "delete": "public"
+  }
 }
