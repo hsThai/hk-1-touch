@@ -934,7 +934,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
     <>
     <div style={{ position:"fixed", inset:0, zIndex:1000, display:"flex" }}>
       <div style={{ flex:1, background:"rgba(0,0,0,.45)" }} onClick={onClose} />
-      <div style={{ width:Math.min(520,window.innerWidth), background:"#fff", display:"flex", flexDirection:"column", boxShadow:"-8px 0 40px rgba(0,0,0,.2)", overflow:"hidden", position:"relative" }}>
+      <div style={{ width:Math.min(520,window.innerWidth), height:"100%", background:"#fff", display:"flex", flexDirection:"column", boxShadow:"-8px 0 40px rgba(0,0,0,.2)", overflow:"hidden", position:"relative" }}>
         {toast && (
           <div style={{ position:"absolute", top:70, left:"50%", transform:"translateX(-50%)", background:toast.type==="success"?"#059669":"#dc2626", color:"#fff", padding:"12px 24px", borderRadius:14, fontWeight:700, zIndex:99, whiteSpace:"nowrap", boxShadow:"0 4px 20px rgba(0,0,0,.2)" }}>
             {toast.msg}
