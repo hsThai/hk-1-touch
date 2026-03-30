@@ -348,11 +348,29 @@ function timeAgo(d) {
 }
 function genOrderId() { return "SC24"+String(Math.floor(Math.random()*9000)+1000); }
 
-function getAcceptDeadline(order) {
-  const s = order.accept_stage||0;
-  if(s===0&&order.assigned_at) return{label:"Nhận máy lần 1",deadline:new Date(new Date(order.assigned_at).getTime()+15*60000),stage:1};
-  if(s===1&&order.stage1_at)   return{label:"Xác nhận lần 2", deadline:new Date(new Date(order.stage1_at).getTime()+60*60000),stage:2};
-  if(s===2&&order.stage2_at)   return{label:"Xác nhận lần 3", deadline:new Date(new Date(order.stage2_at).getTime()+1500*60000),stage:3};
+// ── KPI Timeline per sơ đồ ──────────────────────
+// accept_stage:
+//   0 = vừa gán, chưa "Cập nhật" lần nào
+//   1 = đã "Cập nhật" lần 1 (dừng đếm T=0→60)
+//   2 = đã "Cập nhật" lần 2 (dừng đếm T=60→120)
+//   3 = Hoàn tất
+// kpi_stage1_penalized: true = đã bị -1 KPI mốc 60'
+// kpi_stage2_penalized: true = đã bị -3 KPI mốc 120'
+function getKpiTimerInfo(order) {
+  if (!order.assigned_to || !order.assigned_at) return null;
+  if (order.accept_stage >= 3) return null;
+  const assignedAt = new Date(order.assigned_at).getTime();
+  const stage = order.accept_stage || 0;
+  // Giai đoạn 1: T=0 → T=60'  (chỉ hiện nếu stage=0, chưa Cập nhật lần 1)
+  if (stage === 0) {
+    const deadline = assignedAt + 60 * 60000;
+    return { phase: 1, label: "Giai đoạn 1 (0→60')", deadline: new Date(deadline), penalized: !!order.kpi_stage1_penalized };
+  }
+  // Giai đoạn 2: T=60' → T=120' (chỉ hiện nếu stage=1, chưa Cập nhật lần 2)
+  if (stage === 1 && order.stage1_at) {
+    const deadline = assignedAt + 120 * 60000;
+    return { phase: 2, label: "Giai đoạn 2 (60'→120')", deadline: new Date(deadline), penalized: !!order.kpi_stage2_penalized };
+  }
   return null;
 }
 
@@ -604,31 +622,59 @@ function AcceptChecklistModal({ order, onConfirm, onClose }) {
   );
 }
 
-function AcceptTimer({ order, onAccept, onOpenChecklist, currentUser }) {
+function AcceptTimer({ order, currentUser, onUpdate }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const iv = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(iv); }, []);
+
   if (!order.assigned_to || order.accept_stage >= 3) return null;
   if (order.assigned_to !== currentUser.id && currentUser.role !== "manager") return null;
-  const info = getAcceptDeadline(order);
+
+  const info = getKpiTimerInfo(order);
   if (!info) return null;
+
   const rem = Math.max(0, info.deadline - now);
-  const mins = Math.floor(rem/60000), secs = Math.floor((rem%60000)/1000);
-  const urgent = rem < 3*60000, expired = rem === 0;
-  // Stage 1 → mở checklist; stage 2,3 → bấm trực tiếp
-  const handleClick = () => info.stage === 1 ? onOpenChecklist(order, info.stage) : onAccept(order, info.stage);
+  const mins = Math.floor(rem / 60000);
+  const secs = Math.floor((rem % 60000) / 1000);
+  const expired = rem === 0;
+  const urgent = rem < 5 * 60000;
+  const isMyOrder = order.assigned_to === currentUser.id;
+
+  function handleCapNhat() {
+    const stage = info.phase; // 1 hoặc 2
+    const key = `stage${stage}_at`;
+    onUpdate(order.id, { accept_stage: stage, [key]: new Date().toISOString() }, null);
+  }
+
   return (
-    <div style={{ background:expired?"#fef2f2":urgent?"#fffbeb":"#f0fdf4", border:`2px solid ${expired?"#fca5a5":urgent?"#fcd34d":"#6ee7b7"}`, borderRadius:14, padding:"12px 14px", marginBottom:14 }}>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+    <div style={{ background: expired ? "#fef2f2" : urgent ? "#fffbeb" : "#f0fdf4", border: `2px solid ${expired ? "#fca5a5" : urgent ? "#fcd34d" : "#6ee7b7"}`, borderRadius: 14, padding: "12px 14px", marginBottom: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
         <div>
-          <div style={{ fontWeight:800, fontSize:14, color:expired?"#dc2626":"#374151" }}>{expired?"⚠️ Quá hạn KPI!":"⏰ "+info.label}</div>
-          <div style={{ fontSize:12, color:"#6b7280" }}>{expired?"Đã trừ KPI, báo quản lý":`Còn ${mins}:${secs.toString().padStart(2,"0")} — bấm ngay!`}</div>
+          <div style={{ fontWeight: 800, fontSize: 14, color: expired ? "#dc2626" : "#374151" }}>
+            {expired ? (info.phase === 1 ? "⚠️ Quá mốc 60 phút!" : "🚨 Quá mốc 120 phút!") : `⏰ ${info.label}`}
+          </div>
+          <div style={{ fontSize: 12, color: "#6b7280" }}>
+            {expired
+              ? (info.penalized ? (info.phase === 1 ? "Đã trừ -1 KPI" : "Đã trừ -3 KPI") : "Đang xử lý KPI...")
+              : `Còn ${mins}:${secs.toString().padStart(2, "0")} — bấm Cập nhật ngay!`}
+          </div>
         </div>
-        {!expired && <div style={{ fontSize:24, fontWeight:900, fontFamily:"monospace", color:urgent?"#d97706":"#059669", flexShrink:0 }}>{mins}:{secs.toString().padStart(2,"0")}</div>}
+        {!expired && (
+          <div style={{ fontSize: 22, fontWeight: 900, fontFamily: "monospace", color: urgent ? "#d97706" : "#059669", flexShrink: 0 }}>
+            {mins}:{secs.toString().padStart(2, "0")}
+          </div>
+        )}
       </div>
-      <button onClick={handleClick}
-        style={{ width:"100%", height:54, borderRadius:14, border:"none", background:expired?"#dc2626":"#4f46e5", color:"#fff", fontWeight:800, fontSize:18, cursor:"pointer" }}>
-        ✋ {info.stage===1?"Nhận Máy + Checklist":info.label}
-      </button>
+      {isMyOrder && (
+        <button onClick={handleCapNhat}
+          style={{ width: "100%", height: 52, borderRadius: 14, border: "none", background: expired ? "#dc2626" : "#4f46e5", color: "#fff", fontWeight: 800, fontSize: 17, cursor: "pointer" }}>
+          ✅ Cập nhật (Dừng đếm{info.phase === 1 ? " Giai đoạn 1" : " Giai đoạn 2"})
+        </button>
+      )}
+      {!isMyOrder && currentUser.role === "manager" && info.phase === 2 && expired && (
+        <div style={{ marginTop: 8, fontSize: 13, color: "#dc2626", fontWeight: 700, textAlign: "center" }}>
+          🔔 Hệ thống đã báo quản lý — có thể "Đổi KTV" bên dưới
+        </div>
+      )}
     </div>
   );
 }
@@ -729,7 +775,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
 
         {tab === "info" && (
           <div style={{ flex:1, overflowY:"auto", padding:18 }}>
-            <AcceptTimer order={order} onAccept={handleAccept} onOpenChecklist={handleOpenChecklist} currentUser={currentUser} />
+            <AcceptTimer order={order} currentUser={currentUser} onUpdate={onUpdate} />
             {/* Customer */}
             <div style={{ background:"#eef2ff", borderRadius:14, padding:14, marginBottom:14 }}>
               <div style={{ fontWeight:800, fontSize:16, marginBottom:4 }}>👤 {cust?.full_name}</div>
@@ -786,6 +832,39 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
                 </div>
               </div>
             )}
+            {/* ── Cảnh báo Quản lý: Đơn cần chuyển KTV ─────── */}
+            {order.needs_reassign && currentUser.role === "manager" && !["Hoàn Thành","Đã Giao"].includes(order.status) && (
+              <div style={{ background:"#fef2f2", border:"2px solid #fca5a5", borderRadius:14, padding:"14px 16px", marginBottom:14 }}>
+                <div style={{ fontWeight:800, fontSize:15, color:"#dc2626", marginBottom:6 }}>🚨 Hệ thống chuyển việc cho Quản lý</div>
+                <div style={{ fontSize:13, color:"#6b7280", marginBottom:12 }}>KTV đã quá 120 phút không Cập nhật. Cần phân công lại.</div>
+                <div style={{ marginBottom:8 }}>
+                  <div style={{ fontSize:13, fontWeight:700, marginBottom:6 }}>Chọn KTV mới:</div>
+                  <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                    {users.filter(u => u.role==="technician" && u.id !== order.assigned_to && u.is_active!==false).map(u => (
+                      <button key={u.id} onClick={() => {
+                        const newAssignAt = new Date().toISOString();
+                        onUpdate(order.id, {
+                          assigned_to: u.id,
+                          assigned_to_name: u.name,
+                          assigned_at: newAssignAt,
+                          accept_stage: 0,
+                          stage1_at: null,
+                          stage2_at: null,
+                          kpi_stage1_penalized: false,
+                          kpi_stage2_penalized: false,
+                          needs_reassign: false,
+                        }, null);
+                        showToast("Đã chuyển đơn cho " + u.name);
+                      }}
+                        style={{ padding:"10px 14px", borderRadius:10, border:"1.5px solid #e5e7eb", background:"#fff", fontWeight:700, fontSize:14, cursor:"pointer", textAlign:"left" }}>
+                        🔧 {u.name} <span style={{ color:"#6b7280", fontWeight:400, fontSize:12 }}>(KPI: {u.kpi})</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Status + Actions — KTV cần bấm "Chỉnh" để edit */}
             {!["Hoàn Thành","Đã Giao"].includes(order.status) && (currentUser.role==="manager" || isMyOrder) && (
               <div style={{ marginBottom:14 }}>
@@ -1105,8 +1184,7 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
             </select>
             {form.assigned_to && (
               <div style={{ marginTop:8, background:"#fffbeb", borderRadius:10, padding:"10px 12px", fontSize:13, color:"#92400e", fontWeight:600 }}>
-                ⏰ KTV có <strong>15 phút</strong> để bấm nhận máy. Nếu không bấm sẽ <strong>−1 KPI</strong>.
-              </div>
+                ⏰ KTV có <strong>60 phút</strong> để Cập nhật. Sau 60 phút: -1 KPI. Sau 120 phút: -3 KPI + chuyển QL.</div>
             )}
           </div>
 
@@ -1151,10 +1229,10 @@ function KPIPage({ users, orders }) {
           </tr></thead>
           <tbody>
             {[
-              ["Nhận máy lần 1 (0–15 phút)","+0","−1 KPI"],
-              ["Nhận máy lần 2 (0–60 phút sau lần 1)","+0","−1 KPI + giao lại quản lý"],
-              ["Nhận máy lần 3 (1300–1500 phút sau lần 2)","+0","−2 KPI"],
-              ["Sửa hoàn thành","+2 KPI","—"],
+              ["Cập nhật trong 60 phút đầu (T=0→60')","Hệ thống dừng đếm","−1 KPI + nhắc lần 1"],
+              ["Cập nhật trong 60'→120' (T=60→120')","Hệ thống dừng đếm","−3 KPI + báo QL"],
+              ["Không Cập nhật sau 120 phút","—","Hệ thống chuyển việc cho QL"],
+              ["Bấm Hoàn tất","+2 KPI","—"],
             ].map(([l,ok,bad],i) => (
               <tr key={i} style={{ borderBottom:"1px solid #f3f4f6" }}>
                 <td style={{ padding:"9px 12px", fontWeight:600 }}>{l}</td>
@@ -1562,16 +1640,69 @@ export default function Home() {
     setOrders(p => [data, ...p]);
     if (data.assigned_to) {
       const ktv = users.find(u => u.id===data.assigned_to);
-      setNotifications(n => [{ id:Math.random().toString(36), msg:`🔔 Đơn ${data.id} giao cho ${ktv?.name}. 15 phút nhận máy!`, time:new Date().toISOString() }, ...n.slice(0,9)]);
+      setNotifications(n => [{ id:Math.random().toString(36), msg:`🔔 Đơn ${data.id} giao cho ${ktv?.name}. Quy trình KPI đã bắt đầu!`, time:new Date().toISOString() }, ...n.slice(0,9)]);
     }
     setCreatedOrder(data);
     setPage("board");
   }
   function goToPendingAccept() {
     setPage("tasks");
-    const p = orders.find(o => o.assigned_to===user.id && o.accept_stage<3 && o.assigned_at);
+    const p = orders.find(o => o.assigned_to===user.id && (o.accept_stage||0)<2 && o.assigned_at);
     if (p) { setHighlightId(p.id); setTimeout(() => setHighlightId(null), 3000); }
   }
+
+  // ── Auto KPI deduction per timeline diagram ──────────────
+  useEffect(() => {
+    const iv = setInterval(() => {
+      const now = Date.now();
+      setOrders(prev => {
+        let changed = false;
+        const next = prev.map(o => {
+          if (!o.assigned_to || !o.assigned_at || o.accept_stage >= 3) return o;
+          if (["Hoàn Thành","Đã Giao"].includes(o.status)) return o;
+          const assignedAt = new Date(o.assigned_at).getTime();
+          let patch = {};
+
+          // Mốc 1: T=60' — chưa cập nhật lần 1, chưa bị trừ
+          if ((o.accept_stage||0) === 0 && !o.kpi_stage1_penalized && now >= assignedAt + 60*60000) {
+            patch.kpi_stage1_penalized = true;
+            // Trừ -1 KPI cho KTV
+            setUsers(u => u.map(x => x.id===o.assigned_to ? {...x, kpi:Math.max(0,x.kpi-1)} : x));
+            // Thông báo
+            setNotifications(n => [{
+              id: Math.random().toString(36),
+              msg: `⚠️ Đơn ${o.id}: KTV ${o.assigned_to_name||o.assigned_to} quá 60' chưa Cập nhật → -1 KPI`,
+              time: new Date().toISOString()
+            }, ...n.slice(0,9)]);
+            changed = true;
+          }
+
+          // Mốc 2: T=120' — chưa cập nhật lần 2, chưa bị trừ
+          if ((o.accept_stage||0) < 2 && !o.kpi_stage2_penalized && now >= assignedAt + 120*60000) {
+            patch.kpi_stage2_penalized = true;
+            // Trừ -3 KPI cho KTV
+            setUsers(u => u.map(x => x.id===o.assigned_to ? {...x, kpi:Math.max(0,x.kpi-3)} : x));
+            // Hệ thống báo quản lý + flag chuyển việc
+            patch.needs_reassign = true;
+            setNotifications(n => [{
+              id: Math.random().toString(36),
+              msg: `🚨 Đơn ${o.id}: KTV quá 120' không Cập nhật → -3 KPI. Quản lý cần xử lý!`,
+              time: new Date().toISOString()
+            }, ...n.slice(0,9)]);
+            changed = true;
+          }
+
+          if (Object.keys(patch).length > 0) {
+            changed = true;
+            return {...o, ...patch};
+          }
+          return o;
+        });
+        return changed ? next : prev;
+      });
+    }, 15000); // check mỗi 15 giây
+    return () => clearInterval(iv);
+  }, []);
   function handleGlobalQRScan(result) {
     setShowQRScan(false);
     if (result.type === "order") setSelectedOrder(result.data);
@@ -1583,7 +1714,7 @@ export default function Home() {
     const c = MOCK_CUSTOMERS.find(x => x.id===o.customer_id);
     return c?.full_name.toLowerCase().includes(search.toLowerCase()) || c?.phone.includes(search) || o.device_model.toLowerCase().includes(search.toLowerCase()) || o.id.toLowerCase().includes(search.toLowerCase()) || (o.qr_code||"").toLowerCase().includes(search.toLowerCase());
   });
-  const pendingAccepts = orders.filter(o => o.assigned_to===user.id && o.accept_stage<3 && o.assigned_at && !["Hoàn Thành","Đã Giao"].includes(o.status));
+  const pendingAccepts = orders.filter(o => o.assigned_to===user.id && (o.accept_stage||0)<2 && o.assigned_at && !["Hoàn Thành","Đã Giao"].includes(o.status));
 
   const navItems = [
     ...(user.role==="manager"?[{key:"dashboard",icon:"📊",label:"Tổng quan"}]:[]),
@@ -1701,7 +1832,7 @@ export default function Home() {
         {user.role==="technician" && pendingAccepts.length>0 && (
           <div style={{ background:"#fef2f2", borderBottom:"2px solid #fca5a5", padding:"10px 16px", display:"flex", alignItems:"center", gap:10 }}>
             <span style={{ fontSize:18 }}>⚠️</span>
-            <div style={{ flex:1 }}><span style={{ fontWeight:800, color:"#dc2626", fontSize:14 }}>Bạn có {pendingAccepts.length} đơn chờ bấm nhận máy!</span></div>
+            <div style={{ flex:1 }}><span style={{ fontWeight:800, color:"#dc2626", fontSize:14 }}>Bạn có {pendingAccepts.length} đơn đang chờ bấm Cập nhật!</span></div>
             <button onClick={goToPendingAccept} style={{ background:"#dc2626", color:"#fff", border:"none", borderRadius:8, padding:"8px 16px", fontWeight:800, cursor:"pointer", fontSize:14 }}>Xem ngay →</button>
           </div>
         )}
@@ -1765,7 +1896,7 @@ export default function Home() {
                       <div style={{ minHeight:60 }}>
                         {colOrders.map(o => {
                           const cust = MOCK_CUSTOMERS.find(c => c.id===o.customer_id);
-                          const needsAction = o.assigned_to===user.id && o.accept_stage<3 && o.assigned_at;
+                          const needsAction = o.assigned_to===user.id && (o.accept_stage||0)<2 && o.assigned_at;
                           return (
                             <div key={o.id} onClick={() => setSelectedOrder(o)}
                               style={{ background:"#fff", borderRadius:14, padding:14, border:`1.5px solid ${needsAction?"#fca5a5":"#f3f4f6"}`, marginBottom:10, cursor:"pointer", boxShadow:highlightId===o.id?"0 0 0 3px #4f46e5":"0 1px 4px rgba(0,0,0,.06)", transition:"box-shadow .4s" }}>
@@ -1813,14 +1944,14 @@ export default function Home() {
               </div>
               {pendingAccepts.length>0 && user.role==="technician" && (
                 <div style={{ background:"#fef2f2", border:"2px solid #fca5a5", borderRadius:14, padding:"12px 16px", marginBottom:14 }}>
-                  <div style={{ fontWeight:800, color:"#dc2626", marginBottom:4 }}>⚠️ {pendingAccepts.length} đơn cần bấm nhận ngay!</div>
+                  <div style={{ fontWeight:800, color:"#dc2626", marginBottom:4 }}>⚠️ {pendingAccepts.length} đơn cần Cập nhật ngay!</div>
                 </div>
               )}
               {filtered.map(order => {
                 const cust = MOCK_CUSTOMERS.find(c => c.id===order.customer_id);
                 const col = STATUS_COLS.find(s => s.key===order.status);
                 const isHL = highlightId===order.id;
-                const needAccept = order.assigned_to===user.id && order.accept_stage<3 && order.assigned_at;
+                const needAccept = order.assigned_to===user.id && (order.accept_stage||0)<2 && order.assigned_at;
                 return (
                   <div key={order.id} onClick={() => setSelectedOrder(order)}
                     style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:10, cursor:"pointer", borderLeft:`4px solid ${col?.color}`, boxShadow:isHL?"0 0 0 3px #4f46e5,0 4px 24px rgba(79,70,229,.4)":"0 1px 4px rgba(0,0,0,.06)", transition:"box-shadow .4s" }}>
@@ -1939,10 +2070,10 @@ export default function Home() {
               <div style={{ background:"#fff", borderRadius:16, padding:16, boxShadow:"0 1px 4px rgba(0,0,0,.06)", marginBottom:16 }}>
                 <div style={{ fontWeight:800, fontSize:15, marginBottom:12 }}>🏆 Quy Tắc KPI</div>
                 {[
-                  { icon:"⚠️", rule:"Không nhận máy sau 15 phút", delta:"-1 KPI", color:"#d97706" },
-                  { icon:"🔄", rule:"Bị reassign sau 60 phút", delta:"-1 KPI", color:"#d97706" },
-                  { icon:"🚨", rule:"Đơn quá 1300-1500 phút", delta:"-2 KPI", color:"#dc2626" },
-                  { icon:"✅", rule:"Hoàn thành đơn hàng", delta:"+2 KPI", color:"#059669" },
+                  { icon:"⏱️", rule:"Không Cập nhật trong 60 phút đầu", delta:"-1 KPI", color:"#d97706" },
+                  { icon:"🚨", rule:"Không Cập nhật trong 60→120 phút", delta:"-3 KPI", color:"#dc2626" },
+                  { icon:"🔄", rule:"Bị chuyển việc sau mốc 120 phút", delta:"QL xử lý", color:"#7c3aed" },
+                  { icon:"✅", rule:"Bấm Hoàn tất đơn hàng", delta:"+2 KPI", color:"#059669" },
                 ].map((r, i) => (
                   <div key={i} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 0", borderBottom:"1px solid #f3f4f6" }}>
                     <span style={{ fontSize:20 }}>{r.icon}</span>
@@ -1973,7 +2104,7 @@ export default function Home() {
           <div style={{ fontWeight:800, fontSize:17 }}>Tạo đơn thành công!</div>
           <div style={{ fontSize:14, color:"#a5b4fc", fontWeight:600 }}>{createdOrder.id}</div>
           {(() => { const c = MOCK_CUSTOMERS.find(x=>x.id===createdOrder.customer_id); return c ? <div style={{ fontSize:13, color:"#c7d2fe" }}>👤 {c.full_name} · 📱 {createdOrder.device_model}</div> : null; })()}
-          {createdOrder.assigned_to && (() => { const u = MOCK_USERS.find(x=>x.id===createdOrder.assigned_to); return <div style={{ fontSize:13, color:"#fcd34d" }}>⏰ Đã giao {u?.name} — 15 phút nhận máy!</div>; })()}
+          {createdOrder.assigned_to && (() => { const u = MOCK_USERS.find(x=>x.id===createdOrder.assigned_to); return <div style={{ fontSize:13, color:"#fcd34d" }}>⏰ Đã giao {u?.name} — Quy trình KPI đã bắt đầu!</div>; })()}
           <div style={{ display:"flex", gap:10, marginTop:4 }}>
             <button onClick={() => { setSelectedOrder(createdOrder); setCreatedOrder(null); }}
               style={{ padding:"8px 18px", borderRadius:10, background:"rgba(255,255,255,.15)", border:"1px solid rgba(255,255,255,.3)", color:"#fff", fontWeight:700, cursor:"pointer", fontSize:13 }}>
