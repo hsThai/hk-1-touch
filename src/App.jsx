@@ -7,6 +7,7 @@ import SparePartModal from './pages/SparePartModal';
 import Index from './pages/Index';
 import ChangePassword from './pages/ChangePassword';
 import Login from './pages/Login';
+import OrderComponents from './pages/OrderComponents';
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
         <Route path="/Index" element={<Index />} />
         <Route path="/ChangePassword" element={<ChangePassword />} />
         <Route path="/Login" element={<Login />} />
+        <Route path="/OrderComponents" element={<OrderComponents />} />
       </Routes>
     </BrowserRouter>
   )
