@@ -1,3 +1,4 @@
+// v2.1
 import React, { lazy, Suspense, useState, useEffect, useRef, useCallback } from "react";
 import { RepairChat, Notification, Staff, RepairOrder, Customer } from "@/api/entities";
 import { uploadFile } from "@/api/storage";
