@@ -341,9 +341,7 @@ function LoginScreen({ onLogin, users }) {
       // Password stored as btoa(password) — same as StaffManager
       const hashedInput = btoa(unescape(encodeURIComponent(password.trim())));
       console.log("Username input:", username.trim());
-      console.log("Hashed input:", hashedInput);
       const found = staffList.find(s => {
-        console.log("Checking:", s.username, s.password_hash, s.is_active);
         return s.username === username.trim() &&
           s.password_hash === hashedInput &&
           s.is_active !== false;
@@ -378,7 +376,7 @@ function LoginScreen({ onLogin, users }) {
       <div style={{ background:"#fff", borderRadius:24, padding:40, width:"100%", maxWidth:400, boxShadow:"0 24px 64px rgba(0,0,0,.3)" }}>
         <div style={{ textAlign:"center", marginBottom:32 }}>
           <div style={{ fontSize:56 }}>🔧</div>
-          <div style={{ fontWeight:900, fontSize:24, color:"#1e1b4b", marginTop:8 }}>Quản Lý Sửa Chữa v2</div>
+          <div style={{ fontWeight:900, fontSize:24, color:"#1e1b4b", marginTop:8 }}>Quản Lý Sửa Chữa</div>
           <div style={{ color:"#9ca3af", fontSize:13, marginTop:4 }}>Hệ thống nội bộ</div>
         </div>
 
