@@ -24,10 +24,8 @@ const AuthenticatedApp = () => {
   if (authError) {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
-    } else if (authError.type === 'auth_required') {
-      navigateToLogin();
-      return null;
     }
+    // Bỏ qua auth_required và các lỗi khác — app public tự xử lý login nội bộ
   }
 
   return (
