@@ -7,7 +7,6 @@ import Login from './pages/Login';
 import Index from './pages/Index';
 import Home from './pages/Home';
 import StaffManager from './pages/StaffManager';
-import MainBoard from './pages/MainBoard';
 
 function App() {
   return (
@@ -22,7 +21,6 @@ function App() {
         <Route path="/Index" element={<Index />} />
         <Route path="/Home" element={<Home />} />
         <Route path="/StaffManager" element={<StaffManager />} />
-        <Route path="/MainBoard" element={<MainBoard />} />
       </Routes>
     </BrowserRouter>
   )
