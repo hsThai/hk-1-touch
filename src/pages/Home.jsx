@@ -1,4 +1,3 @@
-// BUILD: 2026-03-30-1450
 import React, { lazy, Suspense, useState, useEffect, useRef, useCallback } from "react";
 import { RepairChat, Notification, Staff, RepairOrder, Customer } from "@/api/entities";
 import { uploadFile } from "@/api/storage";
@@ -321,12 +320,7 @@ function QRPrintModal({ order, onClose }) {
 // ══════════════════════════════════════════════
 //  MOCK DATA
 // ══════════════════════════════════════════════
-const MOCK_USERS = [
-  { id:"u1", name:"Nguyễn Quản Lý",  username:"admin",   password:"admin123",  role:"manager",      kpi:10, phone:"", note:"" },
-  { id:"u2", name:"Trần Tiếp Tân",   username:"tieptan", password:"123456",    role:"receptionist", kpi:0,  phone:"", note:"" },
-  { id:"u3", name:"Lê Kỹ Thuật",     username:"ktv1",    password:"123456",    role:"technician",   kpi:8,  phone:"", note:"" },
-  { id:"u4", name:"Phạm KTV 2",       username:"ktv2",    password:"123456",    role:"technician",   kpi:6,  phone:"", note:"" },
-];
+const MOCK_USERS = [];
 const MOCK_CUSTOMERS = [
   { id:"c1", phone:"0901234567", full_name:"Nguyễn Văn A" },
   { id:"c2", phone:"0912345678", full_name:"Trần Thị B"   },
