@@ -934,7 +934,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
     <>
     <div style={{ position:"fixed", inset:0, zIndex:1000, display:"flex" }}>
       <div style={{ flex:1, background:"rgba(0,0,0,.45)" }} onClick={onClose} />
-      <div style={{ width:Math.min(520,window.innerWidth), height:"100%", background:"#fff", display:"flex", flexDirection:"column", boxShadow:"-8px 0 40px rgba(0,0,0,.2)", overflow:"hidden", position:"relative" }}>
+      <div style={{ width:Math.min(520,window.innerWidth), height:"100%", background:"#fff", display:"flex", flexDirection:"column", boxShadow:"-8px 0 40px rgba(0,0,0,.2)", overflowX:"hidden", position:"relative" }}>
         {toast && (
           <div style={{ position:"absolute", top:70, left:"50%", transform:"translateX(-50%)", background:toast.type==="success"?"#059669":"#dc2626", color:"#fff", padding:"12px 24px", borderRadius:14, fontWeight:700, zIndex:99, whiteSpace:"nowrap", boxShadow:"0 4px 20px rgba(0,0,0,.2)" }}>
             {toast.msg}
@@ -1097,7 +1097,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
         )}
 
         {tab === "chat" && (
-          <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", position:"relative" }}>
+          <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0, position:"relative" }}>
 
             {/* Messages */}
             <div style={{ flex:1, overflowY:"auto", padding:"12px 14px", display:"flex", flexDirection:"column", gap:10, background:"#f1f5f9" }}>
@@ -1189,7 +1189,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
             )}
 
             {/* Input bar */}
-            <div style={{ padding:"10px 12px", borderTop:"1px solid #e5e7eb", background:"#fff", display:"flex", flexDirection:"column", gap:8 }}>
+            <div style={{ padding:"10px 12px", borderTop:"1px solid #e5e7eb", background:"#fff", display:"flex", flexDirection:"column", gap:8, flexShrink:0 }}>
               {/* Media buttons row */}
               <div style={{ display:"flex", gap:8 }}>
                 {/* Camera / Photo */}
