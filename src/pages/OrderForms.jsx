@@ -1,4 +1,4 @@
-/* v2-clean */
+/* v2-clean-xk9z2p */
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, SparePartUsage } from "@/api/entities";
 import { uploadFile } from "@/api/storage";
@@ -345,7 +345,7 @@ function LoginScreen({ onLogin }) {
         <div style={{ textAlign:"center", marginBottom:32 }}>
           <div style={{ fontSize:56 }}>🔧</div>
           <div style={{ fontWeight:900, fontSize:24, color:"#1e1b4b", marginTop:8 }}>Quản Lý Sửa Chữa</div>
-          <div style={{ color:"#9ca3af", fontSize:13, marginTop:4 }}>Hệ thống nội bộ — Vui lòng đăng nhập</div>
+          <div style={{ color:"#9ca3af", fontSize:13, marginTop:4 }}>XK9Z2P — Vui lòng đăng nhập</div>
         </div>
 
         <div style={{ marginBottom:16 }}>
