@@ -13,6 +13,7 @@ import StaffManager from './pages/StaffManager';
 import Login from './pages/Login';
 import Index from './pages/Index';
 import SparePartModal from './pages/SparePartModal';
+import AppBootstrapV5 from './pages/AppBootstrapV5';
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
         <Route path="/Login" element={<Login />} />
         <Route path="/Index" element={<Index />} />
         <Route path="/SparePartModal" element={<SparePartModal />} />
+        <Route path="/AppBootstrapV5" element={<AppBootstrapV5 />} />
       </Routes>
     </BrowserRouter>
   )
