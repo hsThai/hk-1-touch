@@ -1629,6 +1629,66 @@ export default function Home() {
   const [highlightId, setHighlightId] = useState(null);
   const [createdOrder, setCreatedOrder] = useState(null); // toast xác nhận tạo đơn
 
+  // ── Auto KPI deduction per timeline diagram ──────────────
+  useEffect(() => {
+    const iv = setInterval(() => {
+      const now = Date.now();
+      let kpiChanges = []; // { userId, delta }
+      let notifMsgs = [];
+
+      setOrders(prev => {
+        let changed = false;
+        kpiChanges = [];
+        notifMsgs = [];
+        const next = prev.map(o => {
+          if (!o.assigned_to || !o.assigned_at || o.accept_stage >= 3) return o;
+          if (["Hoàn Thành","Đã Giao"].includes(o.status)) return o;
+          const assignedAt = new Date(o.assigned_at).getTime();
+          let patch = {};
+
+          // Mốc 1: T=60' — chưa cập nhật lần 1, chưa bị trừ
+          if ((o.accept_stage||0) === 0 && !o.kpi_stage1_penalized && now >= assignedAt + 60*60000) {
+            patch.kpi_stage1_penalized = true;
+            kpiChanges.push({ userId: o.assigned_to, delta: -1 });
+            notifMsgs.push(`⚠️ Đơn ${o.id}: KTV quá 60 phút chưa Cập nhật → -1 KPI`);
+            changed = true;
+          }
+
+          // Mốc 2: T=120' — chưa cập nhật lần 2, chưa bị trừ
+          if ((o.accept_stage||0) < 2 && !o.kpi_stage2_penalized && now >= assignedAt + 120*60000) {
+            patch.kpi_stage2_penalized = true;
+            patch.needs_reassign = true;
+            kpiChanges.push({ userId: o.assigned_to, delta: -3 });
+            notifMsgs.push(`🚨 Đơn ${o.id}: KTV quá 120 phút → -3 KPI. Quản lý cần xử lý!`);
+            changed = true;
+          }
+
+          if (Object.keys(patch).length > 0) { changed = true; return {...o, ...patch}; }
+          return o;
+        });
+        return changed ? next : prev;
+      });
+
+      // Apply KPI changes after orders update
+      if (kpiChanges.length > 0) {
+        setUsers(u => {
+          let next = [...u];
+          kpiChanges.forEach(({ userId, delta }) => {
+            next = next.map(x => x.id===userId ? {...x, kpi:Math.max(0,x.kpi+delta)} : x);
+          });
+          return next;
+        });
+      }
+      if (notifMsgs.length > 0) {
+        setNotifications(n => [
+          ...notifMsgs.map(msg => ({ id: Math.random().toString(36), msg, time: new Date().toISOString() })),
+          ...n
+        ].slice(0, 10));
+      }
+    }, 15000); // check mỗi 15 giây
+    return () => clearInterval(iv);
+  }, []);
+
   if (!user) return <LoginPage users={users} onLogin={u => { setUser(u); setPage(u.role==="technician"?"tasks":u.role==="receptionist"?"new":"dashboard"); }} />;
 
   function updateOrder(id, patch, kpiEvent) {
@@ -1651,58 +1711,7 @@ export default function Home() {
     if (p) { setHighlightId(p.id); setTimeout(() => setHighlightId(null), 3000); }
   }
 
-  // ── Auto KPI deduction per timeline diagram ──────────────
-  useEffect(() => {
-    const iv = setInterval(() => {
-      const now = Date.now();
-      setOrders(prev => {
-        let changed = false;
-        const next = prev.map(o => {
-          if (!o.assigned_to || !o.assigned_at || o.accept_stage >= 3) return o;
-          if (["Hoàn Thành","Đã Giao"].includes(o.status)) return o;
-          const assignedAt = new Date(o.assigned_at).getTime();
-          let patch = {};
 
-          // Mốc 1: T=60' — chưa cập nhật lần 1, chưa bị trừ
-          if ((o.accept_stage||0) === 0 && !o.kpi_stage1_penalized && now >= assignedAt + 60*60000) {
-            patch.kpi_stage1_penalized = true;
-            // Trừ -1 KPI cho KTV
-            setUsers(u => u.map(x => x.id===o.assigned_to ? {...x, kpi:Math.max(0,x.kpi-1)} : x));
-            // Thông báo
-            setNotifications(n => [{
-              id: Math.random().toString(36),
-              msg: `⚠️ Đơn ${o.id}: KTV ${o.assigned_to_name||o.assigned_to} quá 60' chưa Cập nhật → -1 KPI`,
-              time: new Date().toISOString()
-            }, ...n.slice(0,9)]);
-            changed = true;
-          }
-
-          // Mốc 2: T=120' — chưa cập nhật lần 2, chưa bị trừ
-          if ((o.accept_stage||0) < 2 && !o.kpi_stage2_penalized && now >= assignedAt + 120*60000) {
-            patch.kpi_stage2_penalized = true;
-            // Trừ -3 KPI cho KTV
-            setUsers(u => u.map(x => x.id===o.assigned_to ? {...x, kpi:Math.max(0,x.kpi-3)} : x));
-            // Hệ thống báo quản lý + flag chuyển việc
-            patch.needs_reassign = true;
-            setNotifications(n => [{
-              id: Math.random().toString(36),
-              msg: `🚨 Đơn ${o.id}: KTV quá 120' không Cập nhật → -3 KPI. Quản lý cần xử lý!`,
-              time: new Date().toISOString()
-            }, ...n.slice(0,9)]);
-            changed = true;
-          }
-
-          if (Object.keys(patch).length > 0) {
-            changed = true;
-            return {...o, ...patch};
-          }
-          return o;
-        });
-        return changed ? next : prev;
-      });
-    }, 15000); // check mỗi 15 giây
-    return () => clearInterval(iv);
-  }, []);
   function handleGlobalQRScan(result) {
     setShowQRScan(false);
     if (result.type === "order") setSelectedOrder(result.data);
