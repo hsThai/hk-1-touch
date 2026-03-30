@@ -321,7 +321,7 @@ function KPIPage({ users, orders }) {
 // ══════════════════════════════════════════════
 //  LOGIN
 // ══════════════════════════════════════════════
-function LoginPage({ onLogin, users }) {
+function LoginScreen({ onLogin, users }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -426,4 +426,4 @@ function LoginPage({ onLogin, users }) {
 }
 
 
-export { NewOrderModal, KPIPage, LoginPage };
+export { NewOrderModal, KPIPage, LoginPage: LoginScreen, LoginScreen };

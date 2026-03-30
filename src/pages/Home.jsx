@@ -34,7 +34,8 @@ let _qrLibCallbacks = [];
 import { QRScanModal, QRPrintModal } from "./QRComponents";
 import { MediaViewer, AcceptChecklistModal, AcceptTimer, timeAgo, genOrderId, getKpiTimerInfo } from "./MediaViewer";
 import { OrderDrawer } from "./OrderDrawer";
-import { NewOrderModal, KPIPage, LoginPage } from "./OrderForms";
+import { NewOrderModal, KPIPage, LoginScreen } from "./OrderForms";
+const LoginPage = LoginScreen;
 
 export default function Home() {
   const [user, setUser] = useState(null);
