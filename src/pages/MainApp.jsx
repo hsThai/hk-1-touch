@@ -1,4 +1,4 @@
-/* v1774861342-1558 */
+/* v1774861420-5574 */
 import React, { lazy, Suspense, useState, useEffect, useRef, useCallback } from "react";
 import { RepairChat, Notification, Staff, RepairOrder, Customer } from "@/api/entities";
 import { uploadFile } from "@/api/storage";
@@ -31,6 +31,8 @@ import { MediaViewer, AcceptChecklistModal, AcceptTimer, timeAgo, genOrderId, ge
 import { OrderDrawer } from "./OrderDrawer";
 import { NewOrderModal, KPIPage, LoginScreen } from "./OrderForms";
 const LoginPage = LoginScreen;
+
+const _FORCE_REBUILD_76741 = 1774861420;
 
 export default function MainApp() {
   const [user, setUser] = useState(null);
