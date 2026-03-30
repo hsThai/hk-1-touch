@@ -1,4 +1,4 @@
-// v2.1
+// v3.0
 import React, { lazy, Suspense, useState, useEffect, useRef, useCallback } from "react";
 import { RepairChat, Notification, Staff, RepairOrder, Customer } from "@/api/entities";
 import { uploadFile } from "@/api/storage";
@@ -24,11 +24,6 @@ const SettingsPage = lazy(() => import("./Settings").catch(() => ({ default: () 
   </div>
 )})));
 
-// ══════════════════════════════════════════════
-//  QR CODE — qrcodejs từ CDN (load 1 lần)
-// ══════════════════════════════════════════════
-let _qrLibLoaded = false;
-let _qrLibCallbacks = [];
 
 // Components loaded from OrderComponents
 import { QRScanModal, QRPrintModal } from "./QRComponents";
