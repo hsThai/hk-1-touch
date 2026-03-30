@@ -861,7 +861,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
             {order.needs_reassign && currentUser.role === "manager" && !["Hoàn Thành","Đã Giao"].includes(order.status) && (
               <div style={{ background:"#fef2f2", border:"2px solid #fca5a5", borderRadius:14, padding:"14px 16px", marginBottom:14 }}>
                 <div style={{ fontWeight:800, fontSize:15, color:"#dc2626", marginBottom:6 }}>🚨 Hệ thống chuyển việc cho Quản lý</div>
-                <div style={{ fontSize:13, color:"#6b7280", marginBottom:12 }}>KTV đã quá 120 phút không Cập nhật. Cần phân công lại.</div>
+                <div style={{ fontSize:13, color:"#6b7280", marginBottom:12 }}>KTV đã quá 120 phút không Nhận máy. Cần phân công lại.</div>
                 <div style={{ marginBottom:8 }}>
                   <div style={{ fontSize:13, fontWeight:700, marginBottom:6 }}>Chọn KTV mới:</div>
                   <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
@@ -1209,7 +1209,7 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
             </select>
             {form.assigned_to && (
               <div style={{ marginTop:8, background:"#fffbeb", borderRadius:10, padding:"10px 12px", fontSize:13, color:"#92400e", fontWeight:600 }}>
-                ⏰ KTV có <strong>60 phút</strong> để Cập nhật. Sau 60 phút: -1 KPI. Sau 120 phút: -3 KPI + chuyển QL.</div>
+                ⏰ KTV có <strong>60 phút</strong> để Nhận máy. Sau 60 phút: -1 KPI. Sau 120 phút: -3 KPI + chuyển QL.</div>
             )}
           </div>
 
@@ -1256,7 +1256,7 @@ function KPIPage({ users, orders }) {
             {[
               ["Cập nhật trong 60 phút đầu (T=0→60')","Hệ thống dừng đếm","−1 KPI + nhắc lần 1"],
               ["Cập nhật trong 60'→120' (T=60→120')","Hệ thống dừng đếm","−3 KPI + báo QL"],
-              ["Không Cập nhật sau 120 phút","—","Hệ thống chuyển việc cho QL"],
+              ["Không Nhận máy sau 120 phút","—","Hệ thống chuyển việc cho QL"],
               ["Bấm Hoàn tất","+2 KPI","—"],
             ].map(([l,ok,bad],i) => (
               <tr key={i} style={{ borderBottom:"1px solid #f3f4f6" }}>
@@ -1675,7 +1675,7 @@ export default function Home() {
           if ((o.accept_stage||0) === 0 && !o.kpi_stage1_penalized && now >= assignedAt + 60*60000) {
             patch.kpi_stage1_penalized = true;
             kpiChanges.push({ userId: o.assigned_to, delta: -1 });
-            notifMsgs.push(`⚠️ Đơn ${o.id}: KTV quá 60 phút chưa Cập nhật → -1 KPI`);
+            notifMsgs.push(`⚠️ Đơn ${o.id}: KTV quá 60 phút chưa Nhận máy → -1 KPI`);
             changed = true;
           }
 
@@ -1866,7 +1866,7 @@ export default function Home() {
         {user.role==="technician" && pendingAccepts.length>0 && (
           <div style={{ background:"#fef2f2", borderBottom:"2px solid #fca5a5", padding:"10px 16px", display:"flex", alignItems:"center", gap:10 }}>
             <span style={{ fontSize:18 }}>⚠️</span>
-            <div style={{ flex:1 }}><span style={{ fontWeight:800, color:"#dc2626", fontSize:14 }}>Bạn có {pendingAccepts.length} đơn đang chờ bấm Cập nhật!</span></div>
+            <div style={{ flex:1 }}><span style={{ fontWeight:800, color:"#dc2626", fontSize:14 }}>Bạn có {pendingAccepts.length} đơn đang chờ bấm Nhận máy!</span></div>
             <button onClick={goToPendingAccept} style={{ background:"#dc2626", color:"#fff", border:"none", borderRadius:8, padding:"8px 16px", fontWeight:800, cursor:"pointer", fontSize:14 }}>Xem ngay →</button>
           </div>
         )}
@@ -1978,7 +1978,7 @@ export default function Home() {
               </div>
               {pendingAccepts.length>0 && user.role==="technician" && (
                 <div style={{ background:"#fef2f2", border:"2px solid #fca5a5", borderRadius:14, padding:"12px 16px", marginBottom:14 }}>
-                  <div style={{ fontWeight:800, color:"#dc2626", marginBottom:4 }}>⚠️ {pendingAccepts.length} đơn cần Cập nhật ngay!</div>
+                  <div style={{ fontWeight:800, color:"#dc2626", marginBottom:4 }}>⚠️ {pendingAccepts.length} đơn cần Nhận máy ngay!</div>
                 </div>
               )}
               {filtered.map(order => {
