@@ -1633,9 +1633,11 @@ function LoginPage({ onLogin, users }) {
     try {
       // Load from Staff entity directly to always get fresh data
       const staffList = await Staff.filter({ username: username.trim() });
+      // Password stored as btoa(password) — same as StaffManager
+      const hashedInput = btoa(unescape(encodeURIComponent(password.trim())));
       const found = staffList.find(s =>
         s.username === username.trim() &&
-        s.password_hash === password.trim() &&
+        s.password_hash === hashedInput &&
         s.is_active !== false
       );
       if (found) {
