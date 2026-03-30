@@ -1,4 +1,4 @@
-/* rebuild-1774861524-35360 */
+/* rebuild-1774861693-455060 */
 /* v1774860462-7391 */
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, SparePartUsage } from "@/api/entities";
@@ -428,33 +428,5 @@ function LoginForm({ onLogin, users }) {
 
 
 
-// NOTE_1: rebuild-1774861607-178841
-// NOTE_2: rebuild-1774861607-748965
-// NOTE_3: rebuild-1774861607-895265
-// NOTE_4: rebuild-1774861607-135669
-// NOTE_5: rebuild-1774861607-249203
-// NOTE_6: rebuild-1774861607-709735
-// NOTE_7: rebuild-1774861607-501330
-// NOTE_8: rebuild-1774861607-332378
-// NOTE_9: rebuild-1774861607-917012
-// NOTE_10: rebuild-1774861607-354039
-// NOTE_11: rebuild-1774861607-823516
-// NOTE_12: rebuild-1774861607-858132
-// NOTE_13: rebuild-1774861607-660455
-// NOTE_14: rebuild-1774861607-366207
-// NOTE_15: rebuild-1774861607-334314
-// NOTE_16: rebuild-1774861607-773724
-// NOTE_17: rebuild-1774861607-773965
-// NOTE_18: rebuild-1774861607-179923
-// NOTE_19: rebuild-1774861607-367477
-// NOTE_20: rebuild-1774861607-922498
-// NOTE_21: rebuild-1774861607-683296
-// NOTE_22: rebuild-1774861607-676770
-// NOTE_23: rebuild-1774861607-859784
-// NOTE_24: rebuild-1774861607-432919
-// NOTE_25: rebuild-1774861607-727659
-// NOTE_26: rebuild-1774861607-732431
-// NOTE_27: rebuild-1774861607-338253
-// NOTE_28: rebuild-1774861607-863642
-// NOTE_29: rebuild-1774861607-755179
+export const BUILD_TS = "1774861693-455060";
 export { NewOrderModal, KPIPage, LoginPage: LoginForm, LoginScreen: LoginForm };
