@@ -166,7 +166,7 @@ export default function StaffManager({ currentStaff }) {
                     style={{ height:36, padding:"0 14px", borderRadius:10, border:"1.5px solid #e5e7eb", background:"#f9fafb", fontWeight:700, fontSize:13, cursor:"pointer" }}>
                     ✏️ Sửa
                   </button>
-                  {s.id !== currentStaff.id && (
+                  {s.id !== currentStaff?.id && (
                     <button onClick={() => toggleActive(s)}
                       style={{ height:36, padding:"0 14px", borderRadius:10, border:"none", background: s.is_active?"#fef2f2":"#ecfdf5", color: s.is_active?"#dc2626":"#059669", fontWeight:700, fontSize:13, cursor:"pointer" }}>
                       {s.is_active ? "🔒 Khóa" : "🔓 Mở"}

@@ -8,6 +8,12 @@ const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ defa
     </div>
   </div>
 )})));
+const StaffManagerPage = lazy(() => import("./StaffManager").catch(() => ({ default: () => (
+  <div style={{padding:32,textAlign:"center"}}>
+    <div style={{fontSize:32}}>⚠️</div>
+    <div style={{fontWeight:700,marginTop:8}}>Module không tải được</div>
+  </div>
+)})));
 
 // ══════════════════════════════════════════════
 //  QR CODE — qrcodejs từ CDN (load 1 lần)
@@ -1904,29 +1910,16 @@ export default function Home() {
           )}
 
           {/* STAFF MANAGEMENT */}
-          {page==="staff" && user.role==="manager" && <StaffPanel users={users} setUsers={setUsers} />}
+          {page==="staff" && user.role==="manager" && (
+            <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#6b7280"}}>⏳ Đang tải...</div>}>
+              <StaffManagerPage currentStaff={user} />
+            </Suspense>
+          )}
 
           {/* SETTINGS */}
           {page==="settings" && user.role==="manager" && (
             <div style={{ maxWidth:600, margin:"0 auto" }}>
               <div style={{ fontWeight:800, fontSize:20, marginBottom:16 }}>⚙️ Cài Đặt Hệ Thống</div>
-
-              {/* Nhân viên */}
-              <div style={{ background:"#fff", borderRadius:16, padding:16, boxShadow:"0 1px 4px rgba(0,0,0,.06)", marginBottom:16 }}>
-                <div style={{ fontWeight:800, fontSize:15, marginBottom:12 }}>👨‍💼 Danh Sách Nhân Viên</div>
-                {users.map(u => (
-                  <div key={u.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 0", borderBottom:"1px solid #f3f4f6" }}>
-                    <div style={{ width:40, height:40, borderRadius:"50%", background:"#4f46e5", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:800, fontSize:16 }}>{u.name[0]}</div>
-                    <div style={{ flex:1 }}>
-                      <div style={{ fontWeight:700, fontSize:14 }}>{u.name}</div>
-                      <div style={{ fontSize:12, color:"#6b7280" }}>{ROLE_LABELS[u.role]}</div>
-                    </div>
-                    <div style={{ background:"#f3f4f6", borderRadius:20, padding:"3px 12px", fontSize:12, fontWeight:700, color:"#374151" }}>
-                      KPI: {u.kpi}
-                    </div>
-                  </div>
-                ))}
-              </div>
 
               {/* Trạng thái đơn */}
               <div style={{ background:"#fff", borderRadius:16, padding:16, boxShadow:"0 1px 4px rgba(0,0,0,.06)", marginBottom:16 }}>
