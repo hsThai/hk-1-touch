@@ -1,0 +1,61 @@
+{
+  "name": "Staff",
+  "type": "object",
+  "properties": {
+    "full_name": {
+      "type": "string",
+      "description": "H\u1ecd t\u00ean nh\u00e2n vi\u00ean"
+    },
+    "username": {
+      "type": "string",
+      "description": "T\u00ean \u0111\u0103ng nh\u1eadp"
+    },
+    "password_hash": {
+      "type": "string",
+      "description": "M\u1eadt kh\u1ea9u \u0111\u00e3 hash"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "manager",
+        "receptionist",
+        "technician",
+        "warehouse"
+      ],
+      "default": "technician",
+      "description": "Vai tr\u00f2"
+    },
+    "phone": {
+      "type": "string",
+      "description": "S\u1ed1 \u0111i\u1ec7n tho\u1ea1i"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "\u0110ang ho\u1ea1t \u0111\u1ed9ng"
+    },
+    "kpi_score": {
+      "type": "number",
+      "default": 100,
+      "description": "\u0110i\u1ec3m KPI"
+    },
+    "must_change_password": {
+      "type": "boolean",
+      "default": false,
+      "description": "Ph\u1ea3i \u0111\u1ed5i m\u1eadt kh\u1ea9u"
+    },
+    "avatar_url": {
+      "type": "string",
+      "description": "\u1ea2nh \u0111\u1ea1i di\u1ec7n"
+    },
+    "note": {
+      "type": "string",
+      "description": "Ghi ch\u00fa"
+    }
+  },
+  "required": [
+    "full_name",
+    "username",
+    "password_hash"
+  ]
+}
