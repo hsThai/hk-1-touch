@@ -35,7 +35,7 @@ export default function LoginV2({ onLogin }) {
         else setErr("Sai mật khẩu!");
         setLoading(false);
       }
-    } catch(e) { setErr("Lỗi kết nối, thử lại!"); setLoading(false); }
+    } catch(e) { setErr("Lỗi kết nối: " + (e?.message || JSON.stringify(e))); setLoading(false); }
   };
 
   return (
