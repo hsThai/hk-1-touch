@@ -6,7 +6,7 @@ const RepairChat = base44.entities.RepairChat;
 const Notification = base44.entities.Notification;
 const RepairOrder = base44.entities.RepairOrder;
 
-import { QRScanModal, QRPrintModal, QRCanvas } from "./QR";
+import { QRScanModal } from "./QR";
 import { timeAgo, getKpiTimerInfo, MediaViewer, AcceptChecklistModal, AcceptTimer } from "./Viewer";
 import SparePartModal from "./Parts";
 
@@ -47,6 +47,28 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
       .catch(() => { if (!cancelled) setChatLoading(false); });
     return () => { cancelled = true; };
   }, [order.id, tab]);
+
+  // Nhắc nhận máy mỗi 15 phút nếu chưa nhận
+  useEffect(() => {
+    if ((order.accept_stage||0) >= 1) return;
+    if (!order.assigned_to) return;
+    if (["Hoàn Thành","Đã Giao"].includes(order.status)) return;
+    const iv = setInterval(async () => {
+      if ((order.accept_stage||0) >= 1) { clearInterval(iv); return; }
+      try {
+        await RepairChat.create({
+          order_id: order.id,
+          order_code: order.id,
+          sender_id: "system",
+          sender_name: "🤖 Hệ thống",
+          message: `⏰ Nhắc nhở: KTV ${users.find(u=>u.id===order.assigned_to)?.name || ""} vui lòng bấm "Nhận máy" cho đơn ${order.id}!`,
+          message_type: "system",
+        });
+        setChats(p => [...p, { id:"remind_"+Date.now(), sender_id:"system", sender_name:"🤖 Hệ thống", message:`⏰ Nhắc nhở: KTV vui lòng bấm "Nhận máy" cho đơn ${order.id}!`, message_type:"system", created_date:new Date().toISOString() }]);
+      } catch {}
+    }, 15 * 60 * 1000);
+    return () => clearInterval(iv);
+  }, [order.id, order.accept_stage, order.assigned_to, order.status]);
 
   useEffect(() => { setTimeout(() => chatRef.current?.scrollIntoView({ behavior:"smooth" }), 80); }, [chats, tab]);
 
@@ -221,13 +243,13 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
             <span style={{ fontSize:11, background:col?.bg, color:col?.color, padding:"2px 10px", borderRadius:20, fontWeight:700 }}>{col?.icon} {order.status}</span>
           </div>
           <div style={{ display:"flex", gap:8 }}>
-            {onShowQR && <button onClick={() => onShowQR(order)} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:8, fontWeight:700, fontSize:12, cursor:"pointer" }}>🖨️ In QR</button>}
+            <button onClick={() => setTab("qr")} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:8, fontWeight:700, fontSize:12, cursor:"pointer" }}>🖨️ In</button>
             <button onClick={onClose} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:34, height:34, borderRadius:"50%", fontSize:17, cursor:"pointer" }}>✕</button>
           </div>
         </div>
 
         <div style={{ display:"flex", borderBottom:"1px solid #e5e7eb" }}>
-          {[["info","📄 Thông tin"],["parts","🔩 Linh kiện"],["chat",`💬 Chat(${chats.length})`],["qr","📱 QR"]].map(([t,lbl]) => (
+          {[["info","📄 Thông tin"],["parts","🔩 Linh kiện"],["chat",`💬 Chat(${chats.length})`],["qr","🖨️ In"]].map(([t,lbl]) => (
             <button key={t} onClick={() => setTab(t)}
               style={{ flex:1, padding:"11px", border:"none", background:"none", fontWeight:700, fontSize:13, cursor:"pointer", borderBottom:tab===t?"3px solid #4f46e5":"3px solid transparent", color:tab===t?"#4f46e5":"#6b7280" }}>
               {lbl}
@@ -479,20 +501,55 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
         )}
 
         {tab === "qr" && (
-          <div style={{ flex:1, overflowY:"auto", padding:20, display:"flex", flexDirection:"column", alignItems:"center" }}>
-            <div style={{ fontWeight:800, fontSize:16, marginBottom:4, textAlign:"center" }}>📱 Mã QR Phiếu Sửa</div>
-            <div style={{ color:"#6b7280", fontSize:13, marginBottom:16, textAlign:"center" }}>Dán lên máy để tra cứu nhanh</div>
-            <div style={{ background:"#f9fafb", borderRadius:20, padding:24, marginBottom:16, textAlign:"center", border:"2px dashed #a5b4fc" }}>
-              <QRCanvas key={qrContent} text={qrContent} size={180} />
-              <div style={{ fontWeight:800, fontSize:18, color:"#1e1b4b", marginTop:10 }}>{order.id}</div>
-              {order.qr_code && <div style={{ fontSize:12, color:"#818cf8", fontFamily:"monospace" }}>Mã QR máy: {order.qr_code}</div>}
-              <div style={{ fontSize:13, color:"#6b7280" }}>{cust?.full_name} · {order.device_model}</div>
+          <div style={{ flex:1, overflowY:"auto", padding:20 }}>
+            <div style={{ fontWeight:800, fontSize:16, marginBottom:4 }}>📋 Chi tiết phiếu sửa</div>
+            <div style={{ color:"#6b7280", fontSize:13, marginBottom:16 }}>In phiếu để giao cho khách hoặc lưu hồ sơ</div>
+            {/* Phiếu in */}
+            <div id="print-receipt" style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", padding:20, marginBottom:16 }}>
+              <div style={{ textAlign:"center", marginBottom:16, borderBottom:"1px dashed #e5e7eb", paddingBottom:12 }}>
+                <div style={{ fontWeight:900, fontSize:18, color:"#1e1b4b" }}>🔧 PHIẾU SỬA CHỮA</div>
+                <div style={{ fontWeight:800, fontSize:22, color:"#4f46e5", marginTop:4 }}>{order.id}</div>
+                {order.qr_code && <div style={{ fontSize:12, color:"#6b7280", fontFamily:"monospace" }}>QR máy: {order.qr_code}</div>}
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
+                {[
+                  { label:"Khách hàng", val: cust?.full_name || "—" },
+                  { label:"Số điện thoại", val: cust?.phone || "—" },
+                  { label:"Thiết bị", val: order.device_model || "—" },
+                  { label:"IMEI", val: order.imei_serial || "—" },
+                  { label:"Trạng thái", val: order.status },
+                  { label:"KTV phụ trách", val: assignee?.name || "Chưa giao" },
+                ].map(f => (
+                  <div key={f.label} style={{ background:"#f9fafb", borderRadius:10, padding:10 }}>
+                    <div style={{ fontSize:10, color:"#9ca3af", marginBottom:2 }}>{f.label}</div>
+                    <div style={{ fontWeight:700, fontSize:13 }}>{f.val}</div>
+                  </div>
+                ))}
+              </div>
+              {(order.issues||[]).length > 0 && (
+                <div style={{ marginBottom:10 }}>
+                  <div style={{ fontSize:11, color:"#9ca3af", marginBottom:4 }}>🛠️ Lỗi:</div>
+                  <div style={{ fontSize:13, color:"#991b1b", fontWeight:600 }}>{(order.issues||[]).join(", ")}</div>
+                </div>
+              )}
+              {order.notes && (
+                <div style={{ background:"#fffbeb", borderRadius:10, padding:"8px 12px", fontSize:13, color:"#92400e" }}>
+                  📝 {order.notes}
+                </div>
+              )}
+              {order.estimated_done && (
+                <div style={{ marginTop:10, fontSize:13, color:"#059669", fontWeight:600 }}>
+                  ⏱️ Dự kiến xong: {new Date(order.estimated_done).toLocaleString("vi-VN",{dateStyle:"short",timeStyle:"short"})}
+                </div>
+              )}
+              <div style={{ marginTop:14, paddingTop:12, borderTop:"1px dashed #e5e7eb", fontSize:11, color:"#9ca3af", textAlign:"center" }}>
+                Ngày tiếp nhận: {order.created ? new Date(order.created).toLocaleDateString("vi-VN") : "—"}
+              </div>
             </div>
-            {onShowQR && (
-              <button onClick={() => onShowQR(order)} style={{ width:"100%", height:52, borderRadius:14, background:"#1e1b4b", color:"#fff", border:"none", fontWeight:800, fontSize:16, cursor:"pointer" }}>
-                🖨️ In Phiếu QR
-              </button>
-            )}
+            <button onClick={() => window.print()}
+              style={{ width:"100%", height:52, borderRadius:14, background:"#1e1b4b", color:"#fff", border:"none", fontWeight:800, fontSize:16, cursor:"pointer" }}>
+              🖨️ In phiếu
+            </button>
           </div>
         )}
       </div>

@@ -8,7 +8,7 @@ const RepairOrder = base44.entities.RepairOrder;
 const StaffManagerPage = lazy(() => import("./Staff"));
 const SettingsPage = lazy(() => import("./Config"));
 
-import { QRScanModal, QRPrintModal } from "./QR";
+import { QRScanModal } from "./QR";
 import { MediaViewer, timeAgo, getKpiTimerInfo } from "./Viewer";
 import { OrderDrawer } from "./Drawer";
 import { NewOrderModal, KPIPage } from "./Forms";
@@ -26,7 +26,6 @@ export default function MainApp() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [showNotif, setShowNotif] = useState(false);
-  const [qrOrder, setQrOrder] = useState(null);
   const [showQRScan, setShowQRScan] = useState(false);
   const [highlightId, setHighlightId] = useState(null);
   const [createdOrder, setCreatedOrder] = useState(null);
@@ -262,24 +261,70 @@ export default function MainApp() {
   }
 
   function CustomerList() {
+    const [custSearch, setCustSearch] = useState("");
+    const [editCust, setEditCust] = useState(null); // {name, phone, note} | null
+    const [custForm, setCustForm] = useState({ name:"", phone:"", note:"" });
     const custMap = {};
     orders.forEach(o => {
       if (o.customer_phone) {
-        if (!custMap[o.customer_phone]) custMap[o.customer_phone] = { name:o.customer_name, phone:o.customer_phone, orders:0, lastOrder:o.created };
+        if (!custMap[o.customer_phone]) custMap[o.customer_phone] = { name:o.customer_name, phone:o.customer_phone, orders:0, lastOrder:o.created, note:"" };
         custMap[o.customer_phone].orders++;
       }
     });
-    const custs = Object.values(custMap).sort((a,b) => b.orders - a.orders);
+    const custs = Object.values(custMap).sort((a,b) => b.orders - a.orders)
+      .filter(c => !custSearch || c.name?.toLowerCase().includes(custSearch.toLowerCase()) || c.phone?.includes(custSearch));
+
+    function openEdit(c) { setCustForm({ name:c.name, phone:c.phone, note:c.note||"" }); setEditCust(c); }
+    function saveEdit() {
+      // update local state for orders with this phone
+      setOrders(prev => prev.map(o => o.customer_phone === editCust.phone ? { ...o, customer_name: custForm.name, customer_phone: custForm.phone } : o));
+      setEditCust(null);
+    }
+
     return (
       <div style={{ padding:"0 16px 80px" }}>
-        <div style={{ fontWeight:900, fontSize:18, color:"#1e1b4b", marginBottom:12 }}>👥 Khách Hàng ({custs.length})</div>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, flexWrap:"wrap", gap:8 }}>
+          <div style={{ fontWeight:900, fontSize:18, color:"#1e1b4b" }}>👥 Khách Hàng ({custs.length})</div>
+          <div style={{ fontSize:11, color:"#6b7280", background:"#f0f9ff", padding:"4px 10px", borderRadius:20, border:"1px solid #bae6fd" }}>
+            💡 Đồng bộ KiotViet trong Cài đặt
+          </div>
+        </div>
+        <input value={custSearch} onChange={e=>setCustSearch(e.target.value)}
+          placeholder="🔍 Tìm tên, số điện thoại..."
+          style={{ width:"100%", height:42, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:14, outline:"none", marginBottom:12, boxSizing:"border-box" }} />
         {custs.length===0 && <div style={{ textAlign:"center", color:"#9ca3af", padding:40 }}>Chưa có khách hàng</div>}
         {custs.map(c => (
-          <div key={c.phone} style={{ background:"#fff", borderRadius:14, padding:14, marginBottom:8, boxShadow:"0 1px 4px rgba(0,0,0,.06)" }}>
-            <div style={{ fontWeight:800, fontSize:15 }}>{c.name}</div>
-            <div style={{ fontSize:13, color:"#6b7280", marginTop:2 }}>📞 {c.phone} · {c.orders} đơn</div>
+          <div key={c.phone} style={{ background:"#fff", borderRadius:14, padding:14, marginBottom:8, boxShadow:"0 1px 4px rgba(0,0,0,.06)", display:"flex", alignItems:"center", gap:10 }}>
+            <div style={{ width:40, height:40, borderRadius:"50%", background:"#eef2ff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 }}>👤</div>
+            <div style={{ flex:1 }}>
+              <div style={{ fontWeight:800, fontSize:15 }}>{c.name}</div>
+              <div style={{ fontSize:13, color:"#6b7280", marginTop:2 }}>📞 {c.phone} · {c.orders} đơn</div>
+            </div>
+            <button onClick={() => openEdit(c)}
+              style={{ height:34, padding:"0 12px", borderRadius:10, border:"1.5px solid #e5e7eb", background:"#f9fafb", fontWeight:700, fontSize:12, cursor:"pointer" }}>
+              ✏️ Sửa
+            </button>
           </div>
         ))}
+        {editCust && (
+          <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.5)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}
+            onClick={e=>{ if(e.target===e.currentTarget) setEditCust(null); }}>
+            <div style={{ background:"#fff", borderRadius:20, padding:28, width:"100%", maxWidth:420 }}>
+              <div style={{ fontSize:17, fontWeight:900, color:"#1e1b4b", marginBottom:20 }}>✏️ Sửa thông tin khách</div>
+              {[{label:"Họ tên *",key:"name",ph:"Nguyễn Văn A"},{label:"Số điện thoại *",key:"phone",ph:"0901234567"},{label:"Ghi chú",key:"note",ph:"VIP, hay trả chậm..."}].map(f=>(
+                <div key={f.key} style={{ marginBottom:14 }}>
+                  <label style={{ fontSize:13, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>{f.label}</label>
+                  <input value={custForm[f.key]||""} onChange={e=>setCustForm(p=>({...p,[f.key]:e.target.value}))}
+                    placeholder={f.ph} style={{ width:"100%", height:44, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:14, outline:"none", boxSizing:"border-box" }} />
+                </div>
+              ))}
+              <div style={{ display:"flex", gap:10 }}>
+                <button onClick={()=>setEditCust(null)} style={{ flex:1, height:46, borderRadius:12, border:"1.5px solid #e5e7eb", background:"#f9fafb", fontWeight:700, cursor:"pointer" }}>Hủy</button>
+                <button onClick={saveEdit} style={{ flex:2, height:46, borderRadius:12, border:"none", background:"#4f46e5", color:"#fff", fontWeight:800, cursor:"pointer" }}>Lưu</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -424,10 +469,8 @@ export default function MainApp() {
           onUpdate={(id, patch, kpiEvent) => { updateOrder(id, patch, kpiEvent); }}
           users={users}
           currentUser={user}
-          onShowQR={(order) => { setSelectedOrder(null); setQrOrder(order); }}
         />
       )}
-      {qrOrder && <QRPrintModal order={qrOrder} onClose={() => setQrOrder(null)} />}
       {showQRScan && <QRScanModal onClose={() => setShowQRScan(false)} onFound={handleGlobalQRScan} orders={orders} />}
 
       {/* Created order toast */}
@@ -437,10 +480,6 @@ export default function MainApp() {
             <div style={{ fontWeight:800 }}>✅ Đã tạo đơn {createdOrder.id}</div>
             <div style={{ fontSize:12, opacity:.9, marginTop:2 }}>{createdOrder.customer_name} · {createdOrder.device_model}</div>
           </div>
-          <button onClick={() => { setCreatedOrder(null); setQrOrder(createdOrder); }}
-            style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", borderRadius:10, padding:"8px 14px", cursor:"pointer", fontWeight:700, fontSize:13 }}>
-            In QR
-          </button>
           <button onClick={() => setCreatedOrder(null)}
             style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", borderRadius:10, padding:"8px 14px", cursor:"pointer", fontWeight:700, fontSize:13 }}>
             OK

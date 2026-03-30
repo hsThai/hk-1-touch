@@ -91,19 +91,21 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
         <div style={{ padding:"20px 20px 8px" }}>
           {/* QR */}
           <div style={{ ...sec, background:"#eef2ff", border:"1.5px solid #a5b4fc" }}>
-            <div style={{ fontWeight:800, fontSize:14, color:"#3730a3", marginBottom:10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <span>📲 Mã QR Máy</span>
+            <div style={{ fontWeight:800, fontSize:14, color:"#3730a3", marginBottom:6, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <span>📲 Mã QR Máy (đã in sẵn)</span>
               <button onClick={() => setShowQRScan(true)}
                 style={{ height:36, padding:"0 14px", borderRadius:10, background:"#4f46e5", color:"#fff", border:"none", fontWeight:700, fontSize:13, cursor:"pointer" }}>
                 📷 Quét QR
               </button>
             </div>
+            <div style={{ fontSize:12, color:"#6b7280", marginBottom:8 }}>Quét mã QR đã in sẵn dán trên máy để gắn vào đơn. Khi quét QR máy cũ sẽ tự động điền lại thông tin.</div>
             <input value={form.qr_code} onChange={e => { set("qr_code", e.target.value); setQrMsg(null); }}
-              placeholder="Quét hoặc nhập mã QR trên máy..."
+              placeholder="Quét hoặc nhập mã QR in sẵn trên máy..."
               style={{ ...inp, fontFamily:"monospace", background:form.qr_code?"#f0fdf4":"#fff", borderColor:form.qr_code?"#6ee7b7":"#e5e7eb" }} />
             {qrMsg?.type === "found" && (
               <div style={{ marginTop:10, background:"#fffbeb", borderRadius:12, padding:"10px 14px", border:"1.5px solid #fcd34d" }}>
-                <div style={{ fontWeight:800, color:"#d97706" }}>⚡ Đã tìm thấy dữ liệu cũ — điền tự động!</div>
+                <div style={{ fontWeight:800, color:"#d97706" }}>⚡ Máy này đã có lịch sử — điền tự động thông tin cũ!</div>
+                <div style={{ fontSize:12, color:"#92400e", marginTop:4 }}>Đơn cũ: {qrMsg.prevOrder?.id} · {qrMsg.prevOrder?.device_model}</div>
               </div>
             )}
             {qrMsg?.type === "new" && (
