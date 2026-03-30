@@ -1631,8 +1631,8 @@ function LoginPage({ onLogin, users }) {
     setLoading(true);
     setErr("");
     try {
-      // Load from Staff entity directly to always get fresh data
-      const staffList = await Staff.filter({ username: username.trim() });
+      // Load all staff then filter client-side (avoid filter API issues)
+      const staffList = await Staff.list();
       // Password stored as btoa(password) — same as StaffManager
       const hashedInput = btoa(unescape(encodeURIComponent(password.trim())));
       const found = staffList.find(s =>
@@ -1739,7 +1739,7 @@ export default function Home() {
       try {
         setDataLoading(true);
         const [staffList, orderList] = await Promise.all([
-          Staff.filter({ is_active: true }),
+          Staff.list(),
           RepairOrder.list({ sort: "-created_date", limit: 200 }),
         ]);
         const mappedUsers = staffList.map(s => ({
