@@ -38,12 +38,7 @@ export default function LoginV2({ onLogin }) {
       }
     } catch(e) {
       const msg = e?.message || JSON.stringify(e);
-      if (msg.includes("private") || msg.includes("access")) {
-        // App chưa login Base44 — redirect to login
-        base44.auth.redirectToLogin(window.location.href);
-      } else {
-        setErr("Lỗi kết nối: " + msg);
-      }
+      setErr("Lỗi kết nối: " + msg);
       setLoading(false);
     }
   };
