@@ -1,6 +1,7 @@
 /* LoginV2 - standalone login component connecting to Staff entity */
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 const Staff = base44.entities.Staff;
 
 export default function LoginV2({ onLogin }) {
@@ -35,7 +36,16 @@ export default function LoginV2({ onLogin }) {
         else setErr("Sai mật khẩu!");
         setLoading(false);
       }
-    } catch(e) { setErr("Lỗi kết nối: " + (e?.message || JSON.stringify(e))); setLoading(false); }
+    } catch(e) {
+      const msg = e?.message || JSON.stringify(e);
+      if (msg.includes("private") || msg.includes("access")) {
+        // App chưa login Base44 — redirect to login
+        base44.auth.redirectToLogin(window.location.href);
+      } else {
+        setErr("Lỗi kết nối: " + msg);
+      }
+      setLoading(false);
+    }
   };
 
   return (
