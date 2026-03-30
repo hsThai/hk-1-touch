@@ -1,4 +1,4 @@
-/* v2-clean-xk9z2p */
+/* v3-rebuild-1774864528 */
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, SparePartUsage } from "@/api/entities";
 import { uploadFile } from "@/api/storage";
@@ -156,141 +156,99 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
             <input ref={photoRef} type="file" accept="image/*" capture="environment" multiple style={{ display:"none" }} onChange={handleFiles} />
             <input ref={videoRef} type="file" accept="video/*" capture="environment" style={{ display:"none" }} onChange={handleFiles} />
             <input ref={fileRef} type="file" accept="image/*,video/*" multiple style={{ display:"none" }} onChange={handleFiles} />
-            <div style={{ display:"flex", gap:8, marginBottom:8 }}>
-              <button onClick={() => photoRef.current?.click()} style={{ flex:1, height:60, borderRadius:14, border:"2px dashed #6ee7b7", background:"#f0fdf4", color:"#065f46", fontWeight:700, cursor:"pointer", fontSize:13 }}>📷 Chụp ảnh</button>
-              <button onClick={() => videoRef.current?.click()} style={{ flex:1, height:60, borderRadius:14, border:"2px dashed #6ee7b7", background:"#f0fdf4", color:"#065f46", fontWeight:700, cursor:"pointer", fontSize:13 }}>🎥 Quay video</button>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom:10 }}>
+              <button onClick={() => photoRef.current.click()} style={{ padding:"14px 8px", background:"#f0fdf4", border:"2px dashed #6ee7b7", borderRadius:12, cursor:"pointer", fontSize:20, textAlign:"center" }}>📷<div style={{fontSize:11,color:"#065f46",marginTop:4}}>Chụp ảnh</div></button>
+              <button onClick={() => videoRef.current.click()} style={{ padding:"14px 8px", background:"#fdf4ff", border:"2px dashed #d8b4fe", borderRadius:12, cursor:"pointer", fontSize:20, textAlign:"center" }}>🎬<div style={{fontSize:11,color:"#7e22ce",marginTop:4}}>Quay video</div></button>
+              <button onClick={() => fileRef.current.click()} style={{ padding:"14px 8px", background:"#f0f9ff", border:"2px dashed #bae6fd", borderRadius:12, cursor:"pointer", fontSize:20, textAlign:"center" }}>📁<div style={{fontSize:11,color:"#0369a1",marginTop:4}}>Chọn file</div></button>
             </div>
-            <button onClick={() => fileRef.current?.click()} style={{ width:"100%", height:44, borderRadius:12, border:"1.5px solid #e5e7eb", background:"#f9fafb", color:"#6b7280", fontWeight:600, cursor:"pointer", fontSize:13 }}>📎 Chọn từ thư viện</button>
             {mediaFiles.length > 0 && (
-              <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginTop:10 }}>
+              <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                 {mediaFiles.map(m => (
                   <div key={m.id} style={{ position:"relative", width:72, height:72 }}>
                     {m.type==="video"
-                      ? <div style={{ width:72, height:72, borderRadius:10, background:"#1f2937", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, border:"2px solid #6ee7b7" }}>🎥</div>
-                      : <img src={m.url} style={{ width:72, height:72, objectFit:"cover", borderRadius:10, border:"2px solid #6ee7b7" }} alt="" />
-                    }
-                    <button onClick={() => setMediaFiles(p => p.filter(x => x.id!==m.id))}
-                      style={{ position:"absolute", top:-6, right:-6, width:20, height:20, borderRadius:"50%", background:"#ef4444", color:"#fff", border:"none", fontSize:11, fontWeight:900, cursor:"pointer" }}>✕</button>
+                      ? <div style={{ width:72, height:72, background:"#1e1b4b", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>🎬</div>
+                      : <img src={m.url} style={{ width:72, height:72, objectFit:"cover", borderRadius:10 }} alt="" />}
+                    <button onClick={() => setMediaFiles(p=>p.filter(x=>x.id!==m.id))}
+                      style={{ position:"absolute", top:-6, right:-6, width:20, height:20, background:"#ef4444", border:"none", borderRadius:"50%", color:"#fff", fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          <div style={sec}>
-            <div style={{ fontWeight:800, fontSize:14, color:"#3730a3", marginBottom:10 }}>👨‍🔧 Phân Công KTV</div>
-            <select value={form.assigned_to} onChange={e => set("assigned_to", e.target.value)} style={{ ...inp, background:"#fff" }}>
-              <option value="">-- Chọn kỹ thuật viên --</option>
-              {users.filter(u => u.role==="technician").map(u => <option key={u.id} value={u.id}>{u.name} (KPI: {u.kpi})</option>)}
+          <div style={{ ...sec, background:"#fffbeb", border:"1.5px solid #fcd34d" }}>
+            <div style={{ fontWeight:800, fontSize:14, color:"#d97706", marginBottom:10 }}>👨‍🔧 Giao Cho KTV</div>
+            <select value={form.assigned_to} onChange={e => set("assigned_to", e.target.value)}
+              style={{ ...inp, color:form.assigned_to?"#111":"#9ca3af" }}>
+              <option value="">-- Chưa giao (giao sau) --</option>
+              {users.filter(u => u.role==="technician" && u.is_active).map(u => (
+                <option key={u.id} value={u.id}>{u.name} — KPI: {u.kpi}</option>
+              ))}
             </select>
-            {form.assigned_to && (
-              <div style={{ marginTop:8, background:"#fffbeb", borderRadius:10, padding:"10px 12px", fontSize:13, color:"#92400e", fontWeight:600 }}>
-                ⏰ KTV có <strong>60 phút</strong> để Nhận máy. Sau 60 phút: -1 KPI. Sau 120 phút: -3 KPI + chuyển QL.</div>
-            )}
           </div>
 
-          <div style={{ display:"flex", gap:10, marginBottom:20 }}>
-            <button onClick={onClose} style={{ flex:1, height:52, borderRadius:14, border:"1.5px solid #e5e7eb", background:"#fff", fontSize:16, cursor:"pointer" }}>Huỷ</button>
-            <button onClick={submit} style={{ flex:2, height:56, borderRadius:14, background:"#4f46e5", color:"#fff", border:"none", fontSize:16, fontWeight:800, cursor:"pointer" }}>🚀 Tạo Đơn</button>
-          </div>
+          {showQRScan && (
+            <div style={{ position:"fixed", inset:0, zIndex:3000 }}>
+              <div style={{ position:"absolute", inset:0, background:"rgba(0,0,0,.7)" }} onClick={() => setShowQRScan(false)} />
+              <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", background:"#fff", borderRadius:20, padding:24, width:"90%", maxWidth:400 }}>
+                <div style={{ fontWeight:800, marginBottom:12, textAlign:"center" }}>📷 Quét QR</div>
+                <input autoFocus placeholder="Nhập mã QR thủ công..." onKeyDown={e => { if(e.key==="Enter" && e.target.value) handleQRResult({type:"raw",code:e.target.value}); }}
+                  style={{ ...inp, marginBottom:12 }} />
+                <button onClick={() => setShowQRScan(false)} style={{ width:"100%", height:44, background:"#f3f4f6", border:"none", borderRadius:10, cursor:"pointer" }}>Đóng</button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div style={{ padding:"0 20px 20px", display:"flex", gap:10 }}>
+          <button onClick={onClose} style={{ flex:1, height:52, background:"#f3f4f6", border:"none", borderRadius:14, fontWeight:700, fontSize:16, cursor:"pointer" }}>Hủy</button>
+          <button onClick={submit} style={{ flex:2, height:52, background:"#4f46e5", border:"none", borderRadius:14, color:"#fff", fontWeight:800, fontSize:16, cursor:"pointer" }}>
+            ✅ Tạo Đơn
+          </button>
         </div>
       </div>
-
-      {showQRScan && (
-        <QRScanModal
-          onClose={() => setShowQRScan(false)}
-          onFound={handleQRResult}
-          orders={orders}
-          mode="capture"
-        />
-      )}
     </div>
   );
 }
 
+const ISSUE_OPTIONS = [
+  "🔋 Hao pin / Phồng pin","📱 Màn hình vỡ / nứt","🔊 Loa / micro lỗi",
+  "🔌 Sạc không vào","📷 Camera mờ / hỏng","💧 Vào nước","🔘 Nút bấm hỏng",
+  "📶 Mất sóng / wifi","🌡️ Máy nóng","⚡ Không lên nguồn",
+];
+
 function KPIPage({ users, orders }) {
-  const techs = users.filter(u => u.role === "technician");
+  const techs = users.filter(u => u.role==="technician");
   return (
-    <div style={{ maxWidth:700, margin:"0 auto" }}>
-      <div style={{ fontWeight:800, fontSize:22, marginBottom:4 }}>🏆 Đánh Giá KPI Kỹ Thuật</div>
-      <div style={{ color:"#6b7280", fontSize:13, marginBottom:20 }}>Theo dõi hiệu suất nhận và xử lý đơn sửa chữa</div>
-      <div style={{ background:"#fff", borderRadius:18, padding:20, marginBottom:20, boxShadow:"0 1px 8px rgba(0,0,0,.07)" }}>
-        <div style={{ fontWeight:800, fontSize:15, marginBottom:12, color:"#3730a3" }}>📋 Quy Tắc KPI</div>
-        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
-          <thead><tr style={{ background:"#eef2ff" }}>
-            <th style={{ padding:"9px 12px", textAlign:"left", fontWeight:700 }}>Sự kiện</th>
-            <th style={{ padding:"9px 12px", textAlign:"center", color:"#059669", fontWeight:700 }}>Đúng hạn</th>
-            <th style={{ padding:"9px 12px", textAlign:"center", color:"#dc2626", fontWeight:700 }}>Quá hạn</th>
-          </tr></thead>
-          <tbody>
-            {[
-              ["Cập nhật trong 60 phút đầu (T=0→60')","Hệ thống dừng đếm","−1 KPI + nhắc lần 1"],
-              ["Cập nhật trong 60'→120' (T=60→120')","Hệ thống dừng đếm","−3 KPI + báo QL"],
-              ["Không Nhận máy sau 120 phút","—","Hệ thống chuyển việc cho QL"],
-              ["Bấm Hoàn tất","+2 KPI","—"],
-            ].map(([l,ok,bad],i) => (
-              <tr key={i} style={{ borderBottom:"1px solid #f3f4f6" }}>
-                <td style={{ padding:"9px 12px", fontWeight:600 }}>{l}</td>
-                <td style={{ padding:"9px 12px", textAlign:"center", color:"#059669", fontWeight:700 }}>{ok}</td>
-                <td style={{ padding:"9px 12px", textAlign:"center", color:"#dc2626", fontWeight:700 }}>{bad}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(290px,1fr))", gap:16, marginBottom:20 }}>
-        {techs.map(u => {
-          const myOrd = orders.filter(o => o.assigned_to===u.id);
-          const kc = u.kpi>=8?"#059669":u.kpi>=5?"#d97706":"#dc2626";
-          const kb = u.kpi>=8?"#ecfdf5":u.kpi>=5?"#fffbeb":"#fef2f2";
-          return (
-            <div key={u.id} style={{ background:"#fff", borderRadius:18, padding:20, boxShadow:"0 1px 8px rgba(0,0,0,.07)" }}>
-              <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:14 }}>
-                <div style={{ width:50, height:50, borderRadius:"50%", background:"#4f46e5", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, fontSize:20 }}>{u.name[0]}</div>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontWeight:800, fontSize:16 }}>{u.name}</div>
-                  <div style={{ fontSize:12, color:"#6b7280" }}>{ROLE_LABELS[u.role]}</div>
-                </div>
-                <div style={{ textAlign:"center", background:kb, borderRadius:12, padding:"8px 14px", border:`2px solid ${kc}` }}>
-                  <div style={{ fontSize:26, fontWeight:900, color:kc, lineHeight:1 }}>{u.kpi}</div>
-                  <div style={{ fontSize:10, fontWeight:700, color:kc }}>KPI</div>
-                </div>
+    <div style={{ padding:16, maxWidth:800, margin:"0 auto" }}>
+      <div style={{ fontWeight:900, fontSize:20, color:"#1e1b4b", marginBottom:16 }}>🏆 Bảng KPI Kỹ Thuật Viên</div>
+      {techs.length === 0 && <div style={{ textAlign:"center", color:"#9ca3af", padding:40 }}>Chưa có KTV nào</div>}
+      {techs.sort((a,b) => b.kpi - a.kpi).map((u, i) => {
+        const myOrders = orders.filter(o => o.assigned_to === u.id);
+        const done = myOrders.filter(o => ["Hoàn Thành","Đã Giao"].includes(o.status)).length;
+        const pending = myOrders.filter(o => !["Hoàn Thành","Đã Giao"].includes(o.status)).length;
+        const kpiColor = u.kpi >= 90 ? "#059669" : u.kpi >= 70 ? "#d97706" : "#dc2626";
+        return (
+          <div key={u.id} style={{ background:"#fff", borderRadius:16, padding:18, marginBottom:12, boxShadow:"0 2px 12px rgba(0,0,0,.08)", display:"flex", alignItems:"center", gap:16 }}>
+            <div style={{ fontSize:32, minWidth:40, textAlign:"center" }}>
+              {i===0?"🥇":i===1?"🥈":i===2?"🥉":"👨‍🔧"}
+            </div>
+            <div style={{ flex:1 }}>
+              <div style={{ fontWeight:800, fontSize:16, color:"#1e1b4b" }}>{u.name}</div>
+              <div style={{ fontSize:13, color:"#6b7280", marginTop:2 }}>
+                ✅ Hoàn thành: {done} · ⏳ Đang làm: {pending}
               </div>
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom:12 }}>
-                {[{l:"Đang làm",v:myOrd.filter(o=>!["Đã Giao","Hoàn Thành"].includes(o.status)).length,c:"#d97706"},{l:"Đã xong",v:myOrd.filter(o=>["Hoàn Thành","Đã Giao"].includes(o.status)).length,c:"#059669"},{l:"Tổng",v:myOrd.length,c:"#4f46e5"}].map(s=>(
-                  <div key={s.l} style={{ background:"#f9fafb", borderRadius:10, padding:"8px 6px", textAlign:"center" }}>
-                    <div style={{ fontSize:20, fontWeight:900, color:s.c }}>{s.v}</div>
-                    <div style={{ fontSize:11, color:"#9ca3af" }}>{s.l}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ height:8, background:"#f3f4f6", borderRadius:10, overflow:"hidden", marginBottom:8 }}>
-                <div style={{ height:"100%", width:`${Math.min(100,u.kpi*10)}%`, background:kc, borderRadius:10 }} />
-              </div>
-              <div style={{ fontSize:13, fontWeight:700, color:kc, textAlign:"center", padding:"5px", background:kb, borderRadius:8 }}>
-                {u.kpi>=9?"⭐ Xuất sắc":u.kpi>=7?"👍 Tốt":u.kpi>=5?"⚠️ Trung bình":"❌ Cần cải thiện"}
+              <div style={{ marginTop:8, height:8, background:"#f3f4f6", borderRadius:99, overflow:"hidden" }}>
+                <div style={{ height:"100%", width:`${Math.min(100,u.kpi)}%`, background:kpiColor, borderRadius:99, transition:"width .3s" }} />
               </div>
             </div>
-          );
-        })}
-      </div>
-      <div style={{ background:"#fff", borderRadius:18, padding:20, boxShadow:"0 1px 8px rgba(0,0,0,.07)" }}>
-        <div style={{ fontWeight:800, fontSize:15, marginBottom:12, color:"#3730a3" }}>🏅 Bảng Xếp Hạng</div>
-        {[...techs].sort((a,b)=>b.kpi-a.kpi).map((u,i) => {
-          const kc = u.kpi>=8?"#059669":u.kpi>=5?"#d97706":"#dc2626";
-          return (
-            <div key={u.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 0", borderBottom:i<techs.length-1?"1px solid #f3f4f6":"none" }}>
-              <span style={{ fontSize:22, width:30 }}>{["🥇","🥈","🥉"][i]||`#${i+1}`}</span>
-              <div style={{ width:38, height:38, borderRadius:"50%", background:"#4f46e5", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700 }}>{u.name[0]}</div>
-              <div style={{ flex:1 }}>
-                <div style={{ fontWeight:700 }}>{u.name}</div>
-                <div style={{ fontSize:12, color:"#6b7280" }}>{orders.filter(o=>o.assigned_to===u.id).length} đơn</div>
-              </div>
-              <div style={{ fontSize:26, fontWeight:900, color:kc }}>{u.kpi}</div>
+            <div style={{ textAlign:"right" }}>
+              <div style={{ fontSize:28, fontWeight:900, color:kpiColor }}>{u.kpi}</div>
+              <div style={{ fontSize:11, color:"#9ca3af" }}>điểm KPI</div>
             </div>
-          );
-        })}
-      </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -329,8 +287,8 @@ function LoginScreen({ onLogin }) {
       } else {
         const matchUser = staffList.find(s => s.username === username.trim());
         if (!matchUser) setErr("Không tìm thấy username!");
-        else if (matchUser.password_hash !== hashedInput) setErr(`Sai mật khẩu! Hash DB: ${matchUser.password_hash} | Input: ${hashedInput}`);
-        else setErr("Tài khoản bị vô hiệu hóa!");
+        else if (matchUser.is_active === false) setErr("Tài khoản đã bị vô hiệu hóa!");
+        else setErr("Sai mật khẩu!");
         setLoading(false);
       }
     } catch(e) {
@@ -345,12 +303,12 @@ function LoginScreen({ onLogin }) {
         <div style={{ textAlign:"center", marginBottom:32 }}>
           <div style={{ fontSize:56 }}>🔧</div>
           <div style={{ fontWeight:900, fontSize:24, color:"#1e1b4b", marginTop:8 }}>Quản Lý Sửa Chữa</div>
-          <div style={{ color:"#9ca3af", fontSize:13, marginTop:4 }}>XK9Z2P — Vui lòng đăng nhập</div>
+          <div style={{ color:"#9ca3af", fontSize:13, marginTop:4 }}>Hệ thống nội bộ</div>
         </div>
 
         <div style={{ marginBottom:16 }}>
           <label style={{ display:"block", fontSize:13, fontWeight:700, color:"#374151", marginBottom:6 }}>👤 Tên đăng nhập</label>
-          <input
+          <input id="login-user"
             value={username} onChange={e => { setUsername(e.target.value); setErr(""); }}
             onKeyDown={e => e.key==="Enter" && doLogin()}
             placeholder="Nhập username..."
@@ -362,11 +320,12 @@ function LoginScreen({ onLogin }) {
         <div style={{ marginBottom:20 }}>
           <label style={{ display:"block", fontSize:13, fontWeight:700, color:"#374151", marginBottom:6 }}>🔑 Mật khẩu</label>
           <div style={{ position:"relative" }}>
-            <input
+            <input id="login-pw"
               value={password} onChange={e => { setPassword(e.target.value); setErr(""); }}
               onKeyDown={e => e.key==="Enter" && doLogin()}
               placeholder="Nhập mật khẩu..."
-              style={{ width:"100%", height:50, borderRadius:12, border:`2px solid ${err?"#ef4444":"#e5e7eb"}`, padding:"0 50px 0 16px", fontSize:15, outline:"none", boxSizing:"border-box", WebkitTextSecurity: showPw ? "none" : "disc", letterSpacing: showPw ? "normal" : "0.1em" }}
+              type={showPw ? "text" : "password"}
+              style={{ width:"100%", height:50, borderRadius:12, border:`2px solid ${err?"#ef4444":"#e5e7eb"}`, padding:"0 50px 0 16px", fontSize:15, outline:"none", boxSizing:"border-box" }}
             />
             <button onClick={() => setShowPw(v=>!v)} type="button"
               style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:20, color:"#9ca3af" }}>
@@ -376,12 +335,12 @@ function LoginScreen({ onLogin }) {
         </div>
 
         {err && (
-          <div style={{ background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:10, padding:"10px 14px", marginBottom:16, fontSize:13, color:"#dc2626", fontWeight:600, wordBreak:"break-all" }}>
+          <div style={{ background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:10, padding:"10px 14px", marginBottom:16, fontSize:13, color:"#dc2626", fontWeight:600 }}>
             ⚠️ {err}
           </div>
         )}
 
-        <button onClick={doLogin} disabled={loading}
+        <button id="login-btn" onClick={doLogin} disabled={loading}
           style={{ width:"100%", height:54, background:loading?"#a5b4fc":"#4f46e5", color:"#fff", border:"none", borderRadius:14, fontSize:18, fontWeight:800, cursor:loading?"not-allowed":"pointer" }}>
           {loading ? "⏳ Đang kiểm tra..." : "🚀 Đăng Nhập"}
         </button>
@@ -391,3 +350,4 @@ function LoginScreen({ onLogin }) {
 }
 
 export { NewOrderModal, KPIPage, LoginPage: LoginScreen, LoginScreen };
+export const _BUILD_TS = "1774864528-FORCE-V3";
