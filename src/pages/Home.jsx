@@ -1,5 +1,5 @@
 import React, { lazy, Suspense, useState, useEffect, useRef, useCallback } from "react";
-import { RepairChat, Notification } from "@/api/entities";
+import { RepairChat, Notification, Staff, RepairOrder, Customer } from "@/api/entities";
 import { uploadFile } from "@/api/storage";
 const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ default: ({ onClose }) => (
   <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -1626,19 +1626,38 @@ function LoginPage({ onLogin, users }) {
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const doLogin = () => {
+  const doLogin = async () => {
     if (!username.trim() || !password.trim()) { setErr("Vui lòng nhập đầy đủ thông tin!"); return; }
     setLoading(true);
     setErr("");
-    setTimeout(() => {
-      const found = users.find(u => u.username === username.trim() && u.password === password.trim() && u.active !== false);
+    try {
+      // Load from Staff entity directly to always get fresh data
+      const staffList = await Staff.filter({ username: username.trim() });
+      const found = staffList.find(s =>
+        s.username === username.trim() &&
+        s.password_hash === password.trim() &&
+        s.is_active !== false
+      );
       if (found) {
-        onLogin(found);
+        onLogin({
+          id: found.id,
+          name: found.full_name,
+          username: found.username,
+          role: found.role,
+          kpi: found.kpi_score || 0,
+          phone: found.phone || "",
+          note: found.note || "",
+          must_change_password: found.must_change_password,
+          avatar_url: found.avatar_url || "",
+        });
       } else {
         setErr("Tên đăng nhập hoặc mật khẩu không đúng!");
         setLoading(false);
       }
-    }, 400);
+    } catch(e) {
+      setErr("Lỗi kết nối, thử lại!");
+      setLoading(false);
+    }
   };
 
   return (
@@ -1689,12 +1708,7 @@ function LoginPage({ onLogin, users }) {
           {loading ? "⏳ Đang kiểm tra..." : "🚀 Đăng Nhập"}
         </button>
 
-        <div style={{ marginTop:20, padding:14, background:"#f8fafc", borderRadius:12, fontSize:12, color:"#6b7280" }}>
-          <div style={{ fontWeight:700, marginBottom:6 }}>💡 Tài khoản demo:</div>
-          <div>👑 admin / admin123 — Quản lý</div>
-          <div>🗂️ tieptan / 123456 — Tiếp tân</div>
-          <div>🔧 ktv1 / 123456 — Kỹ thuật viên</div>
-        </div>
+
       </div>
     </div>
   );
@@ -1702,8 +1716,9 @@ function LoginPage({ onLogin, users }) {
 
 export default function Home() {
   const [user, setUser] = useState(null);
-  const [orders, setOrders] = useState(MOCK_ORDERS_INIT);
-  const [users, setUsers] = useState(MOCK_USERS);
+  const [orders, setOrders] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [dataLoading, setDataLoading] = useState(true);
   const [page, setPage] = useState("board");
   const [search, setSearch] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -1715,6 +1730,57 @@ export default function Home() {
   const [showQRScan, setShowQRScan] = useState(false);
   const [highlightId, setHighlightId] = useState(null);
   const [createdOrder, setCreatedOrder] = useState(null); // toast xác nhận tạo đơn
+
+  // ── Load real data from entities ──────────────────────────
+  useEffect(() => {
+    async function loadData() {
+      try {
+        setDataLoading(true);
+        const [staffList, orderList] = await Promise.all([
+          Staff.filter({ is_active: true }),
+          RepairOrder.list({ sort: "-created_date", limit: 200 }),
+        ]);
+        const mappedUsers = staffList.map(s => ({
+          id: s.id,
+          name: s.full_name,
+          username: s.username,
+          password: s.password_hash,
+          role: s.role,
+          kpi: s.kpi_score || 0,
+          phone: s.phone || "",
+          note: s.note || "",
+          is_active: s.is_active !== false,
+          avatar_url: s.avatar_url || "",
+        }));
+        const mappedOrders = orderList.map(o => ({
+          id: o.order_code || o.id,
+          _id: o.id,
+          customer_id: o.customer_name,
+          device_model: o.device_model || o.device_name || "",
+          imei_serial: o.imei || "",
+          passcode: "",
+          issues: o.issue_description ? [o.issue_description] : [],
+          status: o.status || "Mới Nhận",
+          notes: o.technician_note || "",
+          assigned_to: o.assigned_to || "",
+          assigned_at: o.received_date || o.created_date,
+          accept_stage: o.status === "Hoàn Thành" || o.status === "Đã Giao" ? 3 : 0,
+          created: o.received_date || o.created_date,
+          images: o.images || [],
+          qr_code: o.order_code || "",
+          customer_name: o.customer_name || "",
+          customer_phone: o.customer_phone || "",
+        }));
+        setUsers(mappedUsers);
+        setOrders(mappedOrders);
+      } catch(e) {
+        console.error("Load data error:", e);
+      } finally {
+        setDataLoading(false);
+      }
+    }
+    loadData();
+  }, []);
 
   // ── Auto KPI deduction per timeline diagram ──────────────
   useEffect(() => {
@@ -1776,6 +1842,13 @@ export default function Home() {
     return () => clearInterval(iv);
   }, []);
 
+  if (dataLoading) return (
+    <div style={{ minHeight:"100vh", background:"linear-gradient(135deg,#1e1b4b,#4f46e5)", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:16 }}>
+      <div style={{ fontSize:56 }}>🔧</div>
+      <div style={{ color:"#fff", fontWeight:800, fontSize:20 }}>Đang tải hệ thống...</div>
+      <div style={{ color:"#c7d2fe", fontSize:14 }}>⏳ Vui lòng chờ</div>
+    </div>
+  );
   if (!user) return <LoginPage users={users} onLogin={u => { setUser(u); setPage(u.role==="technician"?"tasks":u.role==="receptionist"?"new":"dashboard"); }} />;
 
   function updateOrder(id, patch, kpiEvent) {
