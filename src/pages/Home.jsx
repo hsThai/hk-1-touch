@@ -30,7 +30,10 @@ let _qrLibLoaded = false;
 let _qrLibCallbacks = [];
 
 // Components loaded from OrderComponents
-import { QRScanModal, QRPrintModal, MediaViewer, AcceptChecklistModal, AcceptTimer, OrderDrawer, NewOrderModal, KPIPage, LoginPage } from "./OrderComponents";
+import { QRScanModal, QRPrintModal } from "./QRComponents";
+import { MediaViewer, AcceptChecklistModal, AcceptTimer, timeAgo, genOrderId, getKpiTimerInfo } from "./MediaViewer";
+import { OrderDrawer } from "./OrderDrawer";
+import { NewOrderModal, KPIPage, LoginPage } from "./OrderForms";
 
 export default function Home() {
   const [user, setUser] = useState(null);

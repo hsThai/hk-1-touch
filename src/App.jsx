@@ -7,7 +7,10 @@ import SparePartModal from './pages/SparePartModal';
 import Index from './pages/Index';
 import ChangePassword from './pages/ChangePassword';
 import Login from './pages/Login';
-import OrderComponents from './pages/OrderComponents';
+import QRComponents from './pages/QRComponents';
+import OrderDrawer from './pages/OrderDrawer';
+import OrderForms from './pages/OrderForms';
+import MediaViewer from './pages/MediaViewer';
 
 function App() {
   return (
@@ -22,7 +25,10 @@ function App() {
         <Route path="/Index" element={<Index />} />
         <Route path="/ChangePassword" element={<ChangePassword />} />
         <Route path="/Login" element={<Login />} />
-        <Route path="/OrderComponents" element={<OrderComponents />} />
+        <Route path="/QRComponents" element={<QRComponents />} />
+        <Route path="/OrderDrawer" element={<OrderDrawer />} />
+        <Route path="/OrderForms" element={<OrderForms />} />
+        <Route path="/MediaViewer" element={<MediaViewer />} />
       </Routes>
     </BrowserRouter>
   )
