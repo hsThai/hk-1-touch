@@ -6,6 +6,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="manifest" href="/manifest.json" />
     <title>Base44 APP</title>
+    <script>
+      // Ngăn F5, Ctrl+R, Ctrl+Shift+R refresh trang
+      document.addEventListener('keydown', function(e) {
+        if (
+          e.key === 'F5' ||
+          (e.ctrlKey && e.key === 'r') ||
+          (e.ctrlKey && e.shiftKey && e.key === 'R') ||
+          (e.metaKey && e.key === 'r')
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
+      }, true);
+
+      // Ngăn kéo thả và swipe refresh trên mobile (pull-to-refresh)
+      document.addEventListener('touchstart', function(e) {
+        if (e.touches.length > 1) e.preventDefault();
+      }, { passive: false });
+
+      let lastY = 0;
+      document.addEventListener('touchmove', function(e) {
+        const y = e.touches[0].clientY;
+        if (document.scrollingElement.scrollTop === 0 && y > lastY) {
+          e.preventDefault();
+        }
+        lastY = y;
+      }, { passive: false });
+    </script>
   </head>
   <body>
     <div id="root"></div>
