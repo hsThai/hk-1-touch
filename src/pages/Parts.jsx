@@ -1,7 +1,8 @@
 /* v1774860462-8691 */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { kvSyncProducts } from "@/functions/kvSyncProducts";
+import { kvSearchProducts } from "@/functions/kvSearchProducts";
 const SparePart = base44.entities.SparePart;
 const SparePartUsage = base44.entities.SparePartUsage;
 const RepairChat = base44.entities.RepairChat;
@@ -18,6 +19,9 @@ export default function SparePartModal({ order, currentStaff, onClose, onDone })
   const [parts, setParts]       = useState([]);   // danh sách SparePart
   const [usages, setUsages]     = useState([]);   // SparePartUsage của đơn này
   const [search, setSearch]     = useState("");
+  const [kvResults, setKvResults] = useState([]);   // gợi ý từ KiotViet
+  const [kvSearching, setKvSearching] = useState(false);
+  const kvDebounceRef = useRef(null);
   const [loading, setLoading]   = useState(true);
   const [syncing, setSyncing]   = useState(false);
   const [tab, setTab]           = useState("list"); // "list" | "used"
@@ -215,6 +219,48 @@ export default function SparePartModal({ order, currentStaff, onClose, onDone })
 
   function showToast(msg) { setToast(msg); setTimeout(() => setToast(""), 2800); }
 
+  function handleSearchChange(value) {
+    setSearch(value);
+    setKvResults([]);
+    if (kvDebounceRef.current) clearTimeout(kvDebounceRef.current);
+    if (value.length < 2) return;
+    kvDebounceRef.current = setTimeout(async () => {
+      setKvSearching(true);
+      try {
+        const res = await kvSearchProducts({ name: value });
+        setKvResults(res.data?.products || []);
+      } catch { setKvResults([]); }
+      setKvSearching(false);
+    }, 400);
+  }
+
+  async function addKvProduct(p) {
+    // Kiểm tra đã có trong SparePart local chưa
+    let localPart = parts.find(sp => sp.kv_id === String(p.id) || sp.sku === p.code);
+    if (!localPart) {
+      // Tạo mới SparePart từ KV
+      try {
+        localPart = await SparePart.create({
+          kv_id: String(p.id),
+          name: p.name,
+          sku: p.code || "",
+          price: p.sellPrice || 0,
+          stock_qty: p.onHand || 0,
+          category: p.categoryName || "Linh kiện",
+          is_active: true,
+        });
+        setParts(prev => [...prev, localPart].sort((a,b) => a.name.localeCompare(b.name)));
+        showToast(`✅ Đã thêm "${p.name}" vào kho`);
+      } catch {
+        showToast("❌ Lỗi tạo linh kiện!");
+        return;
+      }
+    }
+    setSearch("");
+    setKvResults([]);
+    await addPart(localPart);
+  }
+
   // ── Tính tổng ──
   const activeUsages  = usages.filter(u => u.status !== "returned");
   const totalPartCost = activeUsages.reduce((s, u) => s + (u.total_price || 0), 0);
@@ -269,9 +315,31 @@ export default function SparePartModal({ order, currentStaff, onClose, onDone })
             <div style={{ textAlign:"center", padding:40, color:"#9ca3af" }}>Đang tải...</div>
           ) : tab === "list" ? (
             <>
-              <input value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="🔍 Tìm tên, SKU, loại linh kiện..."
-                style={{ width:"100%", height:44, borderRadius:12, border:"1.5px solid #e5e7eb", padding:"0 14px", fontSize:14, outline:"none", marginBottom:12, boxSizing:"border-box", background:"#fff" }} />
+              <div style={{ position:"relative", marginBottom:12 }}>
+                <input value={search} onChange={e => handleSearchChange(e.target.value)}
+                  placeholder="🔍 Tìm tên, SKU, loại linh kiện..."
+                  style={{ width:"100%", height:44, borderRadius:12, border:"1.5px solid #e5e7eb", padding:"0 40px 0 14px", fontSize:14, outline:"none", boxSizing:"border-box", background:"#fff" }} />
+                {kvSearching && (
+                  <span style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", fontSize:12, color:"#9ca3af" }}>🔄</span>
+                )}
+                {kvResults.length > 0 && (
+                  <div style={{ position:"absolute", top:"110%", left:0, right:0, background:"#fff", border:"1.5px solid #c7d2fe", borderRadius:12, boxShadow:"0 8px 24px rgba(0,0,0,.15)", zIndex:200, maxHeight:240, overflowY:"auto" }}>
+                    <div style={{ padding:"8px 14px 4px", fontSize:11, color:"#6b7280", fontWeight:700 }}>📡 Gợi ý từ KiotViet:</div>
+                    {kvResults.map((p, i) => (
+                      <div key={p.id || i} onClick={() => addKvProduct(p)}
+                        style={{ padding:"10px 14px", cursor:"pointer", borderBottom:"1px solid #f3f4f6", display:"flex", justifyContent:"space-between", alignItems:"center" }}
+                        onMouseEnter={e => e.currentTarget.style.background="#eef2ff"}
+                        onMouseLeave={e => e.currentTarget.style.background="transparent"}>
+                        <div>
+                          <div style={{ fontWeight:700, fontSize:14, color:"#1e1b4b" }}>{p.name}</div>
+                          <div style={{ fontSize:12, color:"#6b7280" }}>{p.code ? `SKU: ${p.code} · ` : ""}{p.categoryName || "Linh kiện"} · Tồn: <b style={{ color:(p.onHand||0)>0?"#065f46":"#dc2626" }}>{p.onHand||0}</b></div>
+                        </div>
+                        <div style={{ fontSize:13, fontWeight:800, color:"#4f46e5", flexShrink:0, marginLeft:8 }}>{(p.sellPrice||0).toLocaleString()}đ</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               {filteredParts.length === 0 ? (
                 <div style={{ textAlign:"center", padding:32, color:"#9ca3af" }}>
                   <div style={{ fontSize:36 }}>📦</div>
