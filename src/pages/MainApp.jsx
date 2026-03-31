@@ -36,7 +36,7 @@ export default function MainApp() {
         setDataLoading(true);
         const [staffList, orderList] = await Promise.all([
           Staff.list(),
-          RepairOrder.list("-created_date", 200),
+          RepairOrder.list("-created_date", 200).catch(() => []),
         ]);
         const mappedUsers = staffList.map(s => ({
           id: s.id,
