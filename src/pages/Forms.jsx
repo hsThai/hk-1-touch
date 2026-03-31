@@ -6,11 +6,15 @@ const Staff = base44.entities.Staff;
 
 import { timeAgo, genOrderId, getKpiTimerInfo } from "./Viewer";
 import { QRScanModal } from "./QR";
+import { kvGetCustomers } from "@/functions/kvGetCustomers";
 
 function NewOrderModal({ onClose, onCreate, users, orders }) {
   const [form, setForm] = useState({ customer_name:"", customer_phone:"", device_model:"", imei_serial:"", passcode:"", qr_code:"", issues:[], notes:"", assigned_to:"" });
   const [custSearch, setCustSearch] = useState("");
+  const [kvSuggestions, setKvSuggestions] = useState([]);
+  const [kvSearching, setKvSearching] = useState(false);
   const [mediaFiles, setMediaFiles] = useState([]);
+  const kvDebounceRef = useRef(null);
   const [showQRScan, setShowQRScan] = useState(false);
   const [qrMsg, setQrMsg] = useState(null);
   const photoRef = useRef(); const videoRef = useRef(); const fileRef = useRef();
@@ -31,6 +35,27 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
         );
       })()
     : [];
+
+  function handleKvSearch(value) {
+    setCustSearch(value);
+    if (kvDebounceRef.current) clearTimeout(kvDebounceRef.current);
+    if (value.length < 2) { setKvSuggestions([]); return; }
+    kvDebounceRef.current = setTimeout(async () => {
+      setKvSearching(true);
+      try {
+        const res = await kvGetCustomers({ name: value });
+        setKvSuggestions(res.data?.customers || []);
+      } catch { setKvSuggestions([]); }
+      setKvSearching(false);
+    }, 400);
+  }
+
+  function selectKvCustomer(c) {
+    set("customer_name", c.name);
+    set("customer_phone", c.contactNumber || c.phone || "");
+    setCustSearch(`${c.name} — ${c.contactNumber || c.phone || ""}`);
+    setKvSuggestions([]);
+  }
 
   function handleFiles(e) {
     const items = Array.from(e.target.files).map(f => ({ id:Math.random().toString(36), file:f, type:f.type.startsWith("video/")?"video":"image", url:URL.createObjectURL(f), name:f.name }));
@@ -119,8 +144,24 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
           <div style={{ ...sec, background:"#f0f9ff" }}>
             <div style={{ fontWeight:800, fontSize:14, color:"#0369a1", marginBottom:10 }}>👤 Khách Hàng</div>
             <label style={lbl}>Tên khách hàng *</label>
-            <input value={form.customer_name} onChange={e => set("customer_name", e.target.value)}
-              placeholder="Nguyễn Văn A..." style={{ ...inp, marginBottom:10 }} />
+            <div style={{ position:"relative", marginBottom:10 }}>
+              <input value={form.customer_name} onChange={e => { set("customer_name", e.target.value); handleKvSearch(e.target.value); }}
+                placeholder="Nhập tên để tìm trong KiotViet..." style={{ ...inp }} />
+              {kvSearching && <div style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", fontSize:12, color:"#9ca3af" }}>🔄</div>}
+              {kvSuggestions.length > 0 && (
+                <div style={{ position:"absolute", top:"110%", left:0, right:0, background:"#fff", border:"1.5px solid #c7d2fe", borderRadius:12, boxShadow:"0 8px 24px rgba(0,0,0,.15)", zIndex:100, maxHeight:200, overflowY:"auto" }}>
+                  {kvSuggestions.map((c, i) => (
+                    <div key={c.id || i} onClick={() => selectKvCustomer(c)}
+                      style={{ padding:"10px 14px", cursor:"pointer", borderBottom:"1px solid #f3f4f6", fontSize:14 }}
+                      onMouseEnter={e => e.currentTarget.style.background="#eef2ff"}
+                      onMouseLeave={e => e.currentTarget.style.background="transparent"}>
+                      <div style={{ fontWeight:700 }}>{c.name}</div>
+                      <div style={{ fontSize:12, color:"#6b7280" }}>📞 {c.contactNumber || c.phone || "—"}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             <label style={lbl}>Số điện thoại *</label>
             <input value={form.customer_phone} onChange={e => set("customer_phone", e.target.value)}
               placeholder="0901234567" style={inp} />

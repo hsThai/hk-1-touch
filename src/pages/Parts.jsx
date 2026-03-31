@@ -1,6 +1,7 @@
 /* v1774860462-8691 */
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { kvSyncProducts } from "@/functions/kvSyncProducts";
 const SparePart = base44.entities.SparePart;
 const SparePartUsage = base44.entities.SparePartUsage;
 const RepairChat = base44.entities.RepairChat;
@@ -18,12 +19,24 @@ export default function SparePartModal({ order, currentStaff, onClose, onDone })
   const [usages, setUsages]     = useState([]);   // SparePartUsage của đơn này
   const [search, setSearch]     = useState("");
   const [loading, setLoading]   = useState(true);
+  const [syncing, setSyncing]   = useState(false);
   const [tab, setTab]           = useState("list"); // "list" | "used"
   const [toast, setToast]       = useState("");
   const [confirming, setConfirming] = useState(false); // confirm "Sửa Xong"
   const [finishing, setFinishing]   = useState(false);
 
-  useEffect(() => { loadAll(); }, [order.id]);
+  useEffect(() => { loadAll(); syncKV(); }, [order.id]);
+
+  async function syncKV() {
+    setSyncing(true);
+    try {
+      await kvSyncProducts({});
+      // Reload sau khi sync
+      const p = await SparePart.filter({ is_active: true });
+      setParts(p.sort((a,b) => a.name.localeCompare(b.name)));
+    } catch {}
+    setSyncing(false);
+  }
 
   async function loadAll() {
     setLoading(true);
@@ -230,7 +243,10 @@ export default function SparePartModal({ order, currentStaff, onClose, onDone })
               <div style={{ fontSize:17, fontWeight:900, color:"#1e1b4b" }}>🔩 Linh kiện — {order.order_code}</div>
               <div style={{ fontSize:13, color:"#6b7280", marginTop:2 }}>{order.device_model || order.device_name} · {order.customer_name}</div>
             </div>
+            <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+            {syncing && <span style={{ fontSize:11, color:"#6b7280", background:"#f3f4f6", padding:"4px 10px", borderRadius:20 }}>🔄 Đồng bộ KV...</span>}
             <button onClick={onClose} style={{ background:"#f3f4f6", border:"none", width:34, height:34, borderRadius:"50%", cursor:"pointer", fontSize:15 }}>✕</button>
+          </div>
           </div>
 
           {/* Tabs */}

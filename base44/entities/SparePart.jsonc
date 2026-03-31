@@ -1,0 +1,49 @@
+{
+  "name": "SparePart",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "T\u00ean linh ki\u1ec7n"
+    },
+    "sku": {
+      "type": "string",
+      "description": "M\u00e3 SKU"
+    },
+    "kv_id": {
+      "type": "string",
+      "description": "ID KiotViet"
+    },
+    "category": {
+      "type": "string",
+      "description": "Danh m\u1ee5c"
+    },
+    "price": {
+      "type": "number",
+      "default": 0,
+      "description": "Gi\u00e1 b\u00e1n"
+    },
+    "stock_qty": {
+      "type": "number",
+      "default": 0,
+      "description": "T\u1ed3n kho"
+    },
+    "unit": {
+      "type": "string",
+      "default": "c\u00e1i",
+      "description": "\u0110\u01a1n v\u1ecb"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "\u0110ang b\u00e1n"
+    },
+    "note": {
+      "type": "string",
+      "description": "Ghi ch\u00fa"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}
