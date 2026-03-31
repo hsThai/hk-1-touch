@@ -51,23 +51,32 @@ export default function MainApp() {
           avatar_url: s.avatar_url || "",
         }));
         const mappedOrders = orderList.map(o => ({
-          id: o.order_code || o.id,
+          id: o.order_code,
           _id: o.id,
-          customer_id: o.customer_name,
-          device_model: o.device_model || o.device_name || "",
+          device_model: o.device_model || "",
           imei_serial: o.imei || "",
-          passcode: "",
-          issues: o.issue_description ? [o.issue_description] : [],
+          passcode: o.passcode || "",
+          issues: o.issue_description ? JSON.parse(o.issue_description).catch ? [o.issue_description] : (() => { try { return JSON.parse(o.issue_description); } catch { return [o.issue_description]; } })() : [],
           status: o.status || "Mới Nhận",
           notes: o.technician_note || "",
           assigned_to: o.assigned_to || "",
-          assigned_at: o.received_date || o.created_date,
-          accept_stage: o.status === "Hoàn Thành" || o.status === "Đã Giao" ? 3 : 0,
+          assigned_to_name: o.assigned_to_name || "",
+          assigned_at: o.assigned_at || o.received_date || o.created_date,
+          accept_stage: o.accept_stage || 0,
+          stage1_at: o.stage1_at || null,
+          stage2_at: o.stage2_at || null,
+          kpi_stage1_penalized: o.kpi_stage1_penalized || false,
+          kpi_stage2_penalized: o.kpi_stage2_penalized || false,
+          needs_reassign: o.needs_reassign || false,
           created: o.received_date || o.created_date,
           images: o.images || [],
-          qr_code: o.order_code || "",
+          qr_code: o.qr_code || o.order_code || "",
           customer_name: o.customer_name || "",
           customer_phone: o.customer_phone || "",
+          estimated_cost: o.estimated_cost || 0,
+          final_cost: o.final_cost || 0,
+          estimated_done: o.estimated_done || null,
+          checklist_done: o.checklist_done || [],
         }));
         setUsers(mappedUsers);
         setOrders(mappedOrders);
@@ -145,18 +154,61 @@ export default function MainApp() {
   );
   if (!user) return <LoginPage onLogin={u => { setUser(u); setPage(u.role==="technician"?"tasks":u.role==="receptionist"?"new":"dashboard"); }} />;
 
-  function updateOrder(id, patch, kpiEvent) {
+  async function updateOrder(id, patch, kpiEvent) {
     setOrders(p => p.map(o => o.id===id ? {...o,...patch} : o));
     if (selectedOrder?.id===id) setSelectedOrder(p => ({...p,...patch}));
     if (kpiEvent) setUsers(p => p.map(u => u.id===kpiEvent.userId ? {...u, kpi:Math.max(0,u.kpi+kpiEvent.delta)} : u));
+    // Persist to DB
+    const order = orders.find(o => o.id===id);
+    if (order?._id) {
+      const dbPatch = {};
+      if (patch.status !== undefined) dbPatch.status = patch.status;
+      if (patch.assigned_to !== undefined) { dbPatch.assigned_to = patch.assigned_to; dbPatch.assigned_to_name = users.find(u=>u.id===patch.assigned_to)?.name || ""; }
+      if (patch.assigned_at !== undefined) dbPatch.assigned_at = patch.assigned_at;
+      if (patch.accept_stage !== undefined) dbPatch.accept_stage = patch.accept_stage;
+      if (patch.stage1_at !== undefined) dbPatch.stage1_at = patch.stage1_at;
+      if (patch.stage2_at !== undefined) dbPatch.stage2_at = patch.stage2_at;
+      if (patch.kpi_stage1_penalized !== undefined) dbPatch.kpi_stage1_penalized = patch.kpi_stage1_penalized;
+      if (patch.kpi_stage2_penalized !== undefined) dbPatch.kpi_stage2_penalized = patch.kpi_stage2_penalized;
+      if (patch.needs_reassign !== undefined) dbPatch.needs_reassign = patch.needs_reassign;
+      if (patch.estimated_done !== undefined) dbPatch.estimated_done = patch.estimated_done;
+      if (patch.final_cost !== undefined) dbPatch.final_cost = patch.final_cost;
+      if (patch.technician_note !== undefined) dbPatch.technician_note = patch.technician_note;
+      if (Object.keys(dbPatch).length > 0) {
+        RepairOrder.update(order._id, dbPatch).catch(e => console.error("Update order DB error:", e));
+      }
+    }
   }
-  function createOrder(data) {
-    setOrders(p => [data, ...p]);
+
+  async function createOrder(data) {
+    // Lưu vào DB
+    const assigneeName = users.find(u => u.id === data.assigned_to)?.name || "";
+    const dbRecord = await RepairOrder.create({
+      order_code: data.id,
+      customer_name: data.customer_name,
+      customer_phone: data.customer_phone,
+      device_model: data.device_model,
+      imei: data.imei_serial || "",
+      passcode: data.passcode || "",
+      qr_code: data.qr_code || "",
+      issue_description: JSON.stringify(data.issues || []),
+      technician_note: data.notes || "",
+      status: "Mới Nhận",
+      assigned_to: data.assigned_to || "",
+      assigned_to_name: assigneeName,
+      assigned_at: data.assigned_to ? new Date().toISOString() : "",
+      received_date: new Date().toISOString(),
+      images: data.images || [],
+      accept_stage: 0,
+    }).catch(e => { console.error("Create order DB error:", e); return null; });
+
+    const orderWithDbId = { ...data, _id: dbRecord?.id || null, assigned_to_name: assigneeName };
+    setOrders(p => [orderWithDbId, ...p]);
     if (data.assigned_to) {
       const ktv = users.find(u => u.id===data.assigned_to);
       setNotifications(n => [{ id:Math.random().toString(36), msg:`🔔 Đơn ${data.id} giao cho ${ktv?.name}. Quy trình KPI đã bắt đầu!`, time:new Date().toISOString() }, ...n.slice(0,9)]);
     }
-    setCreatedOrder(data);
+    setCreatedOrder(orderWithDbId);
     setPage("board");
   }
   function goToPendingAccept() {

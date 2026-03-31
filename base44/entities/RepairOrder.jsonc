@@ -1,0 +1,133 @@
+{
+  "name": "RepairOrder",
+  "type": "object",
+  "properties": {
+    "order_code": {
+      "type": "string",
+      "description": "M\u00e3 \u0111\u01a1n s\u1eeda ch\u1eefa (SC24xxxx)"
+    },
+    "customer_name": {
+      "type": "string",
+      "description": "T\u00ean kh\u00e1ch h\u00e0ng"
+    },
+    "customer_phone": {
+      "type": "string",
+      "description": "S\u1ed1 \u0111i\u1ec7n tho\u1ea1i kh\u00e1ch"
+    },
+    "device_model": {
+      "type": "string",
+      "description": "Model thi\u1ebft b\u1ecb"
+    },
+    "imei": {
+      "type": "string",
+      "description": "IMEI / Serial"
+    },
+    "passcode": {
+      "type": "string",
+      "description": "M\u00e3 PIN / passcode"
+    },
+    "qr_code": {
+      "type": "string",
+      "description": "M\u00e3 QR g\u1eafn tr\u00ean m\u00e1y"
+    },
+    "issue_description": {
+      "type": "string",
+      "description": "M\u00f4 t\u1ea3 l\u1ed7i (json array d\u1ea1ng string)"
+    },
+    "technician_note": {
+      "type": "string",
+      "description": "Ghi ch\u00fa k\u1ef9 thu\u1eadt vi\u00ean"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "M\u1edbi Nh\u1eadn",
+        "\u0110ang Ki\u1ec3m Tra",
+        "Ch\u1edd Linh Ki\u1ec7n",
+        "\u0110ang S\u1eeda",
+        "Ho\u00e0n Th\u00e0nh",
+        "\u0110\u00e3 Giao"
+      ],
+      "default": "M\u1edbi Nh\u1eadn",
+      "description": "Tr\u1ea1ng th\u00e1i \u0111\u01a1n"
+    },
+    "assigned_to": {
+      "type": "string",
+      "description": "ID nh\u00e2n vi\u00ean \u0111\u01b0\u1ee3c giao"
+    },
+    "assigned_to_name": {
+      "type": "string",
+      "description": "T\u00ean nh\u00e2n vi\u00ean \u0111\u01b0\u1ee3c giao"
+    },
+    "assigned_at": {
+      "type": "string",
+      "description": "Th\u1eddi \u0111i\u1ec3m giao vi\u1ec7c (ISO)"
+    },
+    "received_date": {
+      "type": "string",
+      "description": "Ng\u00e0y ti\u1ebfp nh\u1eadn (ISO)"
+    },
+    "done_date": {
+      "type": "string",
+      "description": "Ng\u00e0y ho\u00e0n th\u00e0nh (ISO)"
+    },
+    "estimated_cost": {
+      "type": "number",
+      "default": 0,
+      "description": "C\u00f4ng s\u1eeda d\u1ef1 ki\u1ebfn"
+    },
+    "final_cost": {
+      "type": "number",
+      "default": 0,
+      "description": "T\u1ed5ng ti\u1ec1n cu\u1ed1i"
+    },
+    "images": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Danh s\u00e1ch URL \u1ea3nh/video"
+    },
+    "accept_stage": {
+      "type": "number",
+      "default": 0,
+      "description": "Giai \u0111o\u1ea1n nh\u1eadn m\u00e1y KTV (0/1/2/3)"
+    },
+    "stage1_at": {
+      "type": "string",
+      "description": "Th\u1eddi \u0111i\u1ec3m nh\u1eadn m\u00e1y l\u1ea7n 1"
+    },
+    "stage2_at": {
+      "type": "string",
+      "description": "Th\u1eddi \u0111i\u1ec3m nh\u1eadn m\u00e1y l\u1ea7n 2"
+    },
+    "kpi_stage1_penalized": {
+      "type": "boolean",
+      "default": false
+    },
+    "kpi_stage2_penalized": {
+      "type": "boolean",
+      "default": false
+    },
+    "needs_reassign": {
+      "type": "boolean",
+      "default": false
+    },
+    "checklist_done": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Danh s\u00e1ch checklist \u0111\u00e3 tick"
+    },
+    "estimated_done": {
+      "type": "string",
+      "description": "Th\u1eddi gian d\u1ef1 ki\u1ebfn xong (ISO)"
+    }
+  },
+  "required": [
+    "order_code",
+    "customer_name",
+    "device_model"
+  ]
+}
