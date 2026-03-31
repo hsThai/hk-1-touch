@@ -13,6 +13,8 @@ import { MediaViewer, timeAgo, getKpiTimerInfo } from "./Viewer";
 import { OrderDrawer } from "./Drawer";
 import { NewOrderModal, KPIPage } from "./Forms";
 import LoginPage from "./AuthV2";
+import { createRepairOrder } from "@/functions/createRepairOrder";
+import { updateRepairOrder } from "@/functions/updateRepairOrder";
 
 export default function MainApp() {
   const [user, setUser] = useState(null);
@@ -161,7 +163,7 @@ export default function MainApp() {
     // Persist to DB
     const order = orders.find(o => o.id===id);
     if (order?._id) {
-      const dbPatch = {};
+      const dbPatch = { id: order._id };
       if (patch.status !== undefined) dbPatch.status = patch.status;
       if (patch.assigned_to !== undefined) { dbPatch.assigned_to = patch.assigned_to; dbPatch.assigned_to_name = users.find(u=>u.id===patch.assigned_to)?.name || ""; }
       if (patch.assigned_at !== undefined) dbPatch.assigned_at = patch.assigned_at;
@@ -174,8 +176,8 @@ export default function MainApp() {
       if (patch.estimated_done !== undefined) dbPatch.estimated_done = patch.estimated_done;
       if (patch.final_cost !== undefined) dbPatch.final_cost = patch.final_cost;
       if (patch.technician_note !== undefined) dbPatch.technician_note = patch.technician_note;
-      if (Object.keys(dbPatch).length > 0) {
-        RepairOrder.update(order._id, dbPatch).catch(e => console.error("Update order DB error:", e));
+      if (Object.keys(dbPatch).length > 1) {
+        updateRepairOrder(dbPatch).catch(e => console.error("Update order DB error:", e));
       }
     }
   }
@@ -183,7 +185,7 @@ export default function MainApp() {
   async function createOrder(data) {
     // Lưu vào DB
     const assigneeName = users.find(u => u.id === data.assigned_to)?.name || "";
-    const dbRecord = await RepairOrder.create({
+    const res = await createRepairOrder({
       order_code: data.id,
       customer_name: data.customer_name,
       customer_phone: data.customer_phone,
@@ -201,6 +203,7 @@ export default function MainApp() {
       images: data.images || [],
       accept_stage: 0,
     }).catch(e => { console.error("Create order DB error:", e); return null; });
+    const dbRecord = res?.data;
 
     const orderWithDbId = { ...data, _id: dbRecord?.id || null, assigned_to_name: assigneeName };
     setOrders(p => [orderWithDbId, ...p]);
