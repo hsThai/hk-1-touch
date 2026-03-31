@@ -52,8 +52,8 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
 
   function selectKvCustomer(c) {
     set("customer_name", c.name);
-    set("customer_phone", c.contactNumber || c.phone || "");
-    setCustSearch(`${c.name} — ${c.contactNumber || c.phone || ""}`);
+    set("customer_phone", c.phone || c.contactNumber || "");
+    setCustSearch(`${c.name} — ${c.phone || c.contactNumber || ""}`);
     setKvSuggestions([]);
   }
 
@@ -156,7 +156,7 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
                       onMouseEnter={e => e.currentTarget.style.background="#eef2ff"}
                       onMouseLeave={e => e.currentTarget.style.background="transparent"}>
                       <div style={{ fontWeight:700 }}>{c.name}</div>
-                      <div style={{ fontSize:12, color:"#6b7280" }}>📞 {c.contactNumber || c.phone || "—"}</div>
+                      <div style={{ fontSize:12, color:"#6b7280" }}>📞 {c.phone || c.contactNumber || "—"}</div>
                     </div>
                   ))}
                 </div>
