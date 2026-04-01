@@ -1,8 +1,8 @@
-/* v4-loginv2-real-db */
+/* v5-renamed-pages */
 import React, { lazy, Suspense, useState, useEffect, useRef, useCallback } from "react";
 import { RepairChat, Notification, Staff, RepairOrder, Customer } from "@/api/entities";
 import { uploadFile } from "@/api/storage";
-const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ default: ({ onClose }) => (
+const SparePartModal = lazy(() => import("./Parts").catch(() => ({ default: ({ onClose }) => (
   <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}}>
     <div style={{background:"#fff",borderRadius:16,padding:32,textAlign:"center"}}>
       <div style={{fontSize:32}}>⚠️</div>
@@ -11,13 +11,13 @@ const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ defa
     </div>
   </div>
 )})));
-const StaffManagerPage = lazy(() => import("./StaffManager").catch(() => ({ default: () => (
+const StaffManagerPage = lazy(() => import("./Staff").catch(() => ({ default: () => (
   <div style={{padding:32,textAlign:"center"}}>
     <div style={{fontSize:32}}>⚠️</div>
     <div style={{fontWeight:700,marginTop:8}}>Module không tải được</div>
   </div>
 )})));
-const SettingsPage = lazy(() => import("./Settings").catch(() => ({ default: () => (
+const SettingsPage = lazy(() => import("./Config").catch(() => ({ default: () => (
   <div style={{padding:32,textAlign:"center"}}>
     <div style={{fontSize:32}}>⚠️</div>
     <div style={{fontWeight:700,marginTop:8}}>Module không tải được</div>
@@ -26,11 +26,11 @@ const SettingsPage = lazy(() => import("./Settings").catch(() => ({ default: () 
 
 
 // Components loaded from OrderComponents
-import { QRScanModal, QRPrintModal } from "./QRComponents";
-import { MediaViewer, AcceptChecklistModal, AcceptTimer, timeAgo, genOrderId, getKpiTimerInfo } from "./MediaViewer";
-import { OrderDrawer } from "./OrderDrawer";
-import { NewOrderModal, KPIPage } from "./OrderForms";
-import LoginPage from "./LoginV2";
+import { QRScanModal, QRPrintModal } from "./QR";
+import { MediaViewer, AcceptChecklistModal, AcceptTimer, timeAgo, genOrderId, getKpiTimerInfo } from "./Viewer";
+import { OrderDrawer } from "./Drawer";
+import { NewOrderModal, KPIPage } from "./Forms";
+import LoginPage from "./AuthV2";
 
 const _BUILD_V4 = "loginv2-real-db";
 
