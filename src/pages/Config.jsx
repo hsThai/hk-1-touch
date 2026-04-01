@@ -1,6 +1,6 @@
 /* v1774860462-7212 */
 import { useState, useEffect, useRef } from "react";
-import { AppSettings } from "@/api/entities";
+import { AppSettings } from "./pb.js";
 
 const KV_KEYS = [
   { key:"kv_client_id",     label:"Client ID",       placeholder:"83a5bcbe-3c39-458c-bdd9-...",  type:"text" },

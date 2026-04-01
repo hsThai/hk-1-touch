@@ -1,7 +1,7 @@
 /* v5-renamed-pages */
 import React, { lazy, Suspense, useState, useEffect, useRef, useCallback } from "react";
-import { RepairChat, Notification, Staff, RepairOrder, Customer } from "@/api/entities";
-import { uploadFile } from "@/api/storage";
+import { RepairChat, Notification, Staff, RepairOrder, Customer } from "./pb.js";
+import { uploadFile } from "./pb.js";
 const SparePartModal = lazy(() => import("./Parts").catch(() => ({ default: ({ onClose }) => (
   <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}}>
     <div style={{background:"#fff",borderRadius:16,padding:32,textAlign:"center"}}>

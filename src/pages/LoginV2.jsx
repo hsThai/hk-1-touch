@@ -1,6 +1,6 @@
-/* LoginV2 - standalone login component connecting to Staff entity */
-import React, { useState } from "react";
-import { Staff } from "@/api/entities";
+/* LoginV2 - PocketBase Auth */
+import React, { useState, useEffect } from "react";
+import { Staff, pbAuth, getPbUrl, setPbUrl, testConnection } from "./pb.js";
 
 export default function LoginV2({ onLogin }) {
   const [username, setUsername] = useState("");
@@ -8,33 +8,75 @@ export default function LoginV2({ onLogin }) {
   const [showPw, setShowPw] = useState(false);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
+  const [pbUrl, setPbUrlState] = useState(getPbUrl());
+  const [showConfig, setShowConfig] = useState(false);
+  const [testingConn, setTestingConn] = useState(false);
+  const [connStatus, setConnStatus] = useState(null); // null | "ok" | "fail"
 
   const doLogin = async () => {
     if (!username.trim() || !password.trim()) { setErr("Vui lòng nhập đầy đủ thông tin!"); return; }
     setLoading(true); setErr("");
     try {
-      const staffList = await Staff.list();
-      const hashedInput = btoa(unescape(encodeURIComponent(password.trim())));
-      const found = staffList.find(s =>
-        s.username === username.trim() &&
-        s.password_hash === hashedInput &&
-        s.is_active !== false
-      );
-      if (found) {
-        onLogin({
-          id: found.id, name: found.full_name, username: found.username,
-          role: found.role, kpi: found.kpi_score || 0,
-          phone: found.phone || "", must_change_password: found.must_change_password,
-          avatar_url: found.avatar_url || "",
-        });
-      } else {
+      // Thử login qua PocketBase auth collection trước
+      try {
+        const authData = await pbAuth.loginStaff(username.trim(), password.trim());
+        const rec = authData.record;
+        if (rec && rec.is_active !== false) {
+          onLogin({
+            id: rec.id, name: rec.full_name, username: rec.username,
+            role: rec.role, kpi: rec.kpi_score || 0,
+            phone: rec.phone || "", must_change_password: rec.must_change_password,
+            avatar_url: rec.avatar_url || "",
+          });
+          return;
+        }
+      } catch (authErr) {
+        // Fallback: tìm trong collection staff thủ công (dành cho PocketBase không có auth collection)
+        const staffList = await Staff.list();
+        const hashedInput = btoa(unescape(encodeURIComponent(password.trim())));
+        const found = staffList.find(s =>
+          s.username === username.trim() &&
+          s.password_hash === hashedInput &&
+          s.is_active !== false
+        );
+        if (found) {
+          onLogin({
+            id: found.id, name: found.full_name, username: found.username,
+            role: found.role, kpi: found.kpi_score || 0,
+            phone: found.phone || "", must_change_password: found.must_change_password,
+            avatar_url: found.avatar_url || "",
+          });
+          return;
+        }
         const matchUser = staffList.find(s => s.username === username.trim());
-        if (!matchUser) setErr("Không tìm thấy username!");
-        else if (matchUser.is_active === false) setErr("Tài khoản đã bị vô hiệu hóa!");
-        else setErr("Sai mật khẩu!");
+        if (!matchUser) { setErr("Không tìm thấy username!"); }
+        else if (matchUser.is_active === false) { setErr("Tài khoản đã bị vô hiệu hóa!"); }
+        else { setErr("Sai mật khẩu!"); }
         setLoading(false);
+        return;
       }
-    } catch(e) { setErr("Lỗi kết nối, thử lại!"); setLoading(false); }
+      setErr("Tài khoản không hợp lệ!");
+    } catch(e) {
+      if (e.message?.includes("fetch") || e.message?.includes("network") || e.message?.includes("Failed")) {
+        setErr(`❌ Không kết nối được PocketBase!\nKiểm tra server: ${getPbUrl()}`);
+      } else {
+        setErr(e.message || "Lỗi kết nối, thử lại!");
+      }
+    }
+    setLoading(false);
+  };
+
+  const doTestConn = async () => {
+    setTestingConn(true); setConnStatus(null);
+    const ok = await testConnection(pbUrl);
+    setConnStatus(ok ? "ok" : "fail");
+    setTestingConn(false);
+  };
+
+  const savePbUrl = () => {
+    setPbUrl(pbUrl);
+    setShowConfig(false);
+    setConnStatus(null);
   };
 
   return (
@@ -45,6 +87,47 @@ export default function LoginV2({ onLogin }) {
           <div style={{ fontWeight:900, fontSize:24, color:"#1e1b4b", marginTop:8 }}>Quản Lý Sửa Chữa</div>
           <div style={{ color:"#9ca3af", fontSize:13, marginTop:4 }}>Hệ thống nội bộ — v2025</div>
         </div>
+
+        {/* Server config */}
+        <div style={{ marginBottom:16 }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
+            <label style={{ fontSize:12, fontWeight:700, color:"#6b7280" }}>🖥️ Server PocketBase</label>
+            <button onClick={() => { setShowConfig(v=>!v); setConnStatus(null); }}
+              style={{ fontSize:11, color:"#4f46e5", background:"none", border:"none", cursor:"pointer", fontWeight:700 }}>
+              {showConfig ? "Thu gọn ▲" : "Cấu hình ▼"}
+            </button>
+          </div>
+          {!showConfig && (
+            <div style={{ fontSize:12, color:"#9ca3af", background:"#f9fafb", borderRadius:8, padding:"6px 12px", fontFamily:"monospace" }}>
+              {getPbUrl()}
+            </div>
+          )}
+          {showConfig && (
+            <div style={{ background:"#f0f9ff", borderRadius:14, padding:14, border:"1.5px solid #bae6fd" }}>
+              <label style={{ fontSize:12, fontWeight:700, color:"#0369a1", display:"block", marginBottom:6 }}>Địa chỉ PocketBase (IP:Port)</label>
+              <input value={pbUrl} onChange={e => { setPbUrlState(e.target.value); setConnStatus(null); }}
+                placeholder="http://192.168.1.234:8090"
+                style={{ width:"100%", height:42, borderRadius:10, border:"1.5px solid #7dd3fc", padding:"0 12px", fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"monospace" }} />
+              <div style={{ display:"flex", gap:8, marginTop:8 }}>
+                <button onClick={doTestConn} disabled={testingConn}
+                  style={{ flex:1, height:36, background:"#0ea5e9", color:"#fff", border:"none", borderRadius:10, fontWeight:700, fontSize:13, cursor:"pointer" }}>
+                  {testingConn ? "⏳ Đang test..." : "🔌 Test kết nối"}
+                </button>
+                <button onClick={savePbUrl}
+                  style={{ flex:1, height:36, background:"#059669", color:"#fff", border:"none", borderRadius:10, fontWeight:700, fontSize:13, cursor:"pointer" }}>
+                  💾 Lưu
+                </button>
+              </div>
+              {connStatus === "ok" && (
+                <div style={{ marginTop:8, color:"#059669", fontWeight:700, fontSize:13, textAlign:"center" }}>✅ Kết nối thành công!</div>
+              )}
+              {connStatus === "fail" && (
+                <div style={{ marginTop:8, color:"#dc2626", fontWeight:700, fontSize:13, textAlign:"center" }}>❌ Không kết nối được! Kiểm tra IP và server.</div>
+              )}
+            </div>
+          )}
+        </div>
+
         <div style={{ marginBottom:16 }}>
           <label style={{ display:"block", fontSize:13, fontWeight:700, color:"#374151", marginBottom:6 }}>👤 Tên đăng nhập</label>
           <input value={username} onChange={e => { setUsername(e.target.value); setErr(""); }}
@@ -66,7 +149,7 @@ export default function LoginV2({ onLogin }) {
           </div>
         </div>
         {err && (
-          <div style={{ background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:10, padding:"10px 14px", marginBottom:16, fontSize:13, color:"#dc2626", fontWeight:600 }}>
+          <div style={{ background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:10, padding:"10px 14px", marginBottom:16, fontSize:13, color:"#dc2626", fontWeight:600, whiteSpace:"pre-line" }}>
             ⚠️ {err}
           </div>
         )}

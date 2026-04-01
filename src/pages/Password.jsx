@@ -1,6 +1,6 @@
 /* v1774860462-2019 */
 import { useState } from "react";
-import { Staff } from "@/api/entities";
+import { Staff } from "./pb.js";
 
 export default function ChangePassword({ staff, onDone }) {
   const [newPass, setNewPass] = useState("");

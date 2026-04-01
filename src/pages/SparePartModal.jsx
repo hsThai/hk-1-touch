@@ -1,6 +1,6 @@
 /* v1774860462-8691 */
 import { useState, useEffect } from "react";
-import { SparePart, SparePartUsage, RepairChat, RepairOrder } from "@/api/entities";
+import { SparePart, SparePartUsage, RepairChat, RepairOrder } from "./pb.js";
 
 // ── Màn hình linh kiện cho KTV ──
 // Props:

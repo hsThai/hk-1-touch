@@ -1,7 +1,7 @@
 /* v1774860462-4890 */
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, SparePartUsage } from "@/api/entities";
-import { uploadFile } from "@/api/storage";
+import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, SparePartUsage } from "./pb.js";
+import { uploadFile } from "./pb.js";
 
 
 function loadQRLib(cb) {

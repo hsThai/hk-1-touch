@@ -1,7 +1,7 @@
 /* v1774860462-9241 */
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage } from "@/api/entities";
-import { uploadFile } from "@/api/storage";
+import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage } from "./pb.js";
+import { uploadFile } from "./pb.js";
 
 function timeAgo(d) {
   const diff = Math.floor((Date.now()-new Date(d))/60000);

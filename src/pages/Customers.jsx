@@ -1,6 +1,6 @@
 /* v1774860462-1148 */
 import { useState, useEffect } from "react";
-import { Customer, RepairOrder } from "@/api/entities";
+import { Customer, RepairOrder } from "./pb.js";
 
 const EMPTY = { full_name:"", phone:"", address:"", note:"" };
 

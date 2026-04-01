@@ -1,6 +1,6 @@
 /* v1774860462-7212 */
-import { useState, useEffect, useRef } from "react";
-import { AppSettings } from "@/api/entities";
+import React, { useState, useEffect, useRef } from "react";
+import { AppSettings, getPbUrl, setPbUrl, testConnection } from "./pb.js";
 
 const KV_KEYS = [
   { key:"kv_client_id",     label:"Client ID",       placeholder:"83a5bcbe-3c39-458c-bdd9-...",  type:"text" },
@@ -193,6 +193,57 @@ export default function Settings() {
   }
 
   function showToast(msg) { setToast(msg); setTimeout(()=>setToast(""),3000); }
+
+
+  // ── PocketBase config ──
+  const [pbUrl, setPbUrlState] = React.useState(getPbUrl());
+  const [pbSaved, setPbSaved] = React.useState(false);
+  const [pbTesting, setPbTesting] = React.useState(false);
+  const [pbConnStatus, setPbConnStatus] = React.useState(null);
+
+  const savePbUrl = () => {
+    setPbUrl(pbUrl.trim().replace(/\/$/, ""));
+    setPbSaved(true);
+    setTimeout(() => setPbSaved(false), 2000);
+  };
+
+  const doTestPb = async () => {
+    setPbTesting(true); setPbConnStatus(null);
+    const ok = await testConnection(pbUrl);
+    setPbConnStatus(ok ? "ok" : "fail");
+    setPbTesting(false);
+  };
+
+  const pbSection = (
+    <div style={{ background:"#f0f9ff", borderRadius:18, padding:20, marginBottom:20, border:"1.5px solid #bae6fd" }}>
+      <div style={{ fontWeight:800, fontSize:15, color:"#0369a1", marginBottom:14 }}>🖥️ Kết nối PocketBase Server</div>
+      <label style={{ fontSize:13, fontWeight:700, color:"#0369a1", display:"block", marginBottom:6 }}>Địa chỉ server (IP:Port)</label>
+      <input value={pbUrl} onChange={e => { setPbUrlState(e.target.value); setPbConnStatus(null); }}
+        placeholder="http://192.168.1.234:8090"
+        style={{ width:"100%", height:46, borderRadius:12, border:"1.5px solid #7dd3fc", padding:"0 14px", fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"monospace", background:"#fff" }} />
+      <div style={{ fontSize:11, color:"#64748b", marginTop:4 }}>Máy chủ PocketBase chạy trên mạng LAN nội bộ</div>
+      <div style={{ display:"flex", gap:8, marginTop:10 }}>
+        <button onClick={doTestPb} disabled={pbTesting}
+          style={{ flex:1, height:42, background:"#0ea5e9", color:"#fff", border:"none", borderRadius:10, fontWeight:700, fontSize:13, cursor:"pointer" }}>
+          {pbTesting ? "⏳ Đang test..." : "🔌 Test kết nối"}
+        </button>
+        <button onClick={savePbUrl}
+          style={{ flex:1, height:42, background: pbSaved ? "#059669" : "#0284c7", color:"#fff", border:"none", borderRadius:10, fontWeight:700, fontSize:13, cursor:"pointer" }}>
+          {pbSaved ? "✅ Đã lưu!" : "💾 Lưu địa chỉ"}
+        </button>
+      </div>
+      {pbConnStatus === "ok" && (
+        <div style={{ marginTop:10, background:"#ecfdf5", border:"1px solid #6ee7b7", borderRadius:10, padding:"10px 14px", fontSize:13, color:"#065f46", fontWeight:700 }}>
+          ✅ Kết nối thành công! Server đang hoạt động.
+        </div>
+      )}
+      {pbConnStatus === "fail" && (
+        <div style={{ marginTop:10, background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:10, padding:"10px 14px", fontSize:13, color:"#dc2626", fontWeight:700 }}>
+          ❌ Không kết nối được! Kiểm tra:<br/>• Máy tính đang bật PocketBase chưa?<br/>• IP có đúng không? ({pbUrl})<br/>• Thiết bị có cùng mạng WiFi không?
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div style={{ padding:16, maxWidth:640, margin:"0 auto", paddingBottom:40 }}>

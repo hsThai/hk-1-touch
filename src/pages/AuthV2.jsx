@@ -1,6 +1,6 @@
 /* LoginV2 - standalone login component connecting to Staff entity */
 import React, { useState } from "react";
-import { Staff } from "@/api/entities";
+import { Staff } from "./pb.js";
 
 export default function LoginV2({ onLogin }) {
   const [username, setUsername] = useState("");
