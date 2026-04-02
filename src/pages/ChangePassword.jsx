@@ -1,6 +1,6 @@
 /* ChangePassword - Đổi mật khẩu cho user hiện tại */
 import React, { useState } from "react";
-import { Staff, pbAuth, getPbUrl, getAuth } from "./pb.js";
+import { Staff, pbAuth, getPbUrl, getAuth } from "./pb.jsx";
 
 export default function ChangePassword({ user, onClose, onSuccess, forceChange = false }) {
   const [oldPw, setOldPw] = useState("");

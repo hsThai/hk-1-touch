@@ -1,6 +1,6 @@
 /* LoginV2 - PocketBase Auth */
 import React, { useState, useEffect } from "react";
-import { Staff, pbAuth, getPbUrl, setPbUrl, testConnection } from "./pb.js";
+import { Staff, pbAuth, getPbUrl, setPbUrl, testConnection } from "./pb.jsx";
 
 export default function LoginV2({ onLogin }) {
   const [username, setUsername] = useState("");

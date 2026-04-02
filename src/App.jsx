@@ -11,6 +11,7 @@ import QRComponents from './pages/QRComponents';
 import Settings from './pages/Settings';
 import SparePartModal from './pages/SparePartModal';
 import StaffManager from './pages/StaffManager';
+import pb from './pages/pb';
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
         <Route path="/Settings" element={<Settings />} />
         <Route path="/SparePartModal" element={<SparePartModal />} />
         <Route path="/StaffManager" element={<StaffManager />} />
+        <Route path="/pb" element={<pb />} />
       </Routes>
     </BrowserRouter>
   )

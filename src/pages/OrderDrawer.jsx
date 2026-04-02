@@ -1,7 +1,7 @@
 /* v1774860462-5727 */
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage } from "./pb.js";
-import { uploadFile } from "./pb.js";
+import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage } from "./pb.jsx";
+import { uploadFile } from "./pb.jsx";
 
 import { QRScanModal, QRPrintModal, QRCanvas, getQRDataUrl, loadQRLib } from "./QRComponents";
 import { timeAgo, genOrderId, getKpiTimerInfo, MediaViewer, AcceptChecklistModal, AcceptTimer } from "./MediaViewer";

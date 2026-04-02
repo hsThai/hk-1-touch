@@ -1,7 +1,7 @@
 /* v1774860462-7212 */
 import React, { useState, useEffect, useRef } from "react";
 import ChangePassword from "./ChangePassword";
-import { AppSettings, getPbUrl, setPbUrl, testConnection } from "./pb.js";
+import { AppSettings, getPbUrl, setPbUrl, testConnection } from "./pb.jsx";
 
 const KV_KEYS = [
   { key:"kv_client_id",     label:"Client ID",       placeholder:"83a5bcbe-3c39-458c-bdd9-...",  type:"text" },
