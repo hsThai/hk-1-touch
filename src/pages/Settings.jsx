@@ -1,5 +1,6 @@
 /* v1774860462-7212 */
 import React, { useState, useEffect, useRef } from "react";
+import ChangePassword from "./ChangePassword";
 import { AppSettings, getPbUrl, setPbUrl, testConnection } from "./pb.js";
 
 const KV_KEYS = [
@@ -99,7 +100,7 @@ export async function getNotifSound(type) {
   } catch { return "ding"; }
 }
 
-export default function Settings() {
+export default function Settings({ user }) {
   const [settings, setSettings] = useState({});
   const [saving, setSaving]     = useState(false);
   const [testing, setTesting]   = useState(false);
@@ -108,6 +109,7 @@ export default function Settings() {
   const [showSecret, setShowSecret] = useState(false);
   const [customSoundFile, setCustomSoundFile] = useState(null);
   const customAudioRef = useRef();
+  const [showChangePw, setShowChangePw] = React.useState(false);
 
   useEffect(() => { load(); }, []);
 
@@ -401,6 +403,25 @@ export default function Settings() {
           </div>
         )}
       </div>
+
+      {/* ── PocketBase Server ── */}
+      {pbSection}
+
+      {/* ── Đổi mật khẩu ── */}
+      {user && (
+        <div style={{ background:"#fff", borderRadius:20, padding:24, marginBottom:20, boxShadow:"0 2px 12px rgba(0,0,0,.07)" }}>
+          <div style={{ fontSize:16, fontWeight:800, color:"#1e1b4b", marginBottom:6 }}>🔐 Bảo mật tài khoản</div>
+          <div style={{ fontSize:13, color:"#6b7280", marginBottom:16 }}>Tài khoản: <b>{user.username}</b> · {user.role}</div>
+          {showChangePw ? (
+            <ChangePassword user={user} onClose={() => setShowChangePw(false)} onSuccess={() => { setShowChangePw(false); showToast("✅ Đổi mật khẩu thành công!"); }} />
+          ) : (
+            <button onClick={() => setShowChangePw(true)}
+              style={{ width:"100%", height:46, background:"linear-gradient(135deg,#4f46e5,#7c3aed)", color:"#fff", border:"none", borderRadius:12, fontWeight:700, fontSize:15, cursor:"pointer" }}>
+              🔑 Đổi mật khẩu
+            </button>
+          )}
+        </div>
+      )}
 
       {toast && (
         <div style={{ position:"fixed", bottom:24, left:"50%", transform:"translateX(-50%)", background:"#1e1b4b", color:"#fff", borderRadius:14, padding:"12px 24px", fontSize:14, fontWeight:700, zIndex:5000, boxShadow:"0 8px 24px rgba(0,0,0,.3)" }}>

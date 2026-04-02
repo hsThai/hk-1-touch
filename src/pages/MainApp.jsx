@@ -31,6 +31,7 @@ import { MediaViewer, AcceptChecklistModal, AcceptTimer, timeAgo, genOrderId, ge
 import { OrderDrawer } from "./OrderDrawer";
 import { NewOrderModal, KPIPage } from "./OrderForms";
 import LoginPage from "./LoginV2";
+import ChangePassword from "./ChangePassword";
 
 const _BUILD_V4 = "loginv2-real-db";
 
@@ -170,6 +171,7 @@ export default function MainApp() {
     </div>
   );
   if (!user) return <LoginPage onLogin={u => { setUser(u); setPage(u.role==="technician"?"tasks":u.role==="receptionist"?"new":"dashboard"); }} />;
+  if (user.must_change_password) return <ChangePassword user={user} forceChange={true} onSuccess={() => setUser(u => ({...u, must_change_password: false}))} />;
 
   function updateOrder(id, patch, kpiEvent) {
     setOrders(p => p.map(o => o.id===id ? {...o,...patch} : o));
@@ -441,7 +443,7 @@ export default function MainApp() {
         {page==="customers" && <CustomerList />}
         {page==="dashboard" && <Dashboard />}
         {page==="staff" && <StaffManagerPage />}
-        {page==="settings" && <SettingsPage />}
+        {page==="settings" && <SettingsPage user={user} />}
       </Suspense>
 
       {/* Bottom nav */}

@@ -349,5 +349,5 @@ function LoginScreen({ onLogin }) {
   );
 }
 
-export { NewOrderModal, KPIPage, LoginPage: LoginScreen, LoginScreen };
+export { NewOrderModal, KPIPage, LoginScreen };
 export const _BUILD_TS = "1774864528-FORCE-V3";

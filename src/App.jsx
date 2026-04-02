@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import App from './pages/App';
 import AppBootstrapV5 from './pages/AppBootstrapV5';
+import AppLegacy from './pages/AppLegacy';
 import Auth from './pages/Auth';
 import AuthV2 from './pages/AuthV2';
 import Bootstrap from './pages/Bootstrap';
@@ -28,15 +30,15 @@ import SparePartModal from './pages/SparePartModal';
 import Staff from './pages/Staff';
 import StaffManager from './pages/StaffManager';
 import Viewer from './pages/Viewer';
-import AppLegacy from './pages/AppLegacy';
-import App from './pages/App';
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Navigate to="/Home" replace />} />
+        <Route path="/App" element={<App />} />
         <Route path="/AppBootstrapV5" element={<AppBootstrapV5 />} />
+        <Route path="/AppLegacy" element={<AppLegacy />} />
         <Route path="/Auth" element={<Auth />} />
         <Route path="/AuthV2" element={<AuthV2 />} />
         <Route path="/Bootstrap" element={<Bootstrap />} />
@@ -65,8 +67,6 @@ function App() {
         <Route path="/Staff" element={<Staff />} />
         <Route path="/StaffManager" element={<StaffManager />} />
         <Route path="/Viewer" element={<Viewer />} />
-        <Route path="/AppLegacy" element={<AppLegacy />} />
-        <Route path="/App" element={<App />} />
       </Routes>
     </BrowserRouter>
   )
