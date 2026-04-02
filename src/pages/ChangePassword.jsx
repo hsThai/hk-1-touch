@@ -1,6 +1,6 @@
 /* ChangePassword - Đổi mật khẩu cho user hiện tại */
 import React, { useState } from "react";
-import { Staff, pbAuth } from "./pb.js";
+import { Staff, pbAuth, getPbUrl, getAuth } from "./pb.js";
 
 export default function ChangePassword({ user, onClose, onSuccess, forceChange = false }) {
   const [oldPw, setOldPw] = useState("");
@@ -40,14 +40,15 @@ export default function ChangePassword({ user, onClose, onSuccess, forceChange =
         }
       }
 
-      // Đổi mật khẩu mới
+      // Đổi mật khẩu mới qua PocketBase API
       try {
-        // Thử đổi qua PocketBase auth API
-        await fetch(`${(await import("./pb.js")).getPbUrl()}/api/collections/staff/records/${user.id}`, {
+        const baseUrl = getPbUrl();
+        const { token } = getAuth();
+        await fetch(`${baseUrl}/api/collections/staff/records/${user.id}`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
-            Authorization: (await import("./pb.js")).getAuth().token || "",
+            ...(token ? { Authorization: token } : {}),
           },
           body: JSON.stringify({
             password: newPw,
@@ -103,7 +104,7 @@ export default function ChangePassword({ user, onClose, onSuccess, forceChange =
           </div>
         )}
         {!forceChange && (
-          <div style={{ color:"#9ca3af", fontSize:13, marginTop:4 }}>Xin chào, {user.name}</div>
+          <div style={{ color:"#9ca3af", fontSize:13, marginTop:4 }}>Xin chào, {user?.name}</div>
         )}
       </div>
 
@@ -117,7 +118,7 @@ export default function ChangePassword({ user, onClose, onSuccess, forceChange =
               style={{ width:"100%", height:48, borderRadius:12, border:`2px solid ${err?"#ef4444":"#e5e7eb"}`, padding:"0 50px 0 16px", fontSize:15, outline:"none", boxSizing:"border-box" }} />
             <button onClick={() => setShowOld(v=>!v)} type="button"
               style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:18, color:"#9ca3af" }}>
-              {showOld?"🙈":"👁️"}
+              {showOld ? "🙈" : "👁️"}
             </button>
           </div>
         </div>
@@ -132,7 +133,7 @@ export default function ChangePassword({ user, onClose, onSuccess, forceChange =
             style={{ width:"100%", height:48, borderRadius:12, border:`2px solid ${err?"#ef4444":"#e5e7eb"}`, padding:"0 50px 0 16px", fontSize:15, outline:"none", boxSizing:"border-box" }} />
           <button onClick={() => setShowNew(v=>!v)} type="button"
             style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:18, color:"#9ca3af" }}>
-            {showNew?"🙈":"👁️"}
+            {showNew ? "🙈" : "👁️"}
           </button>
         </div>
       </div>
@@ -143,7 +144,7 @@ export default function ChangePassword({ user, onClose, onSuccess, forceChange =
           type="password"
           placeholder="Nhập lại mật khẩu mới..."
           onKeyDown={e => e.key==="Enter" && doChange()}
-          style={{ width:"100%", height:48, borderRadius:12, border:`2px solid ${confirmPw && confirmPw!==newPw?"#ef4444":confirmPw&&confirmPw===newPw?"#10b981":"#e5e7eb"}`, padding:"0 16px", fontSize:15, outline:"none", boxSizing:"border-box" }} />
+          style={{ width:"100%", height:48, borderRadius:12, border:`2px solid ${confirmPw && confirmPw !== newPw ? "#ef4444" : confirmPw && confirmPw === newPw ? "#10b981" : "#e5e7eb"}`, padding:"0 16px", fontSize:15, outline:"none", boxSizing:"border-box" }} />
         {confirmPw && confirmPw === newPw && (
           <div style={{ fontSize:12, color:"#10b981", marginTop:4, fontWeight:600 }}>✅ Mật khẩu khớp</div>
         )}
