@@ -143,15 +143,16 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
     try {
       const url = await uploadFile(file, order.id);
       const ext = file.name?.split(".").pop()?.toLowerCase() || "";
+      const fileMime = file.type || "";
       let msgType = type;
       if (!msgType) {
-        if (file.type?.startsWith("image")) msgType = "image";
-        else if (file.type?.startsWith("video")) msgType = "video";
-        else if (file.type?.startsWith("audio")) msgType = "audio";
+        if (fileMime.startsWith("image")) msgType = "image";
+        else if (fileMime.startsWith("video")) msgType = "video";
+        else if (fileMime.startsWith("audio")) msgType = "audio";
         else msgType = "image";
       }
-      // audio: dùng type "video" nhưng text "🎤 Ghi âm" để phân biệt
-      const msgText = msgType==="image" ? "📷 Ảnh" : file.type?.startsWith("audio") ? "🎤 Ghi âm" : "🎥 Video";
+      // Nếu file thực là video/webm nhưng ghi âm → vẫn dùng msgType "audio"
+      const msgText = msgType==="image" ? "📷 Ảnh" : msgType==="audio" ? "🎤 Ghi âm" : "🎥 Video";
       await sendChat(msgType, url, msgText);
     } catch(e) {
       console.error("Upload error:", e);
@@ -173,20 +174,34 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
     } else {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const mr = new MediaRecorder(stream);
+        // Chọn MIME type được PocketBase chấp nhận (ưu tiên video/webm vì PB hay block audio/*)
+        const mimeTypes = [
+          "video/webm;codecs=vp8,opus",
+          "video/webm;codecs=opus",
+          "video/webm",
+          "audio/webm;codecs=opus",
+          "audio/webm",
+          "audio/ogg;codecs=opus",
+          "audio/mp4",
+        ];
+        const mimeType = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) || "";
+        const mr = new MediaRecorder(stream, mimeType ? { mimeType } : {});
         audioChunksRef.current = [];
-        mr.ondataavailable = e => audioChunksRef.current.push(e.data);
+        mr.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
         mr.onstop = async () => {
           stream.getTracks().forEach(t => t.stop());
-          const blob = new Blob(audioChunksRef.current, { type:"audio/webm" });
-          const file = new File([blob], "voice_" + Date.now() + ".webm", { type:"audio/webm" });
+          const actualMime = mr.mimeType || "audio/webm";
+          const ext = actualMime.includes("mp4") ? "mp4" : actualMime.includes("ogg") ? "ogg" : "webm";
+          const blob = new Blob(audioChunksRef.current, { type: actualMime });
+          const file = new File([blob], "voice_" + Date.now() + "." + ext, { type: actualMime });
           await handleMediaUpload(file, "audio");
         };
-        mr.start();
+        mr.start(500); // chunk mỗi 500ms để không mất data
         mediaRecRef.current = mr;
         setRecording(true);
       } catch(e) {
-        alert("Không thể ghi âm. Kiểm tra quyền microphone!");
+        console.error("Recording error:", e);
+        alert("Không thể ghi âm: " + (e.message || "Kiểm tra quyền microphone!"));
       }
     }
   }
