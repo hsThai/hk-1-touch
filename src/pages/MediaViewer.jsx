@@ -371,3 +371,4 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
 // ══════════════════════════════════════════════
 
 export { timeAgo, genOrderId, getKpiTimerInfo, MediaViewer, AcceptChecklistModal, AcceptTimer };
+export default MediaViewer;
