@@ -1,6 +1,6 @@
 /* v1774860462-5573 */
 import { useState, useEffect } from "react";
-import { B44Staff as Staff } from "./pb.jsx";
+import { Staff } from "./pb.jsx";
 
 const ROLES = [
   { value:"manager",      label:"Quản lý",        color:"#7c3aed", bg:"#f5f3ff", icon:"👑" },
