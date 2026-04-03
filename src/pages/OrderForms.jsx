@@ -351,3 +351,5 @@ function LoginScreen({ onLogin }) {
 
 export { NewOrderModal, KPIPage, LoginScreen };
 export const _BUILD_TS = "1774864528-FORCE-V3";
+
+export default function OrderFormsPage() { return null; }

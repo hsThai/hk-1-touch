@@ -205,3 +205,5 @@ export async function testConnection(url) {
     return res.ok;
   } catch { return false; }
 }
+
+export default {};

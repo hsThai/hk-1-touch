@@ -596,3 +596,5 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
 // ══════════════════════════════════════════════
 
 export { OrderDrawer };
+
+export default OrderDrawer;
