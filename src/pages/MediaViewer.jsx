@@ -374,7 +374,7 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
 // ══════════════════════════════════════════════
 //  STATUS / PRIORITY MAPPING (PocketBase ↔ Display)
 // ══════════════════════════════════════════════
-export const STATUS_PB = {
+const STATUS_PB = {
   "Mới Nhận":      "Moi Nhan",
   "Đang Kiểm Tra": "Dang Kiem Tra",
   "Đang Sửa":      "Dang Sua",
@@ -383,18 +383,18 @@ export const STATUS_PB = {
   "Đã Giao":       "Da Giao",
   "Hủy":           "Huy",
 };
-export const STATUS_DISPLAY = Object.fromEntries(
+const STATUS_DISPLAY = Object.fromEntries(
   Object.entries(STATUS_PB).map(([display, pb]) => [pb, display])
 );
-export const PRIORITY_PB = {
+const PRIORITY_PB = {
   "Bình thường": "Thuong",
   "Gấp":         "Gap",
   "VIP":         "VIP",
 };
-export const PRIORITY_DISPLAY = Object.fromEntries(
+const PRIORITY_DISPLAY = Object.fromEntries(
   Object.entries(PRIORITY_PB).map(([display, pb]) => [pb, display])
 );
-export const STATUS_COLS = [
+const STATUS_COLS = [
   { key:"Mới Nhận",      pb:"Moi Nhan",      color:"#2563eb", bg:"#dbeafe",  emoji:"📥" },
   { key:"Đang Kiểm Tra", pb:"Dang Kiem Tra", color:"#d97706", bg:"#fef3c7",  emoji:"🔍" },
   { key:"Đang Sửa",      pb:"Dang Sua",      color:"#7c3aed", bg:"#ede9fe",  emoji:"🔧" },
