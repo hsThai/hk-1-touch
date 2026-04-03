@@ -5,6 +5,7 @@ import { uploadFile } from "./pb.jsx";
 
 import { timeAgo, genOrderId, getKpiTimerInfo } from "./MediaViewer";
 import { searchKvCustomers } from "./kiotviet.jsx";
+import { QRScanModal } from "./QRComponents.jsx";
 
 function NewOrderModal({ onClose, onCreate, users, orders }) {
   const [form, setForm] = useState({ customer_id:"", customer_name:"", customer_phone:"", device_model:"", imei_serial:"", passcode:"", qr_code:"", issues:[], notes:"", assigned_to:"" });
@@ -238,15 +239,12 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
           </div>
 
           {showQRScan && (
-            <div style={{ position:"fixed", inset:0, zIndex:3000 }}>
-              <div style={{ position:"absolute", inset:0, background:"rgba(0,0,0,.7)" }} onClick={() => setShowQRScan(false)} />
-              <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", background:"#fff", borderRadius:20, padding:24, width:"90%", maxWidth:400 }}>
-                <div style={{ fontWeight:800, marginBottom:12, textAlign:"center" }}>📷 Quét QR</div>
-                <input autoFocus placeholder="Nhập mã QR thủ công..." onKeyDown={e => { if(e.key==="Enter" && e.target.value) handleQRResult({type:"raw",code:e.target.value}); }}
-                  style={{ ...inp, marginBottom:12 }} />
-                <button onClick={() => setShowQRScan(false)} style={{ width:"100%", height:44, background:"#f3f4f6", border:"none", borderRadius:10, cursor:"pointer" }}>Đóng</button>
-              </div>
-            </div>
+            <QRScanModal
+              mode="capture"
+              orders={orders || []}
+              onClose={() => setShowQRScan(false)}
+              onFound={handleQRResult}
+            />
           )}
         </div>
 
