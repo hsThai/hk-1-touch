@@ -1,15 +1,31 @@
 /**
  * KiotViet API Helper
  * Dùng chung cho toàn app — tìm khách, lấy tồn kho, tạo phiếu xuất
+ * Mock server: https://kios-thong.base44.app
  */
 
 import { AppSettings, Customer, SparePart } from "./pb.jsx";
+
+// ─── Mock server config ────────────────────────────────────
+// Đổi MOCK_MODE = false khi dùng KiotViet thật
+const MOCK_MODE = true;
+const MOCK_BASE = "https://kios-thong.base44.app/api/functions";
+const KV_TOKEN_URL   = MOCK_MODE ? `${MOCK_BASE}/kvToken`    : "https://id.kiotviet.vn/connect/token";
+const KV_API_BASE    = MOCK_MODE ? MOCK_BASE                  : "https://public.kiotapi.com";
 
 // ─── Token cache ───────────────────────────────────────────
 let _kvToken = null;
 let _kvTokenExpiry = 0;
 
 async function getKvConfig() {
+  // Nếu mock mode — dùng credentials của KiosThong
+  if (MOCK_MODE) {
+    return {
+      clientId:     "kv_bwxujxxg49ajmua5j7u66jv7",
+      clientSecret: "kvsec_px14zd40raoywc9tqnabn3c3efu92tu4p6yqod0z",
+      retailer:     "hkapp",
+    };
+  }
   try {
     const list = await AppSettings.list({ limit: 100 });
     const map = {};
@@ -26,7 +42,7 @@ export async function getKvToken(forceRefresh = false) {
   if (!forceRefresh && _kvToken && Date.now() < _kvTokenExpiry) return _kvToken;
   const { clientId, clientSecret } = await getKvConfig();
   if (!clientId || !clientSecret) throw new Error("Chưa cấu hình KiotViet API");
-  const res = await fetch("https://id.kiotviet.vn/connect/token", {
+  const res = await fetch(KV_TOKEN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -45,16 +61,15 @@ export async function getKvToken(forceRefresh = false) {
 
 async function kvGet(path, params = {}) {
   const { retailer } = await getKvConfig();
-  if (!retailer) throw new Error("Chưa cấu hình tên gian hàng KiotViet");
   const token = await getKvToken();
-  const url = new URL(`https://public.kiotapi.com/${path}`);
+  // Map path KiotViet thật → KiosThong mock
+  const mockPath = MOCK_MODE ? mapMockPath(path) : path;
+  const baseUrl = MOCK_MODE ? `${KV_API_BASE}/${mockPath}` : `${KV_API_BASE}/${path}`;
+  const url = new URL(baseUrl);
   Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, v));
-  const res = await fetch(url.toString(), {
-    headers: {
-      "Authorization": `Bearer ${token}`,
-      "Retailer": retailer,
-    },
-  });
+  const headers = { "Authorization": `Bearer ${token}` };
+  if (!MOCK_MODE && retailer) headers["Retailer"] = retailer;
+  const res = await fetch(url.toString(), { headers });
   if (!res.ok) {
     if (res.status === 401) {
       // Token hết hạn — refresh
@@ -66,17 +81,28 @@ async function kvGet(path, params = {}) {
   return res.json();
 }
 
+// Map path KiotViet thật → KiosThong mock endpoints
+function mapMockPath(path) {
+  if (path.startsWith("customers")) return "kvCustomers";
+  if (path.startsWith("products"))  return "kvProducts";
+  if (path.startsWith("invoices"))  return "kvInvoices";
+  if (path.startsWith("transfers")) return "kvInvoices"; // fallback transfers → invoices
+  return path;
+}
+
 async function kvPost(path, body) {
   const { retailer } = await getKvConfig();
-  if (!retailer) throw new Error("Chưa cấu hình tên gian hàng KiotViet");
   const token = await getKvToken();
-  const res = await fetch(`https://public.kiotapi.com/${path}`, {
+  const mockPath = MOCK_MODE ? mapMockPath(path) : path;
+  const postUrl = MOCK_MODE ? `${KV_API_BASE}/${mockPath}` : `${KV_API_BASE}/${path}`;
+  const headers = {
+    "Authorization": `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
+  if (!MOCK_MODE && retailer) headers["Retailer"] = retailer;
+  const res = await fetch(postUrl, {
     method: "POST",
-    headers: {
-      "Authorization": `Bearer ${token}`,
-      "Retailer": retailer,
-      "Content-Type": "application/json",
-    },
+    headers,
     body: JSON.stringify(body),
   });
   if (!res.ok) {
@@ -94,19 +120,23 @@ async function kvPost(path, body) {
  */
 export async function searchKvCustomers(keyword) {
   if (!keyword || keyword.length < 2) return [];
-  const data = await kvGet("customers", { pageSize: 20, searchTerm: keyword });
+  // KiosThong dùng name/phone, KiotViet thật dùng searchTerm
+  const searchParam = MOCK_MODE
+    ? (keyword.match(/^[0-9]+$/) ? { phone: keyword, pageSize: 20 } : { name: keyword, pageSize: 20 })
+    : { searchTerm: keyword, pageSize: 20 };
+  const data = await kvGet("customers", searchParam);
   const items = data.data || [];
 
   // Sync vào PocketBase (background, không block UI)
   syncCustomersToPb(items).catch(() => {});
 
   return items.map(c => ({
-    id:        String(c.id),
-    full_name: c.name || c.contactNumber || "",
-    phone:     c.contactNumber || "",
-    address:   c.address || "",
+    id:          String(c.id),
+    full_name:   c.name || c.contactNumber || c.phone || "",
+    phone:       c.contactNumber || c.phone || "",
+    address:     c.address || "",
     kiotviet_id: String(c.id),
-    note:      c.comments || "",
+    note:        c.comments || "",
   }));
 }
 
@@ -116,7 +146,7 @@ async function syncCustomersToPb(kvCustomers) {
       const existing = await Customer.filter({ kiotviet_id: String(c.id) });
       const data = {
         full_name:   c.name || "",
-        phone:       c.contactNumber || "",
+        phone:       c.contactNumber || c.phone || "",
         address:     c.address || "",
         kiotviet_id: String(c.id),
         note:        c.comments || "",
@@ -160,16 +190,19 @@ export async function syncKvProducts(onProgress) {
   let synced = 0;
   for (const p of allItems) {
     try {
-      const stock = (p.inventories || []).reduce((sum, inv) => sum + (inv.onHand || 0), 0);
+      // KiotViet thật: inventories[].onHand | KiosThong mock: onHand trực tiếp
+      const stock = p.onHand !== undefined
+        ? (p.onHand || 0)
+        : (p.inventories || []).reduce((sum, inv) => sum + (inv.onHand || 0), 0);
       const existing = await SparePart.filter({ kiotviet_id: String(p.id) });
       const data = {
         name:        p.name || "",
         sku:         p.code || "",
         unit:        p.unit || "Cái",
-        price:       p.basePrice || 0,
+        price:       p.basePrice || p.sellPrice || 0,
         stock_qty:   stock,
         kiotviet_id: String(p.id),
-        is_active:   true,
+        is_active:   p.isActive !== false,
         category:    p.categoryName || "",
       };
       if (existing.length > 0) {
