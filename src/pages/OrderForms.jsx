@@ -4,6 +4,7 @@ import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, Spar
 import { uploadFile } from "./pb.jsx";
 
 import { timeAgo, genOrderId, getKpiTimerInfo } from "./MediaViewer";
+import { searchKvCustomers } from "./kiotviet.jsx";
 
 function NewOrderModal({ onClose, onCreate, users, orders }) {
   const [form, setForm] = useState({ customer_id:"", customer_name:"", customer_phone:"", device_model:"", imei_serial:"", passcode:"", qr_code:"", issues:[], notes:"", assigned_to:"" });
@@ -16,32 +17,46 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]:v }));
 
-  // Load khách hàng từ DB khi search
+  const [kvSearching, setKvSearching] = React.useState(false);
+
+  // Load khách hàng: ưu tiên KiotViet, fallback PocketBase local
   useEffect(() => {
     if (custSearch.length < 2) { setDbCusts([]); return; }
     const timer = setTimeout(async () => {
+      setKvSearching(true);
+      try {
+        // 1. Thử KiotViet trước
+        const kvResults = await searchKvCustomers(custSearch);
+        if (kvResults.length > 0) {
+          setDbCusts(kvResults);
+          setKvSearching(false);
+          return;
+        }
+      } catch {}
+      // 2. Fallback: tìm trong PocketBase local
       try {
         const q = custSearch.toLowerCase();
         const items = await Customer.list({ limit: 200 });
         const filtered = items.filter(c =>
           (c.full_name||"").toLowerCase().includes(q) || (c.phone||"").includes(custSearch)
         );
-        // Nếu không có trong DB thì lấy từ orders cũ
-        if (filtered.length === 0 && orders) {
-          const extra = [];
-          orders.forEach(o => {
-            if (o.customer_name && o.customer_phone && !extra.find(c=>c.phone===o.customer_phone)) {
-              extra.push({ id: o.customer_id||o.customer_phone, full_name:o.customer_name, phone:o.customer_phone });
-            }
-          });
-          setDbCusts(extra.filter(c =>
-            (c.full_name||"").toLowerCase().includes(q) || (c.phone||"").includes(custSearch)
-          ));
-        } else {
-          setDbCusts(filtered);
-        }
-      } catch { setDbCusts([]); }
-    }, 300);
+        if (filtered.length > 0) { setDbCusts(filtered); setKvSearching(false); return; }
+      } catch {}
+      // 3. Fallback: lấy từ orders cũ
+      if (orders) {
+        const extra = [];
+        const q = custSearch.toLowerCase();
+        orders.forEach(o => {
+          if (o.customer_name && o.customer_phone && !extra.find(c=>c.phone===o.customer_phone)) {
+            extra.push({ id: o.customer_id||o.customer_phone, full_name:o.customer_name, phone:o.customer_phone });
+          }
+        });
+        setDbCusts(extra.filter(c =>
+          (c.full_name||"").toLowerCase().includes(q) || (c.phone||"").includes(custSearch)
+        ));
+      }
+      setKvSearching(false);
+    }, 400);
     return () => clearTimeout(timer);
   }, [custSearch]);
 
@@ -130,9 +145,17 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
 
           <div style={{ ...sec, background:"#f0f9ff" }}>
             <div style={{ fontWeight:800, fontSize:14, color:"#0369a1", marginBottom:10 }}>👤 Khách Hàng</div>
-            <label style={lbl}>Tìm theo SĐT hoặc tên *</label>
-            <input value={custSearch} onChange={e => { setCustSearch(e.target.value); if(!e.target.value) set("customer_id",""); }}
-              placeholder="🔍 0901234567 hoặc Nguyễn..." style={inp} />
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+              <label style={{...lbl, marginBottom:0}}>Tìm theo SĐT hoặc tên *</label>
+              {kvSearching && <span style={{ fontSize:11, color:"#0369a1", fontWeight:700 }}>🔄 Đang tìm KiotViet...</span>}
+            </div>
+            <input value={custSearch} onChange={e => { setCustSearch(e.target.value); if(!e.target.value) { set("customer_id",""); set("customer_name",""); set("customer_phone",""); } }}
+              placeholder="🔍 0901234567 hoặc Nguyễn Văn A..." style={inp} />
+            {custSearch.length > 0 && !form.customer_id && dbCusts.length === 0 && !kvSearching && custSearch.length >= 2 && (
+              <div style={{ marginTop:6, background:"#fffbeb", border:"1px solid #fcd34d", borderRadius:10, padding:"10px 14px", fontSize:13, color:"#92400e" }}>
+                💡 Không tìm thấy trong KiotViet. Nhập tên/SĐT rồi bấm Tạo Đơn để thêm khách mới.
+              </div>
+            )}
             {dbCusts.length > 0 && (
               <div style={{ marginTop:6, border:"1px solid #bae6fd", borderRadius:10, overflow:"hidden" }}>
                 {dbCusts.map(c => (
