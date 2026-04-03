@@ -207,3 +207,46 @@ export async function testConnection(url) {
 }
 
 export default {};
+
+// ── Base44 Staff API (service role — bypass RLS) ──────────
+// Dùng Base44 REST API với service token để đọc/ghi Staff entity
+// mà không cần user đăng nhập Base44.
+const B44_APP_ID  = "69bf5d0a924e0a8766577274";
+const B44_API_URL = `https://app.base44.com/api/apps/${B44_APP_ID}/entities/Staff`;
+const B44_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2MmYzZWM5Mi05OTQ1LTQ1MWUtODdjOC1kYTU4N2FlZDVkZDEiLCJjbGllbnRfaWQiOiI2MmYzZWM5Mi05OTQ1LTQ1MWUtODdjOC1kYTU4N2FlZDVkZDEiLCJhcHBfaWQiOiI2OWJmNWQwYTkyNGUwYTg3NjY1NzcyNzQiLCJhdWQiOiJiYXNlNDRfYXBpIiwic2NvcGUiOiJhcHAuYWNjZXNzIiwiZXhwIjoxNzc1MjE5MDQxLCJpYXQiOjE3NzUyMTU0NDF9.WWM1pG-FAE48Vp9RloJ7ncWJNFAjDqTzDP8XV8fPzgM";
+
+async function b44Fetch(path, options = {}) {
+  const url = `${B44_API_URL}${path}`;
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${B44_TOKEN}`,
+      ...(options.headers || {}),
+    },
+  });
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try { const d = await res.json(); msg = d.message || d.error || msg; } catch {}
+    throw new Error(msg);
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+export const B44Staff = {
+  async list() {
+    const data = await b44Fetch("");
+    // Base44 trả về array trực tiếp hoặc {records:[...]}
+    return Array.isArray(data) ? data : (data.records || data.items || []);
+  },
+  async create(record) {
+    return b44Fetch("", { method: "POST", body: JSON.stringify(record) });
+  },
+  async update(id, record) {
+    return b44Fetch(`/${id}`, { method: "PUT", body: JSON.stringify(record) });
+  },
+  async delete(id) {
+    return b44Fetch(`/${id}`, { method: "DELETE" });
+  },
+};

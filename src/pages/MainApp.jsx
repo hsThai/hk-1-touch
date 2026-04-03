@@ -1,7 +1,6 @@
 /* v4-loginv2-real-db */
 import React, { lazy, Suspense, useState, useEffect, useRef, useCallback } from "react";
-import { RepairChat, Notification, Staff as PbStaff, RepairOrder, Customer } from "./pb.jsx";
-import { Staff as B44Staff } from "@/api/entities";
+import { RepairChat, Notification, Staff as PbStaff, RepairOrder, Customer, B44Staff } from "./pb.jsx";
 import { uploadFile } from "./pb.jsx";
 const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ default: ({ onClose }) => (
   <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}}>

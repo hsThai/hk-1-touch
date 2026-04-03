@@ -1,7 +1,6 @@
 /* v3-rebuild-1774864528 */
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { RepairChat, Notification, Staff as PbStaff, RepairOrder, Customer, SparePart, SparePartUsage } from "./pb.jsx";
-import { Staff } from "@/api/entities";
+import { RepairChat, Notification, Staff as PbStaff, RepairOrder, Customer, SparePart, SparePartUsage, B44Staff as Staff } from "./pb.jsx";
 import { uploadFile } from "./pb.jsx";
 
 import { timeAgo, genOrderId, getKpiTimerInfo } from "./MediaViewer";
