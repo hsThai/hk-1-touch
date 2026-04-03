@@ -78,10 +78,19 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
     const textBefore = chatInput.slice(0, cursor);
     const textAfter = chatInput.slice(cursor);
     const replaced = textBefore.replace(/@(\w*)$/, `@${u.name} `);
-    setChatInput(replaced + textAfter);
+    const newText = replaced + textAfter;
+    const newCursor = replaced.length; // vị trí sau tên + khoảng trắng
+    setChatInput(newText);
     setShowMention(false);
     setPendingMentions(prev => prev.find(p => p.id===u.id) ? prev : [...prev, { id:u.id, name:u.name }]);
-    setTimeout(() => chatInputRef.current?.focus(), 50);
+    // Set cursor đúng vị trí sau tên user
+    setTimeout(() => {
+      const el = chatInputRef.current;
+      if (el) {
+        el.focus();
+        el.setSelectionRange(newCursor, newCursor);
+      }
+    }, 30);
   }
 
   async function sendChat(type="text", mediaUrl=null, mediaText=null) {
@@ -138,14 +147,15 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
       if (!msgType) {
         if (file.type?.startsWith("image")) msgType = "image";
         else if (file.type?.startsWith("video")) msgType = "video";
-        else if (file.type?.startsWith("audio")) msgType = "video"; // PB dùng "video" cho audio
+        else if (file.type?.startsWith("audio")) msgType = "audio";
         else msgType = "image";
       }
       // audio: dùng type "video" nhưng text "🎤 Ghi âm" để phân biệt
       const msgText = msgType==="image" ? "📷 Ảnh" : file.type?.startsWith("audio") ? "🎤 Ghi âm" : "🎥 Video";
       await sendChat(msgType, url, msgText);
     } catch(e) {
-      alert("Upload thất bại!");
+      console.error("Upload error:", e);
+      alert("Upload thất bại: " + (e.message || "Lỗi kết nối PocketBase. Kiểm tra server!"));
     } finally {
       setChatUploading(false);
     }
