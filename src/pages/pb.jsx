@@ -79,8 +79,9 @@ export const pbAuth = {
 function makeCollection(collectionName) {
   return {
     async list(options = {}) {
-      const { sort = "-created", limit = 200, filter = "", page = 1 } = options;
-      const params = new URLSearchParams({ sort, perPage: limit, page });
+      const { sort = "", limit = 200, filter = "", page = 1 } = options;
+      const params = new URLSearchParams({ perPage: limit, page });
+      if (sort) params.set("sort", sort);
       if (filter) params.set("filter", filter);
       const data = await pbFetch(`collections/${collectionName}/records?${params}`);
       return data.items || [];
