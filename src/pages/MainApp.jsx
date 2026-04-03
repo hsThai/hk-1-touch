@@ -26,7 +26,7 @@ const SettingsPage = lazy(() => import("./Settings").catch(() => ({ default: () 
 
 
 // Components loaded from OrderComponents
-import { QRScanModal, QRPrintModal } from "./QRComponents";
+import { QRScanModal } from "./QRComponents";
 import { MediaViewer, AcceptChecklistModal, AcceptTimer, timeAgo, genOrderId, getKpiTimerInfo } from "./MediaViewer";
 import { OrderDrawer } from "./OrderDrawer";
 import { NewOrderModal, KPIPage } from "./OrderForms";
@@ -470,7 +470,7 @@ export default function MainApp() {
           onGoToPendingAccept={goToPendingAccept}
         />
       )}
-      {qrOrder && <QRPrintModal order={qrOrder} onClose={() => setQrOrder(null)} />}
+
       {showQRScan && <QRScanModal onClose={() => setShowQRScan(false)} onResult={handleGlobalQRScan} orders={orders} />}
 
       {/* Created order toast */}
@@ -480,10 +480,6 @@ export default function MainApp() {
             <div style={{ fontWeight:800 }}>✅ Đã tạo đơn {createdOrder.id}</div>
             <div style={{ fontSize:12, opacity:.9, marginTop:2 }}>{createdOrder.customer_name} · {createdOrder.device_model}</div>
           </div>
-          <button onClick={() => { setCreatedOrder(null); setQrOrder(createdOrder); }}
-            style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", borderRadius:10, padding:"8px 14px", cursor:"pointer", fontWeight:700, fontSize:13 }}>
-            In QR
-          </button>
           <button onClick={() => setCreatedOrder(null)}
             style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", borderRadius:10, padding:"8px 14px", cursor:"pointer", fontWeight:700, fontSize:13 }}>
             OK

@@ -4,7 +4,7 @@ import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, Spar
 import { uploadFile } from "./pb.jsx";
 
 import { timeAgo, genOrderId, getKpiTimerInfo } from "./MediaViewer";
-import { searchKvCustomers } from "./kiotviet.jsx";
+import { searchKvCustomers, createKvDeliveryOrder } from "./kiotviet.jsx";
 import { QRScanModal, IMEIScanModal } from "./QRComponents.jsx";
 
 function NewOrderModal({ onClose, onCreate, users, orders }) {
@@ -103,7 +103,31 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
     }
     if (!cName && !cId) { alert("Vui lòng nhập tên hoặc SĐT khách hàng!"); return; }
     const imgUrls = mediaFiles.map(m => m.type==="video" ? `video:${m.name}` : m.url);
-    onCreate({ ...form, id:genOrderId(), created:new Date().toISOString(), assigned_at:form.assigned_to?new Date().toISOString():null, accept_stage:0, status:"Mới Nhận", images:imgUrls, customer_id:cId, customer_name:cName, customer_phone:cPhone });
+    const newOrder = { ...form, id:genOrderId(), created:new Date().toISOString(), assigned_at:form.assigned_to?new Date().toISOString():null, accept_stage:0, status:"Mới Nhận", images:imgUrls, customer_id:cId, customer_name:cName, customer_phone:cPhone };
+    onCreate(newOrder);
+
+    // Gửi đơn sang KiosThong tạo hóa đơn (không block UI)
+    (async () => {
+      try {
+        const assignedUser = users.find(u => u.id === newOrder.assigned_to);
+        await createKvDeliveryOrder({
+          orderCode:     newOrder.id,
+          deviceModel:   newOrder.device_model,
+          technicianName: assignedUser?.name || assignedUser?.full_name || "Chưa giao",
+          parts: [{
+            sku:          "REPAIR_ORDER",
+            kvProductId:  null,
+            name:         `[${newOrder.id}] ${newOrder.device_model} — ${(newOrder.issues||[]).join(", ") || newOrder.notes || "Sửa chữa"}`,
+            qty:          1,
+            price:        newOrder.estimated_cost || 0,
+          }],
+        });
+        console.log("[KiosThong] Đã tạo đơn:", newOrder.id);
+      } catch(e) {
+        console.warn("[KiosThong] Gửi đơn thất bại (không ảnh hưởng hệ thống):", e.message);
+      }
+    })();
+
     onClose();
   }
 
@@ -260,8 +284,8 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
             <select value={form.assigned_to} onChange={e => set("assigned_to", e.target.value)}
               style={{ ...inp, color:form.assigned_to?"#111":"#9ca3af" }}>
               <option value="">-- Chưa giao (giao sau) --</option>
-              {users.filter(u => u.role==="technician" && u.is_active).map(u => (
-                <option key={u.id} value={u.id}>{u.name} — KPI: {u.kpi}</option>
+              {users.filter(u => (u.role==="technician" || u.role==="kỹ thuật") && u.is_active !== false).map(u => (
+                <option key={u.id} value={u.id}>{u.name || u.full_name} — KPI: {u.kpi ?? 0}</option>
               ))}
             </select>
           </div>

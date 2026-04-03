@@ -238,7 +238,6 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
             <span style={{ fontSize:11, background:col?.bg, color:col?.color, padding:"2px 10px", borderRadius:20, fontWeight:700 }}>{col?.icon} {order.status}</span>
           </div>
           <div style={{ display:"flex", gap:8 }}>
-            <button onClick={() => onShowQR(order)} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:8, fontWeight:700, fontSize:12, cursor:"pointer" }}>🖨️ In QR</button>
             <button onClick={onClose} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:34, height:34, borderRadius:"50%", fontSize:17, cursor:"pointer" }}>✕</button>
           </div>
         </div>
@@ -561,9 +560,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
               {order.qr_code && <div style={{ fontSize:12, color:"#818cf8", fontFamily:"monospace" }}>Mã QR máy: {order.qr_code}</div>}
               <div style={{ fontSize:13, color:"#6b7280" }}>{cust?.full_name} · {order.device_model}</div>
             </div>
-            <button onClick={() => onShowQR(order)} style={{ width:"100%", height:52, borderRadius:14, background:"#1e1b4b", color:"#fff", border:"none", fontWeight:800, fontSize:16, cursor:"pointer" }}>
-              🖨️ In Phiếu QR
-            </button>
+
             <div style={{ fontSize:12, color:"#9ca3af", textAlign:"center", marginTop:10 }}>QR chứa mã đơn: <strong>{qrContent}</strong></div>
           </div>
         )}
