@@ -26,12 +26,21 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
   const [mediaViewer, setMediaViewer] = useState(null); // {items, startIndex}
   const chatRef = useRef();
 
-  // Load chats from entity when order changes or tab switches to chat
+  // Load count ngay khi mở đơn (để hiện số trên tab)
+  useEffect(() => {
+    let cancelled = false;
+    RepairChat.filter({ order_id: order.id })
+      .then(data => { if (!cancelled) setChats(data); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [order.id]);
+
+  // Load full chats + set loading khi vào tab chat
   useEffect(() => {
     if (tab !== "chat") return;
     let cancelled = false;
     setChatLoading(true);
-    RepairChat.filter({ order_id: order.id }, { sort: "created_date" })
+    RepairChat.filter({ order_id: order.id }, { sort: "received_date" })
       .then(data => { if (!cancelled) { setChats(data); setChatLoading(false); } })
       .catch(() => { if (!cancelled) setChatLoading(false); });
     return () => { cancelled = true; };
@@ -308,10 +317,15 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
         </div>
         {/* Tabs */}
         <div style={{ display:"flex", borderBottom:"1px solid #e5e7eb" }}>
-          {[["info","📄 Thông tin"],["parts","🔩 Linh kiện"],["chat",`💬 Chat(${chats.length})`],["qr","📱 QR"]].map(([t,lbl]) => (
+          {[["info","📄 Thông tin"],["parts","🔩 Linh kiện"],["chat","💬 Chat"],["qr","📱 QR"]].map(([t,lbl]) => (
             <button key={t} onClick={() => setTab(t)}
-              style={{ flex:1, padding:"11px", border:"none", background:"none", fontWeight:700, fontSize:13, cursor:"pointer", borderBottom:tab===t?"3px solid #4f46e5":"3px solid transparent", color:tab===t?"#4f46e5":"#6b7280" }}>
+              style={{ flex:1, padding:"11px", border:"none", background:"none", fontWeight:700, fontSize:13, cursor:"pointer", borderBottom:tab===t?"3px solid #4f46e5":"3px solid transparent", color:tab===t?"#4f46e5":"#6b7280", position:"relative" }}>
               {lbl}
+              {t==="chat" && chats.length > 0 && (
+                <span style={{ position:"absolute", top:6, right:"calc(50% - 22px)", background:"#4f46e5", color:"#fff", borderRadius:10, fontSize:10, fontWeight:800, padding:"1px 5px", minWidth:16, lineHeight:"14px" }}>
+                  {chats.length}
+                </span>
+              )}
             </button>
           ))}
         </div>

@@ -40,35 +40,129 @@ function getKpiTimerInfo(order) {
 //  MEDIA VIEWER — fullscreen lightbox with pinch-zoom + draw + share
 // ══════════════════════════════════════════════
 function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
-  const [idx, setIdx] = useState(startIndex || 0);
+  const [idx, setIdx]         = useState(startIndex || 0);
   const [shareStatus, setShareStatus] = useState("");
-  const [drawMode, setDrawMode] = useState(false);
+  const [drawMode, setDrawMode]   = useState(false);
   const [drawColor, setDrawColor] = useState("#ff3b30");
-  const [drawSize, setDrawSize] = useState(4);
-  const [sending, setSending] = useState(false);
-
-  // Pinch-zoom state
-  const [scale, setScale] = useState(1);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const lastTouchRef = useRef(null);
-  const lastDistRef = useRef(null);
-  const isDraggingRef = useRef(false);
-  const dragStartRef = useRef(null);
+  const [drawSize, setDrawSize]   = useState(4);
+  const [sending, setSending]     = useState(false);
 
   // Canvas draw
-  const canvasRef = useRef(null);
-  const drawingRef = useRef(false);
-  const lastPosRef = useRef(null);
-  const imgRef = useRef(null);
+  const canvasRef   = useRef(null);
+  const drawingRef  = useRef(false);
+  const lastPosRef  = useRef(null);
 
-  const item = items[idx];
+  // Zoom — dùng ref để tránh re-render lag
+  const imgWrapRef  = useRef(null);
+  const imgElRef    = useRef(null);
+  const scaleRef    = useRef(1);
+  const offsetRef   = useRef({ x: 0, y: 0 });
+  const lastDistRef = useRef(null);
+  const lastTapRef  = useRef(0);
+  const dragStartRef= useRef(null);
+
+  const item    = items[idx];
   const isVideo = item?.startsWith("video:");
-  const videoSrc = isVideo ? item.replace("video:", "") : null;
-  const imgSrc = !isVideo ? item : null;
+  const videoSrc= isVideo ? item.replace("video:", "") : null;
+  const imgSrc  = !isVideo ? item : null;
 
-  // Reset zoom + draw khi đổi ảnh
+  // ── Apply transform thẳng lên DOM (không qua state) ──
+  function applyTransform() {
+    if (!imgElRef.current) return;
+    const { x, y } = offsetRef.current;
+    const s = scaleRef.current;
+    imgElRef.current.style.transform = `scale(${s}) translate(${x/s}px, ${y/s}px)`;
+  }
+
+  // ── Clamp offset để ảnh không bay ra ngoài ──
+  function clampOffset(s) {
+    if (!imgElRef.current) return;
+    const el    = imgElRef.current;
+    const maxX  = (el.offsetWidth  * (s - 1)) / 2;
+    const maxY  = (el.offsetHeight * (s - 1)) / 2;
+    offsetRef.current.x = Math.max(-maxX, Math.min(maxX, offsetRef.current.x));
+    offsetRef.current.y = Math.max(-maxY, Math.min(maxY, offsetRef.current.y));
+  }
+
+  // ── Gắn touch listeners với passive:false để preventDefault hoạt động ──
   useEffect(() => {
-    setScale(1); setOffset({ x: 0, y: 0 });
+    const el = imgWrapRef.current;
+    if (!el || isVideo || drawMode) return;
+
+    function getTouchDist(t) {
+      const dx = t[0].clientX - t[1].clientX;
+      const dy = t[0].clientY - t[1].clientY;
+      return Math.sqrt(dx*dx + dy*dy);
+    }
+    function getMidpoint(t) {
+      return { x:(t[0].clientX+t[1].clientX)/2, y:(t[0].clientY+t[1].clientY)/2 };
+    }
+
+    function onStart(e) {
+      if (e.touches.length === 2) {
+        lastDistRef.current = getTouchDist(e.touches);
+      } else if (e.touches.length === 1) {
+        const now = Date.now();
+        if (now - lastTapRef.current < 280) {
+          // double-tap → reset
+          scaleRef.current = 1;
+          offsetRef.current = { x: 0, y: 0 };
+          applyTransform();
+          lastTapRef.current = 0;
+          return;
+        }
+        lastTapRef.current = now;
+        if (scaleRef.current > 1) {
+          dragStartRef.current = {
+            x: e.touches[0].clientX - offsetRef.current.x,
+            y: e.touches[0].clientY - offsetRef.current.y,
+          };
+        }
+      }
+    }
+
+    function onMove(e) {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const dist = getTouchDist(e.touches);
+        if (lastDistRef.current) {
+          const ratio = dist / lastDistRef.current;
+          scaleRef.current = Math.min(5, Math.max(1, scaleRef.current * ratio));
+          clampOffset(scaleRef.current);
+          applyTransform();
+        }
+        lastDistRef.current = dist;
+      } else if (e.touches.length === 1 && dragStartRef.current && scaleRef.current > 1) {
+        e.preventDefault();
+        offsetRef.current = {
+          x: e.touches[0].clientX - dragStartRef.current.x,
+          y: e.touches[0].clientY - dragStartRef.current.y,
+        };
+        clampOffset(scaleRef.current);
+        applyTransform();
+      }
+    }
+
+    function onEnd(e) {
+      if (e.touches.length < 2) lastDistRef.current = null;
+      if (e.touches.length === 0) dragStartRef.current = null;
+    }
+
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove",  onMove,  { passive: false });
+    el.addEventListener("touchend",   onEnd,   { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove",  onMove);
+      el.removeEventListener("touchend",   onEnd);
+    };
+  }, [isVideo, drawMode, idx]);
+
+  // Reset khi đổi ảnh
+  useEffect(() => {
+    scaleRef.current  = 1;
+    offsetRef.current = { x: 0, y: 0 };
+    if (imgElRef.current) imgElRef.current.style.transform = "";
     setDrawMode(false);
   }, [idx]);
 
@@ -76,11 +170,11 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
   useEffect(() => {
     if (!drawMode || !canvasRef.current || !imgSrc) return;
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    const img = new Image();
+    const ctx    = canvas.getContext("2d");
+    const img    = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
-      canvas.width = img.naturalWidth;
+      canvas.width  = img.naturalWidth;
       canvas.height = img.naturalHeight;
       ctx.drawImage(img, 0, 0);
     };
@@ -92,95 +186,35 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
     const h = e => {
       if (e.key === "Escape") onClose();
       if (!drawMode) {
-        if (e.key === "ArrowLeft") setIdx(i => Math.max(0, i - 1));
-        if (e.key === "ArrowRight") setIdx(i => Math.min(items.length - 1, i + 1));
+        if (e.key === "ArrowLeft")  setIdx(i => Math.max(0, i-1));
+        if (e.key === "ArrowRight") setIdx(i => Math.min(items.length-1, i+1));
       }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [items.length, drawMode]);
 
-  // ── Pinch-zoom touch handlers ──
-  function getTouchDist(touches) {
-    const dx = touches[0].clientX - touches[1].clientX;
-    const dy = touches[0].clientY - touches[1].clientY;
-    return Math.sqrt(dx * dx + dy * dy);
-  }
-
-  function onTouchStart(e) {
-    if (drawMode) return;
-    if (e.touches.length === 2) {
-      lastDistRef.current = getTouchDist(e.touches);
-    } else if (e.touches.length === 1) {
-      dragStartRef.current = { x: e.touches[0].clientX - offset.x, y: e.touches[0].clientY - offset.y };
-      isDraggingRef.current = true;
-    }
-  }
-
-  function onTouchMove(e) {
-    if (drawMode) return;
-    e.preventDefault();
-    if (e.touches.length === 2) {
-      const dist = getTouchDist(e.touches);
-      if (lastDistRef.current) {
-        const ratio = dist / lastDistRef.current;
-        setScale(s => Math.min(5, Math.max(1, s * ratio)));
-      }
-      lastDistRef.current = dist;
-    } else if (e.touches.length === 1 && isDraggingRef.current && scale > 1) {
-      setOffset({
-        x: e.touches[0].clientX - dragStartRef.current.x,
-        y: e.touches[0].clientY - dragStartRef.current.y,
-      });
-    }
-  }
-
-  function onTouchEnd(e) {
-    if (e.touches.length < 2) lastDistRef.current = null;
-    if (e.touches.length === 0) isDraggingRef.current = false;
-    // Double-tap to reset zoom
-    const now = Date.now();
-    if (lastTouchRef.current && now - lastTouchRef.current < 300 && scale > 1) {
-      setScale(1); setOffset({ x: 0, y: 0 });
-    }
-    lastTouchRef.current = now;
-  }
-
   // ── Canvas drawing ──
   function getCanvasPos(e, canvas) {
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
+    const rect   = canvas.getBoundingClientRect();
+    const scaleX = canvas.width  / rect.width;
     const scaleY = canvas.height / rect.height;
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+    const cx = e.touches ? e.touches[0].clientX : e.clientX;
+    const cy = e.touches ? e.touches[0].clientY : e.clientY;
+    return { x:(cx-rect.left)*scaleX, y:(cy-rect.top)*scaleY };
   }
-
-  function onDrawStart(e) {
-    if (!drawMode) return;
-    e.preventDefault();
-    drawingRef.current = true;
-    lastPosRef.current = getCanvasPos(e, canvasRef.current);
-  }
-
-  function onDrawMove(e) {
-    if (!drawMode || !drawingRef.current) return;
-    e.preventDefault();
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    const pos = getCanvasPos(e, canvas);
-    ctx.beginPath();
-    ctx.moveTo(lastPosRef.current.x, lastPosRef.current.y);
+  function onDrawStart(e) { if (!drawMode) return; e.preventDefault(); drawingRef.current=true; lastPosRef.current=getCanvasPos(e,canvasRef.current); }
+  function onDrawMove(e)  {
+    if (!drawMode || !drawingRef.current) return; e.preventDefault();
+    const canvas=canvasRef.current; const ctx=canvas.getContext("2d");
+    const pos=getCanvasPos(e,canvas);
+    ctx.beginPath(); ctx.moveTo(lastPosRef.current.x, lastPosRef.current.y);
     ctx.lineTo(pos.x, pos.y);
-    ctx.strokeStyle = drawColor;
-    ctx.lineWidth = drawSize * (canvas.width / canvas.getBoundingClientRect().width);
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.stroke();
-    lastPosRef.current = pos;
+    ctx.strokeStyle=drawColor; ctx.lineWidth=drawSize*(canvas.width/canvas.getBoundingClientRect().width);
+    ctx.lineCap="round"; ctx.lineJoin="round"; ctx.stroke();
+    lastPosRef.current=pos;
   }
-
-  function onDrawEnd(e) { drawingRef.current = false; }
+  function onDrawEnd() { drawingRef.current=false; }
 
   // ── Gửi ảnh đã vẽ ──
   async function handleSendAnnotated() {
@@ -188,15 +222,13 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
     setSending(true);
     try {
       const blob = await new Promise(r => canvasRef.current.toBlob(r, "image/jpeg", 0.88));
-      const file = new File([blob], `annotated_${Date.now()}.jpg`, { type: "image/jpeg" });
+      const file = new File([blob], `annotated_${Date.now()}.jpg`, { type:"image/jpeg" });
       await onSendAnnotated(file);
       setShareStatus("✅ Đã gửi ảnh vào chat!");
       setTimeout(() => { setShareStatus(""); setDrawMode(false); }, 2000);
-    } catch (e) {
+    } catch(e) {
       setShareStatus("❌ Gửi thất bại!");
-    } finally {
-      setSending(false);
-    }
+    } finally { setSending(false); }
   }
 
   // ── Share ──
@@ -205,26 +237,22 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
     if (!url) return;
     try {
       if (navigator.share) {
-        // Share ảnh dưới dạng file (thấy ảnh ngay, không thấy link)
-        const res = await fetch(url);
+        const res  = await fetch(url);
         const blob = await res.blob();
-        const ext = isVideo ? "mp4" : "jpg";
-        const file = new File([blob], `repair_media.${ext}`, { type: blob.type });
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: "Ảnh/Video sửa chữa" });
+        const ext  = isVideo ? "mp4" : "jpg";
+        const file = new File([blob], `repair_media.${ext}`, { type:blob.type });
+        if (navigator.canShare && navigator.canShare({ files:[file] })) {
+          await navigator.share({ files:[file], title:"Ảnh/Video sửa chữa" });
           setShareStatus("✅ Đã chia sẻ!");
-          setTimeout(() => setShareStatus(""), 2500);
-          return;
+        } else {
+          await navigator.share({ url, title:"Ảnh/Video sửa chữa" });
+          setShareStatus("✅ Đã chia sẻ!");
         }
-        // Fallback: share URL
-        await navigator.share({ url, title: "Ảnh/Video sửa chữa" });
       } else {
         await navigator.clipboard.writeText(url);
         setShareStatus("✅ Đã copy link!");
       }
-    } catch (e) {
-      if (e.name !== "AbortError") setShareStatus("❌ Lỗi chia sẻ");
-    }
+    } catch(e) { if (e.name!=="AbortError") setShareStatus("❌ Lỗi chia sẻ"); }
     setTimeout(() => setShareStatus(""), 2500);
   }
 
@@ -232,14 +260,10 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
     const url = isVideo ? videoSrc : imgSrc;
     if (!url) return;
     try {
-      const res = await fetch(url);
-      const blob = await res.blob();
-      const ext = isVideo ? "mp4" : "jpg";
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `repair_${Date.now()}.${ext}`;
-      a.click();
-    } catch { window.open(url, "_blank"); }
+      const res=await fetch(url); const blob=await res.blob();
+      const ext=isVideo?"mp4":"jpg"; const a=document.createElement("a");
+      a.href=URL.createObjectURL(blob); a.download=`repair_${Date.now()}.${ext}`; a.click();
+    } catch { window.open(url,"_blank"); }
   }
 
   return (
@@ -253,25 +277,22 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
         <div style={{ display:"flex", gap:6, alignItems:"center" }}>
           {!isVideo && (
             <button onClick={() => setDrawMode(d => !d)}
-              style={{ background: drawMode ? "#f59e0b" : "rgba(255,255,255,.2)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:12, fontWeight:700, cursor:"pointer" }}>
+              style={{ background:drawMode?"#f59e0b":"rgba(255,255,255,.2)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:12, fontWeight:700, cursor:"pointer" }}>
               {drawMode ? "✏️ Đang vẽ" : "✏️ Vẽ"}
             </button>
           )}
           <button onClick={handleShare}
-            style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:12, fontWeight:700, cursor:"pointer" }}>
-            📤 Chia sẻ
-          </button>
+            style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:12, fontWeight:700, cursor:"pointer" }}>📤 Chia sẻ</button>
           <button onClick={handleDownload}
-            style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:12, fontWeight:700, cursor:"pointer" }}>
-            ⬇️
-          </button>
-          <button onClick={onClose} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
+            style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:12, fontWeight:700, cursor:"pointer" }}>⬇️</button>
+          <button onClick={onClose}
+            style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
         </div>
       </div>
 
       {/* ── Draw toolbar ── */}
       {drawMode && !isVideo && (
-        <div onClick={e => e.stopPropagation()} style={{ position:"absolute", bottom: items.length>1?90:16, left:"50%", transform:"translateX(-50%)", display:"flex", gap:8, alignItems:"center", background:"rgba(0,0,0,.85)", padding:"10px 16px", borderRadius:24, zIndex:20, backdropFilter:"blur(8px)" }}>
+        <div onClick={e => e.stopPropagation()} style={{ position:"absolute", bottom:items.length>1?90:16, left:"50%", transform:"translateX(-50%)", display:"flex", gap:8, alignItems:"center", background:"rgba(0,0,0,.85)", padding:"10px 16px", borderRadius:24, zIndex:20, backdropFilter:"blur(8px)" }}>
           {["#ff3b30","#ff9500","#ffcc00","#34c759","#007aff","#fff","#000"].map(c => (
             <div key={c} onClick={() => setDrawColor(c)}
               style={{ width:26, height:26, borderRadius:"50%", background:c, border:`3px solid ${drawColor===c?"#fff":"transparent"}`, cursor:"pointer", boxShadow:"0 0 0 1px rgba(255,255,255,.3)" }} />
@@ -279,7 +300,7 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
           <div style={{ width:1, height:26, background:"rgba(255,255,255,.3)", margin:"0 4px" }} />
           {[3,6,12].map(s => (
             <div key={s} onClick={() => setDrawSize(s)}
-              style={{ width:s*3+8, height:s*3+8, borderRadius:"50%", background:"#fff", border:`3px solid ${drawSize===s?"#f59e0b":"transparent"}`, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }} />
+              style={{ width:s*2+14, height:s*2+14, borderRadius:"50%", background:"#fff", border:`3px solid ${drawSize===s?"#f59e0b":"transparent"}`, cursor:"pointer" }} />
           ))}
           <div style={{ width:1, height:26, background:"rgba(255,255,255,.3)", margin:"0 4px" }} />
           <button onClick={handleSendAnnotated} disabled={sending}
@@ -297,31 +318,27 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
       )}
 
       {/* ── Media area ── */}
-      <div onClick={e => e.stopPropagation()} style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}
-        onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+      <div ref={imgWrapRef} onClick={e => e.stopPropagation()}
+        style={{ width:"100vw", height:"100vh", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", position:"relative" }}>
+
         {isVideo ? (
           videoSrc && (videoSrc.startsWith("blob:") || videoSrc.startsWith("http")) ? (
             <video src={videoSrc} controls autoPlay playsInline preload="metadata"
               style={{ maxWidth:"96vw", maxHeight:"82vh", borderRadius:12, background:"#000" }} />
           ) : (
-            <div style={{ textAlign:"center", color:"#fff" }}><div style={{ fontSize:72 }}>🎥</div><div style={{ fontSize:14, color:"#9ca3af" }}>Không thể phát</div></div>
+            <div style={{ textAlign:"center", color:"#fff" }}><div style={{ fontSize:72 }}>🎥</div><div style={{ fontSize:14,color:"#9ca3af" }}>Không thể phát</div></div>
           )
         ) : drawMode ? (
-          // Canvas vẽ
           <canvas ref={canvasRef}
             style={{ maxWidth:"96vw", maxHeight:"78vh", objectFit:"contain", borderRadius:12, touchAction:"none", cursor:"crosshair" }}
             onMouseDown={onDrawStart} onMouseMove={onDrawMove} onMouseUp={onDrawEnd}
             onTouchStart={onDrawStart} onTouchMove={onDrawMove} onTouchEnd={onDrawEnd} />
         ) : (
-          // Ảnh với pinch-zoom
-          <img ref={imgRef} src={imgSrc} alt=""
-            style={{
-              maxWidth:"96vw", maxHeight:"82vh", objectFit:"contain", borderRadius:12,
-              transform: `scale(${scale}) translate(${offset.x/scale}px, ${offset.y/scale}px)`,
-              transformOrigin: "center center",
-              transition: isDraggingRef.current ? "none" : "transform .15s ease",
-              touchAction: "none",
-              userSelect: "none",
+          <img ref={imgElRef} src={imgSrc} alt=""
+            style={{ maxWidth:"96vw", maxHeight:"82vh", objectFit:"contain", borderRadius:12,
+              transformOrigin:"center center", touchAction:"none", userSelect:"none",
+              transition:"transform .05s linear",
+              willChange:"transform",
             }} />
         )}
       </div>
@@ -353,9 +370,9 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
       )}
 
       {/* ── Zoom hint ── */}
-      {!isVideo && !drawMode && scale === 1 && (
-        <div style={{ position:"absolute", bottom: items.length>1?90:20, left:"50%", transform:"translateX(-50%)", color:"rgba(255,255,255,.35)", fontSize:11, pointerEvents:"none", whiteSpace:"nowrap" }}>
-          Chụm 2 ngón để phóng to · 2x chạm để reset
+      {!isVideo && !drawMode && (
+        <div style={{ position:"absolute", bottom:items.length>1?90:20, left:"50%", transform:"translateX(-50%)", color:"rgba(255,255,255,.3)", fontSize:11, pointerEvents:"none", whiteSpace:"nowrap", zIndex:2 }}>
+          Chụm 2 ngón phóng to · 2x chạm reset
         </div>
       )}
     </div>
