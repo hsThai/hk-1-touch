@@ -1,6 +1,7 @@
 /* v4-loginv2-real-db */
 import React, { lazy, Suspense, useState, useEffect, useRef, useCallback } from "react";
-import { RepairChat, Notification, Staff, RepairOrder, Customer } from "./pb.jsx";
+import { RepairChat, Notification, Staff as PbStaff, RepairOrder, Customer } from "./pb.jsx";
+import { Staff as B44Staff } from "@/api/entities";
 import { uploadFile } from "./pb.jsx";
 const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ default: ({ onClose }) => (
   <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -103,9 +104,14 @@ export default function MainApp() {
     async function loadData() {
       try {
         setDataLoading(true);
+        // Staff lấy từ Base44 entities (nguồn chính)
+        // RepairOrder lấy từ PocketBase local
         const [staffList, orderList] = await Promise.all([
-          Staff.list(),
-          RepairOrder.list({ sort: "-created_date", limit: 200 }),
+          B44Staff.list().catch(async () => {
+            // Fallback về PocketBase nếu B44 lỗi
+            try { return await PbStaff.list(); } catch { return []; }
+          }),
+          RepairOrder.list({ sort: "-created_date", limit: 200 }).catch(() => []),
         ]);
         const mappedUsers = staffList.map(s => ({
           id: s.id,
@@ -263,7 +269,7 @@ export default function MainApp() {
       if (kpiEvent) {
         const staffRec = users.find(u => u.id === kpiEvent.userId);
         if (staffRec?._id) {
-          await Staff.update(staffRec._id, { kpi_score: Math.max(0, (staffRec.kpi||0) + kpiEvent.delta) });
+          await B44Staff.update(staffRec._id, { kpi_score: Math.max(0, (staffRec.kpi||0) + kpiEvent.delta) });
         }
       }
     } catch(e) {

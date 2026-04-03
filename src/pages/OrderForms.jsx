@@ -1,6 +1,7 @@
 /* v3-rebuild-1774864528 */
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, SparePartUsage } from "./pb.jsx";
+import { RepairChat, Notification, Staff as PbStaff, RepairOrder, Customer, SparePart, SparePartUsage } from "./pb.jsx";
+import { Staff } from "@/api/entities";
 import { uploadFile } from "./pb.jsx";
 
 import { timeAgo, genOrderId, getKpiTimerInfo } from "./MediaViewer";
@@ -371,7 +372,7 @@ function LoginScreen({ onLogin }) {
     setLoading(true);
     setErr("");
     try {
-      const staffList = await Staff.list();
+      const staffList = await PbStaff.list();
       const hashedInput = btoa(unescape(encodeURIComponent(password.trim())));
       const found = staffList.find(s =>
         s.username === username.trim() &&
