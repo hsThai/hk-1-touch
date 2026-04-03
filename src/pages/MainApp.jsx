@@ -133,6 +133,7 @@ function MainAppInner() {
   const [newOrderProductQR, setNewOrderProductQR] = useState("");
   const [highlightId, setHighlightId] = useState(null);
   const [createdOrder, setCreatedOrder] = useState(null); // toast xác nhận tạo đơn
+  const [productHistory, setProductHistory] = useState(null);
 
   // ── Load real data from entities ──────────────────────────
   useEffect(() => {
@@ -356,8 +357,6 @@ function MainAppInner() {
     const p = orders.find(o => o.assigned_to===user.id && (o.accept_stage||0)<2 && o.assigned_at);
     if (p) { setHighlightId(p.id); setTimeout(() => setHighlightId(null), 3000); }
   }
-
-  const [productHistory, setProductHistory] = useState(null);
 
   function handleGlobalQRScan(result) {
     setShowQRScan(false);
