@@ -166,7 +166,7 @@ export async function uploadFile(file, orderId = "") {
   const fileName = data.file || data.image || data.video
     || Object.entries(data).find(([k,v]) => typeof v === "string" && v.match(/\.(jpg|jpeg|png|gif|webp|webm|mp4|ogg|mp3|wav|m4a)$/i))?.[1];
   if (!fileName) throw new Error("PocketBase không trả về tên file. Kiểm tra field 'file' trong collection media_files!");
-  return \`\${base}/api/files/media_files/\${data.id}/\${fileName}\`;
+  return `${base}/api/files/media_files/${data.id}/${fileName}`;
 }
 // ── Realtime helper (SSE) ─────────────────────────────────
 export function subscribeCollection(collectionName, callback) {
