@@ -248,4 +248,3 @@ function QRPrintModal({ order, onClose }) {
 }
 
 export { loadQRLib, loadJsQR, QRCanvas, getQRDataUrl, QRScanModal, QRPrintModal };
-export default QRCanvas;
