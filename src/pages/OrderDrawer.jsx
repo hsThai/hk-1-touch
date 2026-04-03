@@ -137,11 +137,49 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
     }
   }
 
+  // Nén ảnh trước khi upload: resize max 1280px, quality 0.82 JPEG
+  async function compressImage(file, maxPx = 1280, quality = 0.82) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        let { width, height } = img;
+        if (width <= maxPx && height <= maxPx) {
+          // Không cần resize nhưng vẫn nén JPEG
+          if (file.type === "image/jpeg" || file.type === "image/jpg") {
+            resolve(file); // đã là JPEG, giữ nguyên
+            return;
+          }
+        }
+        const scale = Math.min(1, maxPx / Math.max(width, height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(width * scale);
+        canvas.height = Math.round(height * scale);
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(
+          (blob) => {
+            const compressed = new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" });
+            console.log(`🗜 Nén ảnh: ${(file.size/1024).toFixed(0)}KB → ${(compressed.size/1024).toFixed(0)}KB`);
+            resolve(compressed);
+          },
+          "image/jpeg",
+          quality
+        );
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    });
+  }
+
   async function handleMediaUpload(file, type) {
     if (!file) return;
     setChatUploading(true);
     try {
-      const url = await uploadFile(file, order.id);
+      // Nén ảnh trước khi upload
+      const fileToUpload = (file.type?.startsWith("image")) ? await compressImage(file) : file;
+      const url = await uploadFile(fileToUpload, order.id);
       const ext = file.name?.split(".").pop()?.toLowerCase() || "";
       const fileMime = file.type || "";
       let msgType = type;
@@ -174,14 +212,14 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
     } else {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        // Chọn MIME type được PocketBase chấp nhận (ưu tiên video/webm vì PB hay block audio/*)
+        // Ưu tiên codec Opus (nén tốt, dung lượng nhỏ) + container webm (PB chấp nhận)
         const mimeTypes = [
-          "video/webm;codecs=vp8,opus",
+          "audio/webm;codecs=opus",   // tốt nhất: Opus, ~6-10KB/s
+          "audio/ogg;codecs=opus",    // fallback Opus OGG
+          "video/webm;codecs=vp8,opus", // fallback: PB nhận video/webm
           "video/webm;codecs=opus",
           "video/webm",
-          "audio/webm;codecs=opus",
           "audio/webm",
-          "audio/ogg;codecs=opus",
           "audio/mp4",
         ];
         const mimeType = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) || "";

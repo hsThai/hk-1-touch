@@ -128,7 +128,9 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
     try {
       for (const m of mediaFiles) {
         if (m.file) {
-          const url = await uploadFile(m.file);
+          // Nén ảnh trước khi upload
+          const fileToUpload = m.type === "image" ? await compressImage(m.file) : m.file;
+          const url = await uploadFile(fileToUpload);
           imgUrls.push(m.type === "video" ? `video:${url}` : url);
         } else if (m.url && !m.url.startsWith("blob:")) {
           imgUrls.push(m.url); // URL đã có sẵn
@@ -539,5 +541,33 @@ function ProductHistoryModal({ qr, orders, onClose, onOpenOrder }) {
 
 export { NewOrderModal, KPIPage, LoginScreen, ProductHistoryModal };
 export const _BUILD_TS = "1774864528-FORCE-V3";
+
+
+// Nén ảnh: resize max 1280px, chuyển sang JPEG quality 0.82
+async function compressImage(file, maxPx = 1280, quality = 0.82) {
+  return new Promise((resolve) => {
+    if (!file.type?.startsWith("image")) { resolve(file); return; }
+    const img = new Image();
+    const objUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objUrl);
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(
+        (blob) => {
+          const out = new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" });
+          console.log(`🗜 Ảnh nén: ${(file.size/1024).toFixed(0)}KB → ${(out.size/1024).toFixed(0)}KB`);
+          resolve(out);
+        },
+        "image/jpeg", quality
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(objUrl); resolve(file); };
+    img.src = objUrl;
+  });
+}
 
 export default function OrderFormsPage() { return null; }
