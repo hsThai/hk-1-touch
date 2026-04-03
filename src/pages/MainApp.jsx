@@ -47,6 +47,18 @@ export default function MainApp() {
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // ── Global: chặn chọn chữ toàn app ──────────────────────
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.id = "hkapp-no-select";
+    style.textContent = `
+      * { -webkit-user-select: none !important; user-select: none !important; -webkit-touch-callout: none !important; }
+      input, textarea, [contenteditable] { -webkit-user-select: text !important; user-select: text !important; }
+    `;
+    document.head.appendChild(style);
+    return () => { document.getElementById("hkapp-no-select")?.remove(); };
+  }, []);
+
   // ── Chặn nút Back + Android gesture back ─────────────────
   useEffect(() => {
     // Nhồi nhiều state vào history để gesture back phải "tiêu thụ" hết
