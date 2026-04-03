@@ -225,4 +225,26 @@ function QRScanModal({ onClose, onFound, orders = [], mode = "search" }) {
 //  QR PRINT MODAL
 // ══════════════════════════════════════════════
 
+function QRPrintModal({ order, onClose }) {
+  const qrRef = useRef();
+  if (!order) return null;
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:5000, background:"rgba(0,0,0,.85)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+      <div style={{ background:"#fff", borderRadius:20, padding:28, maxWidth:340, width:"100%", textAlign:"center" }}>
+        <div style={{ fontWeight:800, fontSize:18, marginBottom:4 }}>🖨️ In Phiếu QR</div>
+        <div style={{ color:"#6b7280", fontSize:13, marginBottom:16 }}>Đơn: {order.id || order.order_code}</div>
+        <div ref={qrRef} style={{ display:"flex", justifyContent:"center", marginBottom:16 }}>
+          <QRCanvas key={order.id || order.order_code} text={order.id || order.order_code} size={180} />
+        </div>
+        <div style={{ fontWeight:700, fontSize:15, marginBottom:4 }}>{order.customer_name || order.customer_id}</div>
+        <div style={{ color:"#6b7280", fontSize:13, marginBottom:16 }}>{order.device_model}</div>
+        <div style={{ display:"flex", gap:10, justifyContent:"center" }}>
+          <button onClick={onClose} style={{ padding:"10px 24px", borderRadius:12, border:"1.5px solid #e5e7eb", background:"#f9fafb", fontWeight:700, cursor:"pointer" }}>Đóng</button>
+          <button onClick={() => window.print()} style={{ padding:"10px 24px", borderRadius:12, background:"#4f46e5", color:"#fff", border:"none", fontWeight:700, cursor:"pointer" }}>🖨️ In</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export { loadQRLib, loadJsQR, QRCanvas, getQRDataUrl, QRScanModal, QRPrintModal };
