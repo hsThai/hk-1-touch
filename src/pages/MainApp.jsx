@@ -122,7 +122,7 @@ export default function MainApp() {
             // Fallback về PocketBase nếu B44 lỗi
             return [];
           }),
-          RepairOrder.list({ sort: "-created_date", limit: 200 }).catch(() => []),
+          RepairOrder.list({ sort: "-received_date", limit: 200 }).catch(() => []),
         ]);
         const mappedUsers = staffList.map(s => ({
           id: s.id,
