@@ -204,3 +204,5 @@ export async function testConnection(url) {
     return res.ok;
   } catch { return false; }
 }
+
+export default { getPbUrl, setPbUrl, setAuth, getAuth, clearAuth, pbAuth, Staff, RepairOrder, RepairChat, Notification, Customer, SparePart, SparePartUsage, AppSettings, uploadFile, subscribeCollection, pbSettings, testConnection };
