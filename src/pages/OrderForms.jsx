@@ -6,28 +6,44 @@ import { uploadFile } from "./pb.jsx";
 import { timeAgo, genOrderId, getKpiTimerInfo } from "./MediaViewer";
 
 function NewOrderModal({ onClose, onCreate, users, orders }) {
-  const [form, setForm] = useState({ customer_id:"", device_model:"", imei_serial:"", passcode:"", qr_code:"", issues:[], notes:"", assigned_to:"" });
+  const [form, setForm] = useState({ customer_id:"", customer_name:"", customer_phone:"", device_model:"", imei_serial:"", passcode:"", qr_code:"", issues:[], notes:"", assigned_to:"" });
   const [custSearch, setCustSearch] = useState("");
+  const [dbCusts, setDbCusts] = useState([]);
   const [mediaFiles, setMediaFiles] = useState([]);
   const [showQRScan, setShowQRScan] = useState(false);
   const [qrMsg, setQrMsg] = useState(null);
   const photoRef = useRef(); const videoRef = useRef(); const fileRef = useRef();
 
   const set = (k, v) => setForm(f => ({ ...f, [k]:v }));
-  const filteredCusts = custSearch.length > 1
-    ? (() => {
+
+  // Load khách hàng từ DB khi search
+  useEffect(() => {
+    if (custSearch.length < 2) { setDbCusts([]); return; }
+    const timer = setTimeout(async () => {
+      try {
         const q = custSearch.toLowerCase();
-        const extra = [];
-        if (typeof orders !== "undefined") orders.forEach(o => {
-          if (o.customer_name && o.customer_phone && !extra.find(c=>c.phone===o.customer_phone)) {
-            extra.push({ id:o.customer_phone, full_name:o.customer_name, phone:o.customer_phone });
-          }
-        });
-        return extra.filter(c =>
+        const items = await Customer.list({ limit: 200 });
+        const filtered = items.filter(c =>
           (c.full_name||"").toLowerCase().includes(q) || (c.phone||"").includes(custSearch)
         );
-      })()
-    : [];
+        // Nếu không có trong DB thì lấy từ orders cũ
+        if (filtered.length === 0 && orders) {
+          const extra = [];
+          orders.forEach(o => {
+            if (o.customer_name && o.customer_phone && !extra.find(c=>c.phone===o.customer_phone)) {
+              extra.push({ id: o.customer_id||o.customer_phone, full_name:o.customer_name, phone:o.customer_phone });
+            }
+          });
+          setDbCusts(extra.filter(c =>
+            (c.full_name||"").toLowerCase().includes(q) || (c.phone||"").includes(custSearch)
+          ));
+        } else {
+          setDbCusts(filtered);
+        }
+      } catch { setDbCusts([]); }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [custSearch]);
 
   function handleFiles(e) {
     const items = Array.from(e.target.files).map(f => ({ id:Math.random().toString(36), file:f, type:f.type.startsWith("video/")?"video":"image", url:URL.createObjectURL(f), name:f.name }));
@@ -56,10 +72,21 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
   }
 
   function submit() {
-    if (!form.customer_id || !form.device_model) { alert("Vui lòng chọn khách hàng và nhập thiết bị!"); return; }
+    if (!form.device_model.trim()) { alert("Vui lòng nhập tên thiết bị!"); return; }
+    // Nếu chưa chọn khách từ DB, tạo mới từ custSearch
+    let cName = form.customer_name;
+    let cPhone = form.customer_phone;
+    let cId = form.customer_id;
+    if (!cId && custSearch.trim()) {
+      // Tách tên và SĐT từ custSearch nếu có định dạng "Tên — SĐT"
+      const parts = custSearch.split(/[—\-]/);
+      cName = parts[0].trim();
+      cPhone = (parts[1]||"").trim();
+      cId = "new_" + Date.now();
+    }
+    if (!cName && !cId) { alert("Vui lòng nhập tên hoặc SĐT khách hàng!"); return; }
     const imgUrls = mediaFiles.map(m => m.type==="video" ? `video:${m.name}` : m.url);
-    const custObj = filteredCusts.find(c => c.id === form.customer_id) || null;
-    onCreate({ ...form, id:genOrderId(), created:new Date().toISOString(), assigned_at:form.assigned_to?new Date().toISOString():null, accept_stage:0, status:"Mới Nhận", images:imgUrls, customer_name: custObj?.full_name||"", customer_phone: custObj?.phone||"" });
+    onCreate({ ...form, id:genOrderId(), created:new Date().toISOString(), assigned_at:form.assigned_to?new Date().toISOString():null, accept_stage:0, status:"Mới Nhận", images:imgUrls, customer_id:cId, customer_name:cName, customer_phone:cPhone });
     onClose();
   }
 
@@ -106,10 +133,10 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
             <label style={lbl}>Tìm theo SĐT hoặc tên *</label>
             <input value={custSearch} onChange={e => { setCustSearch(e.target.value); if(!e.target.value) set("customer_id",""); }}
               placeholder="🔍 0901234567 hoặc Nguyễn..." style={inp} />
-            {filteredCusts.length > 0 && (
+            {dbCusts.length > 0 && (
               <div style={{ marginTop:6, border:"1px solid #bae6fd", borderRadius:10, overflow:"hidden" }}>
-                {filteredCusts.map(c => (
-                  <div key={c.id} onClick={() => { set("customer_id", c.id); setCustSearch(`${c.full_name} — ${c.phone}`); }}
+                {dbCusts.map(c => (
+                  <div key={c.id} onClick={() => { set("customer_id", c.id); set("customer_name", c.full_name||""); set("customer_phone", c.phone||""); setCustSearch(`${c.full_name} — ${c.phone}`); }}
                     style={{ padding:"12px 14px", cursor:"pointer", background:form.customer_id===c.id?"#e0f2fe":"#fff", borderBottom:"1px solid #f3f4f6", fontSize:14 }}>
                     <div style={{ fontWeight:700 }}>{c.full_name}</div>
                     <div style={{ color:"#6b7280", fontSize:12 }}>{c.phone}</div>

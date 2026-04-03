@@ -1,16 +1,16 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import ChangePassword from './pages/ChangePassword';
+import OrderForms from './pages/OrderForms';
+import Settings from './pages/Settings';
+import OrderDrawer from './pages/OrderDrawer';
+import SparePartModal from './pages/SparePartModal';
 import Home from './pages/Home';
+import ChangePassword from './pages/ChangePassword';
 import Index from './pages/Index';
-import LoginV2 from './pages/LoginV2';
+import StaffManager from './pages/StaffManager';
 import MainApp from './pages/MainApp';
 import MediaViewer from './pages/MediaViewer';
-import OrderDrawer from './pages/OrderDrawer';
-import OrderForms from './pages/OrderForms';
 import QRComponents from './pages/QRComponents';
-import Settings from './pages/Settings';
-import SparePartModal from './pages/SparePartModal';
-import StaffManager from './pages/StaffManager';
+import LoginV2 from './pages/LoginV2';
 import pb from './pages/pb';
 
 function App() {
@@ -18,18 +18,18 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Navigate to="/Home" replace />} />
-        <Route path="/ChangePassword" element={<ChangePassword />} />
+        <Route path="/OrderForms" element={<OrderForms />} />
+        <Route path="/Settings" element={<Settings />} />
+        <Route path="/OrderDrawer" element={<OrderDrawer />} />
+        <Route path="/SparePartModal" element={<SparePartModal />} />
         <Route path="/Home" element={<Home />} />
+        <Route path="/ChangePassword" element={<ChangePassword />} />
         <Route path="/Index" element={<Index />} />
-        <Route path="/LoginV2" element={<LoginV2 />} />
+        <Route path="/StaffManager" element={<StaffManager />} />
         <Route path="/MainApp" element={<MainApp />} />
         <Route path="/MediaViewer" element={<MediaViewer />} />
-        <Route path="/OrderDrawer" element={<OrderDrawer />} />
-        <Route path="/OrderForms" element={<OrderForms />} />
         <Route path="/QRComponents" element={<QRComponents />} />
-        <Route path="/Settings" element={<Settings />} />
-        <Route path="/SparePartModal" element={<SparePartModal />} />
-        <Route path="/StaffManager" element={<StaffManager />} />
+        <Route path="/LoginV2" element={<LoginV2 />} />
         <Route path="/pb" element={<pb />} />
       </Routes>
     </BrowserRouter>
