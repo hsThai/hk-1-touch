@@ -233,48 +233,38 @@ export async function getKvProductStock(kvProductId) {
  * orderCode = mã đơn sửa chữa (để ghi chú)
  */
 export async function createKvDeliveryOrder({ orderCode, deviceModel, technicianName, parts }) {
-  const orderDetails = parts.map(p => ({
-    productId:   parseInt(p.kvProductId),
-    productCode: p.sku || "",
+  // Format invoiceDetails — dùng được cho cả KiotViet thật lẫn KiosThong mock
+  const invoiceDetails = parts.map(p => ({
+    productId:   p.kvProductId ? parseInt(p.kvProductId) : undefined,
+    productCode: p.sku || p.kvProductId || "",
     productName: p.name,
     quantity:    p.qty || 1,
-    price:       p.price || 0,
+    price:       0, // xuất nội bộ — giá 0
     discount:    0,
+    note:        `Xuất cho đơn ${orderCode}`,
   }));
 
+  // Tạo code tự động theo timestamp để tránh trùng
+  const autoCode = `XK-${orderCode}-${Date.now().toString(36).toUpperCase()}`;
+
   const body = {
-    type:        "TRANSFER", // Xuất nội bộ
-    description: `Xuất LK sửa chữa — Đơn ${orderCode} — ${deviceModel} — KTV: ${technicianName}`,
-    details:     orderDetails,
+    code:           autoCode,
+    branchId:       1,
+    description:    `[XUẤT KHO] Đơn ${orderCode} — ${deviceModel} — KTV: ${technicianName}`,
+    totalPayment:   0,
+    invoiceDetails,
   };
 
-  // Thử tạo phiếu chuyển hàng nội bộ
   try {
-    const result = await kvPost("transfers", body);
-    return { success: true, transferId: result.id, transferCode: result.code };
+    const result = await kvPost("invoices", body);
+    return {
+      success:      true,
+      invoiceId:    result.id,
+      invoiceCode:  result.code || autoCode,
+      transferCode: result.code || autoCode,
+    };
   } catch (e) {
-    // Fallback: tạo hóa đơn nội bộ giá 0đ
-    try {
-      const invBody = {
-        branchId:     1,
-        cashierId:    0,
-        saleChannelId: 0,
-        description:  `[XUẤT KHO NỘI BỘ] Đơn ${orderCode} — ${deviceModel} — KTV: ${technicianName}`,
-        invoiceDetails: orderDetails.map(d => ({
-          productId:   d.productId,
-          productCode: d.productCode,
-          productName: d.productName,
-          quantity:    d.quantity,
-          price:       0,
-          discount:    0,
-          note:        `Xuất cho đơn sửa chữa ${orderCode}`,
-        })),
-      };
-      const inv = await kvPost("invoices", invBody);
-      return { success: true, invoiceId: inv.id, invoiceCode: inv.code };
-    } catch (e2) {
-      throw new Error(e2.message || "Không tạo được phiếu xuất KiotViet");
-    }
+    throw new Error(e.message || "Không tạo được phiếu xuất KiotViet");
   }
 }
 
