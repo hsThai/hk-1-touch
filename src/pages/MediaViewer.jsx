@@ -134,16 +134,27 @@ function MediaViewer({ items, startIndex, onClose }) {
       {/* Media */}
       <div onClick={e=>e.stopPropagation()} style={{ maxWidth:"100vw", maxHeight:"80vh", display:"flex", alignItems:"center", justifyContent:"center" }}>
         {isVideo ? (
-          videoSrc && videoSrc.startsWith("blob:") ? (
+          videoSrc && (videoSrc.startsWith("blob:") || videoSrc.startsWith("http")) ? (
             <video src={videoSrc} controls autoPlay playsInline
-              style={{ maxWidth:"100vw", maxHeight:"78vh", borderRadius:12 }} />
-          ) : (
-            <div style={{ textAlign:"center", color:"#fff" }}>
-              <div style={{ fontSize:72, marginBottom:16 }}>🎥</div>
-              <div style={{ fontSize:14, color:"#9ca3af" }}>Video: {item.replace("video:","")}</div>
-            </div>
-          )
-        ) : (
+              preload="metadata"
+              style={{ maxWidth:"96vw", maxHeight:"78vh", borderRadius:12, background:"#000" }}
+              onError={e => { e.target.style.display="none"; e.target.nextSibling.style.display="flex"; }}
+            />
+          ) : null
+        ) : null}
+        {isVideo && videoSrc && !videoSrc.startsWith("blob:") && !videoSrc.startsWith("http") ? (
+          <div style={{ textAlign:"center", color:"#fff" }}>
+            <div style={{ fontSize:72, marginBottom:16 }}>🎥</div>
+            <div style={{ fontSize:14, color:"#9ca3af" }}>Không thể phát: {videoSrc}</div>
+          </div>
+        ) : null}
+        {isVideo && (!videoSrc || (!videoSrc.startsWith("blob:") && !videoSrc.startsWith("http"))) ? (
+          <div style={{ textAlign:"center", color:"#fff" }}>
+            <div style={{ fontSize:72, marginBottom:16 }}>🎥</div>
+            <div style={{ fontSize:14, color:"#9ca3af" }}>Video không hợp lệ</div>
+          </div>
+        ) : null}
+        {!isVideo && (
           <img src={imgSrc} style={{ maxWidth:"96vw", maxHeight:"78vh", objectFit:"contain", borderRadius:12, boxShadow:"0 4px 40px rgba(0,0,0,.5)" }} alt="" />
         )}
       </div>

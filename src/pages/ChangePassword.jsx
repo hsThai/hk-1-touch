@@ -8,6 +8,7 @@ export default function ChangePassword({ user, onClose, onSuccess, forceChange =
   const [confirmPw, setConfirmPw] = useState("");
   const [showOld, setShowOld] = useState(false);
   const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const [success, setSuccess] = useState(false);
@@ -140,11 +141,17 @@ export default function ChangePassword({ user, onClose, onSuccess, forceChange =
 
       <div style={{ marginBottom:20 }}>
         <label style={{ display:"block", fontSize:13, fontWeight:700, color:"#374151", marginBottom:6 }}>✅ Xác nhận mật khẩu mới</label>
-        <input value={confirmPw} onChange={e => { setConfirmPw(e.target.value); setErr(""); }}
-          type="password"
-          placeholder="Nhập lại mật khẩu mới..."
-          onKeyDown={e => e.key==="Enter" && doChange()}
-          style={{ width:"100%", height:48, borderRadius:12, border:`2px solid ${confirmPw && confirmPw !== newPw ? "#ef4444" : confirmPw && confirmPw === newPw ? "#10b981" : "#e5e7eb"}`, padding:"0 16px", fontSize:15, outline:"none", boxSizing:"border-box" }} />
+        <div style={{ position:"relative" }}>
+          <input value={confirmPw} onChange={e => { setConfirmPw(e.target.value); setErr(""); }}
+            type={showConfirm ? "text" : "password"}
+            placeholder="Nhập lại mật khẩu mới..."
+            onKeyDown={e => e.key==="Enter" && doChange()}
+            style={{ width:"100%", height:48, borderRadius:12, border:`2px solid ${confirmPw && confirmPw !== newPw ? "#ef4444" : confirmPw && confirmPw === newPw ? "#10b981" : "#e5e7eb"}`, padding:"0 50px 0 16px", fontSize:15, outline:"none", boxSizing:"border-box" }} />
+          <button onClick={() => setShowConfirm(v=>!v)} type="button"
+            style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:18, color:"#9ca3af" }}>
+            {showConfirm ? "🙈" : "👁️"}
+          </button>
+        </div>
         {confirmPw && confirmPw === newPw && (
           <div style={{ fontSize:12, color:"#10b981", marginTop:4, fontWeight:600 }}>✅ Mật khẩu khớp</div>
         )}
