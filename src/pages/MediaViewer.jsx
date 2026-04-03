@@ -37,52 +37,195 @@ function getKpiTimerInfo(order) {
 }
 
 // ══════════════════════════════════════════════
-//  MEDIA VIEWER — fullscreen lightbox
+//  MEDIA VIEWER — fullscreen lightbox with pinch-zoom + draw + share
 // ══════════════════════════════════════════════
-function MediaViewer({ items, startIndex, onClose }) {
+function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
   const [idx, setIdx] = useState(startIndex || 0);
   const [shareStatus, setShareStatus] = useState("");
+  const [drawMode, setDrawMode] = useState(false);
+  const [drawColor, setDrawColor] = useState("#ff3b30");
+  const [drawSize, setDrawSize] = useState(4);
+  const [sending, setSending] = useState(false);
+
+  // Pinch-zoom state
+  const [scale, setScale] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const lastTouchRef = useRef(null);
+  const lastDistRef = useRef(null);
+  const isDraggingRef = useRef(false);
+  const dragStartRef = useRef(null);
+
+  // Canvas draw
+  const canvasRef = useRef(null);
+  const drawingRef = useRef(false);
+  const lastPosRef = useRef(null);
+  const imgRef = useRef(null);
+
   const item = items[idx];
   const isVideo = item?.startsWith("video:");
   const videoSrc = isVideo ? item.replace("video:", "") : null;
   const imgSrc = !isVideo ? item : null;
 
+  // Reset zoom + draw khi đổi ảnh
   useEffect(() => {
-    const handler = e => { if(e.key==="Escape") onClose(); if(e.key==="ArrowLeft") setIdx(i=>Math.max(0,i-1)); if(e.key==="ArrowRight") setIdx(i=>Math.min(items.length-1,i+1)); };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [items.length]);
+    setScale(1); setOffset({ x: 0, y: 0 });
+    setDrawMode(false);
+  }, [idx]);
 
+  // Vẽ ảnh lên canvas khi vào draw mode
+  useEffect(() => {
+    if (!drawMode || !canvasRef.current || !imgSrc) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      ctx.drawImage(img, 0, 0);
+    };
+    img.src = imgSrc;
+  }, [drawMode, imgSrc]);
+
+  // Keyboard
+  useEffect(() => {
+    const h = e => {
+      if (e.key === "Escape") onClose();
+      if (!drawMode) {
+        if (e.key === "ArrowLeft") setIdx(i => Math.max(0, i - 1));
+        if (e.key === "ArrowRight") setIdx(i => Math.min(items.length - 1, i + 1));
+      }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [items.length, drawMode]);
+
+  // ── Pinch-zoom touch handlers ──
+  function getTouchDist(touches) {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  function onTouchStart(e) {
+    if (drawMode) return;
+    if (e.touches.length === 2) {
+      lastDistRef.current = getTouchDist(e.touches);
+    } else if (e.touches.length === 1) {
+      dragStartRef.current = { x: e.touches[0].clientX - offset.x, y: e.touches[0].clientY - offset.y };
+      isDraggingRef.current = true;
+    }
+  }
+
+  function onTouchMove(e) {
+    if (drawMode) return;
+    e.preventDefault();
+    if (e.touches.length === 2) {
+      const dist = getTouchDist(e.touches);
+      if (lastDistRef.current) {
+        const ratio = dist / lastDistRef.current;
+        setScale(s => Math.min(5, Math.max(1, s * ratio)));
+      }
+      lastDistRef.current = dist;
+    } else if (e.touches.length === 1 && isDraggingRef.current && scale > 1) {
+      setOffset({
+        x: e.touches[0].clientX - dragStartRef.current.x,
+        y: e.touches[0].clientY - dragStartRef.current.y,
+      });
+    }
+  }
+
+  function onTouchEnd(e) {
+    if (e.touches.length < 2) lastDistRef.current = null;
+    if (e.touches.length === 0) isDraggingRef.current = false;
+    // Double-tap to reset zoom
+    const now = Date.now();
+    if (lastTouchRef.current && now - lastTouchRef.current < 300 && scale > 1) {
+      setScale(1); setOffset({ x: 0, y: 0 });
+    }
+    lastTouchRef.current = now;
+  }
+
+  // ── Canvas drawing ──
+  function getCanvasPos(e, canvas) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+  }
+
+  function onDrawStart(e) {
+    if (!drawMode) return;
+    e.preventDefault();
+    drawingRef.current = true;
+    lastPosRef.current = getCanvasPos(e, canvasRef.current);
+  }
+
+  function onDrawMove(e) {
+    if (!drawMode || !drawingRef.current) return;
+    e.preventDefault();
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    const pos = getCanvasPos(e, canvas);
+    ctx.beginPath();
+    ctx.moveTo(lastPosRef.current.x, lastPosRef.current.y);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.strokeStyle = drawColor;
+    ctx.lineWidth = drawSize * (canvas.width / canvas.getBoundingClientRect().width);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.stroke();
+    lastPosRef.current = pos;
+  }
+
+  function onDrawEnd(e) { drawingRef.current = false; }
+
+  // ── Gửi ảnh đã vẽ ──
+  async function handleSendAnnotated() {
+    if (!canvasRef.current || !onSendAnnotated) return;
+    setSending(true);
+    try {
+      const blob = await new Promise(r => canvasRef.current.toBlob(r, "image/jpeg", 0.88));
+      const file = new File([blob], `annotated_${Date.now()}.jpg`, { type: "image/jpeg" });
+      await onSendAnnotated(file);
+      setShareStatus("✅ Đã gửi ảnh vào chat!");
+      setTimeout(() => { setShareStatus(""); setDrawMode(false); }, 2000);
+    } catch (e) {
+      setShareStatus("❌ Gửi thất bại!");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  // ── Share ──
   async function handleShare() {
     const url = isVideo ? videoSrc : imgSrc;
-    if (!url) { setShareStatus("❌ Không có file để chia sẻ"); return; }
+    if (!url) return;
     try {
-      // Thử Web Share API (native share sheet — Zalo, Facebook, v.v.)
       if (navigator.share) {
-        if (navigator.canShare && url.startsWith("blob:")) {
-          // Share as file
-          const res = await fetch(url);
-          const blob = await res.blob();
-          const ext = isVideo ? "mp4" : "jpg";
-          const file = new File([blob], `repair_media.${ext}`, { type: blob.type });
-          if (navigator.canShare({ files: [file] })) {
-            await navigator.share({ files: [file], title: "Ảnh/Video sửa chữa" });
-            setShareStatus("✅ Đã mở menu chia sẻ!");
-            return;
-          }
+        // Share ảnh dưới dạng file (thấy ảnh ngay, không thấy link)
+        const res = await fetch(url);
+        const blob = await res.blob();
+        const ext = isVideo ? "mp4" : "jpg";
+        const file = new File([blob], `repair_media.${ext}`, { type: blob.type });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: "Ảnh/Video sửa chữa" });
+          setShareStatus("✅ Đã chia sẻ!");
+          setTimeout(() => setShareStatus(""), 2500);
+          return;
         }
-        // Share URL
+        // Fallback: share URL
         await navigator.share({ url, title: "Ảnh/Video sửa chữa" });
-        setShareStatus("✅ Đã mở menu chia sẻ!");
       } else {
-        // Fallback: copy link
         await navigator.clipboard.writeText(url);
-        setShareStatus("✅ Đã copy link! Dán vào Zalo/Messenger.");
+        setShareStatus("✅ Đã copy link!");
       }
     } catch (e) {
-      if (e.name !== "AbortError") setShareStatus("❌ Không chia sẻ được. Thử tải về máy.");
+      if (e.name !== "AbortError") setShareStatus("❌ Lỗi chia sẻ");
     }
-    setTimeout(() => setShareStatus(""), 3000);
+    setTimeout(() => setShareStatus(""), 2500);
   }
 
   async function handleDownload() {
@@ -96,100 +239,128 @@ function MediaViewer({ items, startIndex, onClose }) {
       a.href = URL.createObjectURL(blob);
       a.download = `repair_${Date.now()}.${ext}`;
       a.click();
-      setShareStatus("✅ Đang tải về máy...");
-    } catch {
-      // fallback: open in new tab
-      window.open(url, "_blank");
-    }
-    setTimeout(() => setShareStatus(""), 3000);
+    } catch { window.open(url, "_blank"); }
   }
 
   return (
-    <div style={{ position:"fixed", inset:0, zIndex:6000, background:"rgba(0,0,0,.95)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}
-      onClick={onClose}>
-      {/* Header */}
-      <div style={{ position:"absolute", top:0, left:0, right:0, padding:"12px 16px", display:"flex", justifyContent:"space-between", alignItems:"center", background:"linear-gradient(rgba(0,0,0,.7),transparent)", zIndex:1 }}
-        onClick={e=>e.stopPropagation()}>
+    <div style={{ position:"fixed", inset:0, zIndex:6000, background:"rgba(0,0,0,.96)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}
+      onClick={!drawMode ? onClose : undefined}>
+
+      {/* ── Header ── */}
+      <div style={{ position:"absolute", top:0, left:0, right:0, padding:"10px 14px", display:"flex", justifyContent:"space-between", alignItems:"center", background:"linear-gradient(rgba(0,0,0,.75),transparent)", zIndex:10 }}
+        onClick={e => e.stopPropagation()}>
         <div style={{ color:"#fff", fontSize:13, fontWeight:600 }}>{idx+1} / {items.length}</div>
-        <div style={{ display:"flex", gap:8 }}>
+        <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+          {!isVideo && (
+            <button onClick={() => setDrawMode(d => !d)}
+              style={{ background: drawMode ? "#f59e0b" : "rgba(255,255,255,.2)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:12, fontWeight:700, cursor:"pointer" }}>
+              {drawMode ? "✏️ Đang vẽ" : "✏️ Vẽ"}
+            </button>
+          )}
           <button onClick={handleShare}
-            style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", height:36, padding:"0 14px", borderRadius:20, fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
+            style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:12, fontWeight:700, cursor:"pointer" }}>
             📤 Chia sẻ
           </button>
           <button onClick={handleDownload}
-            style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", height:36, padding:"0 14px", borderRadius:20, fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
-            ⬇️ Tải về
+            style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:12, fontWeight:700, cursor:"pointer" }}>
+            ⬇️
           </button>
-          <button onClick={onClose} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:38, height:38, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
+          <button onClick={onClose} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
         </div>
       </div>
 
-      {/* Status toast */}
+      {/* ── Draw toolbar ── */}
+      {drawMode && !isVideo && (
+        <div onClick={e => e.stopPropagation()} style={{ position:"absolute", bottom: items.length>1?90:16, left:"50%", transform:"translateX(-50%)", display:"flex", gap:8, alignItems:"center", background:"rgba(0,0,0,.85)", padding:"10px 16px", borderRadius:24, zIndex:20, backdropFilter:"blur(8px)" }}>
+          {["#ff3b30","#ff9500","#ffcc00","#34c759","#007aff","#fff","#000"].map(c => (
+            <div key={c} onClick={() => setDrawColor(c)}
+              style={{ width:26, height:26, borderRadius:"50%", background:c, border:`3px solid ${drawColor===c?"#fff":"transparent"}`, cursor:"pointer", boxShadow:"0 0 0 1px rgba(255,255,255,.3)" }} />
+          ))}
+          <div style={{ width:1, height:26, background:"rgba(255,255,255,.3)", margin:"0 4px" }} />
+          {[3,6,12].map(s => (
+            <div key={s} onClick={() => setDrawSize(s)}
+              style={{ width:s*3+8, height:s*3+8, borderRadius:"50%", background:"#fff", border:`3px solid ${drawSize===s?"#f59e0b":"transparent"}`, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }} />
+          ))}
+          <div style={{ width:1, height:26, background:"rgba(255,255,255,.3)", margin:"0 4px" }} />
+          <button onClick={handleSendAnnotated} disabled={sending}
+            style={{ background:"#4f46e5", border:"none", color:"#fff", height:34, padding:"0 14px", borderRadius:20, fontSize:12, fontWeight:700, cursor:"pointer" }}>
+            {sending ? "⏳" : "📨 Gửi"}
+          </button>
+        </div>
+      )}
+
+      {/* ── Toast ── */}
       {shareStatus && (
-        <div style={{ position:"absolute", top:70, left:"50%", transform:"translateX(-50%)", background:"#1e1b4b", color:"#fff", padding:"10px 20px", borderRadius:12, fontSize:13, fontWeight:700, zIndex:10, whiteSpace:"nowrap" }}>
+        <div style={{ position:"absolute", top:64, left:"50%", transform:"translateX(-50%)", background:"#1e1b4b", color:"#fff", padding:"10px 20px", borderRadius:12, fontSize:13, fontWeight:700, zIndex:30, whiteSpace:"nowrap" }}>
           {shareStatus}
         </div>
       )}
 
-      {/* Media */}
-      <div onClick={e=>e.stopPropagation()} style={{ maxWidth:"100vw", maxHeight:"80vh", display:"flex", alignItems:"center", justifyContent:"center" }}>
+      {/* ── Media area ── */}
+      <div onClick={e => e.stopPropagation()} style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}
+        onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
         {isVideo ? (
           videoSrc && (videoSrc.startsWith("blob:") || videoSrc.startsWith("http")) ? (
-            <video src={videoSrc} controls autoPlay playsInline
-              preload="metadata"
-              style={{ maxWidth:"96vw", maxHeight:"78vh", borderRadius:12, background:"#000" }}
-              onError={e => { e.target.style.display="none"; e.target.nextSibling.style.display="flex"; }}
-            />
-          ) : null
-        ) : null}
-        {isVideo && videoSrc && !videoSrc.startsWith("blob:") && !videoSrc.startsWith("http") ? (
-          <div style={{ textAlign:"center", color:"#fff" }}>
-            <div style={{ fontSize:72, marginBottom:16 }}>🎥</div>
-            <div style={{ fontSize:14, color:"#9ca3af" }}>Không thể phát: {videoSrc}</div>
-          </div>
-        ) : null}
-        {isVideo && (!videoSrc || (!videoSrc.startsWith("blob:") && !videoSrc.startsWith("http"))) ? (
-          <div style={{ textAlign:"center", color:"#fff" }}>
-            <div style={{ fontSize:72, marginBottom:16 }}>🎥</div>
-            <div style={{ fontSize:14, color:"#9ca3af" }}>Video không hợp lệ</div>
-          </div>
-        ) : null}
-        {!isVideo && (
-          <img src={imgSrc} style={{ maxWidth:"96vw", maxHeight:"78vh", objectFit:"contain", borderRadius:12, boxShadow:"0 4px 40px rgba(0,0,0,.5)" }} alt="" />
+            <video src={videoSrc} controls autoPlay playsInline preload="metadata"
+              style={{ maxWidth:"96vw", maxHeight:"82vh", borderRadius:12, background:"#000" }} />
+          ) : (
+            <div style={{ textAlign:"center", color:"#fff" }}><div style={{ fontSize:72 }}>🎥</div><div style={{ fontSize:14, color:"#9ca3af" }}>Không thể phát</div></div>
+          )
+        ) : drawMode ? (
+          // Canvas vẽ
+          <canvas ref={canvasRef}
+            style={{ maxWidth:"96vw", maxHeight:"78vh", objectFit:"contain", borderRadius:12, touchAction:"none", cursor:"crosshair" }}
+            onMouseDown={onDrawStart} onMouseMove={onDrawMove} onMouseUp={onDrawEnd}
+            onTouchStart={onDrawStart} onTouchMove={onDrawMove} onTouchEnd={onDrawEnd} />
+        ) : (
+          // Ảnh với pinch-zoom
+          <img ref={imgRef} src={imgSrc} alt=""
+            style={{
+              maxWidth:"96vw", maxHeight:"82vh", objectFit:"contain", borderRadius:12,
+              transform: `scale(${scale}) translate(${offset.x/scale}px, ${offset.y/scale}px)`,
+              transformOrigin: "center center",
+              transition: isDraggingRef.current ? "none" : "transform .15s ease",
+              touchAction: "none",
+              userSelect: "none",
+            }} />
         )}
       </div>
 
-      {/* Prev / Next */}
-      {items.length > 1 && (
+      {/* ── Prev / Next ── */}
+      {items.length > 1 && !drawMode && (
         <>
           {idx > 0 && (
-            <button onClick={e=>{e.stopPropagation();setIdx(i=>i-1);}}
-              style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:48, height:48, borderRadius:"50%", fontSize:22, cursor:"pointer", zIndex:2 }}>‹</button>
+            <button onClick={e=>{e.stopPropagation();setIdx(i=>Math.max(0,i-1));}}
+              style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:46, height:46, borderRadius:"50%", fontSize:22, cursor:"pointer", zIndex:5 }}>‹</button>
           )}
           {idx < items.length-1 && (
-            <button onClick={e=>{e.stopPropagation();setIdx(i=>i+1);}}
-              style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:48, height:48, borderRadius:"50%", fontSize:22, cursor:"pointer", zIndex:2 }}>›</button>
+            <button onClick={e=>{e.stopPropagation();setIdx(i=>Math.min(items.length-1,i+1));}}
+              style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:46, height:46, borderRadius:"50%", fontSize:22, cursor:"pointer", zIndex:5 }}>›</button>
           )}
         </>
       )}
 
-      {/* Thumbnails */}
+      {/* ── Thumbnails ── */}
       {items.length > 1 && (
-        <div onClick={e=>e.stopPropagation()} style={{ position:"absolute", bottom:16, left:0, right:0, display:"flex", justifyContent:"center", gap:8, padding:"0 16px", flexWrap:"wrap" }}>
+        <div onClick={e=>e.stopPropagation()} style={{ position:"absolute", bottom:16, left:0, right:0, display:"flex", justifyContent:"center", gap:8, padding:"0 16px", flexWrap:"wrap", zIndex:5 }}>
           {items.map((it,i) => (
             <div key={i} onClick={()=>setIdx(i)}
-              style={{ width:52, height:52, borderRadius:10, overflow:"hidden", border:`2px solid ${i===idx?"#a5b4fc":"transparent"}`, cursor:"pointer", background:"#1f2937", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
-              {it.startsWith("video:") ? <span style={{ fontSize:22 }}>🎥</span> : <img src={it} style={{ width:"100%", height:"100%", objectFit:"cover" }} alt="" />}
+              style={{ width:50, height:50, borderRadius:10, overflow:"hidden", border:`2px solid ${i===idx?"#a5b4fc":"transparent"}`, cursor:"pointer", background:"#1f2937", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
+              {it.startsWith("video:") ? <span style={{ fontSize:20 }}>🎥</span> : <img src={it} style={{ width:"100%", height:"100%", objectFit:"cover" }} alt="" />}
             </div>
           ))}
         </div>
       )}
 
-
+      {/* ── Zoom hint ── */}
+      {!isVideo && !drawMode && scale === 1 && (
+        <div style={{ position:"absolute", bottom: items.length>1?90:20, left:"50%", transform:"translateX(-50%)", color:"rgba(255,255,255,.35)", fontSize:11, pointerEvents:"none", whiteSpace:"nowrap" }}>
+          Chụm 2 ngón để phóng to · 2x chạm để reset
+        </div>
+      )}
     </div>
   );
 }
-
 
 // ══════════════════════════════════════════════
 //  ACCEPT TIMER

@@ -643,6 +643,10 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
         items={mediaViewer.items}
         startIndex={mediaViewer.startIndex}
         onClose={() => setMediaViewer(null)}
+        onSendAnnotated={async (file) => {
+          await handleMediaUpload(file, "image");
+          setMediaViewer(null);
+        }}
       />
     )}
     </>
