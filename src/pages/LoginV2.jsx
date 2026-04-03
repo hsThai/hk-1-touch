@@ -2,6 +2,65 @@
 import React, { useState, useEffect } from "react";
 import { Staff, pbAuth, getPbUrl, setPbUrl, testConnection } from "./pb.jsx";
 
+// Inject PWA manifest + meta tags động
+(function injectPWA() {
+  const ICON192 = "https://base44.app/api/apps/69bf5d0a924e0a8766577274/files/mp/public/69bf5d0a924e0a8766577274/43c978c50_icon-192.png";
+  const ICON512 = "https://base44.app/api/apps/69bf5d0a924e0a8766577274/files/mp/public/69bf5d0a924e0a8766577274/80c95949e_icon-512.png";
+
+  // Manifest blob
+  const manifest = {
+    name: "HK One Touch",
+    short_name: "HK One Touch",
+    description: "Quản lý sửa chữa chuyên nghiệp",
+    start_url: window.location.href.split("?")[0],
+    display: "standalone",
+    background_color: "#ffffff",
+    theme_color: "#1e1b4b",
+    orientation: "portrait",
+    icons: [
+      { src: ICON192, sizes: "192x192", type: "image/png", purpose: "any maskable" },
+      { src: ICON512, sizes: "512x512", type: "image/png", purpose: "any maskable" },
+    ],
+  };
+  const blob = new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" });
+  const blobUrl = URL.createObjectURL(blob);
+
+  // Xóa manifest cũ nếu có
+  document.querySelectorAll('link[rel="manifest"]').forEach(el => el.remove());
+
+  const link = document.createElement("link");
+  link.rel = "manifest"; link.href = blobUrl;
+  document.head.appendChild(link);
+
+  // Apple/mobile meta
+  const metas = [
+    { name: "apple-mobile-web-app-capable",          content: "yes" },
+    { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+    { name: "apple-mobile-web-app-title",            content: "HK One Touch" },
+    { name: "theme-color",                           content: "#1e1b4b" },
+    { name: "mobile-web-app-capable",                content: "yes" },
+  ];
+  metas.forEach(({ name, content }) => {
+    let el = document.querySelector(`meta[name="${name}"]`);
+    if (!el) { el = document.createElement("meta"); el.name = name; document.head.appendChild(el); }
+    el.content = content;
+  });
+
+  // Apple touch icon
+  let touchIcon = document.querySelector('link[rel="apple-touch-icon"]');
+  if (!touchIcon) { touchIcon = document.createElement("link"); touchIcon.rel = "apple-touch-icon"; document.head.appendChild(touchIcon); }
+  touchIcon.href = ICON192;
+
+  // Favicon
+  let favicon = document.querySelector('link[rel="icon"]');
+  if (!favicon) { favicon = document.createElement("link"); favicon.rel = "icon"; document.head.appendChild(favicon); }
+  favicon.href = "https://base44.app/api/apps/69bf5d0a924e0a8766577274/files/mp/public/69bf5d0a924e0a8766577274/b9de39dcd_favicon-32.png";
+  favicon.type = "image/png";
+
+  // Page title
+  document.title = "HK One Touch";
+})();
+
 // Lưu/đọc credential dùng cả 3 nơi để tránh mất do cache bust
 const SK = "hkapp_cred";
 function saveCred(u, p) {
@@ -11,21 +70,16 @@ function saveCred(u, p) {
   try { document.cookie = `${SK}=${encodeURIComponent(v)};max-age=31536000;path=/;SameSite=Lax`; } catch {}
 }
 function loadCred() {
-  // Thử localStorage trước, sau đó sessionStorage, cuối cookie
   for (const src of [
     () => localStorage.getItem(SK),
     () => sessionStorage.getItem(SK),
-    () => {
-      const m = document.cookie.match(new RegExp(`${SK}=([^;]+)`));
-      return m ? decodeURIComponent(m[1]) : null;
-    }
+    () => { const m = document.cookie.match(new RegExp(`${SK}=([^;]+)`)); return m ? decodeURIComponent(m[1]) : null; }
   ]) {
     try {
       const raw = src();
       if (raw) {
         const obj = JSON.parse(raw);
         if (obj?.u && obj?.p) {
-          // Sync lại vào các nơi còn thiếu
           try { localStorage.setItem(SK, raw); } catch {}
           try { sessionStorage.setItem(SK, raw); } catch {}
           return obj;
@@ -40,6 +94,8 @@ function clearCred() {
   try { sessionStorage.removeItem(SK); } catch {}
   try { document.cookie = `${SK}=;max-age=0;path=/`; } catch {}
 }
+
+const LOGO = "https://media.base44.com/images/public/69bf5d0a924e0a8766577274/37193b36d_HKlogo.jpg";
 
 export default function LoginV2({ onLogin, loggedOut }) {
   const [username, setUsername] = useState("");
@@ -56,7 +112,7 @@ export default function LoginV2({ onLogin, loggedOut }) {
 
   // Auto-login khi vào app (trừ khi vừa logout)
   useEffect(() => {
-    if (loggedOut) return; // vừa logout → không tự đăng nhập
+    if (loggedOut) return;
     const saved = loadCred();
     if (!saved?.u || !saved?.p) return;
     setUsername(saved.u);
@@ -72,8 +128,6 @@ export default function LoginV2({ onLogin, loggedOut }) {
     setLoading(true); setErr("");
     try {
       let userInfo = null;
-
-      // Thử PocketBase auth collection
       try {
         const authData = await pbAuth.loginStaff(uname, pwd);
         const rec = authData.record;
@@ -86,14 +140,11 @@ export default function LoginV2({ onLogin, loggedOut }) {
           };
         }
       } catch {
-        // Fallback: tìm thủ công trong staff collection
         try {
           const staffList = await Staff.list();
           const hashedInput = btoa(unescape(encodeURIComponent(pwd)));
           const found = staffList.find(s =>
-            s.username === uname &&
-            s.password_hash === hashedInput &&
-            s.is_active !== false
+            s.username === uname && s.password_hash === hashedInput && s.is_active !== false
           );
           if (found) {
             userInfo = {
@@ -104,31 +155,26 @@ export default function LoginV2({ onLogin, loggedOut }) {
             };
           } else {
             const matchUser = staffList.find(s => s.username === uname);
-            if (!matchUser)                     setErr("Không tìm thấy username!");
+            if (!matchUser)                      setErr("Không tìm thấy username!");
             else if (matchUser.is_active===false) setErr("Tài khoản đã bị vô hiệu hóa!");
             else                                  setErr("Sai mật khẩu!");
           }
-        } catch (e2) {
-          // Lỗi kết nối PocketBase
+        } catch {
           setErr(`❌ Không kết nối được PocketBase!\nKiểm tra server: ${getPbUrl()}`);
-          setShowConfig(true); // tự mở cấu hình
+          setShowConfig(true);
         }
       }
 
       if (userInfo) {
-        // Lưu thông tin nếu "ghi nhớ"
-        if (rememberMe) {
-          saveCred(uname, pwd);
-        } else {
-          clearCred();
-        }
+        if (rememberMe) saveCred(uname, pwd);
+        else clearCred();
         onLogin(userInfo);
         return;
       }
     } catch(e) {
       if (e.message?.includes("fetch") || e.message?.includes("network") || e.message?.includes("Failed")) {
         setErr(`❌ Không kết nối được PocketBase!\nKiểm tra server: ${getPbUrl()}`);
-        setShowConfig(true); // tự mở cấu hình khi lỗi mạng
+        setShowConfig(true);
       } else {
         setErr(e.message || "Lỗi kết nối, thử lại!");
       }
@@ -145,67 +191,68 @@ export default function LoginV2({ onLogin, loggedOut }) {
     setTestingConn(false);
   };
 
-  const savePbUrl = () => {
-    setPbUrl(pbUrl);
-    setShowConfig(false);
-    setConnStatus(null);
-  };
+  const savePbUrl = () => { setPbUrl(pbUrl); setShowConfig(false); setConnStatus(null); };
 
-  // Màn hình loading auto-login
+  // Màn hình auto-login
   if (autoLogging) return (
-    <div style={{ minHeight:"100vh", background:"linear-gradient(135deg,#1e1b4b,#4f46e5,#7c3aed)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-      <div style={{ textAlign:"center", color:"#fff" }}>
-        <div style={{ fontSize:56, marginBottom:16 }}>🔧</div>
-        <div style={{ fontWeight:800, fontSize:20, marginBottom:8 }}>Đang đăng nhập...</div>
-        <div style={{ color:"rgba(255,255,255,.7)", fontSize:14 }}>Vui lòng chờ</div>
+    <div style={{ minHeight:"100vh", background:"#fff", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
+      <img src={LOGO} alt="HK" style={{ width:110, height:110, borderRadius:"50%", marginBottom:24, boxShadow:"0 4px 24px rgba(0,0,0,.12)" }} />
+      <div style={{ fontWeight:900, fontSize:22, color:"#1e1b4b", marginBottom:6 }}>HK One Touch</div>
+      <div style={{ color:"#9ca3af", fontSize:14, marginBottom:28 }}>Quản lý sửa chữa chuyên nghiệp</div>
+      <div style={{ display:"flex", gap:8 }}>
+        {[0,1,2].map(i => (
+          <div key={i} style={{ width:10, height:10, borderRadius:"50%", background:"#4f46e5",
+            animation:`bounce 1.2s ease-in-out ${i*0.2}s infinite`,
+          }} />
+        ))}
       </div>
+      <style>{`@keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}`}</style>
     </div>
   );
 
   return (
-    <div style={{ minHeight:"100vh", background:"linear-gradient(135deg,#1e1b4b,#4f46e5,#7c3aed)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-      <div style={{ background:"#fff", borderRadius:24, padding:40, width:"100%", maxWidth:400, boxShadow:"0 24px 64px rgba(0,0,0,.3)" }}>
-        <div style={{ textAlign:"center", marginBottom:32 }}>
-          <div style={{ fontSize:56 }}>🔧</div>
-          <div style={{ fontWeight:900, fontSize:24, color:"#1e1b4b", marginTop:8 }}>Quản Lý Sửa Chữa</div>
-          <div style={{ color:"#9ca3af", fontSize:13, marginTop:4 }}>Hệ thống nội bộ — v2025</div>
+    <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#0f172a 0%,#1e1b4b 50%,#312e81 100%)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+      <div style={{ background:"#fff", borderRadius:28, padding:"36px 32px", width:"100%", maxWidth:400, boxShadow:"0 32px 80px rgba(0,0,0,.4)" }}>
+
+        {/* Logo + tên app */}
+        <div style={{ textAlign:"center", marginBottom:28 }}>
+          <div style={{ display:"inline-flex", alignItems:"center", justifyContent:"center",
+            width:96, height:96, borderRadius:"50%", background:"#fff",
+            boxShadow:"0 4px 20px rgba(79,70,229,.2)", marginBottom:14, overflow:"hidden", border:"3px solid #e0e7ff" }}>
+            <img src={LOGO} alt="HK Logo" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+          </div>
+          <div style={{ fontWeight:900, fontSize:26, color:"#1e1b4b", letterSpacing:"-0.5px" }}>HK One Touch</div>
+          <div style={{ color:"#6b7280", fontSize:13, marginTop:4 }}>Quản lý sửa chữa chuyên nghiệp</div>
         </div>
 
-        {/* Server config — ẩn bình thường, hiện khi có lỗi kết nối */}
+        {/* Config PocketBase — chỉ hiện khi lỗi */}
         {showConfig && (
           <div style={{ background:"#fef3c7", borderRadius:14, padding:14, border:"1.5px solid #fbbf24", marginBottom:16 }}>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
               <span style={{ fontWeight:800, fontSize:13, color:"#92400e" }}>⚙️ Cấu hình PocketBase</span>
               <button onClick={() => { setShowConfig(false); setConnStatus(null); }}
-                style={{ fontSize:11, color:"#92400e", background:"none", border:"none", cursor:"pointer", fontWeight:700 }}>
-                ✕ Đóng
-              </button>
+                style={{ fontSize:13, color:"#92400e", background:"none", border:"none", cursor:"pointer", fontWeight:700 }}>✕</button>
             </div>
-            <label style={{ fontSize:12, fontWeight:700, color:"#0369a1", display:"block", marginBottom:6 }}>Địa chỉ server (IP:Port)</label>
             <input value={pbUrl} onChange={e => { setPbUrlState(e.target.value); setConnStatus(null); }}
               placeholder="http://192.168.1.234:8090"
-              style={{ width:"100%", height:42, borderRadius:10, border:"1.5px solid #7dd3fc", padding:"0 12px", fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"monospace" }} />
+              style={{ width:"100%", height:42, borderRadius:10, border:"1.5px solid #7dd3fc", padding:"0 12px", fontSize:13, outline:"none", boxSizing:"border-box", fontFamily:"monospace" }} />
             <div style={{ display:"flex", gap:8, marginTop:8 }}>
               <button onClick={doTestConn} disabled={testingConn}
                 style={{ flex:1, height:36, background:"#0ea5e9", color:"#fff", border:"none", borderRadius:10, fontWeight:700, fontSize:13, cursor:"pointer" }}>
-                {testingConn ? "⏳ Đang test..." : "🔌 Test kết nối"}
+                {testingConn ? "⏳..." : "🔌 Test"}
               </button>
               <button onClick={savePbUrl}
                 style={{ flex:1, height:36, background:"#059669", color:"#fff", border:"none", borderRadius:10, fontWeight:700, fontSize:13, cursor:"pointer" }}>
                 💾 Lưu
               </button>
             </div>
-            {connStatus === "ok" && (
-              <div style={{ marginTop:8, color:"#059669", fontWeight:700, fontSize:13, textAlign:"center" }}>✅ Kết nối thành công!</div>
-            )}
-            {connStatus === "fail" && (
-              <div style={{ marginTop:8, color:"#dc2626", fontWeight:700, fontSize:13, textAlign:"center" }}>❌ Không kết nối được! Kiểm tra IP và server.</div>
-            )}
+            {connStatus === "ok"   && <div style={{ marginTop:8, color:"#059669", fontWeight:700, fontSize:13, textAlign:"center" }}>✅ Kết nối thành công!</div>}
+            {connStatus === "fail" && <div style={{ marginTop:8, color:"#dc2626", fontWeight:700, fontSize:13, textAlign:"center" }}>❌ Không kết nối được!</div>}
           </div>
         )}
 
         {/* Username */}
-        <div style={{ marginBottom:16 }}>
+        <div style={{ marginBottom:14 }}>
           <label style={{ display:"block", fontSize:13, fontWeight:700, color:"#374151", marginBottom:6 }}>👤 Tên đăng nhập</label>
           <input value={username} onChange={e => { setUsername(e.target.value); setErr(""); }}
             onKeyDown={e => e.key==="Enter" && doLogin()}
@@ -214,7 +261,7 @@ export default function LoginV2({ onLogin, loggedOut }) {
         </div>
 
         {/* Password */}
-        <div style={{ marginBottom:16 }}>
+        <div style={{ marginBottom:14 }}>
           <label style={{ display:"block", fontSize:13, fontWeight:700, color:"#374151", marginBottom:6 }}>🔑 Mật khẩu</label>
           <div style={{ position:"relative" }}>
             <input value={password} onChange={e => { setPassword(e.target.value); setErr(""); }}
@@ -232,23 +279,23 @@ export default function LoginV2({ onLogin, loggedOut }) {
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20 }}>
           <div onClick={() => setRememberMe(v=>!v)}
             style={{ width:44, height:24, borderRadius:99, background:rememberMe?"#4f46e5":"#d1d5db", cursor:"pointer", position:"relative", transition:"background .2s", flexShrink:0 }}>
-            <div style={{ position:"absolute", top:2, left: rememberMe ? 22 : 2, width:20, height:20, borderRadius:"50%", background:"#fff", boxShadow:"0 1px 4px rgba(0,0,0,.3)", transition:"left .2s" }} />
+            <div style={{ position:"absolute", top:2, left:rememberMe?22:2, width:20, height:20, borderRadius:"50%", background:"#fff", boxShadow:"0 1px 4px rgba(0,0,0,.3)", transition:"left .2s" }} />
           </div>
           <span onClick={() => setRememberMe(v=>!v)} style={{ fontSize:13, fontWeight:600, color:"#374151", cursor:"pointer", userSelect:"none" }}>
-            Ghi nhớ đăng nhập — tự động đăng nhập lần sau
+            Ghi nhớ — tự động đăng nhập lần sau
           </span>
         </div>
 
         {/* Error */}
         {err && (
-          <div style={{ background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:10, padding:"10px 14px", marginBottom:16, fontSize:13, color:"#dc2626", fontWeight:600, whiteSpace:"pre-line" }}>
+          <div style={{ background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:10, padding:"10px 14px", marginBottom:14, fontSize:13, color:"#dc2626", fontWeight:600, whiteSpace:"pre-line" }}>
             ⚠️ {err}
           </div>
         )}
 
         {/* Submit */}
         <button onClick={() => doLogin()} disabled={loading}
-          style={{ width:"100%", height:54, background:loading?"#a5b4fc":"#4f46e5", color:"#fff", border:"none", borderRadius:14, fontSize:18, fontWeight:800, cursor:loading?"not-allowed":"pointer" }}>
+          style={{ width:"100%", height:54, background:loading?"#a5b4fc":"linear-gradient(135deg,#4f46e5,#7c3aed)", color:"#fff", border:"none", borderRadius:14, fontSize:18, fontWeight:800, cursor:loading?"not-allowed":"pointer", boxShadow:"0 4px 16px rgba(79,70,229,.4)" }}>
           {loading ? "⏳ Đang đăng nhập..." : "🚀 Đăng Nhập"}
         </button>
       </div>
