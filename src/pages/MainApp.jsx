@@ -37,6 +37,7 @@ const _BUILD_V4 = "loginv2-real-db";
 
 export default function MainApp() {
   const [user, setUser] = useState(null);
+  const [loggedOut, setLoggedOut] = useState(false);
   const [orders, setOrders] = useState([]);
   const [users, setUsers] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
@@ -183,7 +184,12 @@ export default function MainApp() {
       <div style={{ color:"#c7d2fe", fontSize:14 }}>⏳ Vui lòng chờ</div>
     </div>
   );
-  if (!user) return <LoginPage onLogin={u => { setUser(u); setPage(u.role==="technician"?"tasks":u.role==="receptionist"?"new":"dashboard"); }} />;
+  const doLogout = () => {
+    setUser(null);
+    setLoggedOut(true);
+    setSidebarOpen && setSidebarOpen(false);
+  };
+  if (!user) return <LoginPage onLogin={u => { setUser(u); setLoggedOut(false); setPage(u.role==="technician"?"tasks":u.role==="receptionist"?"new":"dashboard"); }} loggedOut={loggedOut} />;
   if (user.must_change_password) return <ChangePassword user={user} forceChange={true} onSuccess={() => setUser(u => ({...u, must_change_password: false}))} />;
 
   async function updateOrder(id, patch, kpiEvent) {
@@ -438,7 +444,7 @@ export default function MainApp() {
           </button>
         </div>
         <button onClick={() => setShowQRScan(true)} style={{ background:"none", border:"none", color:"#fff", fontSize:22, cursor:"pointer", padding:4 }}>📷</button>
-        <button onClick={() => setUser(null)} style={{ background:"rgba(255,255,255,.15)", border:"none", color:"#fff", borderRadius:10, padding:"6px 12px", fontSize:12, cursor:"pointer", fontWeight:700 }}>Thoát</button>
+        <button onClick={doLogout} style={{ background:"rgba(255,255,255,.15)", border:"none", color:"#fff", borderRadius:10, padding:"6px 12px", fontSize:12, cursor:"pointer", fontWeight:700 }}>Thoát</button>
       </div>
 
       {/* Sidebar */}
@@ -460,7 +466,7 @@ export default function MainApp() {
               ))}
             </div>
             <div style={{ padding:16, borderTop:"1px solid #f3f4f6" }}>
-              <button onClick={() => { setUser(null); setSidebarOpen(false); }} style={{ width:"100%", padding:14, background:"#fef2f2", border:"none", borderRadius:12, color:"#dc2626", fontWeight:700, cursor:"pointer" }}>🚪 Đăng xuất</button>
+              <button onClick={doLogout} style={{ width:"100%", padding:14, background:"#fef2f2", border:"none", borderRadius:12, color:"#dc2626", fontWeight:700, cursor:"pointer" }}>🚪 Đăng xuất</button>
             </div>
           </div>
         </div>
