@@ -2,7 +2,44 @@
 import React, { useState, useEffect } from "react";
 import { Staff, pbAuth, getPbUrl, setPbUrl, testConnection } from "./pb.jsx";
 
-const STORAGE_KEY = "hkapp_remembered";
+// Lưu/đọc credential dùng cả 3 nơi để tránh mất do cache bust
+const SK = "hkapp_cred";
+function saveCred(u, p) {
+  const v = JSON.stringify({ u, p, t: Date.now() });
+  try { localStorage.setItem(SK, v); } catch {}
+  try { sessionStorage.setItem(SK, v); } catch {}
+  try { document.cookie = `${SK}=${encodeURIComponent(v)};max-age=31536000;path=/;SameSite=Lax`; } catch {}
+}
+function loadCred() {
+  // Thử localStorage trước, sau đó sessionStorage, cuối cookie
+  for (const src of [
+    () => localStorage.getItem(SK),
+    () => sessionStorage.getItem(SK),
+    () => {
+      const m = document.cookie.match(new RegExp(`${SK}=([^;]+)`));
+      return m ? decodeURIComponent(m[1]) : null;
+    }
+  ]) {
+    try {
+      const raw = src();
+      if (raw) {
+        const obj = JSON.parse(raw);
+        if (obj?.u && obj?.p) {
+          // Sync lại vào các nơi còn thiếu
+          try { localStorage.setItem(SK, raw); } catch {}
+          try { sessionStorage.setItem(SK, raw); } catch {}
+          return obj;
+        }
+      }
+    } catch {}
+  }
+  return null;
+}
+function clearCred() {
+  try { localStorage.removeItem(SK); } catch {}
+  try { sessionStorage.removeItem(SK); } catch {}
+  try { document.cookie = `${SK}=;max-age=0;path=/`; } catch {}
+}
 
 export default function LoginV2({ onLogin, loggedOut }) {
   const [username, setUsername] = useState("");
@@ -20,12 +57,12 @@ export default function LoginV2({ onLogin, loggedOut }) {
   // Auto-login khi vào app (trừ khi vừa logout)
   useEffect(() => {
     if (loggedOut) return; // vừa logout → không tự đăng nhập
-    const saved = (() => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch { return null; } })();
-    if (!saved?.username || !saved?.password) return;
-    setUsername(saved.username);
+    const saved = loadCred();
+    if (!saved?.u || !saved?.p) return;
+    setUsername(saved.u);
     setRememberMe(true);
     setAutoLogging(true);
-    doLogin(saved.username, saved.password, true);
+    doLogin(saved.u, saved.p, true);
   }, []);
 
   const doLogin = async (u, p, isAuto = false) => {
@@ -81,9 +118,9 @@ export default function LoginV2({ onLogin, loggedOut }) {
       if (userInfo) {
         // Lưu thông tin nếu "ghi nhớ"
         if (rememberMe) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify({ username: uname, password: pwd }));
+          saveCred(uname, pwd);
         } else {
-          localStorage.removeItem(STORAGE_KEY);
+          clearCred();
         }
         onLogin(userInfo);
         return;

@@ -46,6 +46,23 @@ export default function MainApp() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // ── Chặn nút Back của browser ────────────────────────────
+  useEffect(() => {
+    // Push một state giả để có thể bắt popstate
+    window.history.pushState({ hkapp: true }, "");
+    const onPop = (e) => {
+      // Push lại ngay để nút Back không thoát app
+      window.history.pushState({ hkapp: true }, "");
+      // Nếu đang mở drawer/sidebar thì đóng lại
+      if (selectedOrder) { setSelectedOrder(null); return; }
+      if (sidebarOpen)   { setSidebarOpen(false);  return; }
+      // Nếu không ở trang chính thì về board
+      if (page !== "board" && page !== "tasks") setPage(user?.role==="technician"?"tasks":"board");
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [selectedOrder, sidebarOpen, page, user]);
   const [notifications, setNotifications] = useState([]);
   const [showNotif, setShowNotif] = useState(false);
   const [qrOrder, setQrOrder] = useState(null);
