@@ -250,3 +250,184 @@ function QRPrintModal({ order, onClose }) {
 export { loadQRLib, loadJsQR, QRCanvas, getQRDataUrl, QRScanModal, QRPrintModal };
 
 export default function QRComponentsPage() { return null; }
+
+// ── IMEIScanModal — quét barcode 1D/2D để lấy IMEI ──────────────────────────
+// Ưu tiên: BarcodeDetector (native) → ZXing (wasm) → jsQR fallback
+export function IMEIScanModal({ onClose, onFound }) {
+  const videoRef = React.useRef();
+  const canvasRef = React.useRef();
+  const rafRef = React.useRef();
+  const streamRef = React.useRef();
+  const detectorRef = React.useRef(null);
+  const [status, setStatus] = React.useState("loading"); // loading | scanning | error
+  const [errMsg, setErrMsg] = React.useState("");
+  const [manual, setManual] = React.useState("");
+  const [detected, setDetected] = React.useState("");
+
+  React.useEffect(() => {
+    initDetector();
+    return () => {
+      streamRef.current?.getTracks().forEach(t => t.stop());
+      cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
+
+  async function initDetector() {
+    // 1. Thử BarcodeDetector native (Chrome Android hỗ trợ tốt)
+    if (window.BarcodeDetector) {
+      try {
+        const formats = await window.BarcodeDetector.getSupportedFormats().catch(() => ["code_128","code_39","ean_13","ean_8","qr_code","data_matrix"]);
+        detectorRef.current = new window.BarcodeDetector({ formats });
+        startCamera("native");
+        return;
+      } catch {}
+    }
+    // 2. Fallback jsQR (QR code + DataMatrix)
+    loadJsQR(() => { startCamera("jsqr"); });
+  }
+
+  async function startCamera(detectorType) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+      streamRef.current = stream;
+      const v = videoRef.current;
+      if (!v) return;
+      v.srcObject = stream;
+      await v.play();
+      setStatus("scanning");
+      scanLoop(detectorType);
+    } catch (e) {
+      setStatus("error");
+      setErrMsg("Không mở được camera. Nhập IMEI thủ công bên dưới.");
+    }
+  }
+
+  function scanLoop(type) {
+    rafRef.current = requestAnimationFrame(async () => {
+      const v = videoRef.current; const c = canvasRef.current;
+      if (!v || !c || v.readyState < 2) { scanLoop(type); return; }
+
+      if (type === "native" && detectorRef.current) {
+        try {
+          const barcodes = await detectorRef.current.detect(v);
+          if (barcodes.length > 0) {
+            const raw = barcodes[0].rawValue;
+            handleDetected(raw); return;
+          }
+        } catch {}
+      } else if (type === "jsqr" && window.jsQR) {
+        c.width = v.videoWidth; c.height = v.videoHeight;
+        const ctx = c.getContext("2d");
+        ctx.drawImage(v, 0, 0);
+        const img = ctx.getImageData(0, 0, c.width, c.height);
+        const code = window.jsQR(img.data, img.width, img.height, { inversionAttempts: "attemptBoth" });
+        if (code?.data) { handleDetected(code.data.trim()); return; }
+      }
+      scanLoop(type);
+    });
+  }
+
+  function handleDetected(raw) {
+    // Lọc lấy phần số IMEI (15 số) nếu có trong chuỗi
+    const imeiMatch = raw.match(/\b\d{14,16}\b/);
+    const imei = imeiMatch ? imeiMatch[0] : raw.trim();
+    cancelAnimationFrame(rafRef.current);
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    setDetected(imei);
+    setStatus("done");
+  }
+
+  function confirmImei(val) {
+    if (!val.trim()) return;
+    onFound(val.trim());
+  }
+
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:4500, background:"rgba(0,0,0,.95)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:16 }}>
+      <div style={{ width:"100%", maxWidth:420 }}>
+
+        {/* Header */}
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+          <div>
+            <div style={{ color:"#fff", fontWeight:900, fontSize:20 }}>▦ Quét Barcode IMEI</div>
+            <div style={{ color:"#94a3b8", fontSize:12, marginTop:2 }}>Hướng camera vào mã vạch trên máy</div>
+          </div>
+          <button onClick={() => { streamRef.current?.getTracks().forEach(t => t.stop()); onClose(); }}
+            style={{ background:"rgba(255,255,255,.15)", border:"none", color:"#fff", width:38, height:38, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
+        </div>
+
+        {/* Camera view */}
+        {status !== "done" && (
+          <div style={{ position:"relative", borderRadius:16, overflow:"hidden", background:"#000", aspectRatio:"16/9", marginBottom:14 }}>
+            <video ref={videoRef} muted playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+            <canvas ref={canvasRef} style={{ display:"none" }} />
+
+            {/* Viewfinder — khung ngang cho barcode 1D */}
+            {status === "scanning" && (
+              <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none" }}>
+                <div style={{ width:"85%", height:72, border:"2.5px solid #fbbf24", borderRadius:8, boxShadow:"0 0 0 2000px rgba(0,0,0,.35)", position:"relative" }}>
+                  {/* scan line animation */}
+                  <div style={{ position:"absolute", left:0, right:0, height:2, background:"#fbbf24", top:"50%", animation:"scanline 1.5s ease-in-out infinite", opacity:.8 }} />
+                </div>
+              </div>
+            )}
+
+            {status === "loading" && (
+              <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontSize:14 }}>
+                ⏳ Đang khởi động camera...
+              </div>
+            )}
+            {status === "error" && (
+              <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,.7)", borderRadius:16 }}>
+                <div style={{ color:"#f87171", fontSize:13, textAlign:"center", padding:16 }}>📵 {errMsg}</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Kết quả đã quét */}
+        {status === "done" && (
+          <div style={{ background:"#f0fdf4", borderRadius:14, padding:18, marginBottom:14, border:"2px solid #6ee7b7", textAlign:"center" }}>
+            <div style={{ fontSize:13, color:"#065f46", fontWeight:700, marginBottom:6 }}>✅ Đã quét được:</div>
+            <input value={detected} onChange={e => setDetected(e.target.value)}
+              style={{ width:"100%", background:"#fff", border:"1.5px solid #6ee7b7", borderRadius:10, padding:"10px 14px", fontSize:16, fontWeight:800, textAlign:"center", fontFamily:"monospace", boxSizing:"border-box", outline:"none" }} />
+            <div style={{ fontSize:11, color:"#6b7280", marginTop:6 }}>Chỉnh sửa nếu cần rồi nhấn Xác Nhận</div>
+          </div>
+        )}
+
+        {/* Nút action */}
+        {status === "done" ? (
+          <div style={{ display:"flex", gap:10 }}>
+            <button onClick={() => { setStatus("loading"); setDetected(""); initDetector(); }}
+              style={{ flex:1, height:48, background:"rgba(255,255,255,.1)", border:"1.5px solid rgba(255,255,255,.3)", color:"#fff", borderRadius:12, fontWeight:700, cursor:"pointer" }}>
+              🔄 Quét lại
+            </button>
+            <button onClick={() => confirmImei(detected)}
+              style={{ flex:2, height:48, background:"#4f46e5", border:"none", color:"#fff", borderRadius:12, fontWeight:800, fontSize:15, cursor:"pointer" }}>
+              ✅ Xác Nhận IMEI
+            </button>
+          </div>
+        ) : (
+          <div>
+            <div style={{ color:"#94a3b8", fontSize:12, textAlign:"center", marginBottom:8 }}>— hoặc nhập thủ công —</div>
+            <div style={{ display:"flex", gap:8 }}>
+              <input value={manual} onChange={e => setManual(e.target.value)}
+                placeholder="Nhập IMEI / Serial số..."
+                inputMode="numeric"
+                onKeyDown={e => { if (e.key === "Enter" && manual.trim()) confirmImei(manual); }}
+                style={{ flex:1, height:46, borderRadius:12, border:"1.5px solid rgba(255,255,255,.2)", background:"rgba(255,255,255,.1)", color:"#fff", padding:"0 14px", fontSize:14, outline:"none" }} />
+              <button onClick={() => confirmImei(manual)} disabled={!manual.trim()}
+                style={{ height:46, padding:"0 16px", background:manual.trim()?"#4f46e5":"rgba(255,255,255,.1)", border:"none", color:"#fff", borderRadius:12, fontWeight:700, cursor:manual.trim()?"pointer":"default" }}>
+                OK
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <style>{`@keyframes scanline { 0%,100%{top:10%} 50%{top:90%} }`}</style>
+    </div>
+  );
+}

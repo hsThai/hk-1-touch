@@ -5,7 +5,7 @@ import { uploadFile } from "./pb.jsx";
 
 import { timeAgo, genOrderId, getKpiTimerInfo } from "./MediaViewer";
 import { searchKvCustomers } from "./kiotviet.jsx";
-import { QRScanModal } from "./QRComponents.jsx";
+import { QRScanModal, IMEIScanModal } from "./QRComponents.jsx";
 
 function NewOrderModal({ onClose, onCreate, users, orders }) {
   const [form, setForm] = useState({ customer_id:"", customer_name:"", customer_phone:"", device_model:"", imei_serial:"", passcode:"", qr_code:"", issues:[], notes:"", assigned_to:"" });
@@ -13,6 +13,7 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
   const [dbCusts, setDbCusts] = useState([]);
   const [mediaFiles, setMediaFiles] = useState([]);
   const [showQRScan, setShowQRScan] = useState(false);
+  const [showIMEIScan, setShowIMEIScan] = useState(false);
   const [qrMsg, setQrMsg] = useState(null);
   const photoRef = useRef(); const videoRef = useRef(); const fileRef = useRef();
 
@@ -172,17 +173,32 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
 
           <div style={sec}>
             <div style={{ fontWeight:800, fontSize:14, color:"#3730a3", marginBottom:10 }}>📱 Thiết Bị</div>
-            <label style={lbl}>Tên / Model máy *</label>
-            <input value={form.device_model} onChange={e => set("device_model", e.target.value)}
-              placeholder="iPhone 15 Pro Max, Samsung S24..." style={{ ...inp, marginBottom:10 }} />
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-              <div>
-                <label style={lbl}>IMEI / Serial</label>
-                <input value={form.imei_serial} onChange={e => set("imei_serial", e.target.value)} placeholder="358..." style={inp} />
+            {/* Hàng 1: Model + PIN */}
+            <div style={{ display:"flex", gap:8, marginBottom:10, alignItems:"flex-end" }}>
+              <div style={{ flex:1 }}>
+                <label style={lbl}>Tên / Model máy *</label>
+                <input value={form.device_model} onChange={e => set("device_model", e.target.value)}
+                  placeholder="iPhone 15 Pro Max, Samsung S24..." style={inp} />
               </div>
-              <div>
+              <div style={{ width:90, flexShrink:0 }}>
                 <label style={lbl}>🔑 Mã PIN</label>
-                <input value={form.passcode} onChange={e => set("passcode", e.target.value)} placeholder="1234" style={inp} />
+                <input value={form.passcode} onChange={e => set("passcode", e.target.value)}
+                  placeholder="1234" maxLength={8}
+                  style={{ ...inp, textAlign:"center", letterSpacing:2, fontWeight:700 }} />
+              </div>
+            </div>
+            {/* Hàng 2: IMEI + nút quét barcode */}
+            <div>
+              <label style={lbl}>IMEI / Serial</label>
+              <div style={{ display:"flex", gap:8 }}>
+                <input value={form.imei_serial} onChange={e => set("imei_serial", e.target.value)}
+                  placeholder="358..." inputMode="numeric"
+                  style={{ ...inp, flex:1 }} />
+                <button onClick={() => setShowIMEIScan(true)}
+                  title="Quét barcode IMEI"
+                  style={{ width:46, height:46, flexShrink:0, background:"#4f46e5", border:"none", borderRadius:12, color:"#fff", fontSize:22, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  ▦
+                </button>
               </div>
             </div>
           </div>
@@ -244,6 +260,12 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
               orders={orders || []}
               onClose={() => setShowQRScan(false)}
               onFound={handleQRResult}
+            />
+          )}
+          {showIMEIScan && (
+            <IMEIScanModal
+              onClose={() => setShowIMEIScan(false)}
+              onFound={imei => { set("imei_serial", imei); setShowIMEIScan(false); }}
             />
           )}
         </div>
