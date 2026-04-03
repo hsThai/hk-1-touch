@@ -196,8 +196,20 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
                   style={{ ...inp, flex:1 }} />
                 <button onClick={() => setShowIMEIScan(true)}
                   title="Quét barcode IMEI"
-                  style={{ width:46, height:46, flexShrink:0, background:"#4f46e5", border:"none", borderRadius:12, color:"#fff", fontSize:22, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                  ▦
+                  style={{ width:46, height:46, flexShrink:0, background:"#4f46e5", border:"none", borderRadius:12, color:"#fff", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>
+                  <svg viewBox="0 0 24 24" width="26" height="26" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    {/* barcode bars */}
+                    <rect x="2"  y="4" width="1.5" height="12" rx="0.5" fill="white"/>
+                    <rect x="5"  y="4" width="1"   height="12" rx="0.5" fill="white"/>
+                    <rect x="7.5" y="4" width="2"  height="12" rx="0.5" fill="white"/>
+                    <rect x="11" y="4" width="1"   height="12" rx="0.5" fill="white"/>
+                    <rect x="13.5" y="4" width="1.5" height="12" rx="0.5" fill="white"/>
+                    <rect x="16.5" y="4" width="1" height="12" rx="0.5" fill="white"/>
+                    <rect x="18.5" y="4" width="2" height="12" rx="0.5" fill="white"/>
+                    {/* magnifier */}
+                    <circle cx="17" cy="17" r="4" stroke="white" strokeWidth="1.8" fill="none"/>
+                    <line x1="20" y1="20" x2="22.5" y2="22.5" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
+                  </svg>
                 </button>
               </div>
             </div>
