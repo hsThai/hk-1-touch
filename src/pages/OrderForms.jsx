@@ -88,7 +88,8 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
     }
   }
 
-  function submit() {
+  const [submitting, setSubmitting] = useState(false);
+  async function submit() {
     if (!form.device_model.trim()) { alert("Vui lòng nhập tên thiết bị!"); return; }
     // Nếu chưa chọn khách từ DB, tạo mới từ custSearch
     let cName = form.customer_name;
@@ -102,7 +103,22 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
       cId = "new_" + Date.now();
     }
     if (!cName && !cId) { alert("Vui lòng nhập tên hoặc SĐT khách hàng!"); return; }
-    const imgUrls = mediaFiles.map(m => m.type==="video" ? `video:${m.name}` : m.url);
+    setSubmitting(true);
+    // Upload ảnh/video thật lên PocketBase
+    let imgUrls = [];
+    try {
+      for (const m of mediaFiles) {
+        if (m.file) {
+          const url = await uploadFile(m.file);
+          imgUrls.push(m.type === "video" ? `video:${url}` : url);
+        } else if (m.url && !m.url.startsWith("blob:")) {
+          imgUrls.push(m.url); // URL đã có sẵn
+        }
+      }
+    } catch(e) {
+      console.warn("Upload ảnh thất bại:", e);
+    }
+    setSubmitting(false);
     const newOrder = { ...form, id:genOrderId(), created:new Date().toISOString(), assigned_at:form.assigned_to?new Date().toISOString():null, accept_stage:0, status:"Mới Nhận", images:imgUrls, customer_id:cId, customer_name:cName, customer_phone:cPhone };
     onCreate(newOrder);
 
@@ -308,8 +324,8 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
 
         <div style={{ padding:"0 20px 20px", display:"flex", gap:10 }}>
           <button onClick={onClose} style={{ flex:1, height:52, background:"#f3f4f6", border:"none", borderRadius:14, fontWeight:700, fontSize:16, cursor:"pointer" }}>Hủy</button>
-          <button onClick={submit} style={{ flex:2, height:52, background:"#4f46e5", border:"none", borderRadius:14, color:"#fff", fontWeight:800, fontSize:16, cursor:"pointer" }}>
-            ✅ Tạo Đơn
+          <button onClick={submit} disabled={submitting} style={{ flex:2, height:52, background:submitting?"#9ca3af":"#4f46e5", border:"none", borderRadius:14, color:"#fff", fontWeight:800, fontSize:16, cursor:submitting?"not-allowed":"pointer" }}>
+            {submitting ? "⏳ Đang upload..." : "✅ Tạo Đơn"}
           </button>
         </div>
       </div>

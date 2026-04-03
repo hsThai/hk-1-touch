@@ -135,14 +135,15 @@ export const SparePartUsage= makeCollection("spare_part_usages");
 export const AppSettings   = makeCollection("app_settings");
 
 // ── File Upload ───────────────────────────────────────────
-export async function uploadFile(file) {
+export async function uploadFile(file, orderId = "") {
   const base = getPbUrl();
   const { token } = getAuth();
   const formData = new FormData();
   formData.append("file", file);
   // Lưu vào collection "media_files"
   formData.append("name", file.name);
-  formData.append("type", file.type.startsWith("video/") ? "video" : "image");
+  formData.append("type", file.type.startsWith("video/") || file.type.startsWith("audio/") ? "video" : "image");
+  if (orderId) formData.append("order_id", orderId);
 
   const res = await fetch(`${base}/api/collections/media_files/records`, {
     method: "POST",

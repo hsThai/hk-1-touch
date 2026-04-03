@@ -370,6 +370,39 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
 //  ORDER DRAWER
 // ══════════════════════════════════════════════
 
-export { timeAgo, genOrderId, getKpiTimerInfo, MediaViewer, AcceptChecklistModal, AcceptTimer };
+
+// ══════════════════════════════════════════════
+//  STATUS / PRIORITY MAPPING (PocketBase ↔ Display)
+// ══════════════════════════════════════════════
+export const STATUS_PB = {
+  "Mới Nhận":      "Moi Nhan",
+  "Đang Kiểm Tra": "Dang Kiem Tra",
+  "Đang Sửa":      "Dang Sua",
+  "Chờ Linh Kiện": "Cho Linh Kien",
+  "Hoàn Thành":    "Hoan Thanh",
+  "Đã Giao":       "Da Giao",
+  "Hủy":           "Huy",
+};
+export const STATUS_DISPLAY = Object.fromEntries(
+  Object.entries(STATUS_PB).map(([display, pb]) => [pb, display])
+);
+export const PRIORITY_PB = {
+  "Bình thường": "Thuong",
+  "Gấp":         "Gap",
+  "VIP":         "VIP",
+};
+export const PRIORITY_DISPLAY = Object.fromEntries(
+  Object.entries(PRIORITY_PB).map(([display, pb]) => [pb, display])
+);
+export const STATUS_COLS = [
+  { key:"Mới Nhận",      pb:"Moi Nhan",      color:"#2563eb", bg:"#dbeafe",  emoji:"📥" },
+  { key:"Đang Kiểm Tra", pb:"Dang Kiem Tra", color:"#d97706", bg:"#fef3c7",  emoji:"🔍" },
+  { key:"Đang Sửa",      pb:"Dang Sua",      color:"#7c3aed", bg:"#ede9fe",  emoji:"🔧" },
+  { key:"Chờ Linh Kiện", pb:"Cho Linh Kien", color:"#db2777", bg:"#fce7f3",  emoji:"⏳" },
+  { key:"Hoàn Thành",    pb:"Hoan Thanh",    color:"#059669", bg:"#dcfce7",  emoji:"✅" },
+  { key:"Đã Giao",       pb:"Da Giao",       color:"#64748b", bg:"#f1f5f9",  emoji:"📦" },
+];
+
+export { timeAgo, genOrderId, getKpiTimerInfo, MediaViewer, AcceptChecklistModal, AcceptTimer, STATUS_PB, STATUS_DISPLAY, STATUS_COLS, PRIORITY_PB, PRIORITY_DISPLAY };
 
 export default MediaViewer;

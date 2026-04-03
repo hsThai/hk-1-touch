@@ -4,7 +4,7 @@ import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage
 import { uploadFile } from "./pb.jsx";
 
 import { QRScanModal, QRPrintModal, QRCanvas, getQRDataUrl, loadQRLib } from "./QRComponents";
-import { timeAgo, genOrderId, getKpiTimerInfo, MediaViewer, AcceptChecklistModal, AcceptTimer } from "./MediaViewer";
+import { timeAgo, genOrderId, getKpiTimerInfo, MediaViewer, AcceptChecklistModal, AcceptTimer, STATUS_COLS, STATUS_PB, STATUS_DISPLAY, PRIORITY_PB, PRIORITY_DISPLAY } from "./MediaViewer";
 
 function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR }) {
   const [chatInput, setChatInput] = useState("");
@@ -132,16 +132,18 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
     if (!file) return;
     setChatUploading(true);
     try {
-      const url = await uploadFile(file);
+      const url = await uploadFile(file, order.id);
       const ext = file.name?.split(".").pop()?.toLowerCase() || "";
       let msgType = type;
       if (!msgType) {
         if (file.type?.startsWith("image")) msgType = "image";
         else if (file.type?.startsWith("video")) msgType = "video";
-        else if (file.type?.startsWith("audio")) msgType = "audio";
+        else if (file.type?.startsWith("audio")) msgType = "video"; // PB dùng "video" cho audio
         else msgType = "image";
       }
-      await sendChat(msgType, url, msgType==="image"?"📷 Ảnh":msgType==="video"?"🎥 Video":"🎤 Ghi âm");
+      // audio: dùng type "video" nhưng text "🎤 Ghi âm" để phân biệt
+      const msgText = msgType==="image" ? "📷 Ảnh" : file.type?.startsWith("audio") ? "🎤 Ghi âm" : "🎥 Video";
+      await sendChat(msgType, url, msgText);
     } catch(e) {
       alert("Upload thất bại!");
     } finally {

@@ -27,7 +27,7 @@ const SettingsPage = lazy(() => import("./Settings").catch(() => ({ default: () 
 
 // Components loaded from OrderComponents
 import { QRScanModal } from "./QRComponents";
-import { MediaViewer, AcceptChecklistModal, AcceptTimer, timeAgo, genOrderId, getKpiTimerInfo } from "./MediaViewer";
+import { MediaViewer, AcceptChecklistModal, AcceptTimer, timeAgo, genOrderId, getKpiTimerInfo, STATUS_PB, STATUS_DISPLAY, PRIORITY_PB, PRIORITY_DISPLAY, STATUS_COLS } from "./MediaViewer";
 import { OrderDrawer } from "./OrderDrawer";
 import { NewOrderModal, KPIPage } from "./OrderForms";
 import LoginPage from "./LoginV2";
@@ -138,12 +138,12 @@ export default function MainApp() {
           issues: o.issue_description
             ? o.issue_description.split(/[,;]/).map(s=>s.trim()).filter(Boolean)
             : [],
-          status: o.status || "Mới Nhận",
+          status: STATUS_DISPLAY[o.status] || o.status || "Mới Nhận",
           notes: o.technician_note || "",
           assigned_to: o.assigned_to || "",
           assigned_to_name: o.assigned_to_name || "",
           assigned_at: o.received_date || o.created_date,
-          accept_stage: ["Hoàn Thành","Đã Giao"].includes(o.status) ? 3 : 0,
+          accept_stage: (o.status==="Hoan Thanh"||o.status==="Da Giao"||o.status==="Hoàn Thành"||o.status==="Đã Giao") ? 3 : 0,
           created: o.received_date || o.created_date,
           images: o.images || [],
           videos: o.videos || [],
@@ -154,7 +154,7 @@ export default function MainApp() {
           final_cost: o.final_cost || 0,
           deposit: o.deposit || 0,
           warranty_days: o.warranty_days || 0,
-          priority: o.priority || "Bình thường",
+          priority: PRIORITY_DISPLAY[o.priority] || o.priority || "Bình thường",
         }));
         setUsers(mappedUsers);
         setOrders(mappedOrders);
@@ -180,7 +180,7 @@ export default function MainApp() {
         notifMsgs = [];
         const next = prev.map(o => {
           if (!o.assigned_to || !o.assigned_at || o.accept_stage >= 3) return o;
-          if (["Hoàn Thành","Đã Giao"].includes(o.status)) return o;
+          if (["Hoàn Thành","Đã Giao","Hoan Thanh","Da Giao"].includes(o.status)) return o;
           const assignedAt = new Date(o.assigned_at).getTime();
           let patch = {};
 
@@ -254,14 +254,15 @@ export default function MainApp() {
       if (!pbId) return; // đơn chưa lưu vào PB
       // Map patch field sang schema PocketBase
       const pbPatch = {};
-      if (patch.status         !== undefined) pbPatch.status          = patch.status;
+      if (patch.status         !== undefined) pbPatch.status          = STATUS_PB[patch.status] || patch.status;
       if (patch.assigned_to    !== undefined) pbPatch.assigned_to     = patch.assigned_to;
       if (patch.notes          !== undefined) pbPatch.technician_note  = patch.notes;
       if (patch.technician_note!== undefined) pbPatch.technician_note  = patch.technician_note;
       if (patch.estimated_cost !== undefined) pbPatch.estimated_cost   = patch.estimated_cost;
       if (patch.final_cost     !== undefined) pbPatch.final_cost       = patch.final_cost;
+      if (patch.priority       !== undefined) pbPatch.priority         = PRIORITY_PB[patch.priority] || patch.priority;
       if (patch.images         !== undefined) pbPatch.images           = patch.images;
-      if (patch.accept_stage   !== undefined) pbPatch.status           = pbPatch.status || patch.status || order?.status;
+      if (patch.accept_stage   !== undefined) pbPatch.status           = pbPatch.status || (patch.status ? STATUS_PB[patch.status] : null) || STATUS_PB[order?.status] || order?.status;
       if (Object.keys(pbPatch).length > 0) {
         await RepairOrder.update(pbId, pbPatch);
       }
@@ -286,13 +287,13 @@ export default function MainApp() {
         device_model:     data.device_model || "",
         imei:             data.imei_serial || "",
         issue_description: Array.isArray(data.issues) ? data.issues.join(", ") : (data.notes || ""),
-        status:           "Mới Nhận",
+        status:           STATUS_PB["Mới Nhận"],
         assigned_to:      data.assigned_to || null,
         received_date:    new Date().toISOString(),
         images:           data.images || [],
         technician_note:  data.notes || "",
         warranty_days:    0,
-        priority:         "Bình thường",
+        priority:         PRIORITY_PB["Bình thường"],
       };
       const saved = await RepairOrder.create(pbData);
       // Gắn _id thật từ PocketBase vào data
