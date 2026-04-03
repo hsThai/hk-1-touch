@@ -45,333 +45,261 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
   const [drawMode, setDrawMode]   = useState(false);
   const [drawColor, setDrawColor] = useState("#ff3b30");
   const [drawSize, setDrawSize]   = useState(4);
+  const [drawTool, setDrawTool]   = useState("pen");
   const [sending, setSending]     = useState(false);
 
-  // Canvas draw
-  const canvasRef   = useRef(null);
-  const drawingRef  = useRef(false);
-  const lastPosRef  = useRef(null);
+  const canvasRef    = useRef(null);
+  const drawingRef   = useRef(false);
+  const startPosRef  = useRef(null);
+  const historyRef   = useRef([]);
 
-  // Zoom — dùng ref để tránh re-render lag
   const imgWrapRef  = useRef(null);
   const imgElRef    = useRef(null);
   const scaleRef    = useRef(1);
-  const offsetRef   = useRef({ x: 0, y: 0 });
+  const offsetRef   = useRef({ x:0, y:0 });
   const lastDistRef = useRef(null);
   const lastTapRef  = useRef(0);
   const dragStartRef= useRef(null);
 
   const item    = items[idx];
   const isVideo = item?.startsWith("video:");
-  const videoSrc= isVideo ? item.replace("video:", "") : null;
+  const videoSrc= isVideo ? item.replace("video:","") : null;
   const imgSrc  = !isVideo ? item : null;
 
-  // ── Apply transform thẳng lên DOM (không qua state) ──
   function applyTransform() {
     if (!imgElRef.current) return;
-    const { x, y } = offsetRef.current;
-    const s = scaleRef.current;
-    imgElRef.current.style.transform = `scale(${s}) translate(${x/s}px, ${y/s}px)`;
+    const {x,y}=offsetRef.current, s=scaleRef.current;
+    imgElRef.current.style.transform=`scale(${s}) translate(${x/s}px,${y/s}px)`;
   }
-
-  // ── Clamp offset để ảnh không bay ra ngoài ──
   function clampOffset(s) {
     if (!imgElRef.current) return;
-    const el    = imgElRef.current;
-    const maxX  = (el.offsetWidth  * (s - 1)) / 2;
-    const maxY  = (el.offsetHeight * (s - 1)) / 2;
-    offsetRef.current.x = Math.max(-maxX, Math.min(maxX, offsetRef.current.x));
-    offsetRef.current.y = Math.max(-maxY, Math.min(maxY, offsetRef.current.y));
+    const el=imgElRef.current;
+    const mx=(el.offsetWidth*(s-1))/2, my=(el.offsetHeight*(s-1))/2;
+    offsetRef.current.x=Math.max(-mx,Math.min(mx,offsetRef.current.x));
+    offsetRef.current.y=Math.max(-my,Math.min(my,offsetRef.current.y));
   }
 
-  // ── Gắn touch listeners với passive:false để preventDefault hoạt động ──
-  useEffect(() => {
-    const el = imgWrapRef.current;
-    if (!el || isVideo || drawMode) return;
-
-    function getTouchDist(t) {
-      const dx = t[0].clientX - t[1].clientX;
-      const dy = t[0].clientY - t[1].clientY;
-      return Math.sqrt(dx*dx + dy*dy);
-    }
-    function getMidpoint(t) {
-      return { x:(t[0].clientX+t[1].clientX)/2, y:(t[0].clientY+t[1].clientY)/2 };
-    }
-
-    function onStart(e) {
-      if (e.touches.length === 2) {
-        lastDistRef.current = getTouchDist(e.touches);
-      } else if (e.touches.length === 1) {
-        const now = Date.now();
-        if (now - lastTapRef.current < 280) {
-          // double-tap → reset
-          scaleRef.current = 1;
-          offsetRef.current = { x: 0, y: 0 };
-          applyTransform();
-          lastTapRef.current = 0;
-          return;
-        }
-        lastTapRef.current = now;
-        if (scaleRef.current > 1) {
-          dragStartRef.current = {
-            x: e.touches[0].clientX - offsetRef.current.x,
-            y: e.touches[0].clientY - offsetRef.current.y,
-          };
-        }
+  useEffect(()=>{
+    const el=imgWrapRef.current;
+    if(!el||isVideo||drawMode) return;
+    function dist(t){const dx=t[0].clientX-t[1].clientX,dy=t[0].clientY-t[1].clientY;return Math.sqrt(dx*dx+dy*dy);}
+    function onStart(e){
+      if(e.touches.length===2){lastDistRef.current=dist(e.touches);}
+      else if(e.touches.length===1){
+        const now=Date.now();
+        if(now-lastTapRef.current<280){scaleRef.current=1;offsetRef.current={x:0,y:0};applyTransform();lastTapRef.current=0;return;}
+        lastTapRef.current=now;
+        if(scaleRef.current>1) dragStartRef.current={x:e.touches[0].clientX-offsetRef.current.x,y:e.touches[0].clientY-offsetRef.current.y};
       }
     }
-
-    function onMove(e) {
-      if (e.touches.length === 2) {
+    function onMove(e){
+      if(e.touches.length===2){
         e.preventDefault();
-        const dist = getTouchDist(e.touches);
-        if (lastDistRef.current) {
-          const ratio = dist / lastDistRef.current;
-          scaleRef.current = Math.min(5, Math.max(1, scaleRef.current * ratio));
-          clampOffset(scaleRef.current);
-          applyTransform();
-        }
-        lastDistRef.current = dist;
-      } else if (e.touches.length === 1 && dragStartRef.current && scaleRef.current > 1) {
+        const d=dist(e.touches);
+        if(lastDistRef.current){scaleRef.current=Math.min(5,Math.max(1,scaleRef.current*(d/lastDistRef.current)));clampOffset(scaleRef.current);applyTransform();}
+        lastDistRef.current=d;
+      } else if(e.touches.length===1&&dragStartRef.current&&scaleRef.current>1){
         e.preventDefault();
-        offsetRef.current = {
-          x: e.touches[0].clientX - dragStartRef.current.x,
-          y: e.touches[0].clientY - dragStartRef.current.y,
-        };
-        clampOffset(scaleRef.current);
-        applyTransform();
+        offsetRef.current={x:e.touches[0].clientX-dragStartRef.current.x,y:e.touches[0].clientY-dragStartRef.current.y};
+        clampOffset(scaleRef.current);applyTransform();
       }
     }
+    function onEnd(e){if(e.touches.length<2)lastDistRef.current=null;if(e.touches.length===0)dragStartRef.current=null;}
+    el.addEventListener("touchstart",onStart,{passive:true});
+    el.addEventListener("touchmove", onMove, {passive:false});
+    el.addEventListener("touchend",  onEnd,  {passive:true});
+    return()=>{el.removeEventListener("touchstart",onStart);el.removeEventListener("touchmove",onMove);el.removeEventListener("touchend",onEnd);};
+  },[isVideo,drawMode,idx]);
 
-    function onEnd(e) {
-      if (e.touches.length < 2) lastDistRef.current = null;
-      if (e.touches.length === 0) dragStartRef.current = null;
+  useEffect(()=>{
+    scaleRef.current=1;offsetRef.current={x:0,y:0};
+    if(imgElRef.current) imgElRef.current.style.transform="";
+    setDrawMode(false);historyRef.current=[];
+  },[idx]);
+
+  useEffect(()=>{
+    const h=e=>{
+      if(e.key==="Escape") onClose();
+      if(!drawMode){if(e.key==="ArrowLeft")setIdx(i=>Math.max(0,i-1));if(e.key==="ArrowRight")setIdx(i=>Math.min(items.length-1,i+1));}
+      if(drawMode&&(e.ctrlKey||e.metaKey)&&e.key==="z") handleUndo();
+    };
+    window.addEventListener("keydown",h);
+    return()=>window.removeEventListener("keydown",h);
+  },[items.length,drawMode]);
+
+  useEffect(()=>{
+    if(!drawMode||!canvasRef.current||!imgSrc) return;
+    const canvas=canvasRef.current,ctx=canvas.getContext("2d"),img=new Image();
+    img.crossOrigin="anonymous";
+    img.onload=()=>{
+      canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;
+      ctx.drawImage(img,0,0);historyRef.current=[];
+    };
+    img.src=imgSrc;
+  },[drawMode,imgSrc]);
+
+  function getPos(e,canvas){
+    const rect=canvas.getBoundingClientRect();
+    const sx=canvas.width/rect.width,sy=canvas.height/rect.height;
+    const cx=e.touches?e.touches[0].clientX:e.clientX,cy=e.touches?e.touches[0].clientY:e.clientY;
+    return{x:(cx-rect.left)*sx,y:(cy-rect.top)*sy};
+  }
+
+  function saveSnap(){
+    const canvas=canvasRef.current;if(!canvas)return;
+    historyRef.current.push(canvasRef.current.getContext("2d").getImageData(0,0,canvas.width,canvas.height));
+    if(historyRef.current.length>25) historyRef.current.shift();
+  }
+
+  function handleUndo(){
+    const canvas=canvasRef.current;
+    if(!canvas||historyRef.current.length===0) return;
+    canvas.getContext("2d").putImageData(historyRef.current.pop(),0,0);
+  }
+
+  function onDrawStart(e){
+    if(!drawMode) return; e.preventDefault();
+    saveSnap(); drawingRef.current=true; startPosRef.current=getPos(e,canvasRef.current);
+    if(drawTool==="pen"){const ctx=canvasRef.current.getContext("2d");ctx.beginPath();ctx.moveTo(startPosRef.current.x,startPosRef.current.y);}
+  }
+
+  function onDrawMove(e){
+    if(!drawMode||!drawingRef.current) return; e.preventDefault();
+    const canvas=canvasRef.current,ctx=canvas.getContext("2d"),pos=getPos(e,canvas);
+    const lw=drawSize*(canvas.width/canvas.getBoundingClientRect().width);
+    if(drawTool==="pen"){
+      ctx.lineTo(pos.x,pos.y);ctx.strokeStyle=drawColor;ctx.lineWidth=lw;ctx.lineCap="round";ctx.lineJoin="round";ctx.stroke();
+    } else {
+      const snap=historyRef.current[historyRef.current.length-1];
+      if(snap) ctx.putImageData(snap,0,0);
+      const sx=startPosRef.current.x,sy=startPosRef.current.y,w=pos.x-sx,h=pos.y-sy;
+      ctx.strokeStyle=drawColor;ctx.lineWidth=lw;ctx.lineCap="round";
+      if(drawTool==="rect") ctx.strokeRect(sx,sy,w,h);
+      else if(drawTool==="oval"){ctx.beginPath();ctx.ellipse(sx+w/2,sy+h/2,Math.abs(w/2),Math.abs(h/2),0,0,2*Math.PI);ctx.stroke();}
     }
-
-    el.addEventListener("touchstart", onStart, { passive: true });
-    el.addEventListener("touchmove",  onMove,  { passive: false });
-    el.addEventListener("touchend",   onEnd,   { passive: true });
-    return () => {
-      el.removeEventListener("touchstart", onStart);
-      el.removeEventListener("touchmove",  onMove);
-      el.removeEventListener("touchend",   onEnd);
-    };
-  }, [isVideo, drawMode, idx]);
-
-  // Reset khi đổi ảnh
-  useEffect(() => {
-    scaleRef.current  = 1;
-    offsetRef.current = { x: 0, y: 0 };
-    if (imgElRef.current) imgElRef.current.style.transform = "";
-    setDrawMode(false);
-  }, [idx]);
-
-  // Vẽ ảnh lên canvas khi vào draw mode
-  useEffect(() => {
-    if (!drawMode || !canvasRef.current || !imgSrc) return;
-    const canvas = canvasRef.current;
-    const ctx    = canvas.getContext("2d");
-    const img    = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      canvas.width  = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      ctx.drawImage(img, 0, 0);
-    };
-    img.src = imgSrc;
-  }, [drawMode, imgSrc]);
-
-  // Keyboard
-  useEffect(() => {
-    const h = e => {
-      if (e.key === "Escape") onClose();
-      if (!drawMode) {
-        if (e.key === "ArrowLeft")  setIdx(i => Math.max(0, i-1));
-        if (e.key === "ArrowRight") setIdx(i => Math.min(items.length-1, i+1));
-      }
-    };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [items.length, drawMode]);
-
-  // ── Canvas drawing ──
-  function getCanvasPos(e, canvas) {
-    const rect   = canvas.getBoundingClientRect();
-    const scaleX = canvas.width  / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const cx = e.touches ? e.touches[0].clientX : e.clientX;
-    const cy = e.touches ? e.touches[0].clientY : e.clientY;
-    return { x:(cx-rect.left)*scaleX, y:(cy-rect.top)*scaleY };
   }
-  function onDrawStart(e) { if (!drawMode) return; e.preventDefault(); drawingRef.current=true; lastPosRef.current=getCanvasPos(e,canvasRef.current); }
-  function onDrawMove(e)  {
-    if (!drawMode || !drawingRef.current) return; e.preventDefault();
-    const canvas=canvasRef.current; const ctx=canvas.getContext("2d");
-    const pos=getCanvasPos(e,canvas);
-    ctx.beginPath(); ctx.moveTo(lastPosRef.current.x, lastPosRef.current.y);
-    ctx.lineTo(pos.x, pos.y);
-    ctx.strokeStyle=drawColor; ctx.lineWidth=drawSize*(canvas.width/canvas.getBoundingClientRect().width);
-    ctx.lineCap="round"; ctx.lineJoin="round"; ctx.stroke();
-    lastPosRef.current=pos;
-  }
-  function onDrawEnd() { drawingRef.current=false; }
+  function onDrawEnd(){drawingRef.current=false;}
 
-  // ── Gửi ảnh đã vẽ ──
-  async function handleSendAnnotated() {
-    if (!canvasRef.current || !onSendAnnotated) return;
+  async function handleSendAnnotated(){
+    if(!canvasRef.current||!onSendAnnotated) return;
     setSending(true);
-    try {
-      const blob = await new Promise(r => canvasRef.current.toBlob(r, "image/jpeg", 0.88));
-      const file = new File([blob], `annotated_${Date.now()}.jpg`, { type:"image/jpeg" });
-      await onSendAnnotated(file);
+    try{
+      const blob=await new Promise(r=>canvasRef.current.toBlob(r,"image/jpeg",0.88));
+      await onSendAnnotated(new File([blob],`annotated_${Date.now()}.jpg`,{type:"image/jpeg"}));
       setShareStatus("✅ Đã gửi ảnh vào chat!");
-      setTimeout(() => { setShareStatus(""); setDrawMode(false); }, 2000);
-    } catch(e) {
-      setShareStatus("❌ Gửi thất bại!");
-    } finally { setSending(false); }
+      setTimeout(()=>{setShareStatus("");setDrawMode(false);},2000);
+    }catch{setShareStatus("❌ Gửi thất bại!");}
+    finally{setSending(false);}
   }
 
-  // ── Share ──
-  async function handleShare() {
-    const url = isVideo ? videoSrc : imgSrc;
-    if (!url) return;
-    try {
-      if (navigator.share) {
-        const res  = await fetch(url);
-        const blob = await res.blob();
-        const ext  = isVideo ? "mp4" : "jpg";
-        const file = new File([blob], `repair_media.${ext}`, { type:blob.type });
-        if (navigator.canShare && navigator.canShare({ files:[file] })) {
-          await navigator.share({ files:[file], title:"Ảnh/Video sửa chữa" });
-          setShareStatus("✅ Đã chia sẻ!");
-        } else {
-          await navigator.share({ url, title:"Ảnh/Video sửa chữa" });
-          setShareStatus("✅ Đã chia sẻ!");
-        }
-      } else {
-        await navigator.clipboard.writeText(url);
-        setShareStatus("✅ Đã copy link!");
-      }
-    } catch(e) { if (e.name!=="AbortError") setShareStatus("❌ Lỗi chia sẻ"); }
-    setTimeout(() => setShareStatus(""), 2500);
+  async function handleShare(){
+    const url=isVideo?videoSrc:imgSrc;if(!url) return;
+    try{
+      if(navigator.share){
+        const res=await fetch(url),blob=await res.blob(),ext=isVideo?"mp4":"jpg";
+        const file=new File([blob],`repair_media.${ext}`,{type:blob.type});
+        if(navigator.canShare&&navigator.canShare({files:[file]})) await navigator.share({files:[file],title:"Ảnh/Video sửa chữa"});
+        else await navigator.share({url,title:"Ảnh/Video sửa chữa"});
+        setShareStatus("✅ Đã chia sẻ!");
+      } else { await navigator.clipboard.writeText(url);setShareStatus("✅ Đã copy link!"); }
+    }catch(e){if(e.name!=="AbortError") setShareStatus("❌ Lỗi chia sẻ");}
+    setTimeout(()=>setShareStatus(""),2500);
   }
 
-  async function handleDownload() {
-    const url = isVideo ? videoSrc : imgSrc;
-    if (!url) return;
-    try {
-      const res=await fetch(url); const blob=await res.blob();
-      const ext=isVideo?"mp4":"jpg"; const a=document.createElement("a");
-      a.href=URL.createObjectURL(blob); a.download=`repair_${Date.now()}.${ext}`; a.click();
-    } catch { window.open(url,"_blank"); }
+  async function handleDownload(){
+    const url=isVideo?videoSrc:imgSrc;if(!url)return;
+    try{const res=await fetch(url),blob=await res.blob(),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`repair_${Date.now()}.${isVideo?"mp4":"jpg"}`;a.click();}
+    catch{window.open(url,"_blank");}
   }
 
-  return (
-    <div style={{ position:"fixed", inset:0, zIndex:6000, background:"rgba(0,0,0,.96)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}
-      onClick={!drawMode ? onClose : undefined}>
+  const COLORS=["#ff3b30","#ff9500","#ffcc00","#34c759","#007aff","#af52de","#fff","#000"];
+  const TOOLS=[{id:"pen",icon:"✏️"},{id:"rect",icon:"⬜"},{id:"oval",icon:"⭕"}];
 
-      {/* ── Header ── */}
-      <div style={{ position:"absolute", top:0, left:0, right:0, padding:"10px 14px", display:"flex", justifyContent:"space-between", alignItems:"center", background:"linear-gradient(rgba(0,0,0,.75),transparent)", zIndex:10 }}
-        onClick={e => e.stopPropagation()}>
-        <div style={{ color:"#fff", fontSize:13, fontWeight:600 }}>{idx+1} / {items.length}</div>
-        <div style={{ display:"flex", gap:6, alignItems:"center" }}>
-          {!isVideo && (
-            <button onClick={() => setDrawMode(d => !d)}
-              style={{ background:drawMode?"#f59e0b":"rgba(255,255,255,.2)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:12, fontWeight:700, cursor:"pointer" }}>
-              {drawMode ? "✏️ Đang vẽ" : "✏️ Vẽ"}
-            </button>
-          )}
-          <button onClick={handleShare}
-            style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:12, fontWeight:700, cursor:"pointer" }}>📤 Chia sẻ</button>
-          <button onClick={handleDownload}
-            style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:12, fontWeight:700, cursor:"pointer" }}>⬇️</button>
-          <button onClick={onClose}
-            style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:6000,background:"rgba(0,0,0,.97)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}
+      onClick={!drawMode?onClose:undefined}>
+
+      <div style={{position:"absolute",top:0,left:0,right:0,padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",background:"linear-gradient(rgba(0,0,0,.8),transparent)",zIndex:10}}
+        onClick={e=>e.stopPropagation()}>
+        <div style={{color:"#fff",fontSize:13,fontWeight:600}}>{idx+1} / {items.length}</div>
+        <div style={{display:"flex",gap:6}}>
+          {!isVideo&&<button onClick={()=>setDrawMode(d=>!d)} style={{background:drawMode?"#f59e0b":"rgba(255,255,255,.2)",border:"none",color:"#fff",height:34,padding:"0 12px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer"}}>{drawMode?"✏️ Đang vẽ":"✏️ Vẽ"}</button>}
+          <button onClick={handleShare} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",height:34,padding:"0 12px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer"}}>📤</button>
+          <button onClick={handleDownload} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",height:34,padding:"0 12px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer"}}>⬇️</button>
+          <button onClick={onClose} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",width:36,height:36,borderRadius:"50%",fontSize:18,cursor:"pointer"}}>✕</button>
         </div>
       </div>
 
-      {/* ── Draw toolbar ── */}
-      {drawMode && !isVideo && (
-        <div onClick={e => e.stopPropagation()} style={{ position:"absolute", bottom:items.length>1?90:16, left:"50%", transform:"translateX(-50%)", display:"flex", gap:8, alignItems:"center", background:"rgba(0,0,0,.85)", padding:"10px 16px", borderRadius:24, zIndex:20, backdropFilter:"blur(8px)" }}>
-          {["#ff3b30","#ff9500","#ffcc00","#34c759","#007aff","#fff","#000"].map(c => (
-            <div key={c} onClick={() => setDrawColor(c)}
-              style={{ width:26, height:26, borderRadius:"50%", background:c, border:`3px solid ${drawColor===c?"#fff":"transparent"}`, cursor:"pointer", boxShadow:"0 0 0 1px rgba(255,255,255,.3)" }} />
-          ))}
-          <div style={{ width:1, height:26, background:"rgba(255,255,255,.3)", margin:"0 4px" }} />
-          {[3,6,12].map(s => (
-            <div key={s} onClick={() => setDrawSize(s)}
-              style={{ width:s*2+14, height:s*2+14, borderRadius:"50%", background:"#fff", border:`3px solid ${drawSize===s?"#f59e0b":"transparent"}`, cursor:"pointer" }} />
-          ))}
-          <div style={{ width:1, height:26, background:"rgba(255,255,255,.3)", margin:"0 4px" }} />
-          <button onClick={handleSendAnnotated} disabled={sending}
-            style={{ background:"#4f46e5", border:"none", color:"#fff", height:34, padding:"0 14px", borderRadius:20, fontSize:12, fontWeight:700, cursor:"pointer" }}>
-            {sending ? "⏳" : "📨 Gửi"}
-          </button>
+      {drawMode&&!isVideo&&(
+        <div onClick={e=>e.stopPropagation()} style={{position:"absolute",bottom:items.length>1?96:16,left:"50%",transform:"translateX(-50%)",display:"flex",flexDirection:"column",gap:8,alignItems:"center",background:"rgba(0,0,0,.9)",padding:"10px 14px",borderRadius:20,zIndex:20,backdropFilter:"blur(10px)"}}>
+          <div style={{display:"flex",gap:6,alignItems:"center"}}>
+            {TOOLS.map(t=>(
+              <button key={t.id} onClick={()=>setDrawTool(t.id)}
+                style={{background:drawTool===t.id?"#4f46e5":"rgba(255,255,255,.15)",border:`2px solid ${drawTool===t.id?"#818cf8":"transparent"}`,color:"#fff",width:38,height:38,borderRadius:10,fontSize:16,cursor:"pointer"}}>
+                {t.icon}
+              </button>
+            ))}
+            <div style={{width:1,height:28,background:"rgba(255,255,255,.25)",margin:"0 2px"}}/>
+            <button onClick={handleUndo} title="Undo" style={{background:"rgba(255,255,255,.15)",border:"none",color:"#fff",width:38,height:38,borderRadius:10,fontSize:16,cursor:"pointer"}}>↩️</button>
+            <div style={{width:1,height:28,background:"rgba(255,255,255,.25)",margin:"0 2px"}}/>
+            <button onClick={handleSendAnnotated} disabled={sending} style={{background:"#4f46e5",border:"none",color:"#fff",height:38,padding:"0 14px",borderRadius:10,fontSize:12,fontWeight:700,cursor:"pointer"}}>{sending?"⏳":"📨 Gửi"}</button>
+          </div>
+          <div style={{display:"flex",gap:5,alignItems:"center",flexWrap:"wrap",justifyContent:"center"}}>
+            {COLORS.map(c=>(
+              <div key={c} onClick={()=>setDrawColor(c)}
+                style={{width:22,height:22,borderRadius:"50%",background:c,border:`3px solid ${drawColor===c?"#fff":"rgba(255,255,255,.15)"}`,cursor:"pointer",boxShadow:drawColor===c?"0 0 0 2px #4f46e5":"none"}}/>
+            ))}
+            <div style={{width:1,height:20,background:"rgba(255,255,255,.25)",margin:"0 2px"}}/>
+            {[2,5,9].map(s=>(
+              <div key={s} onClick={()=>setDrawSize(s)}
+                style={{width:s*2+10,height:s*2+10,borderRadius:"50%",background:"#fff",border:`3px solid ${drawSize===s?"#f59e0b":"rgba(255,255,255,.12)"}`,cursor:"pointer"}}/>
+            ))}
+          </div>
         </div>
       )}
 
-      {/* ── Toast ── */}
-      {shareStatus && (
-        <div style={{ position:"absolute", top:64, left:"50%", transform:"translateX(-50%)", background:"#1e1b4b", color:"#fff", padding:"10px 20px", borderRadius:12, fontSize:13, fontWeight:700, zIndex:30, whiteSpace:"nowrap" }}>
-          {shareStatus}
-        </div>
+      {shareStatus&&(
+        <div style={{position:"absolute",top:64,left:"50%",transform:"translateX(-50%)",background:"#1e1b4b",color:"#fff",padding:"10px 20px",borderRadius:12,fontSize:13,fontWeight:700,zIndex:30,whiteSpace:"nowrap"}}>{shareStatus}</div>
       )}
 
-      {/* ── Media area ── */}
-      <div ref={imgWrapRef} onClick={e => e.stopPropagation()}
-        style={{ width:"100vw", height:"100vh", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", position:"relative" }}>
-
-        {isVideo ? (
-          videoSrc && (videoSrc.startsWith("blob:") || videoSrc.startsWith("http")) ? (
-            <video src={videoSrc} controls autoPlay playsInline preload="metadata"
-              style={{ maxWidth:"96vw", maxHeight:"82vh", borderRadius:12, background:"#000" }} />
-          ) : (
-            <div style={{ textAlign:"center", color:"#fff" }}><div style={{ fontSize:72 }}>🎥</div><div style={{ fontSize:14,color:"#9ca3af" }}>Không thể phát</div></div>
+      <div ref={imgWrapRef} onClick={e=>e.stopPropagation()}
+        style={{width:"100vw",height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",position:"relative"}}>
+        {isVideo?(
+          videoSrc&&(videoSrc.startsWith("blob:")||videoSrc.startsWith("http"))?(
+            <video src={videoSrc} controls autoPlay playsInline preload="metadata" style={{maxWidth:"96vw",maxHeight:"82vh",borderRadius:12,background:"#000"}}/>
+          ):(
+            <div style={{textAlign:"center",color:"#fff"}}><div style={{fontSize:72}}>🎥</div></div>
           )
-        ) : drawMode ? (
+        ):drawMode?(
           <canvas ref={canvasRef}
-            style={{ maxWidth:"96vw", maxHeight:"78vh", objectFit:"contain", borderRadius:12, touchAction:"none", cursor:"crosshair" }}
-            onMouseDown={onDrawStart} onMouseMove={onDrawMove} onMouseUp={onDrawEnd}
-            onTouchStart={onDrawStart} onTouchMove={onDrawMove} onTouchEnd={onDrawEnd} />
-        ) : (
+            style={{maxWidth:"96vw",maxHeight:"72vh",objectFit:"contain",borderRadius:12,touchAction:"none",cursor:drawTool==="pen"?"crosshair":"crosshair",display:"block"}}
+            onMouseDown={onDrawStart} onMouseMove={onDrawMove} onMouseUp={onDrawEnd} onMouseLeave={onDrawEnd}
+            onTouchStart={onDrawStart} onTouchMove={onDrawMove} onTouchEnd={onDrawEnd}/>
+        ):(
           <img ref={imgElRef} src={imgSrc} alt=""
-            style={{ maxWidth:"96vw", maxHeight:"82vh", objectFit:"contain", borderRadius:12,
-              transformOrigin:"center center", touchAction:"none", userSelect:"none",
-              transition:"transform .05s linear",
-              willChange:"transform",
-            }} />
+            style={{maxWidth:"96vw",maxHeight:"82vh",objectFit:"contain",borderRadius:12,transformOrigin:"center center",touchAction:"none",userSelect:"none",willChange:"transform"}}/>
         )}
       </div>
 
-      {/* ── Prev / Next ── */}
-      {items.length > 1 && !drawMode && (
+      {items.length>1&&!drawMode&&(
         <>
-          {idx > 0 && (
-            <button onClick={e=>{e.stopPropagation();setIdx(i=>Math.max(0,i-1));}}
-              style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:46, height:46, borderRadius:"50%", fontSize:22, cursor:"pointer", zIndex:5 }}>‹</button>
-          )}
-          {idx < items.length-1 && (
-            <button onClick={e=>{e.stopPropagation();setIdx(i=>Math.min(items.length-1,i+1));}}
-              style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:46, height:46, borderRadius:"50%", fontSize:22, cursor:"pointer", zIndex:5 }}>›</button>
-          )}
+          {idx>0&&<button onClick={e=>{e.stopPropagation();setIdx(i=>Math.max(0,i-1));}} style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",background:"rgba(255,255,255,.2)",border:"none",color:"#fff",width:46,height:46,borderRadius:"50%",fontSize:22,cursor:"pointer",zIndex:5}}>‹</button>}
+          {idx<items.length-1&&<button onClick={e=>{e.stopPropagation();setIdx(i=>Math.min(items.length-1,i+1));}} style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"rgba(255,255,255,.2)",border:"none",color:"#fff",width:46,height:46,borderRadius:"50%",fontSize:22,cursor:"pointer",zIndex:5}}>›</button>}
         </>
       )}
 
-      {/* ── Thumbnails ── */}
-      {items.length > 1 && (
-        <div onClick={e=>e.stopPropagation()} style={{ position:"absolute", bottom:16, left:0, right:0, display:"flex", justifyContent:"center", gap:8, padding:"0 16px", flexWrap:"wrap", zIndex:5 }}>
-          {items.map((it,i) => (
-            <div key={i} onClick={()=>setIdx(i)}
-              style={{ width:50, height:50, borderRadius:10, overflow:"hidden", border:`2px solid ${i===idx?"#a5b4fc":"transparent"}`, cursor:"pointer", background:"#1f2937", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
-              {it.startsWith("video:") ? <span style={{ fontSize:20 }}>🎥</span> : <img src={it} style={{ width:"100%", height:"100%", objectFit:"cover" }} alt="" />}
+      {items.length>1&&(
+        <div onClick={e=>e.stopPropagation()} style={{position:"absolute",bottom:16,left:0,right:0,display:"flex",justifyContent:"center",gap:8,padding:"0 16px",flexWrap:"wrap",zIndex:5}}>
+          {items.map((it,i)=>(
+            <div key={i} onClick={()=>setIdx(i)} style={{width:50,height:50,borderRadius:10,overflow:"hidden",border:`2px solid ${i===idx?"#a5b4fc":"transparent"}`,cursor:"pointer",background:"#1f2937",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+              {it.startsWith("video:")?<span style={{fontSize:20}}>🎥</span>:<img src={it} style={{width:"100%",height:"100%",objectFit:"cover"}} alt=""/>}
             </div>
           ))}
         </div>
       )}
 
-      {/* ── Zoom hint ── */}
-      {!isVideo && !drawMode && (
-        <div style={{ position:"absolute", bottom:items.length>1?90:20, left:"50%", transform:"translateX(-50%)", color:"rgba(255,255,255,.3)", fontSize:11, pointerEvents:"none", whiteSpace:"nowrap", zIndex:2 }}>
+      {!isVideo&&!drawMode&&(
+        <div style={{position:"absolute",bottom:items.length>1?96:20,left:"50%",transform:"translateX(-50%)",color:"rgba(255,255,255,.28)",fontSize:11,pointerEvents:"none",whiteSpace:"nowrap",zIndex:2}}>
           Chụm 2 ngón phóng to · 2x chạm reset
         </div>
       )}

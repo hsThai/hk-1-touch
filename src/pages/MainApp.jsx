@@ -644,7 +644,7 @@ function MainAppInner() {
         />
       )}
 
-      {showQRScan && <QRScanModal onClose={() => setShowQRScan(false)} onResult={handleGlobalQRScan} orders={orders} />}
+      {showQRScan && <QRScanModal onClose={() => setShowQRScan(false)} onFound={handleGlobalQRScan} orders={orders} />}
       {productHistory && (
         <ProductHistoryModal
           qr={productHistory.qr}

@@ -141,14 +141,13 @@ export async function uploadFile(file, orderId = "") {
   const authHeaders = token ? { Authorization: token } : {};
   const fileType = file.type || "";
 
-  // PocketBase field "file" trong media_files nhận image/* và video/*
-  // audio/webm, audio/ogg → upload dưới dạng video/* để PB chấp nhận
-  const pbType = fileType.startsWith("image") ? "image" : "video";
-
   const formData = new FormData();
-  formData.append("file", file);
+  // Đặt tên field "file" — PocketBase sẽ nhận bất kỳ tên file nào
+  formData.append("file", file, file.name || "upload");
   formData.append("name", file.name || "upload");
-  formData.append("type", pbType);
+  if (fileType.startsWith("image")) formData.append("type", "image");
+  else if (fileType.startsWith("audio")) formData.append("type", "audio");
+  else formData.append("type", "video");
   if (orderId) formData.append("order_id", orderId);
 
   const res = await fetch(`${base}/api/collections/media_files/records`, {
@@ -162,10 +161,13 @@ export async function uploadFile(file, orderId = "") {
     throw new Error(`Upload thất bại (${res.status}): ${errText}`);
   }
   const data = await res.json();
-  // Lấy tên file từ response (field có thể là "file", "image", "video"...)
-  const fileName = data.file || data.image || data.video
+  // Tìm field chứa tên file trong response
+  const fileName = data.file || data.image || data.video || data.audio
     || Object.entries(data).find(([k,v]) => typeof v === "string" && v.match(/\.(jpg|jpeg|png|gif|webp|webm|mp4|ogg|mp3|wav|m4a)$/i))?.[1];
-  if (!fileName) throw new Error("PocketBase không trả về tên file. Kiểm tra field 'file' trong collection media_files!");
+  if (!fileName) {
+    console.error("PB response:", data);
+    throw new Error("PocketBase không trả về tên file. Fields: " + Object.keys(data).join(", "));
+  }
   return `${base}/api/files/media_files/${data.id}/${fileName}`;
 }
 // ── Realtime helper (SSE) ─────────────────────────────────
