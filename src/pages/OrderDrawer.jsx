@@ -275,11 +275,11 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
               ))}
             </div>
             {/* Issues */}
-            {order.issues.length > 0 && (
+            {(order.issues||[]).length > 0 && (
               <div style={{ marginBottom:14 }}>
                 <div style={{ fontSize:12, color:"#9ca3af", marginBottom:6 }}>🛠️ Lỗi báo cáo:</div>
                 <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
-                  {order.issues.map(i => <span key={i} style={{ background:"#fee2e2", color:"#991b1b", fontSize:12, padding:"4px 10px", borderRadius:20, fontWeight:600 }}>{i}</span>)}
+                  {(order.issues||[]).map(i => <span key={i} style={{ background:"#fee2e2", color:"#991b1b", fontSize:12, padding:"4px 10px", borderRadius:20, fontWeight:600 }}>{i}</span>)}
                 </div>
               </div>
             )}
