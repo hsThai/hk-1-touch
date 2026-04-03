@@ -47,21 +47,49 @@ export default function MainApp() {
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // ── Chặn nút Back của browser ────────────────────────────
+  // ── Chặn nút Back + Android gesture back ─────────────────
   useEffect(() => {
-    // Push một state giả để có thể bắt popstate
-    window.history.pushState({ hkapp: true }, "");
-    const onPop = (e) => {
-      // Push lại ngay để nút Back không thoát app
+    // Nhồi nhiều state vào history để gesture back phải "tiêu thụ" hết
+    // trước khi thoát được app (Android cần ít nhất 2-3 state)
+    const STACK = 5;
+    for (let i = 0; i < STACK; i++) {
+      window.history.pushState({ hkapp: i }, "");
+    }
+
+    const onPop = () => {
+      // Luôn push lại ngay để duy trì stack
       window.history.pushState({ hkapp: true }, "");
-      // Nếu đang mở drawer/sidebar thì đóng lại
+
+      // Xử lý navigation nội bộ
       if (selectedOrder) { setSelectedOrder(null); return; }
       if (sidebarOpen)   { setSidebarOpen(false);  return; }
-      // Nếu không ở trang chính thì về board
-      if (page !== "board" && page !== "tasks") setPage(user?.role==="technician"?"tasks":"board");
+      if (page !== "board" && page !== "tasks") {
+        setPage(user?.role === "technician" ? "tasks" : "board");
+      }
     };
+
+    // pageshow bắt được cả trường hợp Android bfcache restore
+    const onPageShow = (e) => {
+      if (e.persisted) {
+        for (let i = 0; i < STACK; i++) window.history.pushState({ hkapp: i }, "");
+      }
+    };
+
+    // visibilitychange: khi app quay lại foreground, refill stack
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        for (let i = 0; i < STACK; i++) window.history.pushState({ hkapp: i }, "");
+      }
+    };
+
     window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
+    window.addEventListener("pageshow", onPageShow);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      window.removeEventListener("pageshow", onPageShow);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [selectedOrder, sidebarOpen, page, user]);
   const [notifications, setNotifications] = useState([]);
   const [showNotif, setShowNotif] = useState(false);
