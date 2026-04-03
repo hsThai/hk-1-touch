@@ -4,7 +4,7 @@
  * Config IP tại: localStorage key "pb_url" hoặc default bên dưới
  */
 
-const DEFAULT_PB_URL = "http://192.168.1.234:8090";
+const DEFAULT_PB_URL = "https://digiera.cameraddns.net";
 
 export function getPbUrl() {
   try {
