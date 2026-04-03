@@ -185,17 +185,7 @@ function MediaViewer({ items, startIndex, onClose }) {
         </div>
       )}
 
-      {/* Bottom share bar */}
-      <div onClick={e=>e.stopPropagation()} style={{ position:"absolute", bottom: items.length>1 ? 90 : 20, left:0, right:0, display:"flex", justifyContent:"center", gap:10 }}>
-        <button onClick={handleShare}
-          style={{ height:44, padding:"0 24px", background:"#0068ff", color:"#fff", border:"none", borderRadius:22, fontWeight:800, fontSize:14, cursor:"pointer", boxShadow:"0 4px 16px rgba(0,104,255,.4)" }}>
-          📤 Chia sẻ qua Zalo / App khác
-        </button>
-        <button onClick={handleDownload}
-          style={{ height:44, padding:"0 20px", background:"rgba(255,255,255,.15)", color:"#fff", border:"1.5px solid rgba(255,255,255,.3)", borderRadius:22, fontWeight:700, fontSize:14, cursor:"pointer" }}>
-          ⬇️ Tải về
-        </button>
-      </div>
+
     </div>
   );
 }

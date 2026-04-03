@@ -7,8 +7,13 @@ import { timeAgo, genOrderId, getKpiTimerInfo } from "./MediaViewer";
 import { searchKvCustomers, createKvDeliveryOrder } from "./kiotviet.jsx";
 import { QRScanModal, IMEIScanModal } from "./QRComponents.jsx";
 
-function NewOrderModal({ onClose, onCreate, users, orders }) {
-  const [form, setForm] = useState({ customer_id:"", customer_name:"", customer_phone:"", device_model:"", imei_serial:"", passcode:"", qr_code:"", issues:[], notes:"", assigned_to:"" });
+function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }) {
+  const [form, setForm] = useState({ customer_id:"", customer_name:"", customer_phone:"", device_model:"", imei_serial:"", passcode:"", qr_code:"", product_qr:"", issues:[], notes:"", assigned_to:"" });
+
+  // Set product_qr từ QR scan nếu được truyền vào
+  useEffect(() => {
+    if (initialProductQR) set("product_qr", initialProductQR);
+  }, [initialProductQR]);
   const [custSearch, setCustSearch] = useState("");
   const [dbCusts, setDbCusts] = useState([]);
   const [mediaFiles, setMediaFiles] = useState([]);
@@ -69,22 +74,36 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
 
   function handleQRResult(result) {
     setShowQRScan(false);
-    if (result.type !== "raw") return;
-    const code = result.code;
-    const prevOrder = orders.find(o => o.qr_code === code);
-    if (prevOrder) {
-      const cust = prevOrder.customer_name ? { full_name: prevOrder.customer_name, phone: prevOrder.customer_phone } : null;
-      set("qr_code", code);
-      set("device_model", prevOrder.device_model);
-      set("imei_serial", prevOrder.imei_serial || "");
-      set("passcode", prevOrder.passcode || "");
-      set("issues", [...prevOrder.issues]);
-      set("notes", prevOrder.notes || "");
-      if (cust) { set("customer_id", prevOrder.customer_id); setCustSearch(`${cust.full_name} — ${cust.phone}`); }
-      setQrMsg({ type:"found", code, prevOrder });
-    } else {
-      set("qr_code", code);
-      setQrMsg({ type:"new", code });
+
+    // QR sản phẩm chưa có trong hệ thống → gán cho đơn này
+    if (result.type === "assign_qr") {
+      set("product_qr", result.qr);
+      setQrMsg({ type:"new", code: result.qr });
+      return;
+    }
+
+    // QR đã có lịch sử → gán product_qr và điền thông tin từ đơn gần nhất
+    if (result.type === "product_history") {
+      const sorted = [...result.orders].sort((a,b) => new Date(b.created||0) - new Date(a.created||0));
+      const prevOrder = sorted[0];
+      set("product_qr", result.qr);
+      if (prevOrder) {
+        set("device_model", prevOrder.device_model || "");
+        set("imei_serial", prevOrder.imei_serial || "");
+        if (prevOrder.customer_name) {
+          set("customer_name", prevOrder.customer_name);
+          set("customer_phone", prevOrder.customer_phone || "");
+          setCustSearch(`${prevOrder.customer_name}${prevOrder.customer_phone ? " — " + prevOrder.customer_phone : ""}`);
+        }
+        setQrMsg({ type:"found", code: result.qr, prevOrder });
+      }
+      return;
+    }
+
+    // raw (cũ — fallback)
+    if (result.type === "raw") {
+      set("product_qr", result.code);
+      setQrMsg({ type:"new", code: result.code });
     }
   }
 
@@ -162,25 +181,24 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
         <div style={{ padding:"20px 20px 8px" }}>
           <div style={{ ...sec, background:"#eef2ff", border:"1.5px solid #a5b4fc" }}>
             <div style={{ fontWeight:800, fontSize:14, color:"#3730a3", marginBottom:10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <span>📲 Mã QR Máy</span>
+              <span>📲 Mã QR Sản Phẩm</span>
               <button onClick={() => setShowQRScan(true)}
                 style={{ height:36, padding:"0 14px", borderRadius:10, background:"#4f46e5", color:"#fff", border:"none", fontWeight:700, fontSize:13, cursor:"pointer" }}>
                 📷 Quét QR
               </button>
             </div>
-            <input value={form.qr_code} onChange={e => { set("qr_code", e.target.value); setQrMsg(null); }}
-              placeholder="Quét hoặc nhập mã QR trên máy..."
-              style={{ ...inp, fontFamily:"monospace", background:form.qr_code?"#f0fdf4":"#fff", borderColor:form.qr_code?"#6ee7b7":"#e5e7eb" }} />
+            <input value={form.product_qr} onChange={e => { set("product_qr", e.target.value); setQrMsg(null); }}
+              placeholder="Quét hoặc nhập mã QR dán trên máy..."
+              style={{ ...inp, fontFamily:"monospace", background:form.product_qr?"#f0fdf4":"#fff", borderColor:form.product_qr?"#6ee7b7":"#e5e7eb" }} />
+            {form.product_qr && (
+              <div style={{ marginTop:8, background:"#f0fdf4", borderRadius:10, padding:"8px 12px", border:"1.5px solid #6ee7b7", fontSize:12 }}>
+                ✅ Mã QR: <strong style={{fontFamily:"monospace"}}>{form.product_qr}</strong> — sẽ gắn vào đơn này
+              </div>
+            )}
             {qrMsg?.type === "found" && (
               <div style={{ marginTop:10, background:"#fffbeb", borderRadius:12, padding:"10px 14px", border:"1.5px solid #fcd34d" }}>
                 <div style={{ fontWeight:800, color:"#d97706", marginBottom:4 }}>⚡ Đã tìm thấy dữ liệu cũ — điền tự động!</div>
                 <div style={{ fontSize:13, color:"#374151" }}>Đơn gần nhất: <strong>{qrMsg.prevOrder.id}</strong> · {qrMsg.prevOrder.status}</div>
-              </div>
-            )}
-            {qrMsg?.type === "new" && (
-              <div style={{ marginTop:10, background:"#f0fdf4", borderRadius:12, padding:"10px 14px", border:"1.5px solid #6ee7b7" }}>
-                <div style={{ fontWeight:800, color:"#059669", marginBottom:2 }}>✅ Mã QR mới — sẽ gắn vào đơn này</div>
-                <div style={{ fontSize:12, color:"#6b7280" }}>Mã: <strong style={{fontFamily:"monospace"}}>{qrMsg.code}</strong></div>
               </div>
             )}
           </div>
@@ -308,7 +326,7 @@ function NewOrderModal({ onClose, onCreate, users, orders }) {
 
           {showQRScan && (
             <QRScanModal
-              mode="capture"
+              mode="search"
               orders={orders || []}
               onClose={() => setShowQRScan(false)}
               onFound={handleQRResult}
@@ -471,7 +489,55 @@ function LoginScreen({ onLogin }) {
   );
 }
 
-export { NewOrderModal, KPIPage, LoginScreen };
+
+// ══════════════════════════════════════════════
+//  PRODUCT HISTORY MODAL — Lịch sử sửa chữa theo QR sản phẩm
+// ══════════════════════════════════════════════
+function ProductHistoryModal({ qr, orders, onClose, onOpenOrder }) {
+  const sorted = [...orders].sort((a,b) => new Date(b.created||0) - new Date(a.created||0));
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:5000, background:"rgba(0,0,0,.75)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+      <div style={{ background:"#fff", borderRadius:"24px 24px 0 0", width:"100%", maxWidth:480, maxHeight:"80vh", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+        {/* Header */}
+        <div style={{ padding:"18px 20px 12px", borderBottom:"1px solid #f3f4f6", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <div>
+            <div style={{ fontWeight:800, fontSize:17, color:"#1f2937" }}>📱 Lịch sử sản phẩm</div>
+            <div style={{ fontSize:12, color:"#6b7280", marginTop:2, fontFamily:"monospace" }}>QR: {qr}</div>
+          </div>
+          <button onClick={onClose} style={{ background:"#f3f4f6", border:"none", width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
+        </div>
+        {/* List */}
+        <div style={{ overflowY:"auto", flex:1, padding:"12px 16px" }}>
+          {sorted.length === 0 ? (
+            <div style={{ textAlign:"center", color:"#9ca3af", padding:32, fontSize:14 }}>Chưa có lịch sử sửa chữa</div>
+          ) : sorted.map((o,i) => (
+            <div key={o.id} onClick={() => onOpenOrder(o)}
+              style={{ background:i===0?"#f0f9ff":"#f9fafb", borderRadius:14, padding:"14px 16px", marginBottom:10, cursor:"pointer", border:"1.5px solid", borderColor:i===0?"#bae6fd":"#e5e7eb" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+                <span style={{ fontWeight:800, fontSize:15, color:"#1f2937" }}>{o.id}</span>
+                <span style={{ fontSize:12, fontWeight:700, padding:"3px 10px", borderRadius:20,
+                  background: o.status==="Hoàn Thành"||o.status==="Đã Giao" ? "#d1fae5" : "#fef3c7",
+                  color: o.status==="Hoàn Thành"||o.status==="Đã Giao" ? "#065f46" : "#92400e" }}>
+                  {o.status}
+                </span>
+              </div>
+              <div style={{ fontSize:13, color:"#374151" }}>👤 {o.customer_name} · 📞 {o.customer_phone}</div>
+              <div style={{ fontSize:13, color:"#6b7280", marginTop:3 }}>🔧 {Array.isArray(o.issues)?o.issues.join(", "):o.issues}</div>
+              <div style={{ fontSize:12, color:"#9ca3af", marginTop:4 }}>📅 {o.created ? new Date(o.created).toLocaleDateString("vi-VN") : ""}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ padding:"12px 16px 24px" }}>
+          <div style={{ fontSize:12, color:"#9ca3af", textAlign:"center" }}>
+            Tổng {sorted.length} lần sửa · Nhấn vào để xem chi tiết đơn
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export { NewOrderModal, KPIPage, LoginScreen, ProductHistoryModal };
 export const _BUILD_TS = "1774864528-FORCE-V3";
 
 export default function OrderFormsPage() { return null; }

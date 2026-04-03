@@ -29,7 +29,7 @@ const SettingsPage = lazy(() => import("./Settings").catch(() => ({ default: () 
 import { QRScanModal } from "./QRComponents";
 import { MediaViewer, AcceptChecklistModal, AcceptTimer, timeAgo, genOrderId, getKpiTimerInfo, STATUS_PB, STATUS_DISPLAY, PRIORITY_PB, PRIORITY_DISPLAY, STATUS_COLS } from "./MediaViewer";
 import { OrderDrawer } from "./OrderDrawer";
-import { NewOrderModal, KPIPage } from "./OrderForms";
+import { NewOrderModal, KPIPage, ProductHistoryModal } from "./OrderForms";
 import LoginPage from "./LoginV2";
 import ChangePassword from "./ChangePassword";
 
@@ -107,6 +107,7 @@ export default function MainApp() {
   const [showNotif, setShowNotif] = useState(false);
   const [qrOrder, setQrOrder] = useState(null);
   const [showQRScan, setShowQRScan] = useState(false);
+  const [newOrderProductQR, setNewOrderProductQR] = useState("");
   const [highlightId, setHighlightId] = useState(null);
   const [createdOrder, setCreatedOrder] = useState(null); // toast xác nhận tạo đơn
 
@@ -160,6 +161,7 @@ export default function MainApp() {
           images: o.images || [],
           videos: o.videos || [],
           qr_code: o.order_code || "",
+          product_qr: o.product_qr || "",
           customer_name: o.customer_name || "",
           customer_phone: o.customer_phone || "",
           estimated_cost: o.estimated_cost || 0,
@@ -298,6 +300,7 @@ export default function MainApp() {
         device_name:      data.device_model || "",
         device_model:     data.device_model || "",
         imei:             data.imei_serial || "",
+        product_qr:       data.product_qr || "",
         issue_description: Array.isArray(data.issues) ? data.issues.join(", ") : (data.notes || ""),
         status:           STATUS_PB["Mới Nhận"],
         assigned_to:      data.assigned_to || null,
@@ -331,9 +334,19 @@ export default function MainApp() {
     if (p) { setHighlightId(p.id); setTimeout(() => setHighlightId(null), 3000); }
   }
 
+  const [productHistory, setProductHistory] = useState(null);
+
   function handleGlobalQRScan(result) {
     setShowQRScan(false);
-    if (result.type === "order") setSelectedOrder(result.data);
+    if (result.type === "product_history") {
+      setProductHistory(result);
+    } else if (result.type === "assign_qr") {
+      // QR chưa có → gán cho đơn vừa quét (mở form tạo đơn với product_qr điền sẵn)
+      setNewOrderProductQR(result.qr);
+      setShowNewOrder(true);
+    } else if (result.type === "order") {
+      setSelectedOrder(result.data);
+    }
   }
 
   const myOrders = user.role==="technician" ? orders.filter(o => o.assigned_to===user.id) : orders;
@@ -596,7 +609,7 @@ export default function MainApp() {
       </div>
 
       {/* Modals */}
-      {showNewOrder && <NewOrderModal onClose={() => setShowNewOrder(false)} onCreate={createOrder} users={users} orders={orders} />}
+      {showNewOrder && <NewOrderModal onClose={() => { setShowNewOrder(false); setNewOrderProductQR(""); }} onCreate={createOrder} users={users} orders={orders} initialProductQR={newOrderProductQR} />}
       {selectedOrder && (
         <OrderDrawer
           order={selectedOrder}
@@ -610,6 +623,14 @@ export default function MainApp() {
       )}
 
       {showQRScan && <QRScanModal onClose={() => setShowQRScan(false)} onResult={handleGlobalQRScan} orders={orders} />}
+      {productHistory && (
+        <ProductHistoryModal
+          qr={productHistory.qr}
+          orders={productHistory.orders}
+          onClose={() => setProductHistory(null)}
+          onOpenOrder={o => { setProductHistory(null); setSelectedOrder(o); }}
+        />
+      )}
 
       {/* Created order toast */}
       {createdOrder && (

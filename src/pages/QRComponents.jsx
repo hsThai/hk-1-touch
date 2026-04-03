@@ -138,10 +138,26 @@ function QRScanModal({ onClose, onFound, orders = [], mode = "search" }) {
 
   function handleRaw(raw) {
     if (isCapture) { onFound({ type: "raw", code: raw }); onClose(); return; }
-    // search mode
-    const order = orders.find(o => o.id === raw || o.qr_code === raw);
-    if (order) { onFound({ type: "order", data: order }); onClose(); return; }
-    setErr(`Không tìm thấy mã "${raw}" trong hệ thống`);
+
+    // Tìm theo product_qr trước (QR dán trên máy → lịch sử sửa chữa)
+    const byProductQR = (orders || []).filter(o => o.product_qr && o.product_qr === raw);
+    if (byProductQR.length > 0) {
+      onFound({ type: "product_history", qr: raw, orders: byProductQR });
+      onClose();
+      return;
+    }
+
+    // Tìm theo mã đơn
+    const byOrderId = (orders || []).find(o => o.id === raw || o.qr_code === raw);
+    if (byOrderId) {
+      onFound({ type: "order", data: byOrderId });
+      onClose();
+      return;
+    }
+
+    // QR chưa gán cho sản phẩm nào → gán mới
+    onFound({ type: "assign_qr", qr: raw });
+    onClose();
   }
 
   function handleManual() {
@@ -156,10 +172,10 @@ function QRScanModal({ onClose, onFound, orders = [], mode = "search" }) {
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
           <div>
             <div style={{ color:"#fff", fontWeight:800, fontSize:20 }}>
-              {isCapture ? "📷 Quét Mã QR Máy" : "🔍 Quét QR Tìm Đơn"}
+              {isCapture ? "📷 Quét Mã QR Máy" : "🔍 Quét QR Sản Phẩm"}
             </div>
             <div style={{ color:"#a5b4fc", fontSize:12, marginTop:2 }}>
-              {isCapture ? "Lấy mã QR dán lên máy → điền vào đơn" : "Quét QR phiếu sửa để tìm đơn hàng"}
+              {isCapture ? "Lấy mã QR dán lên máy → điền vào đơn" : "QR đã gán: xem lịch sử · QR mới: gán cho đơn này"}
             </div>
           </div>
           <button onClick={() => { streamRef.current?.getTracks().forEach(t => t.stop()); onClose(); }}
