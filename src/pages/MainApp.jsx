@@ -61,6 +61,51 @@ class ErrorBoundary extends React.Component {
 
 function MainAppInner() {
   const [user, setUser] = useState(null);
+  // ── Âm thanh thông báo ─────────────────────────
+  const notifAudioRef = useRef(null);
+  const playNotifSound = () => {
+    try {
+      if (!notifAudioRef.current) {
+        // Tạo âm thanh "ding" bằng Web Audio API (không cần file, không cần gesture)
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        // Khởi động ctx bằng resume (bypass gesture restriction sau lần đầu)
+        ctx.resume().then(() => {
+          const o1 = ctx.createOscillator(), g1 = ctx.createGain();
+          o1.connect(g1); g1.connect(ctx.destination);
+          o1.type = "sine"; o1.frequency.value = 880;
+          g1.gain.setValueAtTime(0.4, ctx.currentTime);
+          g1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+          o1.start(ctx.currentTime); o1.stop(ctx.currentTime + 0.4);
+          // Nốt 2
+          const o2 = ctx.createOscillator(), g2 = ctx.createGain();
+          o2.connect(g2); g2.connect(ctx.destination);
+          o2.type = "sine"; o2.frequency.value = 1100;
+          g2.gain.setValueAtTime(0, ctx.currentTime + 0.15);
+          g2.gain.linearRampToValueAtTime(0.35, ctx.currentTime + 0.25);
+          g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.65);
+          o2.start(ctx.currentTime + 0.15); o2.stop(ctx.currentTime + 0.65);
+        });
+      }
+    } catch(e) { console.warn("Sound err:", e); }
+  };
+  // Khởi động AudioContext sau gesture đầu tiên
+  useEffect(() => {
+    const unlock = () => {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        ctx.resume();
+        window.__hk_audio_ctx = ctx;
+        window.removeEventListener("touchstart", unlock);
+        window.removeEventListener("click", unlock);
+      } catch {}
+    };
+    window.addEventListener("touchstart", unlock, { once: true });
+    window.addEventListener("click", unlock, { once: true });
+    return () => {
+      window.removeEventListener("touchstart", unlock);
+      window.removeEventListener("click", unlock);
+    };
+  }, []);
   const [loggedOut, setLoggedOut] = useState(false);
   const [orders, setOrders] = useState([]);
   const [users, setUsers] = useState([]);
@@ -159,23 +204,8 @@ function MainAppInner() {
                   tag: n.id,
                   data: { order_id: n.order_id }
                 });
-                // Phát âm thanh app
-                try {
-                  const soundKey = await getNotifSound(
-                    n.type === "mention" ? "notif_sound_chat" : "notif_sound_assign"
-                  );
-                  if (soundKey && soundKey !== "none") {
-                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                    const osc = ctx.createOscillator(); const gain = ctx.createGain();
-                    osc.connect(gain); gain.connect(ctx.destination);
-                    osc.type = "sine";
-                    osc.frequency.setValueAtTime(880, ctx.currentTime);
-                    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.3);
-                    gain.gain.setValueAtTime(0.5, ctx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-                    osc.start(); osc.stop(ctx.currentTime + 0.5);
-                  }
-                } catch {}
+                // Phát âm thanh
+                try { playNotifSound(); } catch {}
               }
             }
           }

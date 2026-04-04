@@ -150,6 +150,12 @@ export default function LoginV2({ onLogin, loggedOut }) {
   const [testingConn, setTestingConn] = useState(false);
   const [connStatus, setConnStatus] = useState(null);
   const [autoLogging, setAutoLogging] = useState(false);
+  // Splash screen: luôn hiện 2 giây khi app mở
+  const [showSplash, setShowSplash] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setShowSplash(false), 2200);
+    return () => clearTimeout(t);
+  }, []);
 
   // Auto-login khi vào app (trừ khi vừa logout)
   useEffect(() => {
@@ -234,8 +240,8 @@ export default function LoginV2({ onLogin, loggedOut }) {
 
   const savePbUrl = () => { setPbUrl(pbUrl); setShowConfig(false); setConnStatus(null); };
 
-  // Màn hình auto-login (Splash Screen)
-  if (autoLogging) return (
+  // Màn hình Splash (luôn hiện khi mở app hoặc đang tự đăng nhập)
+  if (showSplash || autoLogging) return (
     <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#0f172a 0%,#1e1b4b 60%,#312e81 100%)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24 }}>
       <img
         src={`${SPLASH}?v=${Date.now()}`}
