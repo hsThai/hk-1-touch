@@ -142,7 +142,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
       }
     } catch(err) {
       setChats(p => p.filter(m => m.id!==tempId));
-      console.error("sendChat error:", err);
+      console.error("sendChat error:", err, "payload:", JSON.stringify(newMsg));
       alert("Gửi thất bại: " + (err?.message || String(err)));
     }
   }
