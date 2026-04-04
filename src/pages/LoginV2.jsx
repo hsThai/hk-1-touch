@@ -111,7 +111,9 @@ function clearCred() {
 }
 
 const LOGO = "https://media.base44.com/images/public/69bf5d0a924e0a8766577274/37193b36d_HKlogo.jpg";
-const SPLASH = "https://base44.app/api/apps/69bf5d0a924e0a8766577274/files/mp/public/69bf5d0a924e0a8766577274/a9a0ff879_a3c337028_Gemini_Generated_Image_d3qkd9d3qkd9d3qk.png";
+const SPLASH = "https://base44.app/api/apps/69bf5d0a924e0a8766577274/files/mp/public/69bf5d0a924e0a8766577274/cd197582b_robot_splash.webp";
+// Preload ảnh ngay khi JS parse (không chờ render)
+(function() { const img = new window.Image(); img.src = SPLASH; })();
 const APP_ICON = "https://base44.app/api/apps/69bf5d0a924e0a8766577274/files/mp/public/69bf5d0a924e0a8766577274/43c978c50_icon-192.png";
 
 // ── Web Notification API (thông báo hệ thống HĐH) ───────────
@@ -242,17 +244,17 @@ export default function LoginV2({ onLogin, loggedOut }) {
 
   // Màn hình Splash (luôn hiện khi mở app hoặc đang tự đăng nhập)
   if (showSplash || autoLogging) return (
-    <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#0f172a 0%,#1e1b4b 60%,#312e81 100%)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24 }}>
+    <div style={{ minHeight:"100vh", background:"#ffffff", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24 }}>
       <img
         src={`${SPLASH}?v=${Date.now()}`}
         alt="HK Robot"
         style={{ width:"min(320px,80vw)", objectFit:"contain", marginBottom:20, filter:"drop-shadow(0 12px 32px rgba(0,0,0,.4))", animation:"fadeIn .6s ease" }}
       />
-      <div style={{ fontWeight:900, fontSize:32, color:"#fff", letterSpacing:"-0.5px", textAlign:"center", textShadow:"0 2px 12px rgba(0,0,0,.4)" }}>HK One Touch</div>
-      <div style={{ color:"#a5b4fc", fontSize:15, marginTop:8, marginBottom:32, textAlign:"center", fontStyle:"italic" }}>Quản lý với một chạm !</div>
+      <div style={{ fontWeight:900, fontSize:32, color:"#1e1b4b", letterSpacing:"-0.5px", textAlign:"center" }}>HK One Touch</div>
+      <div style={{ color:"#4f46e5", fontSize:15, marginTop:8, marginBottom:32, textAlign:"center", fontStyle:"italic" }}>Quản lý với một chạm !</div>
       <div style={{ display:"flex", gap:10 }}>
         {[0,1,2].map(i => (
-          <div key={i} style={{ width:10, height:10, borderRadius:"50%", background:"#818cf8",
+          <div key={i} style={{ width:10, height:10, borderRadius:"50%", background:"#4f46e5",
             animation:`bounce 1.2s ease-in-out ${i*0.2}s infinite`,
           }} />
         ))}

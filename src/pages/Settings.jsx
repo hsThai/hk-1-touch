@@ -309,7 +309,33 @@ export default function Settings({ user }) {
           <div style={{ background:"#f0fdf4", border:"1.5px solid #6ee7b7", borderRadius:14, padding:"10px 16px", marginBottom:12, display:"flex", alignItems:"center", gap:10 }}>
             <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,color:"#059669"}}>check_circle</span>
             <span style={{ fontSize:13, color:"#065f46", fontWeight:600 }}>Thông báo hệ thống đã được bật</span>
-            <button onClick={() => showSystemNotif("HK One Touch", "Đây là thử nghiệm thông báo hệ thống ✓")} style={{ marginLeft:"auto", fontSize:12, background:"#059669", color:"#fff", border:"none", borderRadius:8, padding:"6px 12px", cursor:"pointer", fontWeight:600 }}>Test</button>
+            <div style={{display:"flex",gap:8,marginLeft:"auto"}}>
+              <button onClick={() => {
+                try {
+                  const ctx = window.__hk_actx || new (window.AudioContext || window.webkitAudioContext)();
+                  if (!window.__hk_actx) window.__hk_actx = ctx;
+                  const play = () => {
+                    const o1 = ctx.createOscillator(), g1 = ctx.createGain();
+                    o1.connect(g1); g1.connect(ctx.destination);
+                    o1.type = "sine"; o1.frequency.value = 880;
+                    g1.gain.setValueAtTime(0.5, ctx.currentTime);
+                    g1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+                    o1.start(ctx.currentTime); o1.stop(ctx.currentTime + 0.35);
+                    const o2 = ctx.createOscillator(), g2 = ctx.createGain();
+                    o2.connect(g2); g2.connect(ctx.destination);
+                    o2.type = "sine"; o2.frequency.value = 1100;
+                    g2.gain.setValueAtTime(0, ctx.currentTime + 0.2);
+                    g2.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 0.3);
+                    g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.65);
+                    o2.start(ctx.currentTime + 0.2); o2.stop(ctx.currentTime + 0.65);
+                  };
+                  if (ctx.state === "suspended") ctx.resume().then(play); else play();
+                } catch(e) { alert("Lỗi: "+e.message); }
+              }} style={{ fontSize:12, background:"#7c3aed", color:"#fff", border:"none", borderRadius:8, padding:"6px 12px", cursor:"pointer", fontWeight:600 }}>
+                🔔 Test âm
+              </button>
+              <button onClick={() => showSystemNotif("HK One Touch", "Đây là thử nghiệm thông báo hệ thống ✓")} style={{ fontSize:12, background:"#059669", color:"#fff", border:"none", borderRadius:8, padding:"6px 12px", cursor:"pointer", fontWeight:600 }}>📳 Test</button>
+            </div>
           </div>
         )}
 

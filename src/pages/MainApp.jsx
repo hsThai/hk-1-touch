@@ -63,49 +63,46 @@ function MainAppInner() {
   const [user, setUser] = useState(null);
   // ── Âm thanh thông báo ─────────────────────────
   const notifAudioRef = useRef(null);
-  const playNotifSound = () => {
-    try {
-      if (!notifAudioRef.current) {
-        // Tạo âm thanh "ding" bằng Web Audio API (không cần file, không cần gesture)
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        // Khởi động ctx bằng resume (bypass gesture restriction sau lần đầu)
-        ctx.resume().then(() => {
-          const o1 = ctx.createOscillator(), g1 = ctx.createGain();
-          o1.connect(g1); g1.connect(ctx.destination);
-          o1.type = "sine"; o1.frequency.value = 880;
-          g1.gain.setValueAtTime(0.4, ctx.currentTime);
-          g1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-          o1.start(ctx.currentTime); o1.stop(ctx.currentTime + 0.4);
-          // Nốt 2
-          const o2 = ctx.createOscillator(), g2 = ctx.createGain();
-          o2.connect(g2); g2.connect(ctx.destination);
-          o2.type = "sine"; o2.frequency.value = 1100;
-          g2.gain.setValueAtTime(0, ctx.currentTime + 0.15);
-          g2.gain.linearRampToValueAtTime(0.35, ctx.currentTime + 0.25);
-          g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.65);
-          o2.start(ctx.currentTime + 0.15); o2.stop(ctx.currentTime + 0.65);
-        });
-      }
-    } catch(e) { console.warn("Sound err:", e); }
-  };
-  // Khởi động AudioContext sau gesture đầu tiên
+
+  // Tạo AudioContext lưu toàn cục, unlock sau gesture
   useEffect(() => {
     const unlock = () => {
       try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        ctx.resume();
-        window.__hk_audio_ctx = ctx;
-        window.removeEventListener("touchstart", unlock);
-        window.removeEventListener("click", unlock);
+        if (!window.__hk_actx) {
+          window.__hk_actx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        window.__hk_actx.resume();
       } catch {}
     };
-    window.addEventListener("touchstart", unlock, { once: true });
-    window.addEventListener("click", unlock, { once: true });
-    return () => {
-      window.removeEventListener("touchstart", unlock);
-      window.removeEventListener("click", unlock);
-    };
+    ["touchstart","mousedown","keydown"].forEach(e =>
+      window.addEventListener(e, unlock, { once: true })
+    );
   }, []);
+
+  const playNotifSound = () => {
+    try {
+      const ctx = window.__hk_actx || new (window.AudioContext || window.webkitAudioContext)();
+      if (!window.__hk_actx) window.__hk_actx = ctx;
+      const play = () => {
+        // Nốt 1: 880Hz
+        const o1 = ctx.createOscillator(), g1 = ctx.createGain();
+        o1.connect(g1); g1.connect(ctx.destination);
+        o1.type = "sine"; o1.frequency.value = 880;
+        g1.gain.setValueAtTime(0.5, ctx.currentTime);
+        g1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+        o1.start(ctx.currentTime); o1.stop(ctx.currentTime + 0.35);
+        // Nốt 2: 1100Hz
+        const o2 = ctx.createOscillator(), g2 = ctx.createGain();
+        o2.connect(g2); g2.connect(ctx.destination);
+        o2.type = "sine"; o2.frequency.value = 1100;
+        g2.gain.setValueAtTime(0, ctx.currentTime + 0.2);
+        g2.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 0.3);
+        g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.65);
+        o2.start(ctx.currentTime + 0.2); o2.stop(ctx.currentTime + 0.65);
+      };
+      if (ctx.state === "suspended") { ctx.resume().then(play); } else { play(); }
+    } catch(e) { console.warn("Sound:", e); }
+  };
   const [loggedOut, setLoggedOut] = useState(false);
   const [orders, setOrders] = useState([]);
   const [users, setUsers] = useState([]);
