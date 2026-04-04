@@ -1,6 +1,6 @@
 /* v4-loginv2-real-db */
-import React, { lazy, Suspense, useState, useEffect, useRef, useCallback } from "react";
-import { RepairChat, Notification, Staff, RepairOrder, Customer, getPbUrl, getAuth } from "./pb.jsx";
+import React, { lazy, Suspense, useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
+import { RepairChat, Notification, Staff, RepairOrder, Customer, getPbUrl, getAuth, subscribeCollection } from "./pb.jsx";
 import { uploadFile } from "./pb.jsx";
 import { getNotifSound } from "./Settings";
 const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ default: ({ onClose }) => (
@@ -430,7 +430,10 @@ function MainAppInner() {
   // ── Realtime subscribe repair_orders via SSE ──────────────
   useEffect(() => {
     if (!user?.id) return;
-    const unsub = RepairOrder.subscribe((action, raw) => {
+    const unsub = subscribeCollection("repair_orders", (evt) => {
+      const action = evt.action || "update";
+      const raw    = evt.record || evt;
+      if (!raw?.id) return;
       const mapped = mapPbOrder(raw, STATUS_DISPLAY, PRIORITY_DISPLAY);
       if (action === "create") {
         setOrders(prev => {
@@ -831,8 +834,27 @@ function MainAppInner() {
   const colBorder = { "Chưa Nhận":"#d1d5db","Mới Nhận":"#93c5fd","Đang Kiểm Tra":"#fcd34d","Chờ Linh Kiện":"#f9a8d4","Đang Sửa":"#c4b5fd","Hoàn Thành":"#86efac","Đã Giao":"#cbd5e1" };
 
   function KanbanBoard() {
+    const scrollRef = useRef(null);
+    const savedScrollLeft = useRef(0);
+
+    // Lưu scroll position trước mỗi render
+    useLayoutEffect(() => {
+      const el = scrollRef.current;
+      if (!el) return;
+      // Restore sau render
+      el.scrollLeft = savedScrollLeft.current;
+    });
+
+    const handleScroll = (e) => {
+      savedScrollLeft.current = e.currentTarget.scrollLeft;
+    };
+
     return (
-      <div style={{ overflowX:"auto", padding:"0 16px 80px" }}>
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        style={{ overflowX:"auto", padding:"0 16px 80px", WebkitOverflowScrolling:"touch" }}
+      >
         <div style={{ display:"flex", gap:12, minWidth: COLUMNS.length * 240 }}>
           {COLUMNS.map(col => {
             const colOrders = filtered.filter(o => o.status===col);
