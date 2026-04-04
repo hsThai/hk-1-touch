@@ -228,29 +228,44 @@ function MainAppInner() {
         es = new EventSource(`${sseUrl}`);
         let clientId = null;
 
-        es.addEventListener("PB_CONNECT", (e) => {
+        // PocketBase SSE: kết nối → nhận clientId → subscribe
+        es.onmessage = (e) => {
           try {
             const data = JSON.parse(e.data);
-            clientId = data.clientId;
-            // Subscribe collection notifications
-            fetch(sseUrl, {
-              method: "POST",
-              headers: { "Content-Type":"application/json", ...(token?{Authorization:token}:{}) },
-              body: JSON.stringify({ clientId, subscriptions: [`notifications/*`] }),
-            }).catch(()=>{});
+            // PocketBase gửi clientId qua message đầu tiên
+            if (data.clientId && !clientId) {
+              clientId = data.clientId;
+              fetch(sseUrl, {
+                method: "POST",
+                headers: { "Content-Type":"application/json", ...(token?{Authorization:token}:{}) },
+                body: JSON.stringify({ clientId, subscriptions: ["notifications/*"] }),
+              }).then(r => console.log("[SSE] subscribed:", r.status)).catch(e => console.warn("[SSE] sub fail:", e));
+            }
           } catch {}
-        });
+        };
 
+        // PocketBase emit event với type = collection name
         es.addEventListener("notifications", (e) => {
           try {
             const evt = JSON.parse(e.data);
             const record = evt.record || evt;
-            if (record && (evt.action === "create" || evt.action === "update")) {
-              // Chỉ xử lý nếu chưa read
+            if (record && (evt.action === "create" || !evt.action)) {
               if (!record.is_read) handleNewNotif(record);
             }
           } catch {}
         });
+
+        // Fallback: lắng nghe message thường (một số PB version dùng onmessage)
+        const origOnMsg = es.onmessage;
+        es.onmessage = (e) => {
+          origOnMsg?.(e);
+          try {
+            const data = JSON.parse(e.data);
+            if (data.action === "create" && data.record && !data.record.is_read) {
+              handleNewNotif(data.record);
+            }
+          } catch {}
+        };
 
         es.onerror = () => {
           es?.close();
@@ -501,10 +516,42 @@ function MainAppInner() {
     }
 
     setOrders(p => [data, ...p]);
+    // Gửi Notification vào DB để KTV + Manager + Receptionist nhận realtime
+    const orderCode = data.id || data._id;
+    const orderId   = data._id || data.id;
+
     if (data.assigned_to) {
-      const ktv = users.find(u => u.id===data.assigned_to);
-      setNotifications(n => [{ id:Math.random().toString(36), msg:`  Đơn ${data.id} giao cho ${ktv?.name}. Quy trình KPI đã bắt đầu!`, time:new Date().toISOString() }, ...n.slice(0,9)]);
+      const ktv = users.find(u => u.id === data.assigned_to);
+      // Thông báo cho KTV được giao
+      Notification.create({
+        user_id:    data.assigned_to,
+        user_name:  ktv?.name || "",
+        title:      `🔧 Đơn mới được giao: ${orderCode}`,
+        message:    `${data.customer_name || ""} - ${data.device_model || ""}. Vui lòng xác nhận!`,
+        order_id:   orderId,
+        order_code: orderCode,
+        type:       "assign",
+        is_read:    false,
+      }).catch(() => {});
     }
+
+    // Thông báo cho tất cả Manager + Receptionist (trừ người tạo)
+    const notifyStaff = users.filter(u =>
+      ["manager", "receptionist"].includes(u.role) && u.id !== user?.id
+    );
+    notifyStaff.forEach(u => {
+      Notification.create({
+        user_id:    u.id,
+        user_name:  u.name || "",
+        title:      `📋 Đơn mới: ${orderCode}`,
+        message:    `${data.customer_name || ""} - ${data.device_model || ""}`,
+        order_id:   orderId,
+        order_code: orderCode,
+        type:       "new_order",
+        is_read:    false,
+      }).catch(() => {});
+    });
+
     setCreatedOrder(data);
     setPage("board");
   }
