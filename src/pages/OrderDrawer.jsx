@@ -317,7 +317,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
         </div>
         {/* Tabs */}
         <div style={{ display:"flex", borderBottom:"1px solid #e5e7eb" }}>
-          {[["info","📄 Thông tin"],["parts","🔩 Linh kiện"],["chat","💬 Chat"],["qr","📱 QR"]].map(([t,lbl]) => (
+          {[["info","📄 Thông tin"],["parts","🔩 Linh kiện"],["chat","💬 Chat"]].map(([t,lbl]) => (
             <button key={t} onClick={() => setTab(t)}
               style={{ flex:1, padding:"11px", border:"none", background:"none", fontWeight:700, fontSize:13, cursor:"pointer", borderBottom:tab===t?"3px solid #4f46e5":"3px solid transparent", color:tab===t?"#4f46e5":"#6b7280", position:"relative" }}>
               {lbl}

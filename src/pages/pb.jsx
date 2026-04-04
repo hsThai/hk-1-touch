@@ -145,9 +145,8 @@ export async function uploadFile(file, orderId = "") {
   // Đặt tên field "file" — PocketBase sẽ nhận bất kỳ tên file nào
   formData.append("file", file, file.name || "upload");
   formData.append("name", file.name || "upload");
-  if (fileType.startsWith("image")) formData.append("type", "image");
-  else if (fileType.startsWith("audio")) formData.append("type", "audio");
-  else formData.append("type", "video");
+  // PocketBase chỉ accept type: image | video
+  formData.append("type", fileType.startsWith("image") ? "image" : "video");
   if (orderId) formData.append("order_id", orderId);
 
   const res = await fetch(`${base}/api/collections/media_files/records`, {
