@@ -50,7 +50,7 @@ async function playNotifSound(type) {
   } catch {}
 }
 
-function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR }) {
+function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, pb, onGoToPendingAccept }) {
   const [chatInput, setChatInput] = useState("");
   const [chats, setChats] = useState([]);
   const [chatLoading, setChatLoading] = useState(false);
@@ -423,28 +423,59 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
     setChecklistTarget({ ord, stage });
     setShowChecklist(true);
   }
-  function handleChecklistConfirm({ checklist, estMins, note: techNote }) {
+  async function handleChecklistConfirm({ estMins, customDate, note: techNote, extraImages, extraVideos }) {
     const ord = checklistTarget.ord;
     const stage = checklistTarget.stage;
     const k = `stage${stage}_at`;
-    const estDate = new Date(Date.now() + estMins * 60000).toISOString();
-    // Lần 1 (nhận đơn từ Chưa Nhận): đổi sang Mới Nhận
-    // Lần 2+: đổi sang Đang Sửa
+
+    // Tính thời điểm hoàn thành
+    let estDate;
+    if (customDate) {
+      estDate = new Date(customDate).toISOString();
+    } else {
+      estDate = new Date(Date.now() + (estMins||0) * 60000).toISOString();
+    }
+
     const newStatus = (ord.status === "Chưa Nhận" || stage === 1) ? "Mới Nhận" : "Đang Sửa";
     const now = new Date().toISOString();
+
+    // Upload media bổ sung lên PocketBase nếu có
+    let newImages = [...(ord.images || [])];
+    let newVideos = [...(ord.videos || [])];
+    if ((extraImages?.length > 0 || extraVideos?.length > 0) && ord._id) {
+      try {
+        const formData = new FormData();
+        (extraImages||[]).forEach(f => formData.append("images", f));
+        (extraVideos||[]).forEach(f => formData.append("videos", f));
+        const pbToken = pb?.authStore?.token || "";
+        const res = await fetch(`${pb.baseUrl}/api/collections/repair_orders/records/${ord._id}`, {
+          method: "PATCH",
+          headers: { Authorization: pbToken },
+          body: formData,
+        });
+        if (res.ok) {
+          const updated = await res.json();
+          newImages = updated.images || newImages;
+          newVideos = updated.videos || newVideos;
+        }
+      } catch(e) {
+        console.warn("Upload media thất bại:", e);
+      }
+    }
+
     onUpdate(ord.id, {
       accept_stage: stage,
       [k]: now,
       status: newStatus,
-      checklist_done: checklist,
       estimated_done: estDate,
       estimated_done_date: estDate,
       technician_note: techNote || ord.technician_note || "",
-      // Set assigned_at nếu chưa có (để KPI timer bắt đầu)
+      images: newImages,
+      videos: newVideos,
       ...((!ord.assigned_at || ord.status === "Chưa Nhận") ? { assigned_at: now } : {}),
     }, null);
     setShowChecklist(false);
-    showToast("Đã nhận đơn! ✅");
+    showToast("✅ Đã nhận đơn!");
   }
   function handleMarkDone() {
     onUpdate(order.id, { status:"Hoàn Thành", accept_stage:3 }, { userId:order.assigned_to, delta:2, note:"Sửa xong +2 KPI" });
@@ -955,6 +986,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
         order={checklistTarget.ord}
         onConfirm={handleChecklistConfirm}
         onClose={() => setShowChecklist(false)}
+        pb={pb}
       />
     )}
     {mediaViewer && (

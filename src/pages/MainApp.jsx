@@ -984,6 +984,7 @@ function MainAppInner() {
           users={users}
           currentUser={user}
           onGoToPendingAccept={goToPendingAccept}
+          pb={pb}
         />
       )}
 

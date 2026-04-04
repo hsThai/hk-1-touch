@@ -341,78 +341,154 @@ const EST_OPTIONS = [
   { label:"3 ngày",   value:4320 },
   { label:"1 tuần",   value:10080 },
 ];
-const CHECKLIST_ITEMS = [
-  "Đã kiểm tra nguồn máy",
-  "Đã kiểm tra màn hình",
-  "Đã kiểm tra các nút bấm",
-  "Đã kiểm tra camera",
-  "Đã kiểm tra loa / micro",
-  "Đã kiểm tra kết nối mạng",
-  "Đã ghi nhận tình trạng vỏ máy",
-  "Đã xác nhận lỗi với khách",
-];
-
-function AcceptChecklistModal({ order, onConfirm, onClose }) {
-  const [checked, setChecked] = useState([]);
+function AcceptChecklistModal({ order, onConfirm, onClose, pb }) {
   const [estMins, setEstMins] = useState(null);
+  const [customDate, setCustomDate] = useState("");
   const [note, setNote] = useState("");
-  function toggle(item){ setChecked(p => p.includes(item) ? p.filter(x=>x!==item) : [...p, item]); }
-  const canConfirm = estMins !== null;
+  const [extraImages, setExtraImages] = useState([]);
+  const [extraVideos, setExtraVideos] = useState([]);
+  const imgRef = useRef();
+  const vidRef = useRef();
+
+  // Tính estMins từ customDate nếu có
+  const effectiveEstMins = customDate
+    ? Math.round((new Date(customDate) - Date.now()) / 60000)
+    : estMins;
+  const canConfirm = customDate
+    ? new Date(customDate) > new Date()
+    : estMins !== null;
+
+  // Chụp hình / quay video
+  async function handleMedia(file, isVideo) {
+    if (!file) return;
+    const MAX = isVideo ? 50*1024*1024 : 2*1024*1024;
+    if (file.size > MAX) { alert(isVideo ? "Video tối đa 50MB" : "Ảnh tối đa 2MB"); return; }
+    const reader = new FileReader();
+    reader.onload = e => {
+      if (isVideo) setExtraVideos(p => [...p, { url: e.target.result, file }]);
+      else setExtraImages(p => [...p, { url: e.target.result, file }]);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function removeImg(i) { setExtraImages(p => p.filter((_,idx)=>idx!==i)); }
+  function removeVid(i) { setExtraVideos(p => p.filter((_,idx)=>idx!==i)); }
+
   return (
     <div style={{ position:"fixed", inset:0, zIndex:4500, background:"rgba(0,0,0,.65)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-      <div style={{ background:"#fff", borderRadius:"24px 24px 0 0", width:"100%", maxWidth:520, maxHeight:"90vh", overflowY:"auto", boxShadow:"0 -8px 40px rgba(0,0,0,.25)" }}>
+      <div style={{ background:"#fff", borderRadius:"24px 24px 0 0", width:"100%", maxWidth:520, maxHeight:"92vh", overflowY:"auto", boxShadow:"0 -8px 40px rgba(0,0,0,.25)" }}>
         {/* Handle */}
         <div style={{ display:"flex", justifyContent:"center", padding:"12px 0 4px" }}>
           <div style={{ width:40, height:4, background:"#e5e7eb", borderRadius:4 }} />
         </div>
-        <div style={{ padding:"0 20px 24px" }}>
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+        <div style={{ padding:"0 20px 28px" }}>
+          {/* Header */}
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
             <div>
-              <div style={{ fontWeight:800, fontSize:18 }}>  Nhận Máy Lần 1</div>
-              <div style={{ fontSize:13, color:"#6b7280" }}>Kiểm tra và xác nhận trước khi nhận</div>
+              <div style={{ fontWeight:900, fontSize:20, color:"#1e1b4b", display:"flex", alignItems:"center", gap:8 }}>
+                <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:24,color:"#4f46e5",verticalAlign:"middle"}}>engineering</span>
+                KTV Nhận Máy
+              </div>
+              <div style={{ fontSize:13, color:"#6b7280", marginTop:2 }}>{order.device_model || order.device_name} — {order.customer_name}</div>
             </div>
-            <button onClick={onClose} style={{ background:"#f3f4f6", border:"none", width:36, height:36, borderRadius:"50%", fontSize:17, cursor:"pointer"}}> </button>
-          </div>
-
-          {/* Checklist */}
-          <div style={{ marginBottom:18 }}>
-            <div style={{ fontWeight:700, fontSize:14, marginBottom:10, color:"#374151"}}>  Kiểm tra trước khi nhận:</div>
-            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-              {CHECKLIST_ITEMS.map(item => (
-                <div key={item} onClick={() => toggle(item)}
-                  style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 14px", borderRadius:12, border:`2px solid ${checked.includes(item)?"#4f46e5":"#e5e7eb"}`, background:checked.includes(item)?"#eef2ff":"#fff", cursor:"pointer" }}>
-                  <div style={{ width:24, height:24, borderRadius:6, border:`2px solid ${checked.includes(item)?"#4f46e5":"#d1d5db"}`, background:checked.includes(item)?"#4f46e5":"#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                    {checked.includes(item) && <span style={{ color:"#fff", fontSize:14, fontWeight:900 }}> </span>}
-                  </div>
-                  <span style={{ fontSize:14, fontWeight:checked.includes(item)?700:400, color:checked.includes(item)?"#3730a3":"#374151" }}>{item}</span>
-                </div>
-              ))}
-            </div>
-            <div style={{ fontSize:12, color:"#9ca3af", marginTop:8 }}>{checked.length}/{CHECKLIST_ITEMS.length} mục đã kiểm tra</div>
+            <button onClick={onClose}
+              style={{ background:"#fee2e2", border:"none", width:40, height:40, borderRadius:"50%", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22,color:"#dc2626"}}>close</span>
+            </button>
           </div>
 
           {/* Thời gian dự kiến */}
           <div style={{ marginBottom:18 }}>
-            <div style={{ fontWeight:700, fontSize:14, marginBottom:10, color:"#374151" }}>⏱ Thời gian dự kiến hoàn thành: <span style={{ color:"#dc2626" }}>*</span></div>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+            <div style={{ fontWeight:700, fontSize:14, marginBottom:10, color:"#374151", display:"flex", alignItems:"center", gap:6 }}>
+              <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:"#4f46e5",verticalAlign:"middle"}}>schedule</span>
+              Thời gian dự kiến hoàn thành <span style={{ color:"#dc2626" }}>*</span>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:10 }}>
               {EST_OPTIONS.map(opt => (
-                <button key={opt.value} onClick={() => setEstMins(opt.value)}
-                  style={{ padding:"14px 10px", borderRadius:12, border:`2px solid ${estMins===opt.value?"#4f46e5":"#e5e7eb"}`, background:estMins===opt.value?"#eef2ff":"#fff", color:estMins===opt.value?"#4f46e5":"#374151", fontWeight:estMins===opt.value?800:500, fontSize:15, cursor:"pointer" }}>
+                <button key={opt.value}
+                  onClick={() => { setEstMins(opt.value); setCustomDate(""); }}
+                  style={{ padding:"14px 10px", borderRadius:12, border:`2px solid ${estMins===opt.value&&!customDate?"#4f46e5":"#e5e7eb"}`, background:estMins===opt.value&&!customDate?"#eef2ff":"#fff", color:estMins===opt.value&&!customDate?"#4f46e5":"#374151", fontWeight:estMins===opt.value&&!customDate?800:500, fontSize:15, cursor:"pointer", transition:"all .15s" }}>
                   {opt.label}
                 </button>
               ))}
             </div>
+            {/* Chọn ngày cụ thể */}
+            <div style={{ background:"#f8fafc", border:`2px solid ${customDate?"#4f46e5":"#e5e7eb"}`, borderRadius:12, padding:"12px 14px" }}>
+              <div style={{ fontSize:13, fontWeight:700, color:"#374151", marginBottom:8, display:"flex", alignItems:"center", gap:6 }}>
+                <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,color:"#6b7280",verticalAlign:"middle"}}>calendar_today</span>
+                Hoặc chọn ngày cụ thể:
+              </div>
+              <input type="datetime-local" value={customDate}
+                onChange={e => { setCustomDate(e.target.value); setEstMins(null); }}
+                min={new Date().toISOString().slice(0,16)}
+                style={{ width:"100%", padding:"10px 12px", borderRadius:10, border:`1.5px solid ${customDate?"#4f46e5":"#d1d5db"}`, fontSize:15, outline:"none", boxSizing:"border-box", color: customDate?"#4f46e5":"#374151", fontWeight: customDate?700:400 }} />
+            </div>
           </div>
 
           {/* Ghi chú */}
-          <div style={{ marginBottom:20 }}>
-            <div style={{ fontWeight:700, fontSize:14, marginBottom:8, color:"#374151"}}>  Ghi chú kỹ thuật:</div>
-            <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Tình trạng thực tế khi nhận máy..."
+          <div style={{ marginBottom:16 }}>
+            <div style={{ fontWeight:700, fontSize:14, marginBottom:8, color:"#374151", display:"flex", alignItems:"center", gap:6 }}>
+              <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:"#4f46e5",verticalAlign:"middle"}}>notes</span>
+              Ghi chú kỹ thuật:
+            </div>
+            <textarea value={note} onChange={e => setNote(e.target.value)}
+              placeholder="Tình trạng thực tế khi nhận máy..."
               rows={3} style={{ width:"100%", borderRadius:12, border:"1.5px solid #e5e7eb", padding:"12px 14px", fontSize:14, outline:"none", resize:"vertical", boxSizing:"border-box" }} />
           </div>
 
-          <button onClick={() => canConfirm && onConfirm({ checklist:checked, estMins, note })}
-            style={{ width:"100%", height:58, borderRadius:16, background:canConfirm?"#059669":"#d1d5db", color:"#fff", border:"none", fontWeight:800, fontSize:18, cursor:canConfirm?"pointer":"not-allowed" }}>
+          {/* Hình ảnh / Video bổ sung */}
+          <div style={{ marginBottom:20 }}>
+            <div style={{ fontWeight:700, fontSize:14, marginBottom:10, color:"#374151", display:"flex", alignItems:"center", gap:6 }}>
+              <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:"#4f46e5",verticalAlign:"middle"}}>perm_media</span>
+              Hình ảnh / Video bổ sung:
+            </div>
+
+            {/* Preview grid */}
+            {(extraImages.length > 0 || extraVideos.length > 0) && (
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:6, marginBottom:10 }}>
+                {extraImages.map((img,i) => (
+                  <div key={i} style={{ position:"relative", borderRadius:10, overflow:"hidden", aspectRatio:"1", background:"#f3f4f6" }}>
+                    <img src={img.url} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                    <button onClick={() => removeImg(i)} style={{ position:"absolute", top:4, right:4, background:"rgba(0,0,0,.55)", border:"none", borderRadius:"50%", width:24, height:24, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                      <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:14,color:"#fff"}}>close</span>
+                    </button>
+                  </div>
+                ))}
+                {extraVideos.map((vid,i) => (
+                  <div key={i} style={{ position:"relative", borderRadius:10, overflow:"hidden", aspectRatio:"1", background:"#1e1b4b", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:32,color:"#a5b4fc"}}>videocam</span>
+                    <button onClick={() => removeVid(i)} style={{ position:"absolute", top:4, right:4, background:"rgba(0,0,0,.55)", border:"none", borderRadius:"50%", width:24, height:24, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                      <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:14,color:"#fff"}}>close</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Nút chụp / quay */}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+              <button onClick={() => imgRef.current?.click()}
+                style={{ height:48, borderRadius:12, border:"2px dashed #4f46e5", background:"#eef2ff", color:"#4f46e5", fontWeight:700, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+                <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20}}>add_a_photo</span>
+                Chụp hình
+              </button>
+              <button onClick={() => vidRef.current?.click()}
+                style={{ height:48, borderRadius:12, border:"2px dashed #7c3aed", background:"#f5f3ff", color:"#7c3aed", fontWeight:700, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+                <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20}}>videocam</span>
+                Quay video
+              </button>
+            </div>
+            <input ref={imgRef} type="file" accept="image/*" capture="environment" style={{ display:"none" }} onChange={e => handleMedia(e.target.files[0], false)} />
+            <input ref={vidRef} type="file" accept="video/*" capture="environment" style={{ display:"none" }} onChange={e => handleMedia(e.target.files[0], true)} />
+          </div>
+
+          {/* Nút xác nhận */}
+          <button
+            onClick={() => canConfirm && onConfirm({ estMins: effectiveEstMins, customDate, note, extraImages: extraImages.map(x=>x.file), extraVideos: extraVideos.map(x=>x.file) })}
+            style={{ width:"100%", height:60, borderRadius:16, background:canConfirm?"linear-gradient(135deg,#059669,#047857)":"#d1d5db", color:"#fff", border:"none", fontWeight:900, fontSize:18, cursor:canConfirm?"pointer":"not-allowed", display:"flex", alignItems:"center", justifyContent:"center", gap:10, boxShadow:canConfirm?"0 4px 20px rgba(5,150,105,.35)":"none", transition:"all .2s" }}>
+            <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:24}}>
+              {canConfirm ? "check_circle" : "lock"}
+            </span>
             {canConfirm ? "Xác Nhận Nhận Máy" : "Chọn thời gian dự kiến để tiếp tục"}
           </button>
         </div>
