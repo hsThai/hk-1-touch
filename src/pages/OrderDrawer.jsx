@@ -1,11 +1,54 @@
 /* v1774860462-5727 */
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage } from "./pb.jsx";
+import { getNotifSound } from "./Settings";
 import { uploadFile } from "./pb.jsx";
 
 import { QRScanModal, QRPrintModal, QRCanvas, getQRDataUrl, loadQRLib } from "./QRComponents";
 import { NewOrderModal } from "./OrderForms";
 import { timeAgo, genOrderId, getKpiTimerInfo, MediaViewer, AcceptChecklistModal, AcceptTimer, STATUS_COLS, STATUS_PB, STATUS_DISPLAY, PRIORITY_PB, PRIORITY_DISPLAY } from "./MediaViewer";
+
+// ── Play notification sound from settings ──────────────────
+async function playNotifSound(type) {
+  try {
+    const master = await getNotifSound("notif_sound_master");
+    if (master === "off") return;
+    const soundKey = await getNotifSound(type);
+    if (soundKey === "none") return;
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator(); const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    if (soundKey === "beep") {
+      osc.type = "square"; osc.frequency.value = 1000;
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+      osc.start(); osc.stop(ctx.currentTime + 0.15);
+    } else if (soundKey === "chime") {
+      [523,659,784,1047].forEach((f,i) => setTimeout(() => { try {
+        const c=new (window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();
+        o.connect(g);g.connect(c.destination);o.type="triangle";o.frequency.value=f;
+        g.gain.setValueAtTime(0.35,c.currentTime);g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+0.4);
+        o.start();o.stop(c.currentTime+0.4);
+      }catch{}},i*130));
+    } else { // ding / bell (default)
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.3);
+      gain.gain.setValueAtTime(0.5, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+      osc.start(); osc.stop(ctx.currentTime + 0.5);
+      if (soundKey === "bell") {
+        setTimeout(() => { try {
+          const c2=new (window.AudioContext||window.webkitAudioContext)(),o2=c2.createOscillator(),g2=c2.createGain();
+          o2.connect(g2);g2.connect(c2.destination);o2.type="sine";
+          o2.frequency.setValueAtTime(880,c2.currentTime);o2.frequency.exponentialRampToValueAtTime(440,c2.currentTime+0.3);
+          g2.gain.setValueAtTime(0.5,c2.currentTime);g2.gain.exponentialRampToValueAtTime(0.001,c2.currentTime+0.5);
+          o2.start();o2.stop(c2.currentTime+0.5);
+        }catch{}},400);
+      }
+    }
+  } catch {}
+}
 
 function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR }) {
   const [chatInput, setChatInput] = useState("");
@@ -53,13 +96,15 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
 
   // Build mention list from users related to this order
   const getMentionCandidates = useCallback(() => {
-    return users.filter(u => {
+    const real = users.filter(u => {
       if (u.id === currentUser.id) return false;
       if (["manager","receptionist"].includes(u.role)) return true;
       if (u.role === "warehouse") return true;
       if (u.id === order.assigned_to) return true;
       return false;
     });
+    // Thêm @all / @tất cả vào đầu danh sách
+    return [{ id:"__all__", name:"all", role:"__all__", _display:"@all — Thông báo tất cả" }, ...real];
   }, [users, currentUser.id, order.assigned_to]);
 
   function handleChatInputChange(e) {
@@ -88,12 +133,16 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
     const cursor = chatInputRef.current?.selectionStart || chatInput.length;
     const textBefore = chatInput.slice(0, cursor);
     const textAfter = chatInput.slice(cursor);
-    const replaced = textBefore.replace(/@(\w*)$/, `@${u.name} `);
+    const mentionText = u.id==="__all__" ? "all" : u.name;
+    const replaced = textBefore.replace(/@(\w*)$/, `@${mentionText} `);
     const newText = replaced + textAfter;
-    const newCursor = replaced.length; // vị trí sau tên + khoảng trắng
+    const newCursor = replaced.length;
     setChatInput(newText);
     setShowMention(false);
-    setPendingMentions(prev => prev.find(p => p.id===u.id) ? prev : [...prev, { id:u.id, name:u.name }]);
+    // @all không thêm vào pending (xử lý khi gửi), user thật thì thêm
+    if (u.id !== "__all__") {
+      setPendingMentions(prev => prev.find(p => p.id===u.id) ? prev : [...prev, { id:u.id, name:u.name }]);
+    }
     // Set cursor đúng vị trí sau tên user
     setTimeout(() => {
       const el = chatInputRef.current;
@@ -127,20 +176,36 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
     try {
       const saved = await RepairChat.create(newMsg);
       setChats(p => p.map(m => m.id===tempId ? saved : m));
-      // Send notifications to mentioned users
-      if (mentioned_ids.length > 0) {
-        mentioned_ids.forEach((uid, i) => {
+      // ── Notification + Sound logic ─────────────────────────────
+      const msgPreview = (msgText||"").slice(0,80);
+      // Resolve @all: gửi cho tất cả user liên quan đơn, trừ người gửi
+      const isAllMention = (chatInput||"").includes("@all") || chatInput?.includes("@tất cả");
+      let notifyIds = [...mentioned_ids];
+      let notifyNames = [...mentioned_names];
+      if (isAllMention) {
+        // Thêm manager + receptionist + assigned_to
+        const allRelated = users.filter(u =>
+          u.id !== currentUser.id &&
+          (["manager","receptionist"].includes(u.role) || u.id === order.assigned_to)
+        );
+        allRelated.forEach(u => {
+          if (!notifyIds.includes(u.id)) { notifyIds.push(u.id); notifyNames.push(u.name); }
+        });
+      }
+      if (notifyIds.length > 0) {
+        notifyIds.forEach((uid, i) => {
           Notification.create({
             user_id: uid,
-            user_name: mentioned_names[i] || "",
-            title: `  Bạn được nhắc đến trong ${order.id}`,
-            message: `${currentUser.name}: ${msgText.slice(0,80)}`,
+            user_name: notifyNames[i] || "",
+            title: `💬 Được nhắc trong ${order.id}`,
+            message: `${currentUser.name}: ${msgPreview}`,
             order_id: order.id,
             order_code: order.id,
             type:"mention",
             is_read: false,
           }).catch(() => {});
         });
+        playNotifSound("notif_sound_chat").catch(()=>{});
       }
     } catch(err) {
       setChats(p => p.filter(m => m.id!==tempId));
@@ -325,7 +390,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
                 }} style={{ background:"rgba(220,38,38,.7)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:13, fontWeight:700, cursor:"pointer"}}>  Xóa</button>
               </>
             )}
-            <button onClick={onClose} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:34, height:34, borderRadius:"50%", fontSize:17, cursor:"pointer"}}> </button>
+            <button onClick={onClose} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:34, height:34, borderRadius:"50%", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>close</span></button>
           </div>
         </div>
         {/* Tabs */}
@@ -453,7 +518,28 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
                     </div>
                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:10 }}>
                       {STATUS_COLS.filter(c => c.key !== "Đã Giao").map(c => (
-                        <button key={c.key} onClick={() => { if(c.key==="Hoàn Thành") handleMarkDone(); else { onUpdate(order.id,{status:c.key},null); setEditMode(false); } }}
+                        <button key={c.key} onClick={() => {
+  if(c.key==="Hoàn Thành") { handleMarkDone(); }
+  else {
+    onUpdate(order.id,{status:c.key},null);
+    setEditMode(false);
+    // Notify manager + receptionist khi KTV đổi trạng thái
+    const notifyUsers = users.filter(u => ["manager","receptionist"].includes(u.role));
+    notifyUsers.forEach(u => {
+      Notification.create({
+        user_id: u.id,
+        user_name: u.name || "",
+        title: `🔧 ${currentUser.name} cập nhật ${order.id}`,
+        message: `Trạng thái: ${c.key}`,
+        order_id: order.id,
+        order_code: order.id,
+        type:"status_change",
+        is_read: false,
+      }).catch(()=>{});
+    });
+    playNotifSound("notif_sound_chat").catch(()=>{});
+  }
+}}
                           style={{ padding:"12px 8px", borderRadius:12, border:`2px solid ${order.status===c.key?c.color:"#e5e7eb"}`, background:order.status===c.key?c.bg:"#fff", color:order.status===c.key?c.color:"#374151", fontWeight:700, fontSize:13, cursor:"pointer", textAlign:"center" }}>
                           <div style={{ fontSize:18 }}>{c.icon}</div>
                           <div style={{ fontSize:12, marginTop:2 }}>{c.key}</div>
@@ -614,10 +700,13 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
                 {mentionList.map((u, idx) => (
                   <div key={u.id} onClick={() => pickMention(u)}
                     style={{ padding:"12px 14px", cursor:"pointer", background:idx===mentionCursor?"#eef2ff":"#fff", borderBottom:"1px solid #f9fafb", display:"flex", gap:10, alignItems:"center" }}>
-                    <div style={{ width:32, height:32, borderRadius:"50%", background:u.role==="manager"?"#7c3aed":u.role==="technician"?"#2563eb":"#059669", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, fontSize:13 }}>{(u.name||"?")[0]}</div>
+                    {u.id==="__all__"
+                      ? <div style={{ width:32, height:32, borderRadius:"50%", background:"#f59e0b", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18}}>groups</span></div>
+                      : <div style={{ width:32, height:32, borderRadius:"50%", background:u.role==="manager"?"#7c3aed":u.role==="technician"?"#2563eb":u.role==="receptionist"?"#0369a1":"#059669", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, fontSize:13 }}>{(u.name||"?")[0]}</div>
+                    }
                     <div>
-                      <div style={{ fontWeight:700, fontSize:14 }}>{u.name}</div>
-                      <div style={{ fontSize:12, color:"#9ca3af" }}>{u.role==="manager"?"Quản lý":u.role==="technician"?"Kỹ thuật":u.role==="receptionist"?"Tiếp tân":"Kho"}</div>
+                      <div style={{ fontWeight:700, fontSize:14 }}>{u.id==="__all__"?"@all — Tất cả":u.name}</div>
+                      <div style={{ fontSize:12, color:"#9ca3af" }}>{u.id==="__all__"?"Thông báo mọi người":u.role==="manager"?"Quản lý":u.role==="technician"?"Kỹ thuật":u.role==="receptionist"?"Tiếp tân":"Kho"}</div>
                     </div>
                   </div>
                 ))}

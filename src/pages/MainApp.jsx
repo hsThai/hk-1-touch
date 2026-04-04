@@ -127,7 +127,22 @@ function MainAppInner() {
     };
   }, [selectedOrder, sidebarOpen, page, user]);
   const [notifications, setNotifications] = useState([]);
+  const [dbNotifications, setDbNotifications] = useState([]); // từ PocketBase
   const [showNotif, setShowNotif] = useState(false);
+
+  // Poll DB notifications cho user hiện tại mỗi 15s
+  useEffect(() => {
+    if (!user?.id) return;
+    const fetchNotifs = async () => {
+      try {
+        const list = await Notification.filter({ user_id: user.id, is_read: false });
+        setDbNotifications(list.sort((a,b) => new Date(b.created_date)-new Date(a.created_date)));
+      } catch {}
+    };
+    fetchNotifs();
+    const iv = setInterval(fetchNotifs, 15000);
+    return () => clearInterval(iv);
+  }, [user?.id]);
   const [qrOrder, setQrOrder] = useState(null);
   const [showQRScan, setShowQRScan] = useState(false);
   const [newOrderProductQR, setNewOrderProductQR] = useState("");
@@ -537,7 +552,7 @@ function MainAppInner() {
         <div style={{ flex:1, fontWeight:800, fontSize:16, color:"#fff"}}>HK One Touch</div>
         <div style={{ position:"relative" }}>
           <button onClick={() => setShowNotif(v=>!v)} style={{ background:"none", border:"none", color:"#fff", fontSize:22, cursor:"pointer", padding:4 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:24,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>notifications</span>
-            {notifications.length>0 && <span style={{ position:"absolute", top:-2, right:-2, background:"#ef4444", color:"#fff", borderRadius:"50%", width:16, height:16, fontSize:10, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800 }}>{notifications.length}</span>}
+            {(notifications.length+dbNotifications.length)>0 && <span style={{ position:"absolute", top:-2, right:-2, background:"#ef4444", color:"#fff", borderRadius:"50%", width:16, height:16, fontSize:10, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800 }}>{notifications.length+dbNotifications.length}</span>}
           </button>
         </div>
         <button onClick={() => setShowQRScan(true)} style={{ background:"none", border:"none", color:"#fff", fontSize:22, cursor:"pointer", padding:4 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:24,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>qr_code_scanner</span></button>
@@ -575,14 +590,55 @@ function MainAppInner() {
         <div style={{ position:"fixed", inset:0, zIndex:300 }}>
           <div style={{ position:"absolute", inset:0 }} onClick={() => setShowNotif(false)} />
           <div style={{ position:"absolute", top:60, right:8, width:320, background:"#fff", borderRadius:16, boxShadow:"0 8px 32px rgba(0,0,0,.2)", overflow:"hidden" }}>
-            <div style={{ padding:"14px 16px", fontWeight:800, borderBottom:"1px solid #f3f4f6"}}>  Thông báo</div>
-            {notifications.length===0 ? <div style={{ padding:24, textAlign:"center", color:"#9ca3af" }}>Không có thông báo</div> : notifications.map(n => (
-              <div key={n.id} style={{ padding:"12px 16px", borderBottom:"1px solid #f9fafb", fontSize:13 }}>
-                <div>{n.msg}</div>
-                <div style={{ color:"#9ca3af", fontSize:11, marginTop:2 }}>{timeAgo(n.time)}</div>
-              </div>
-            ))}
-            <button onClick={() => { setNotifications([]); setShowNotif(false); }} style={{ width:"100%", padding:12, background:"#f9fafb", border:"none", cursor:"pointer", color:"#6b7280", fontWeight:600 }}>Xóa tất cả</button>
+            <div style={{ padding:"14px 16px", fontWeight:800, borderBottom:"1px solid #f3f4f6", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <span><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle",lineHeight:1}}>notifications</span> Thông báo</span>
+              {(notifications.length+dbNotifications.length)>0 && (
+                <button onClick={() => {
+                  setNotifications([]);
+                  dbNotifications.forEach(n => Notification.update(n.id, { is_read: true }).catch(()=>{}));
+                  setDbNotifications([]);
+                  setShowNotif(false);
+                }} style={{ fontSize:11, background:"#f3f4f6", border:"none", borderRadius:8, padding:"4px 10px", cursor:"pointer", color:"#6b7280", fontWeight:600 }}>Đọc tất cả</button>
+              )}
+            </div>
+            <div style={{ maxHeight:400, overflowY:"auto" }}>
+              {notifications.length===0 && dbNotifications.length===0 && (
+                <div style={{ padding:24, textAlign:"center", color:"#9ca3af", fontSize:13 }}>Không có thông báo mới</div>
+              )}
+              {/* Local notifications (KPI, assign) */}
+              {notifications.map(n => (
+                <div key={n.id} style={{ padding:"12px 16px", borderBottom:"1px solid #f9fafb", fontSize:13, display:"flex", gap:10, alignItems:"flex-start", background:"#fffbeb" }}>
+                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:"#d97706",marginTop:1,flexShrink:0}}>info</span>
+                  <div style={{ flex:1 }}>
+                    <div>{n.msg}</div>
+                    <div style={{ color:"#9ca3af", fontSize:11, marginTop:2 }}>{timeAgo(n.time)}</div>
+                  </div>
+                  <button onClick={() => setNotifications(p => p.filter(x=>x.id!==n.id))}
+                    style={{ background:"none", border:"none", cursor:"pointer", color:"#9ca3af", padding:2, flexShrink:0 }}>
+                    <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16}}>close</span>
+                  </button>
+                </div>
+              ))}
+              {/* DB notifications (mention, status change) */}
+              {dbNotifications.map(n => (
+                <div key={n.id} style={{ padding:"12px 16px", borderBottom:"1px solid #f9fafb", fontSize:13, display:"flex", gap:10, alignItems:"flex-start", background: n.type==="mention"?"#eef2ff":"#fff" }}>
+                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:n.type==="mention"?"#4f46e5":"#059669",marginTop:1,flexShrink:0}}>
+                    {n.type==="mention"?"alternate_email":n.type==="status_change"?"update":"notifications"}
+                  </span>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontWeight:700, fontSize:12, marginBottom:2 }}>{n.title}</div>
+                    <div style={{ color:"#374151" }}>{n.message}</div>
+                    <div style={{ color:"#9ca3af", fontSize:11, marginTop:2 }}>{timeAgo(n.created_date)}</div>
+                  </div>
+                  <button onClick={() => {
+                    Notification.update(n.id, { is_read: true }).catch(()=>{});
+                    setDbNotifications(p => p.filter(x=>x.id!==n.id));
+                  }} style={{ background:"none", border:"none", cursor:"pointer", color:"#9ca3af", padding:2, flexShrink:0 }} title="Đánh dấu đã đọc">
+                    <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16}}>done</span>
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
