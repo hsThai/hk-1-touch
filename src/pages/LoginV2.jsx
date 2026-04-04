@@ -11,7 +11,7 @@ import { Staff, pbAuth, getPbUrl, setPbUrl, testConnection } from "./pb.jsx";
   const manifest = {
     name: "HK One Touch",
     short_name: "HK One Touch",
-    description: "Quản lý sửa chữa chuyên nghiệp",
+    description: "HK One Touch",
     start_url: window.location.href.split("?")[0],
     display: "standalone",
     background_color: "#ffffff",
@@ -198,7 +198,7 @@ export default function LoginV2({ onLogin, loggedOut }) {
     <div style={{ minHeight:"100vh", background:"#fff", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
       <img src={LOGO} alt="HK" style={{ width:110, height:110, borderRadius:"50%", marginBottom:24, boxShadow:"0 4px 24px rgba(0,0,0,.12)" }} />
       <div style={{ fontWeight:900, fontSize:22, color:"#1e1b4b", marginBottom:6 }}>HK One Touch</div>
-      <div style={{ color:"#9ca3af", fontSize:14, marginBottom:28 }}>Quản lý sửa chữa chuyên nghiệp</div>
+      <div style={{ color:"#9ca3af", fontSize:14, marginBottom:28 }}>HK One Touch</div>
       <div style={{ display:"flex", gap:8 }}>
         {[0,1,2].map(i => (
           <div key={i} style={{ width:10, height:10, borderRadius:"50%", background:"#4f46e5",
@@ -222,7 +222,7 @@ export default function LoginV2({ onLogin, loggedOut }) {
             <img src={LOGO} alt="HK Logo" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
           </div>
           <div style={{ fontWeight:900, fontSize:26, color:"#1e1b4b", letterSpacing:"-0.5px" }}>HK One Touch</div>
-          <div style={{ color:"#6b7280", fontSize:13, marginTop:4 }}>Quản lý sửa chữa chuyên nghiệp</div>
+          <div style={{ color:"#6b7280", fontSize:13, marginTop:4 }}>HK One Touch</div>
         </div>
 
         {/* Config PocketBase — chỉ hiện khi lỗi */}

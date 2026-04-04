@@ -4,6 +4,7 @@ import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage
 import { uploadFile } from "./pb.jsx";
 
 import { QRScanModal, QRPrintModal, QRCanvas, getQRDataUrl, loadQRLib } from "./QRComponents";
+import { NewOrderModal } from "./OrderForms";
 import { timeAgo, genOrderId, getKpiTimerInfo, MediaViewer, AcceptChecklistModal, AcceptTimer, STATUS_COLS, STATUS_PB, STATUS_DISPLAY, PRIORITY_PB, PRIORITY_DISPLAY } from "./MediaViewer";
 
 function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR }) {
@@ -24,6 +25,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
   const [editMode, setEditMode] = useState(false); // KTV phải bấm "Sửa" mới đổi trạng thái
   const [showSparePart, setShowSparePart] = useState(false);
   const [mediaViewer, setMediaViewer] = useState(null); // {items, startIndex}
+  const [showEditOrder, setShowEditOrder] = useState(false);
   const chatRef = useRef();
 
   // Load count ngay khi mở đơn (để hiện số trên tab)
@@ -312,7 +314,18 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
             <div style={{ color:"#fff", fontWeight:800, fontSize:16 }}>📋 {order.id}</div>
             <span style={{ fontSize:11, background:col?.bg, color:col?.color, padding:"2px 10px", borderRadius:20, fontWeight:700 }}>{col?.icon} {order.status}</span>
           </div>
-          <div style={{ display:"flex", gap:8 }}>
+          <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+            {currentUser.role === "manager" && (
+              <>
+                <button onClick={() => setShowEditOrder(true)}
+                  style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:13, fontWeight:700, cursor:"pointer" }}>✏️ Sửa</button>
+                <button onClick={() => {
+                  if (window.confirm("Xóa đơn " + order.id + "? Thao tác này không thể hoàn tác!")) {
+                    RepairOrder.delete(order.id).then(() => { onClose(); onUpdate && onUpdate(); }).catch(e => alert("Lỗi xóa: " + e.message));
+                  }
+                }} style={{ background:"rgba(220,38,38,.7)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:13, fontWeight:700, cursor:"pointer" }}>🗑️ Xóa</button>
+              </>
+            )}
             <button onClick={onClose} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:34, height:34, borderRadius:"50%", fontSize:17, cursor:"pointer" }}>✕</button>
           </div>
         </div>
@@ -535,12 +548,16 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
                             </div>
                           )}
                           <div
-                            onContextMenu={isManager && msg.message_type==="image" ? (e)=>{ e.preventDefault(); if(window.confirm("Xóa ảnh này?")) RepairChat.delete(msg.id).then(()=>setChats(p=>p.filter(m=>m.id!==msg.id))); } : undefined}
-                            onTouchStart={isManager && msg.message_type==="image" ? (e)=>{ const t=setTimeout(()=>{ if(window.confirm("Xóa ảnh này?")) RepairChat.delete(msg.id).then(()=>setChats(p=>p.filter(m=>m.id!==msg.id))); },600); e.currentTarget._lt=t; } : undefined}
-                            onTouchEnd={isManager && msg.message_type==="image" ? (e)=>{ clearTimeout(e.currentTarget._lt); } : undefined}
-                            style={{ padding: msg.message_type==="text"?"10px 14px":"6px", borderRadius:isMe?"18px 18px 4px 18px":"18px 18px 18px 4px", background:isMe?"#4f46e5":"#fff", color:isMe?"#fff":"#111", fontSize:14, border:isMe?"none":"1px solid #e5e7eb", boxShadow:"0 1px 3px rgba(0,0,0,.06)" }}>
+                            style={{ padding: msg.message_type==="text"?"10px 14px":"6px", borderRadius:isMe?"18px 18px 4px 18px":"18px 18px 18px 4px", background:isMe?"#4f46e5":"#fff", color:isMe?"#fff":"#111", fontSize:14, border:isMe?"none":"1px solid #e5e7eb", boxShadow:"0 1px 3px rgba(0,0,0,.06)", position:"relative" }}>
                             {msg.message_type === "image" && msg.media_url && (
-                              <img src={msg.media_url} alt="ảnh" style={{ maxWidth:220, maxHeight:220, borderRadius:10, display:"block", cursor:"pointer", objectFit:"cover" }} onClick={() => setMediaViewer({ items:[msg.media_url], startIndex:0 })} />
+                              <div style={{ position:"relative", display:"inline-block" }}>
+                                <img src={msg.media_url} alt="ảnh" style={{ maxWidth:220, maxHeight:220, borderRadius:10, display:"block", cursor:"pointer", objectFit:"cover" }} onClick={() => setMediaViewer({ items:[msg.media_url], startIndex:0 })} />
+                                {isManager && (
+                                  <button
+                                    onClick={(e)=>{ e.stopPropagation(); if(window.confirm("Xóa ảnh này?")) RepairChat.delete(msg.id).then(()=>setChats(p=>p.filter(m=>m.id!==msg.id))); }}
+                                    style={{ position:"absolute", top:4, right:4, width:24, height:24, borderRadius:"50%", background:"rgba(0,0,0,0.6)", border:"none", color:"#fff", fontSize:14, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", lineHeight:1, zIndex:10 }}>×</button>
+                                )}
+                              </div>
                             )}
                             {msg.message_type === "video" && msg.media_url && (
                               <video src={msg.media_url} controls style={{ maxWidth:220, borderRadius:10, display:"block" }} />
@@ -708,7 +725,168 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
         }}
       />
     )}
+    {showEditOrder && (
+      <EditOrderModal
+        order={order}
+        users={users}
+        onClose={() => setShowEditOrder(false)}
+        onSave={(updated) => { setShowEditOrder(false); onUpdate && onUpdate(updated); }}
+      />
+    )}
     </>
+  );
+}
+
+
+// ══════════════════════════════════════════════
+//  EDIT ORDER MODAL (Manager only)
+// ══════════════════════════════════════════════
+function EditOrderModal({ order, users, onClose, onSave }) {
+  const [form, setForm] = React.useState({
+    customer_name: order.customer_name || "",
+    customer_phone: order.customer_phone || "",
+    device_model: order.device_model || "",
+    imei_serial: order.imei_serial || "",
+    passcode: order.passcode || "",
+    issues: order.issues || [],
+    notes: order.notes || "",
+    assigned_to: order.assigned_to || "",
+    estimated_cost: order.estimated_cost || "",
+    final_cost: order.final_cost || "",
+    deposit: order.deposit || "",
+    status: order.status || "",
+    priority: order.priority || "normal",
+    warranty_days: order.warranty_days || 0,
+    technician_note: order.technician_note || "",
+  });
+  const [saving, setSaving] = React.useState(false);
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const inp = { width:"100%", height:46, borderRadius:12, border:"1.5px solid #e5e7eb", padding:"0 14px", fontSize:15, outline:"none", boxSizing:"border-box" };
+  const lbl = { fontSize:13, fontWeight:700, color:"#374151", display:"block", marginBottom:6 };
+  const sec = { background:"#f9fafb", borderRadius:16, padding:16, marginBottom:14 };
+
+  const ISSUES_LIST = ["Màn hình","Pin","Sạc","Camera","Loa","Mic","Nút bấm","Wifi","Bluetooth","IC","Bo mạch","Vỏ máy","Khác"];
+
+  async function handleSave() {
+    if (!form.device_model.trim()) { alert("Vui lòng nhập tên máy!"); return; }
+    setSaving(true);
+    try {
+      const updated = await RepairOrder.update(order.id, form);
+      onSave(updated);
+    } catch(e) {
+      alert("Lỗi lưu: " + e.message);
+    }
+    setSaving(false);
+  }
+
+  const techs = (users||[]).filter(u => u.role === "technician" || u.role === "manager");
+
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:3000, background:"rgba(0,0,0,.6)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+      <div style={{ background:"#fff", borderRadius:22, width:"100%", maxWidth:520, maxHeight:"92vh", overflowY:"auto", boxShadow:"0 24px 64px rgba(0,0,0,.3)" }}>
+        {/* Header */}
+        <div style={{ position:"sticky", top:0, background:"#7c3aed", padding:"16px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", borderRadius:"22px 22px 0 0", zIndex:1 }}>
+          <div style={{ color:"#fff", fontWeight:800, fontSize:17 }}>✏️ Sửa đơn {order.id}</div>
+          <button onClick={onClose} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:34, height:34, borderRadius:"50%", fontSize:16, cursor:"pointer" }}>✕</button>
+        </div>
+
+        <div style={{ padding:"20px 20px 8px" }}>
+          {/* Khách hàng */}
+          <div style={{ ...sec, background:"#f0f9ff" }}>
+            <div style={{ fontWeight:800, fontSize:14, color:"#0369a1", marginBottom:10 }}>👤 Khách Hàng</div>
+            <label style={lbl}>Tên khách</label>
+            <input value={form.customer_name} onChange={e => set("customer_name", e.target.value)} style={{ ...inp, marginBottom:10 }} />
+            <label style={lbl}>Số điện thoại</label>
+            <input value={form.customer_phone} onChange={e => set("customer_phone", e.target.value)} inputMode="tel" style={inp} />
+          </div>
+
+          {/* Thiết bị */}
+          <div style={sec}>
+            <div style={{ fontWeight:800, fontSize:14, color:"#3730a3", marginBottom:10 }}>📱 Thiết Bị</div>
+            <div style={{ display:"flex", gap:8, marginBottom:10 }}>
+              <div style={{ flex:1 }}>
+                <label style={lbl}>Tên / Model *</label>
+                <input value={form.device_model} onChange={e => set("device_model", e.target.value)} style={inp} />
+              </div>
+              <div style={{ width:90 }}>
+                <label style={lbl}>🔑 PIN</label>
+                <input value={form.passcode} onChange={e => set("passcode", e.target.value)} maxLength={8} style={{ ...inp, textAlign:"center", letterSpacing:2, fontWeight:700 }} />
+              </div>
+            </div>
+            <label style={lbl}>IMEI / Serial</label>
+            <input value={form.imei_serial} onChange={e => set("imei_serial", e.target.value)} inputMode="numeric" style={{ ...inp, marginBottom:10 }} />
+            <label style={lbl}>Lỗi báo gặp</label>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:10 }}>
+              {ISSUES_LIST.map(is => (
+                <button key={is} onClick={() => set("issues", form.issues.includes(is) ? form.issues.filter(x=>x!==is) : [...form.issues, is])}
+                  style={{ padding:"6px 12px", borderRadius:20, border:"1.5px solid", borderColor:form.issues.includes(is)?"#4f46e5":"#e5e7eb", background:form.issues.includes(is)?"#eef2ff":"#fff", color:form.issues.includes(is)?"#4f46e5":"#6b7280", fontWeight:700, fontSize:13, cursor:"pointer" }}>
+                  {is}
+                </button>
+              ))}
+            </div>
+            <label style={lbl}>Ghi chú thêm</label>
+            <textarea value={form.notes} onChange={e => set("notes", e.target.value)} rows={2} style={{ ...inp, height:"auto", padding:"10px 14px", resize:"vertical" }} />
+          </div>
+
+          {/* Phân công & trạng thái */}
+          <div style={{ ...sec, background:"#fdf4ff" }}>
+            <div style={{ fontWeight:800, fontSize:14, color:"#7c3aed", marginBottom:10 }}>⚙️ Phân công & Trạng thái</div>
+            <label style={lbl}>Kỹ thuật viên</label>
+            <select value={form.assigned_to} onChange={e => set("assigned_to", e.target.value)} style={{ ...inp, marginBottom:10 }}>
+              <option value="">-- Chưa phân công --</option>
+              {techs.map(u => <option key={u.id} value={u.id}>{u.name || u.full_name} ({u.role})</option>)}
+            </select>
+            <label style={lbl}>Trạng thái</label>
+            <select value={form.status} onChange={e => set("status", e.target.value)} style={{ ...inp, marginBottom:10 }}>
+              {Object.entries(STATUS_PB||{}).map(([k,v]) => <option key={k} value={v}>{v}</option>)}
+            </select>
+            <label style={lbl}>Ưu tiên</label>
+            <select value={form.priority} onChange={e => set("priority", e.target.value)} style={inp}>
+              <option value="normal">🟢 Bình thường</option>
+              <option value="urgent">🔴 Khẩn cấp</option>
+              <option value="vip">⭐ VIP</option>
+            </select>
+          </div>
+
+          {/* Chi phí */}
+          <div style={{ ...sec, background:"#f0fdf4" }}>
+            <div style={{ fontWeight:800, fontSize:14, color:"#059669", marginBottom:10 }}>💰 Chi Phí</div>
+            <div style={{ display:"flex", gap:8, marginBottom:10 }}>
+              <div style={{ flex:1 }}>
+                <label style={lbl}>Dự kiến</label>
+                <input value={form.estimated_cost} onChange={e => set("estimated_cost", e.target.value)} type="number" style={inp} />
+              </div>
+              <div style={{ flex:1 }}>
+                <label style={lbl}>Thực tế</label>
+                <input value={form.final_cost} onChange={e => set("final_cost", e.target.value)} type="number" style={inp} />
+              </div>
+              <div style={{ flex:1 }}>
+                <label style={lbl}>Đặt cọc</label>
+                <input value={form.deposit} onChange={e => set("deposit", e.target.value)} type="number" style={inp} />
+              </div>
+            </div>
+            <label style={lbl}>Bảo hành (ngày)</label>
+            <input value={form.warranty_days} onChange={e => set("warranty_days", parseInt(e.target.value)||0)} type="number" min={0} style={inp} />
+          </div>
+
+          {/* Ghi chú KTV */}
+          <div style={sec}>
+            <label style={lbl}>📝 Ghi chú kỹ thuật viên</label>
+            <textarea value={form.technician_note} onChange={e => set("technician_note", e.target.value)} rows={3} style={{ ...inp, height:"auto", padding:"10px 14px", resize:"vertical" }} />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ position:"sticky", bottom:0, background:"#fff", padding:"12px 20px 20px", borderTop:"1px solid #f3f4f6", display:"flex", gap:10 }}>
+          <button onClick={onClose} style={{ flex:1, height:48, borderRadius:14, border:"1.5px solid #e5e7eb", background:"#fff", color:"#6b7280", fontWeight:700, fontSize:15, cursor:"pointer" }}>Hủy</button>
+          <button onClick={handleSave} disabled={saving}
+            style={{ flex:2, height:48, borderRadius:14, border:"none", background:saving?"#a5b4fc":"#7c3aed", color:"#fff", fontWeight:800, fontSize:15, cursor:saving?"not-allowed":"pointer" }}>
+            {saving ? "⏳ Đang lưu..." : "💾 Lưu thay đổi"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
