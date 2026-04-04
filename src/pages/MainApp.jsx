@@ -500,6 +500,13 @@ function MainAppInner() {
       if (selectedOrder?.id === id || selectedOrder?.order_code === id) setSelectedOrder(null);
       return;
     }
+    // Auto-set assigned_at khi assign/reassign KTV (nếu patch chưa có)
+    if (patch?.assigned_to && !patch.assigned_at) {
+      const curOrder = ordersRef.current.find(o => o.id===id) || orders.find(o => o.id===id);
+      if (!curOrder?.assigned_at || curOrder.assigned_to !== patch.assigned_to) {
+        patch = { ...patch, assigned_at: new Date().toISOString() };
+      }
+    }
     setOrders(p => p.map(o => (o.id===id || o.order_code===id) ? {...o,...patch} : o));
     if (selectedOrder?.id===id || selectedOrder?.order_code===id) setSelectedOrder(p => ({...p,...patch}));
     if (kpiEvent) setUsers(p => p.map(u => u.id===kpiEvent.userId ? {...u, kpi:Math.max(0,u.kpi+kpiEvent.delta)} : u));
@@ -560,8 +567,11 @@ function MainAppInner() {
         passcode:         data.passcode || "",
         product_qr:       data.product_qr || "",
         issue_description: Array.isArray(data.issues) ? data.issues.join(", ") : (data.notes || ""),
-        status:           "Chua Nhan",  // Cần thêm vào PB enum (chạy fix_pb_schema_v2.js)
+        status:           "Chua Nhan",
         assigned_to:      data.assigned_to || null,
+        // Set assigned_at ngay khi có KTV → timer 15' bắt đầu chạy
+        assigned_at:      data.assigned_to ? new Date().toISOString() : null,
+        accept_stage:     0,
         received_date:    new Date().toISOString(),
         images:           data.images || [],
         technician_note:  data.notes || "",

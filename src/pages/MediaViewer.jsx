@@ -15,28 +15,55 @@ function timeAgo(d) {
 }
 function genOrderId() { return "SC24"+String(Math.floor(Math.random()*9000)+1000); }
 
-// ── KPI Timeline per sơ đồ ──────────────────────
+// ── KPI Timeline ──────────────────────────────
 // accept_stage:
-//   0 = vừa gán, chưa "Cập nhật" lần nào
-//   1 = đã "Cập nhật" lần 1 (dừng đếm T=0→60)
-//   2 = đã "Cập nhật" lần 2 (dừng đếm T=60→120)
+//   0 = vừa assign, chưa nhận đơn  → đếm 15' (nhận đơn)
+//   1 = đã nhận đơn (KTV bấm Nhận) → đếm 60' (bắt đầu sửa)
+//   2 = đã bắt đầu sửa             → không cần timer nữa
 //   3 = Hoàn tất
-// kpi_stage1_penalized: true = đã bị -1 KPI mốc 60'
-// kpi_stage2_penalized: true = đã bị -3 KPI mốc 120'
+// assigned_at   = thời điểm phân công (bắt đầu đếm 15')
+// stage1_at     = thời điểm nhận đơn (bắt đầu đếm 60')
 function getKpiTimerInfo(order) {
   if (!order.assigned_to || !order.assigned_at) return null;
-  if (order.accept_stage >= 3) return null;
+  if ((order.accept_stage||0) >= 2) return null;
+  if (order.status === "Hoàn Thành" || order.status === "Đã Giao" || order.status === "Hủy") return null;
+
   const assignedAt = new Date(order.assigned_at).getTime();
   const stage = order.accept_stage || 0;
-  // Giai đoạn 1: T=0 → T=60'  (chỉ hiện nếu stage=0, chưa Cập nhật lần 1)
+
+  // Giai đoạn 0: chưa nhận đơn → 15 phút
   if (stage === 0) {
-    const deadline = assignedAt + 60 * 60000;
-    return { phase: 1, label: "Giai đoạn 1 (0→60')", deadline: new Date(deadline), penalized: !!order.kpi_stage1_penalized };
+    const deadline = assignedAt + 15 * 60000;
+    return {
+      phase: 0,
+      label: "Nhận đơn trong 15 phút",
+      deadline,
+      penalized: !!order.kpi_stage1_penalized,
+      limitLabel: "15 phút",
+      actionLabel: "Nhận Đơn Ngay",
+      color: "#dc2626",
+      urgentColor: "#dc2626",
+      bgNormal: "#fff7ed",
+      borderNormal: "#fed7aa",
+    };
   }
-  // Giai đoạn 2: T=60' → T=120' (chỉ hiện nếu stage=1, chưa Cập nhật lần 2)
+
+  // Giai đoạn 1: đã nhận đơn → 60 phút
   if (stage === 1 && order.stage1_at) {
-    const deadline = assignedAt + 120 * 60000;
-    return { phase: 2, label: "Giai đoạn 2 (60'→120')", deadline: new Date(deadline), penalized: !!order.kpi_stage2_penalized };
+    const acceptedAt = new Date(order.stage1_at).getTime();
+    const deadline = acceptedAt + 60 * 60000;
+    return {
+      phase: 1,
+      label: "Bắt đầu kiểm tra / sửa trong 60 phút",
+      deadline,
+      penalized: !!order.kpi_stage2_penalized,
+      limitLabel: "60 phút",
+      actionLabel: "Bắt Đầu Sửa",
+      color: "#7c3aed",
+      urgentColor: "#dc2626",
+      bgNormal: "#f5f3ff",
+      borderNormal: "#ddd6fe",
+    };
   }
   return null;
 }
@@ -499,82 +526,114 @@ function AcceptChecklistModal({ order, onConfirm, onClose, pb }) {
 
 function AcceptTimer({ order, currentUser, onUpdate }) {
   const [now, setNow] = useState(Date.now());
-  const [done, setDone] = useState(false);
+  const [acting, setActing] = useState(false);
   useEffect(() => { const iv = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(iv); }, []);
 
   if (!order.assigned_to) return null;
-  if (order.assigned_to !== currentUser.id && currentUser.role !== "manager") return null;
-  // Chưa Nhận → nút nhận đơn hiển thị riêng ở OrderDrawer, không cần timer
-  if (order.status === "Chưa Nhận") return null;
+  const isMyOrder = order.assigned_to === currentUser.id;
+  const isManager = currentUser.role === "manager";
+  if (!isMyOrder && !isManager) return null;
 
-  // Giai đoạn 1 đã nhận (accept_stage>=1) — hiển thị trạng thái đã nhận mờ
-  if ((order.accept_stage||0) >= 1 && (order.accept_stage||0) < 2) {
+  const stage = order.accept_stage || 0;
+
+  // Đã hoàn tất tất cả stages → hiện badge xanh gọn
+  if (stage >= 2 || order.status === "Hoàn Thành" || order.status === "Đã Giao") {
     return (
-      <div style={{ background:"#f3f4f6", border:"2px solid #d1d5db", borderRadius:14, padding:"12px 14px", marginBottom:14, opacity:0.6 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <div style={{ fontSize:22 }}> </div>
-          <div>
-            <div style={{ fontWeight:800, fontSize:14, color:"#6b7280" }}>Đã nhận máy</div>
-            <div style={{ fontSize:12, color:"#9ca3af" }}>Giai đoạn 1 hoàn tất — tiếp tục sửa chữa</div>
-          </div>
+      <div style={{ display:"flex", alignItems:"center", gap:8, background:"#dcfce7", border:"2px solid #6ee7b7", borderRadius:12, padding:"10px 14px", marginBottom:14 }}>
+        <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,color:"#059669"}}>verified</span>
+        <div>
+          <div style={{ fontWeight:800, fontSize:13, color:"#065f46" }}>KPI đang chạy bình thường</div>
+          <div style={{ fontSize:12, color:"#047857" }}>Không còn mốc thời gian bắt buộc</div>
         </div>
       </div>
     );
   }
 
-  if (order.accept_stage >= 3) return null;
-
   const info = getKpiTimerInfo(order);
   if (!info) return null;
 
   const rem = Math.max(0, info.deadline - now);
+  const totalMs = info.phase === 0 ? 15 * 60000 : 60 * 60000;
+  const percent = Math.round((1 - rem / totalMs) * 100);
   const mins = Math.floor(rem / 60000);
   const secs = Math.floor((rem % 60000) / 1000);
   const expired = rem === 0;
-  const urgent = rem < 5 * 60000;
-  const isMyOrder = order.assigned_to === currentUser.id;
+  const urgent = rem < 3 * 60000 && rem > 0;
 
-  function handleNhanMay() {
-    const stage = info.phase;
-    const key = `stage${stage}_at`;
-    setDone(true);
-    onUpdate(order.id, { accept_stage: stage, [key]: new Date().toISOString() }, null);
+  // Màu sắc theo trạng thái
+  const bg     = expired ? "#fef2f2"  : urgent ? "#fff7ed"  : (info.phase===0 ? "#fff7ed" : "#f5f3ff");
+  const border = expired ? "#fca5a5"  : urgent ? "#fdba74"  : (info.phase===0 ? "#fed7aa" : "#ddd6fe");
+  const timerColor = expired ? "#dc2626" : urgent ? "#ea580c" : (info.phase===0 ? "#c2410c" : "#7c3aed");
+  const btnBg  = expired ? "#dc2626"  : (info.phase===0 ? "#ea580c" : "#7c3aed");
+
+  async function handleAction() {
+    if (acting) return;
+    setActing(true);
+    const now = new Date().toISOString();
+    if (info.phase === 0) {
+      // Nhận đơn → mở checklist (gọi qua event hoặc trực tiếp update stage1)
+      // Stage 0→1: set stage1_at, accept_stage=1
+      onUpdate(order.id, { accept_stage: 1, stage1_at: now, assigned_at: order.assigned_at || now }, null);
+    } else if (info.phase === 1) {
+      // Bắt đầu sửa → stage 1→2
+      onUpdate(order.id, { accept_stage: 2, stage2_at: now, status: "Đang Sửa" }, null);
+    }
+    setTimeout(() => setActing(false), 2000);
   }
 
   return (
-    <div style={{ background: expired ? "#fef2f2" : urgent ? "#fffbeb" : "#f0fdf4", border: `2px solid ${expired ? "#fca5a5" : urgent ? "#fcd34d" : "#6ee7b7"}`, borderRadius: 14, padding: "12px 14px", marginBottom: 14 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <div>
-          <div style={{ fontWeight: 800, fontSize: 14, color: expired ? "#dc2626" : "#374151" }}>
-            {expired ? (info.phase === 1 ? "Quá mốc 60 phút!" : "Quá mốc 120 phút!") : `⏰ ${info.label}`}
+    <div style={{ background: bg, border: `2px solid ${border}`, borderRadius: 14, padding: "14px 16px", marginBottom: 14 }}>
+      {/* Header row */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
+        <div style={{ flex:1 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:4 }}>
+            <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:timerColor}}>
+              {expired ? "warning" : "timer"}
+            </span>
+            <span style={{ fontWeight:900, fontSize:14, color: expired ? "#dc2626" : "#1e1b4b" }}>
+              {expired
+                ? (info.phase===0 ? "⚠️ Quá 15 phút chưa nhận đơn!" : "⚠️ Quá 60 phút chưa bắt đầu sửa!")
+                : info.label}
+            </span>
           </div>
-          <div style={{ fontSize: 12, color: "#6b7280" }}>
+          <div style={{ fontSize:12, color:"#6b7280" }}>
             {expired
-              ? (info.penalized ? (info.phase === 1 ? "Đã trừ -1 KPI" : "Đã trừ -3 KPI") : "Đang xử lý KPI...")
-              : `Còn ${mins}:${secs.toString().padStart(2, "0")} — bấm nhận máy ngay!`}
+              ? (info.penalized ? "Đã trừ KPI" : "Sắp bị trừ KPI — hành động ngay!")
+              : `Còn ${mins} phút ${secs.toString().padStart(2,"0")} giây`}
           </div>
         </div>
-        {!expired && (
-          <div style={{ fontSize: 22, fontWeight: 900, fontFamily: "monospace", color: urgent ? "#d97706" : "#059669", flexShrink: 0 }}>
-            {mins}:{secs.toString().padStart(2, "0")}
+        {/* Đồng hồ to */}
+        <div style={{ textAlign:"center", flexShrink:0, marginLeft:12 }}>
+          <div style={{ fontSize:28, fontWeight:900, fontFamily:"monospace", color:timerColor, lineHeight:1 }}>
+            {expired ? "00:00" : `${String(mins).padStart(2,"0")}:${String(secs).padStart(2,"0")}`}
           </div>
-        )}
+          <div style={{ fontSize:10, color:"#9ca3af", marginTop:2 }}>
+            {info.phase === 0 ? "/ 15:00" : "/ 60:00"}
+          </div>
+        </div>
       </div>
+
+      {/* Progress bar */}
+      <div style={{ height:6, background:"rgba(0,0,0,.08)", borderRadius:4, marginBottom:10, overflow:"hidden" }}>
+        <div style={{ height:"100%", width:`${Math.min(100,percent)}%`, background: expired ? "#dc2626" : urgent ? "#ea580c" : btnBg, borderRadius:4, transition:"width .5s linear" }} />
+      </div>
+
+      {/* Action button - chỉ KTV của đơn mới thấy */}
       {isMyOrder && (
-        done ? (
-          <div style={{ width:"100%", height:52, borderRadius:14, background:"#d1d5db", color:"#6b7280", fontWeight:800, fontSize:17, display:"flex", alignItems:"center", justifyContent:"center", opacity:0.7 }}>
-              Đã nhận máy
-          </div>
-        ) : (
-          <button onClick={handleNhanMay}
-            style={{ width:"100%", height:52, borderRadius:14, border:"none", background: expired ? "#dc2626" : "#4f46e5", color:"#fff", fontWeight:800, fontSize:17, cursor:"pointer"}}>
-              Nhận máy
-          </button>
-        )
+        <button onClick={handleAction} disabled={acting}
+          style={{ width:"100%", height:52, borderRadius:12, border:"none", background: acting ? "#d1d5db" : btnBg, color:"#fff", fontWeight:800, fontSize:16, cursor: acting ? "not-allowed":"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8, transition:"background .2s" }}>
+          <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20}}>
+            {acting ? "hourglass_top" : (info.phase===0 ? "assignment_turned_in" : "build_circle")}
+          </span>
+          {acting ? "Đang xử lý..." : info.actionLabel}
+        </button>
       )}
-      {!isMyOrder && currentUser.role ==="manager" && info.phase === 2 && expired && (
-        <div style={{ marginTop: 8, fontSize: 13, color: "#dc2626", fontWeight: 700, textAlign: "center"}}>
-            Hệ thống đã báo quản lý — có thể"Đổi KTV" bên dưới
+
+      {/* Manager view — không có nút action nhưng thấy cảnh báo */}
+      {!isMyOrder && isManager && expired && (
+        <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:4, padding:"8px 10px", background:"rgba(220,38,38,.08)", borderRadius:8 }}>
+          <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,color:"#dc2626"}}>info</span>
+          <span style={{ fontSize:12, color:"#dc2626", fontWeight:700 }}>KTV đã quá hạn — cân nhắc đổi KTV bên dưới</span>
         </div>
       )}
     </div>

@@ -438,6 +438,8 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
 
     const newStatus = (ord.status === "Chưa Nhận" || stage === 1) ? "Mới Nhận" : "Đang Sửa";
     const now = new Date().toISOString();
+    // assigned_at = thời điểm phân công (đã có) hoặc set ngay nếu chưa có
+    const assignedAt = ord.assigned_at || now;
 
     // Upload media bổ sung lên PocketBase nếu có
     let newImages = [...(ord.images || [])];
@@ -463,16 +465,18 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
       }
     }
 
+    // stage1_at = thời điểm KTV confirm nhận → bắt đầu đếm 60'
+    // accept_stage = 1 → timer stage 1 bắt đầu
     onUpdate(ord.id, {
-      accept_stage: stage,
-      [k]: now,
+      accept_stage: 1,
+      stage1_at: now,
+      assigned_at: assignedAt,
       status: newStatus,
       estimated_done: estDate,
       estimated_done_date: estDate,
       technician_note: techNote || ord.technician_note || "",
       images: newImages,
       videos: newVideos,
-      ...((!ord.assigned_at || ord.status === "Chưa Nhận") ? { assigned_at: now } : {}),
     }, null);
     setShowChecklist(false);
     showToast("✅ Đã nhận đơn!");
