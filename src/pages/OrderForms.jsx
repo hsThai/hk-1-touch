@@ -140,7 +140,7 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
       console.warn("Upload ảnh thất bại:", e);
     }
     setSubmitting(false);
-    const newOrder = { ...form, id:genOrderId(), created:new Date().toISOString(), assigned_at:form.assigned_to?new Date().toISOString():null, accept_stage:0, status:"Mới Nhận", images:imgUrls, customer_id:cId, customer_name:cName, customer_phone:cPhone };
+    const newOrder = { ...form, id:genOrderId(), created:new Date().toISOString(), assigned_at:form.assigned_to?new Date().toISOString():null, accept_stage:0, status:"Chua Nhan", images:imgUrls, customer_id:cId, customer_name:cName, customer_phone:cPhone };
     onCreate(newOrder);
 
     // Gửi đơn sang KiosThong tạo hóa đơn (không block UI)

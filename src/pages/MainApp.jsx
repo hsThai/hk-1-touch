@@ -72,7 +72,7 @@ function mapPbOrder(o, STATUS_DISPLAY, PRIORITY_DISPLAY) {
     issues: o.issue_description
       ? o.issue_description.split(/[,;]/).map(s=>s.trim()).filter(Boolean)
       : [],
-    status: STATUS_DISPLAY[o.status] || o.status || "Mới Nhận",
+    status: STATUS_DISPLAY[o.status] || o.status || "Chưa Nhận",
     notes: o.technician_note || "",
     assigned_to: o.assigned_to || "",
     assigned_to_name: o.assigned_to_name || "",
@@ -380,7 +380,7 @@ function MainAppInner() {
           issues: o.issue_description
             ? o.issue_description.split(/[,;]/).map(s=>s.trim()).filter(Boolean)
             : [],
-          status: STATUS_DISPLAY[o.status] || o.status || "Mới Nhận",
+          status: STATUS_DISPLAY[o.status] || o.status || "Chưa Nhận",
           notes: o.technician_note || "",
           assigned_to: o.assigned_to || "",
           assigned_to_name: o.assigned_to_name || "",
@@ -509,6 +509,8 @@ function MainAppInner() {
         "issue_description","technician_note","assigned_to","assigned_to_name",
         "estimated_cost","final_cost","deposit","warranty_days",
         "received_date","estimated_done_date","done_date","images","videos",
+        "accept_stage","stage1_at","stage2_at","estimated_done","assigned_at",
+        "checklist_done","kpi_stage1_penalized","kpi_stage2_penalized","needs_reassign",
       ];
       directFields.forEach(f => { if (patch[f] !== undefined) pbPatch[f] = patch[f]; });
       // Fields cần map enum
@@ -516,7 +518,7 @@ function MainAppInner() {
       if (patch.priority  !== undefined) pbPatch.priority = PRIORITY_PB[patch.priority]|| patch.priority;
       // Alias cũ
       if (patch.notes     !== undefined) pbPatch.technician_note = patch.notes;
-      if (patch.accept_stage !== undefined) pbPatch.status = pbPatch.status || STATUS_PB[order?.status] || order?.status;
+      // accept_stage đã có trong directFields - không cần làm gì thêm
       if (Object.keys(pbPatch).length > 0) {
         await RepairOrder.update(pbId, pbPatch);
       }
@@ -543,7 +545,7 @@ function MainAppInner() {
         passcode:         data.passcode || "",
         product_qr:       data.product_qr || "",
         issue_description: Array.isArray(data.issues) ? data.issues.join(", ") : (data.notes || ""),
-        status:           STATUS_PB["Mới Nhận"],
+        status:           "Chua Nhan",
         assigned_to:      data.assigned_to || null,
         received_date:    new Date().toISOString(),
         images:           data.images || [],
@@ -647,9 +649,9 @@ function MainAppInner() {
   ];
 
   // ── Kanban Board ─────────────────────────────────────────
-  const COLUMNS = ["Mới Nhận","Đang Kiểm Tra","Chờ Linh Kiện","Đang Sửa","Hoàn Thành","Đã Giao"];
-  const colColors = { "Mới Nhận":"#dbeafe","Đang Kiểm Tra":"#fef3c7","Chờ Linh Kiện":"#fce7f3","Đang Sửa":"#ede9fe","Hoàn Thành":"#dcfce7","Đã Giao":"#f1f5f9" };
-  const colBorder = { "Mới Nhận":"#93c5fd","Đang Kiểm Tra":"#fcd34d","Chờ Linh Kiện":"#f9a8d4","Đang Sửa":"#c4b5fd","Hoàn Thành":"#86efac","Đã Giao":"#cbd5e1" };
+  const COLUMNS = ["Chưa Nhận","Mới Nhận","Đang Kiểm Tra","Chờ Linh Kiện","Đang Sửa","Hoàn Thành","Đã Giao"];
+  const colColors = { "Chưa Nhận":"#f3f4f6","Mới Nhận":"#dbeafe","Đang Kiểm Tra":"#fef3c7","Chờ Linh Kiện":"#fce7f3","Đang Sửa":"#ede9fe","Hoàn Thành":"#dcfce7","Đã Giao":"#f1f5f9" };
+  const colBorder = { "Chưa Nhận":"#d1d5db","Mới Nhận":"#93c5fd","Đang Kiểm Tra":"#fcd34d","Chờ Linh Kiện":"#f9a8d4","Đang Sửa":"#c4b5fd","Hoàn Thành":"#86efac","Đã Giao":"#cbd5e1" };
 
   function KanbanBoard() {
     return (
@@ -711,7 +713,7 @@ function MainAppInner() {
               style={{ background:"#fff", borderRadius:14, padding:14, marginBottom:10, cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,.08)", border:`2px solid ${o.needs_reassign?"#ef4444":"#f3f4f6"}` }}>
               <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
                 <div style={{ fontWeight:800, color:"#1e1b4b" }}>{o.id}</div>
-                <div style={{ fontSize:12, padding:"3px 10px", borderRadius:99, background: o.status==="Hoàn Thành"?"#dcfce7":o.status==="Đang Sửa"?"#ede9fe":"#fef3c7", color:"#374151" }}>{o.status}</div>
+                <div style={{ fontSize:12, padding:"3px 10px", borderRadius:99, background: o.status==="Chưa Nhận"?"#f3f4f6":o.status==="Hoàn Thành"?"#dcfce7":o.status==="Đang Sửa"?"#ede9fe":"#fef3c7", color:"#374151" }}>{o.status}</div>
               </div>
               <div style={{ fontSize:13, color:"#374151", marginBottom:2 }}>  {o.customer_name} ·   {o.device_model}</div>
               {ktv && <div style={{ fontSize:12, color:"#6b7280"}}>  {ktv.name}</div>}

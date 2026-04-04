@@ -428,6 +428,8 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
 
   if (!order.assigned_to) return null;
   if (order.assigned_to !== currentUser.id && currentUser.role !== "manager") return null;
+  // Chưa Nhận → nút nhận đơn hiển thị riêng ở OrderDrawer, không cần timer
+  if (order.status === "Chưa Nhận") return null;
 
   // Giai đoạn 1 đã nhận (accept_stage>=1) — hiển thị trạng thái đã nhận mờ
   if ((order.accept_stage||0) >= 1 && (order.accept_stage||0) < 2) {
@@ -512,6 +514,7 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
 //  STATUS / PRIORITY MAPPING (PocketBase ↔ Display)
 // ══════════════════════════════════════════════
 const STATUS_PB = {
+  "Chưa Nhận":     "Chua Nhan",
   "Mới Nhận":      "Moi Nhan",
   "Đang Kiểm Tra": "Dang Kiem Tra",
   "Đang Sửa":      "Dang Sua",
@@ -532,10 +535,11 @@ const PRIORITY_DISPLAY = Object.fromEntries(
   Object.entries(PRIORITY_PB).map(([display, pb]) => [pb, display])
 );
 const STATUS_COLS = [
+  { key:"Chưa Nhận",     pb:"Chua Nhan",     color:"#9ca3af", bg:"#f3f4f6",  emoji:"schedule" },
   { key:"Mới Nhận",      pb:"Moi Nhan",      color:"#2563eb", bg:"#dbeafe",  emoji:"inbox" },
   { key:"Đang Kiểm Tra", pb:"Dang Kiem Tra", color:"#d97706", bg:"#fef3c7",  emoji:"search" },
   { key:"Đang Sửa",      pb:"Dang Sua",      color:"#7c3aed", bg:"#ede9fe",  emoji:"build" },
-  { key:"Chờ Linh Kiện", pb:"Cho Linh Kien", color:"#db2777", bg:"#fce7f3",  emoji:"⏳" },
+  { key:"Chờ Linh Kiện", pb:"Cho Linh Kien", color:"#db2777", bg:"#fce7f3",  emoji:"schedule" },
   { key:"Hoàn Thành",    pb:"Hoan Thanh",    color:"#059669", bg:"#dcfce7",  emoji:"check_circle" },
   { key:"Đã Giao",       pb:"Da Giao",       color:"#64748b", bg:"#f1f5f9",  emoji:"inventory_2" },
 ];
