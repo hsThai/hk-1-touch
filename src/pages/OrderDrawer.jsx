@@ -104,19 +104,30 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
 
   // Build mention list from users related to this order
   const getMentionCandidates = useCallback(() => {
-    const roleOrder = { manager:0, receptionist:1, technician:2, warehouse:3 };
-    const real = (users||[])
-      .filter(u => {
-        if (!u || !u.id) return false;
-        // Loại chính người đang nhắn: so sánh cả id lẫn username cho chắc
-        if (u.id === currentUser.id) return false;
-        if (u.username && currentUser.username && u.username === currentUser.username) return false;
-        // Không lọc theo is_active (để manager luôn xuất hiện dù DB thiếu field)
-        return true;
-      })
-      .sort((a,b) => (roleOrder[a.role]??9) - (roleOrder[b.role]??9));
-    return [{ id:"__all__", name:"all", role:"__all__", _display:"@all — Thông báo tất cả" }, ...real];
-  }, [users, currentUser.id, currentUser.username]);
+    const isSelf = (u) =>
+      u.id === currentUser.id ||
+      (u.username && currentUser.username && u.username === currentUser.username);
+
+    // 1. Manager/Admin + Receptionist (trừ bản thân)
+    const mgr = (users||[]).filter(u => u && u.id && !isSelf(u) && ["manager","admin"].includes(u.role));
+    const rec = (users||[]).filter(u => u && u.id && !isSelf(u) && u.role === "receptionist");
+
+    // 2. KTV được giao đơn này (nếu không phải bản thân)
+    const assignedKTV = order?.assigned_to
+      ? (users||[]).filter(u => u && u.id && !isSelf(u) &&
+          (u.id === order.assigned_to || u.username === order.assigned_to_name))
+      : [];
+
+    // Gộp và dedup theo id
+    const seen = new Set();
+    const real = [...mgr, ...rec, ...assignedKTV].filter(u => {
+      if (seen.has(u.id)) return false;
+      seen.add(u.id);
+      return true;
+    });
+
+    return [{ id:"__all__", name:"all", role:"__all__" }, ...real];
+  }, [users, currentUser.id, currentUser.username, order?.assigned_to, order?.assigned_to_name]);
 
   function handleChatInputChange(e) {
     const val = e.target.value;
@@ -541,8 +552,8 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
   else {
     onUpdate(order.id,{status:c.key},null);
     setEditMode(false);
-    // Notify manager + receptionist khi KTV đổi trạng thái
-    const notifyUsers = users.filter(u => ["manager","receptionist"].includes(u.role));
+    // Notify manager/admin + receptionist khi KTV đổi trạng thái
+    const notifyUsers = users.filter(u => ["manager","admin","receptionist"].includes(u.role));
     notifyUsers.forEach(u => {
       Notification.create({
         user_id: u.id,
@@ -713,14 +724,14 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
 
             {/* @mention popup */}
             {showMention && mentionList.length > 0 && (
-              <div style={{ position:"absolute", bottom:70, left:14, right:14, background:"#fff", borderRadius:14, boxShadow:"0 8px 32px rgba(0,0,0,.18)", border:"1.5px solid #e5e7eb", zIndex:100, overflow:"hidden", maxHeight:200 }}>
-                <div style={{ padding:"8px 14px", fontSize:12, color:"#6b7280", fontWeight:700, background:"#f9fafb", borderBottom:"1px solid #f3f4f6"}}>  Chọn người nhắc đến</div>
+              <div style={{ position:"absolute", bottom:70, left:14, right:14, background:"#fff", borderRadius:14, boxShadow:"0 8px 32px rgba(0,0,0,.18)", border:"1.5px solid #e5e7eb", zIndex:100, overflow:"hidden", maxHeight:320, overflowY:"auto" }}>
+                <div style={{ padding:"8px 14px", fontSize:12, color:"#6b7280", fontWeight:700, background:"#f9fafb", borderBottom:"1px solid #f3f4f6", position:"sticky", top:0 }}>Chọn người nhắc đến</div>
                 {mentionList.map((u, idx) => (
                   <div key={u.id} onClick={() => pickMention(u)}
                     style={{ padding:"12px 14px", cursor:"pointer", background:idx===mentionCursor?"#eef2ff":"#fff", borderBottom:"1px solid #f9fafb", display:"flex", gap:10, alignItems:"center" }}>
                     {u.id==="__all__"
                       ? <div style={{ width:32, height:32, borderRadius:"50%", background:"#f59e0b", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18}}>groups</span></div>
-                      : <div style={{ width:32, height:32, borderRadius:"50%", background:u.role==="manager"?"#7c3aed":u.role==="technician"?"#2563eb":u.role==="receptionist"?"#0369a1":"#059669", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, fontSize:13 }}>{(u.name||"?")[0]}</div>
+                      : <div style={{ width:32, height:32, borderRadius:"50%", background:["manager","admin"].includes(u.role)?"#7c3aed":u.role==="receptionist"?"#0369a1":u.role==="technician"?"#2563eb":"#059669", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, fontSize:13 }}>{(u.name||"?")[0]}</div>
                     }
                     <div>
                       <div style={{ fontWeight:700, fontSize:14 }}>{u.id==="__all__"?"@all — Tất cả":u.name}</div>
@@ -729,6 +740,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
                           :u.role==="manager"?"Quản lý"
                           :u.role==="technician"?"Kỹ thuật"
                           :u.role==="receptionist"?"Tiếp tân"
+                          :u.role==="admin"?"Quản lý (Admin)"
                           :u.role==="warehouse"?"Kho"
                           :"Nhân viên"}
                       </div>

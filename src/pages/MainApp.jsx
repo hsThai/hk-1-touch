@@ -537,7 +537,7 @@ function MainAppInner() {
 
     // Thông báo cho tất cả Manager + Receptionist (trừ người tạo)
     const notifyStaff = users.filter(u =>
-      ["manager", "receptionist"].includes(u.role) && u.id !== user?.id
+      ["manager", "admin", "receptionist"].includes(u.role) && u.id !== user?.id
     );
     notifyStaff.forEach(u => {
       Notification.create({
