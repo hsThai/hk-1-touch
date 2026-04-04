@@ -104,16 +104,15 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
 
   // Build mention list from users related to this order
   const getMentionCandidates = useCallback(() => {
-    const real = users.filter(u => {
+    // Lấy TẤT CẢ user khác (không lọc role), chỉ bỏ người gửi
+    const real = (users||[]).filter(u => {
+      if (!u || !u.id) return false;
       if (u.id === currentUser.id) return false;
-      if (["manager","receptionist"].includes(u.role)) return true;
-      if (u.role === "warehouse") return true;
-      if (u.id === order.assigned_to) return true;
-      return false;
+      return true; // Hiện tất cả: manager, receptionist, technician, warehouse
     });
-    // Thêm @all / @tất cả vào đầu danh sách
+    // Thêm @all vào đầu danh sách
     return [{ id:"__all__", name:"all", role:"__all__", _display:"@all — Thông báo tất cả" }, ...real];
-  }, [users, currentUser.id, order.assigned_to]);
+  }, [users, currentUser.id]);
 
   function handleChatInputChange(e) {
     const val = e.target.value;

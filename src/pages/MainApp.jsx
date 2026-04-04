@@ -1,6 +1,6 @@
 /* v4-loginv2-real-db */
 import React, { lazy, Suspense, useState, useEffect, useRef, useCallback } from "react";
-import { RepairChat, Notification, Staff, RepairOrder, Customer } from "./pb.jsx";
+import { RepairChat, Notification, Staff, RepairOrder, Customer, getPbUrl, getAuth } from "./pb.jsx";
 import { uploadFile } from "./pb.jsx";
 import { getNotifSound } from "./Settings";
 const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ default: ({ onClose }) => (
@@ -173,46 +173,117 @@ function MainAppInner() {
   const [dbNotifications, setDbNotifications] = useState([]); // từ PocketBase
   const [showNotif, setShowNotif] = useState(false);
 
-  // Poll DB notifications cho user hiện tại mỗi 15s
-  // Ref lưu ID thông báo đã thấy, tránh show lại
+  // Realtime notifications via PocketBase SSE + fallback poll
   const seenNotifIds = useRef(new Set());
+
+  // Hàm xử lý notification mới — phát sound + show system notif
+  const handleNewNotif = useCallback(async (n) => {
+    if (!n?.id) return;
+    if (seenNotifIds.current.has(n.id)) return;
+    seenNotifIds.current.add(n.id);
+    // Chỉ xử lý notif của user hiện tại
+    if (n.user_id && n.user_id !== user?.id) return;
+    // Chỉ notif mới (dưới 5 phút)
+    const age = Date.now() - new Date(n.created_date || n.updated).getTime();
+    if (age > 300000) return;
+    // Cập nhật state
+    setDbNotifications(p => {
+      if (p.find(x => x.id === n.id)) return p;
+      return [n, ...p].sort((a,b) => new Date(b.created_date)-new Date(a.created_date));
+    });
+    // Sound + system notif
+    const master = await getNotifSound("notif_sound_master").catch(()=>"on");
+    if (master !== "off") {
+      showSystemNotif(n.title || "HK One Touch", n.message || "", { tag: n.id });
+      try { playNotifSound(); } catch {}
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user?.id) return;
-    // Xin quyền thông báo hệ thống
     requestNotifPermission().catch(() => {});
 
-    const fetchNotifs = async () => {
+    // 1. Load tất cả notif chưa đọc ban đầu
+    const fetchAll = async () => {
+      try {
+        const list = await Notification.filter({ user_id: user.id, is_read: false });
+        const sorted = list.sort((a,b) => new Date(b.created_date)-new Date(a.created_date));
+        // Đánh dấu seen để không phát sound cho notif cũ
+        sorted.forEach(n => seenNotifIds.current.add(n.id));
+        setDbNotifications(sorted);
+      } catch {}
+    };
+    fetchAll();
+
+    // 2. SSE Realtime: lắng nghe notification mới ngay lập tức
+    let es = null;
+    let retryTimer = null;
+    const connectSSE = () => {
+      try {
+        const pbBase = getPbUrl();
+        const authData = getAuth();
+        const token = authData?.token || "";
+        // PocketBase SSE realtime
+        const sseUrl = `${pbBase}/api/realtime`;
+        es = new EventSource(`${sseUrl}`);
+        let clientId = null;
+
+        es.addEventListener("PB_CONNECT", (e) => {
+          try {
+            const data = JSON.parse(e.data);
+            clientId = data.clientId;
+            // Subscribe collection notifications
+            fetch(sseUrl, {
+              method: "POST",
+              headers: { "Content-Type":"application/json", ...(token?{Authorization:token}:{}) },
+              body: JSON.stringify({ clientId, subscriptions: [`notifications/*`] }),
+            }).catch(()=>{});
+          } catch {}
+        });
+
+        es.addEventListener("notifications", (e) => {
+          try {
+            const evt = JSON.parse(e.data);
+            const record = evt.record || evt;
+            if (record && (evt.action === "create" || evt.action === "update")) {
+              // Chỉ xử lý nếu chưa read
+              if (!record.is_read) handleNewNotif(record);
+            }
+          } catch {}
+        });
+
+        es.onerror = () => {
+          es?.close();
+          // Retry sau 5s
+          retryTimer = setTimeout(connectSSE, 5000);
+        };
+      } catch(e) {
+        console.warn("SSE connect fail:", e);
+      }
+    };
+    connectSSE();
+
+    // 3. Fallback poll mỗi 30s (backup nếu SSE miss)
+    const iv = setInterval(async () => {
       try {
         const list = await Notification.filter({ user_id: user.id, is_read: false });
         const sorted = list.sort((a,b) => new Date(b.created_date)-new Date(a.created_date));
         setDbNotifications(sorted);
-
-        // Phát thông báo hệ thống HĐH cho các thông báo mới chưa thấy
-        const master = await getNotifSound("notif_sound_master").catch(()=>"on");
-        if (master !== "off") {
-          for (const n of sorted) {
-            if (!seenNotifIds.current.has(n.id)) {
-              seenNotifIds.current.add(n.id);
-              // Chỉ show system notif cho thông báo mới (dưới 5 phút)
-              const age = Date.now() - new Date(n.created_date).getTime();
-              if (age < 300000) {
-                showSystemNotif(n.title || "HK One Touch", n.message || "", {
-                  tag: n.id,
-                  data: { order_id: n.order_id }
-                });
-                // Phát âm thanh
-                try { playNotifSound(); } catch {}
-              }
-            }
+        // Chỉ phát sound cho notif thực sự mới
+        for (const n of sorted) {
+          if (!seenNotifIds.current.has(n.id)) {
+            await handleNewNotif(n);
           }
         }
       } catch {}
+    }, 30000);
+
+    return () => {
+      es?.close();
+      clearTimeout(retryTimer);
+      clearInterval(iv);
     };
-    fetchNotifs();
-    const iv = setInterval(fetchNotifs, 15000);
-    return () => clearInterval(iv);
-  }, [user?.id]);
+  }, [user?.id, handleNewNotif]);
   const [qrOrder, setQrOrder] = useState(null);
   const [showQRScan, setShowQRScan] = useState(false);
   const [newOrderProductQR, setNewOrderProductQR] = useState("");

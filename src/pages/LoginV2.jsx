@@ -27,14 +27,18 @@ import { Staff, pbAuth, getPbUrl, setPbUrl, testConnection } from "./pb.jsx";
     name: "HK One Touch",
     short_name: "HK One Touch",
     description: "HK One Touch",
-    start_url: window.location.href.split("?")[0],
+    start_url: "/MainApp",
     display: "standalone",
     background_color: "#ffffff",
     theme_color: "#1e1b4b",
     orientation: "portrait",
+    prefer_related_applications: false,
+    categories: ["productivity", "utilities"],
     icons: [
-      { src: ICON192, sizes: "192x192", type: "image/png", purpose: "any maskable" },
-      { src: ICON512, sizes: "512x512", type: "image/png", purpose: "any maskable" },
+      { src: ICON192, sizes: "192x192", type: "image/png", purpose: "maskable" },
+      { src: ICON192, sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: ICON512, sizes: "512x512", type: "image/png", purpose: "maskable" },
+      { src: ICON512, sizes: "512x512", type: "image/png", purpose: "any" },
     ],
   };
   const blob = new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" });
@@ -305,8 +309,8 @@ export default function LoginV2({ onLogin, loggedOut }) {
 
         {/* Logo + tên app */}
         <div style={{ textAlign:"center", marginBottom:28 }}>
-          <div style={{ marginBottom:10 }}>
-            <img src={SPLASH} alt="HK Robot" style={{ width:110, height:110, objectFit:"contain" }} />
+          <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}>
+            <img src={SPLASH} alt="HK Robot" style={{ width:110, height:110, objectFit:"contain", display:"block" }} />
           </div>
           <div style={{ fontWeight:900, fontSize:26, color:"#1e1b4b", letterSpacing:"-0.5px" }}>HK One Touch</div>
           <div style={{ color:"#6b7280", fontSize:13, marginTop:4, fontStyle:"italic" }}>Quản lý với một chạm !</div>
