@@ -106,10 +106,17 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
   const getMentionCandidates = useCallback(() => {
     const roleOrder = { manager:0, receptionist:1, technician:2, warehouse:3 };
     const real = (users||[])
-      .filter(u => u && u.id && u.id !== currentUser.id && u.is_active !== false)
+      .filter(u => {
+        if (!u || !u.id) return false;
+        // Loại chính người đang nhắn: so sánh cả id lẫn username cho chắc
+        if (u.id === currentUser.id) return false;
+        if (u.username && currentUser.username && u.username === currentUser.username) return false;
+        // Không lọc theo is_active (để manager luôn xuất hiện dù DB thiếu field)
+        return true;
+      })
       .sort((a,b) => (roleOrder[a.role]??9) - (roleOrder[b.role]??9));
     return [{ id:"__all__", name:"all", role:"__all__", _display:"@all — Thông báo tất cả" }, ...real];
-  }, [users, currentUser.id]);
+  }, [users, currentUser.id, currentUser.username]);
 
   function handleChatInputChange(e) {
     const val = e.target.value;
@@ -117,16 +124,20 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
     // Detect @ trigger
     const cursor = e.target.selectionStart;
     const textBefore = val.slice(0, cursor);
-    const atMatch = textBefore.match(/@(\w*)$/);
+    // Regex nhận cả ký tự Unicode (tiếng Việt)
+    const atMatch = textBefore.match(/@([^@\s]*)$/);
     if (atMatch) {
       const q = atMatch[1].toLowerCase();
       setMentionQuery(q);
-      const filtered = getMentionCandidates().filter(u => {
+      const candidates = getMentionCandidates();
+      console.log("[MENTION] candidates:", candidates.map(u=>u.name+"("+u.role+")"));
+      const filtered = candidates.filter(u => {
         if (u.id === "__all__") return true;
         const name = (u.name || u.full_name || "").toLowerCase();
         const uname = (u.username || "").toLowerCase();
         return name.includes(q) || uname.includes(q);
       });
+      console.log("[MENTION] filtered:", filtered.map(u=>u.name));
       setMentionList(filtered);
       setMentionCursor(0);
       setShowMention(filtered.length > 0);
