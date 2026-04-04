@@ -176,17 +176,17 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
     <div style={{ position:"fixed", inset:0, zIndex:2000, background:"rgba(0,0,0,.55)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
       <div style={{ background:"#fff", borderRadius:22, width:"100%", maxWidth:540, maxHeight:"92vh", overflowY:"auto", boxShadow:"0 24px 64px rgba(0,0,0,.25)" }}>
         <div style={{ position:"sticky", top:0, background:"#3730a3", padding:"16px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", borderRadius:"22px 22px 0 0" }}>
-          <div style={{ color:"#fff", fontWeight:800, fontSize:18 }}>➕ Tạo Đơn Mới</div>
-          <button onClick={onClose} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:34, height:34, borderRadius:"50%", fontSize:16, cursor:"pointer" }}>✕</button>
+          <div style={{ color:"#fff", fontWeight:800, fontSize:18 }}>  Tạo Đơn Mới</div>
+          <button onClick={onClose} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:34, height:34, borderRadius:"50%", fontSize:16, cursor:"pointer"}}> </button>
         </div>
 
         <div style={{ padding:"20px 20px 8px" }}>
           <div style={{ ...sec, background:"#eef2ff", border:"1.5px solid #a5b4fc" }}>
-            <div style={{ fontWeight:800, fontSize:14, color:"#3730a3", marginBottom:10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <span>📲 Mã QR Sản Phẩm</span>
+            <div style={{ fontWeight:800, fontSize:14, color:"#3730a3", marginBottom:10, display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+              <span>  Mã QR Sản Phẩm</span>
               <button onClick={() => setShowQRScan(true)}
-                style={{ height:36, padding:"0 14px", borderRadius:10, background:"#4f46e5", color:"#fff", border:"none", fontWeight:700, fontSize:13, cursor:"pointer" }}>
-                📷 Quét QR
+                style={{ height:36, padding:"0 14px", borderRadius:10, background:"#4f46e5", color:"#fff", border:"none", fontWeight:700, fontSize:13, cursor:"pointer"}}>
+                  Quét QR
               </button>
             </div>
             <input value={form.product_qr} onChange={e => { set("product_qr", e.target.value); setQrMsg(null); }}
@@ -194,28 +194,28 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
               style={{ ...inp, fontFamily:"monospace", background:form.product_qr?"#f0fdf4":"#fff", borderColor:form.product_qr?"#6ee7b7":"#e5e7eb" }} />
             {form.product_qr && (
               <div style={{ marginTop:8, background:"#f0fdf4", borderRadius:10, padding:"8px 12px", border:"1.5px solid #6ee7b7", fontSize:12 }}>
-                ✅ Mã QR: <strong style={{fontFamily:"monospace"}}>{form.product_qr}</strong> — sẽ gắn vào đơn này
+                  Mã QR: <strong style={{fontFamily:"monospace"}}>{form.product_qr}</strong> — sẽ gắn vào đơn này
               </div>
             )}
             {qrMsg?.type === "found" && (
               <div style={{ marginTop:10, background:"#fffbeb", borderRadius:12, padding:"10px 14px", border:"1.5px solid #fcd34d" }}>
-                <div style={{ fontWeight:800, color:"#d97706", marginBottom:4 }}>⚡ Đã tìm thấy dữ liệu cũ — điền tự động!</div>
+                <div style={{ fontWeight:800, color:"#d97706", marginBottom:4 }}>  Đã tìm thấy dữ liệu cũ — điền tự động!</div>
                 <div style={{ fontSize:13, color:"#374151" }}>Đơn gần nhất: <strong>{qrMsg.prevOrder.id}</strong> · {qrMsg.prevOrder.status}</div>
               </div>
             )}
           </div>
 
           <div style={{ ...sec, background:"#f0f9ff" }}>
-            <div style={{ fontWeight:800, fontSize:14, color:"#0369a1", marginBottom:10 }}>👤 Khách Hàng</div>
+            <div style={{ fontWeight:800, fontSize:14, color:"#0369a1", marginBottom:10 }}>  Khách Hàng</div>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
               <label style={{...lbl, marginBottom:0}}>Tìm theo SĐT hoặc tên *</label>
-              {kvSearching && <span style={{ fontSize:11, color:"#0369a1", fontWeight:700 }}>🔄 Đang tìm KiotViet...</span>}
+              {kvSearching && <span style={{ fontSize:11, color:"#0369a1", fontWeight:700 }}>  Đang tìm KiotViet...</span>}
             </div>
             <input value={custSearch} onChange={e => { setCustSearch(e.target.value); if(!e.target.value) { set("customer_id",""); set("customer_name",""); set("customer_phone",""); } }}
-              placeholder="🔍 0901234567 hoặc Nguyễn Văn A..." style={inp} />
+              placeholder="0901234567 hoặc Nguyễn Văn A..." style={inp} />
             {custSearch.length > 0 && !form.customer_id && dbCusts.length === 0 && !kvSearching && custSearch.length >= 2 && (
-              <div style={{ marginTop:6, background:"#fffbeb", border:"1px solid #fcd34d", borderRadius:10, padding:"10px 14px", fontSize:13, color:"#92400e" }}>
-                💡 Không tìm thấy trong KiotViet. Nhập tên/SĐT rồi bấm Tạo Đơn để thêm khách mới.
+              <div style={{ marginTop:6, background:"#fffbeb", border:"1px solid #fcd34d", borderRadius:10, padding:"10px 14px", fontSize:13, color:"#92400e"}}>
+                  Không tìm thấy trong KiotViet. Nhập tên/SĐT rồi bấm Tạo Đơn để thêm khách mới.
               </div>
             )}
             {dbCusts.length > 0 && (
@@ -232,16 +232,16 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
           </div>
 
           <div style={sec}>
-            <div style={{ fontWeight:800, fontSize:14, color:"#3730a3", marginBottom:10 }}>📱 Thiết Bị</div>
+            <div style={{ fontWeight:800, fontSize:14, color:"#3730a3", marginBottom:10 }}>  Thiết Bị</div>
             {/* Hàng 1: Model + PIN */}
             <div style={{ display:"flex", gap:8, marginBottom:10, alignItems:"flex-end" }}>
               <div style={{ flex:1 }}>
                 <label style={lbl}>Tên / Model máy *</label>
                 <input value={form.device_model} onChange={e => set("device_model", e.target.value)}
-                  placeholder="iPhone 15 Pro Max, Samsung S24..." style={inp} />
+                  placeholder="iPhone 15 Pro Max, Samsung S24..."style={inp} />
               </div>
               <div style={{ width:90, flexShrink:0 }}>
-                <label style={lbl}>🔑 Mã PIN</label>
+                <label style={lbl}>  Mã PIN</label>
                 <input value={form.passcode} onChange={e => set("passcode", e.target.value)}
                   placeholder="1234" maxLength={8}
                   style={{ ...inp, textAlign:"center", letterSpacing:2, fontWeight:700 }} />
@@ -276,12 +276,12 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
           </div>
 
           <div style={sec}>
-            <div style={{ fontWeight:800, fontSize:14, color:"#3730a3", marginBottom:10 }}>🛠️ Tình Trạng Lỗi</div>
+            <div style={{ fontWeight:800, fontSize:14, color:"#3730a3", marginBottom:10 }}>  Tình Trạng Lỗi</div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:10 }}>
               {ISSUE_OPTIONS.map(issue => (
                 <button key={issue} onClick={() => set("issues", form.issues.includes(issue)?form.issues.filter(i=>i!==issue):[...form.issues,issue])}
                   style={{ padding:"14px 10px", borderRadius:12, border:`2px solid ${form.issues.includes(issue)?"#4f46e5":"#e5e7eb"}`, background:form.issues.includes(issue)?"#eef2ff":"#fff", color:form.issues.includes(issue)?"#4f46e5":"#374151", fontSize:14, fontWeight:form.issues.includes(issue)?800:500, cursor:"pointer", textAlign:"left", minHeight:48 }}>
-                  {form.issues.includes(issue)?"✓ ":""}{issue}
+                  {form.issues.includes(issue)?"check":""}{issue}
                 </button>
               ))}
             </div>
@@ -291,24 +291,24 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
           </div>
 
           <div style={{ ...sec, background:"#f0fdf4", border:"1.5px solid #6ee7b7" }}>
-            <div style={{ fontWeight:800, fontSize:14, color:"#065f46", marginBottom:10 }}>📸 Hình Ảnh & Video Tình Trạng</div>
+            <div style={{ fontWeight:800, fontSize:14, color:"#065f46", marginBottom:10 }}>  Hình Ảnh & Video Tình Trạng</div>
             <input ref={photoRef} type="file" accept="image/*" capture="environment" multiple style={{ display:"none" }} onChange={handleFiles} />
             <input ref={videoRef} type="file" accept="video/*" capture="environment" style={{ display:"none" }} onChange={handleFiles} />
             <input ref={fileRef} type="file" accept="image/*,video/*" multiple style={{ display:"none" }} onChange={handleFiles} />
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom:10 }}>
-              <button onClick={() => photoRef.current.click()} style={{ padding:"14px 8px", background:"#f0fdf4", border:"2px dashed #6ee7b7", borderRadius:12, cursor:"pointer", fontSize:20, textAlign:"center" }}>📷<div style={{fontSize:11,color:"#065f46",marginTop:4}}>Chụp ảnh</div></button>
-              <button onClick={() => videoRef.current.click()} style={{ padding:"14px 8px", background:"#fdf4ff", border:"2px dashed #d8b4fe", borderRadius:12, cursor:"pointer", fontSize:20, textAlign:"center" }}>🎬<div style={{fontSize:11,color:"#7e22ce",marginTop:4}}>Quay video</div></button>
-              <button onClick={() => fileRef.current.click()} style={{ padding:"14px 8px", background:"#f0f9ff", border:"2px dashed #bae6fd", borderRadius:12, cursor:"pointer", fontSize:20, textAlign:"center" }}>📁<div style={{fontSize:11,color:"#0369a1",marginTop:4}}>Chọn file</div></button>
+              <button onClick={() => photoRef.current.click()} style={{ padding:"14px 8px", background:"#f0fdf4", border:"2px dashed #6ee7b7", borderRadius:12, cursor:"pointer", fontSize:20, textAlign:"center"}}> <div style={{fontSize:11,color:"#065f46",marginTop:4}}>Chụp ảnh</div></button>
+              <button onClick={() => videoRef.current.click()} style={{ padding:"14px 8px", background:"#fdf4ff", border:"2px dashed #d8b4fe", borderRadius:12, cursor:"pointer", fontSize:20, textAlign:"center"}}> <div style={{fontSize:11,color:"#7e22ce",marginTop:4}}>Quay video</div></button>
+              <button onClick={() => fileRef.current.click()} style={{ padding:"14px 8px", background:"#f0f9ff", border:"2px dashed #bae6fd", borderRadius:12, cursor:"pointer", fontSize:20, textAlign:"center"}}> <div style={{fontSize:11,color:"#0369a1",marginTop:4}}>Chọn file</div></button>
             </div>
             {mediaFiles.length > 0 && (
               <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                 {mediaFiles.map(m => (
                   <div key={m.id} style={{ position:"relative", width:72, height:72 }}>
                     {m.type==="video"
-                      ? <div style={{ width:72, height:72, background:"#1e1b4b", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>🎬</div>
+                      ? <div style={{ width:72, height:72, background:"#1e1b4b", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}> </div>
                       : <img src={m.url} style={{ width:72, height:72, objectFit:"cover", borderRadius:10 }} alt="" />}
                     <button onClick={() => setMediaFiles(p=>p.filter(x=>x.id!==m.id))}
-                      style={{ position:"absolute", top:-6, right:-6, width:20, height:20, background:"#ef4444", border:"none", borderRadius:"50%", color:"#fff", fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                      style={{ position:"absolute", top:-6, right:-6, width:20, height:20, background:"#ef4444", border:"none", borderRadius:"50%", color:"#fff", fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center"}}> </button>
                   </div>
                 ))}
               </div>
@@ -316,7 +316,7 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
           </div>
 
           <div style={{ ...sec, background:"#fffbeb", border:"1.5px solid #fcd34d" }}>
-            <div style={{ fontWeight:800, fontSize:14, color:"#d97706", marginBottom:10 }}>👨‍🔧 Giao Cho KTV</div>
+            <div style={{ fontWeight:800, fontSize:14, color:"#d97706", marginBottom:10 }}> ‍  Giao Cho KTV</div>
             <select value={form.assigned_to} onChange={e => set("assigned_to", e.target.value)}
               style={{ ...inp, color:form.assigned_to?"#111":"#9ca3af" }}>
               <option value="">-- Chưa giao (giao sau) --</option>
@@ -345,7 +345,7 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
         <div style={{ padding:"0 20px 20px", display:"flex", gap:10 }}>
           <button onClick={onClose} style={{ flex:1, height:52, background:"#f3f4f6", border:"none", borderRadius:14, fontWeight:700, fontSize:16, cursor:"pointer" }}>Hủy</button>
           <button onClick={submit} disabled={submitting} style={{ flex:2, height:52, background:submitting?"#9ca3af":"#4f46e5", border:"none", borderRadius:14, color:"#fff", fontWeight:800, fontSize:16, cursor:submitting?"not-allowed":"pointer" }}>
-            {submitting ? "⏳ Đang upload..." : "✅ Tạo Đơn"}
+            {submitting ? "⏳ Đang upload..." : "Tạo Đơn"}
           </button>
         </div>
       </div>
@@ -354,16 +354,16 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
 }
 
 const ISSUE_OPTIONS = [
-  "🔋 Hao pin / Phồng pin","📱 Màn hình vỡ / nứt","🔊 Loa / micro lỗi",
-  "🔌 Sạc không vào","📷 Camera mờ / hỏng","💧 Vào nước","🔘 Nút bấm hỏng",
-  "📶 Mất sóng / wifi","🌡️ Máy nóng","⚡ Không lên nguồn",
+  "Hao pin / Phồng pin","Màn hình vỡ / nứt","Loa / micro lỗi",
+  "Sạc không vào","Camera mờ / hỏng","Vào nước","Nút bấm hỏng",
+  "Mất sóng / wifi","Máy nóng","Không lên nguồn",
 ];
 
 function KPIPage({ users, orders }) {
   const techs = users.filter(u => u.role==="technician");
   return (
     <div style={{ padding:16, maxWidth:800, margin:"0 auto" }}>
-      <div style={{ fontWeight:900, fontSize:20, color:"#1e1b4b", marginBottom:16 }}>🏆 Bảng KPI Kỹ Thuật Viên</div>
+      <div style={{ fontWeight:900, fontSize:20, color:"#1e1b4b", marginBottom:16 }}>  Bảng KPI Kỹ Thuật Viên</div>
       {techs.length === 0 && <div style={{ textAlign:"center", color:"#9ca3af", padding:40 }}>Chưa có KTV nào</div>}
       {techs.sort((a,b) => b.kpi - a.kpi).map((u, i) => {
         const myOrders = orders.filter(o => o.assigned_to === u.id);
@@ -373,12 +373,12 @@ function KPIPage({ users, orders }) {
         return (
           <div key={u.id} style={{ background:"#fff", borderRadius:16, padding:18, marginBottom:12, boxShadow:"0 2px 12px rgba(0,0,0,.08)", display:"flex", alignItems:"center", gap:16 }}>
             <div style={{ fontSize:32, minWidth:40, textAlign:"center" }}>
-              {i===0?"🥇":i===1?"🥈":i===2?"🥉":"👨‍🔧"}
+              {i===0?"looks_one":i===1?"looks_two":i===2?"looks_3":"‍"}
             </div>
             <div style={{ flex:1 }}>
               <div style={{ fontWeight:800, fontSize:16, color:"#1e1b4b" }}>{u.name}</div>
               <div style={{ fontSize:13, color:"#6b7280", marginTop:2 }}>
-                ✅ Hoàn thành: {done} · ⏳ Đang làm: {pending}
+                  Hoàn thành: {done} · ⏳ Đang làm: {pending}
               </div>
               <div style={{ marginTop:8, height:8, background:"#f3f4f6", borderRadius:99, overflow:"hidden" }}>
                 <div style={{ height:"100%", width:`${Math.min(100,u.kpi)}%`, background:kpiColor, borderRadius:99, transition:"width .3s" }} />
@@ -443,13 +443,13 @@ function LoginScreen({ onLogin }) {
     <div style={{ minHeight:"100vh", background:"linear-gradient(135deg,#1e1b4b,#4f46e5,#7c3aed)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
       <div style={{ background:"#fff", borderRadius:24, padding:40, width:"100%", maxWidth:400, boxShadow:"0 24px 64px rgba(0,0,0,.3)" }}>
         <div style={{ textAlign:"center", marginBottom:32 }}>
-          <div style={{ fontSize:56 }}>🔧</div>
+          <div style={{ fontSize:56 }}> </div>
           <div style={{ fontWeight:900, fontSize:24, color:"#1e1b4b", marginTop:8 }}>Quản Lý Sửa Chữa</div>
           <div style={{ color:"#9ca3af", fontSize:13, marginTop:4 }}>Hệ thống nội bộ</div>
         </div>
 
         <div style={{ marginBottom:16 }}>
-          <label style={{ display:"block", fontSize:13, fontWeight:700, color:"#374151", marginBottom:6 }}>👤 Tên đăng nhập</label>
+          <label style={{ display:"block", fontSize:13, fontWeight:700, color:"#374151", marginBottom:6 }}>  Tên đăng nhập</label>
           <input id="login-user"
             value={username} onChange={e => { setUsername(e.target.value); setErr(""); }}
             onKeyDown={e => e.key==="Enter" && doLogin()}
@@ -460,7 +460,7 @@ function LoginScreen({ onLogin }) {
         </div>
 
         <div style={{ marginBottom:20 }}>
-          <label style={{ display:"block", fontSize:13, fontWeight:700, color:"#374151", marginBottom:6 }}>🔑 Mật khẩu</label>
+          <label style={{ display:"block", fontSize:13, fontWeight:700, color:"#374151", marginBottom:6 }}>  Mật khẩu</label>
           <div style={{ position:"relative" }}>
             <input id="login-pw"
               value={password} onChange={e => { setPassword(e.target.value); setErr(""); }}
@@ -471,20 +471,20 @@ function LoginScreen({ onLogin }) {
             />
             <button onClick={() => setShowPw(v=>!v)} type="button"
               style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:20, color:"#9ca3af" }}>
-              {showPw ? "🙈" : "👁️"}
+              {showPw ? "visibility_off" : "visibility"}
             </button>
           </div>
         </div>
 
         {err && (
           <div style={{ background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:10, padding:"10px 14px", marginBottom:16, fontSize:13, color:"#dc2626", fontWeight:600 }}>
-            ⚠️ {err}
+              {err}
           </div>
         )}
 
         <button id="login-btn" onClick={doLogin} disabled={loading}
           style={{ width:"100%", height:54, background:loading?"#a5b4fc":"#4f46e5", color:"#fff", border:"none", borderRadius:14, fontSize:18, fontWeight:800, cursor:loading?"not-allowed":"pointer" }}>
-          {loading ? "⏳ Đang kiểm tra..." : "🚀 Đăng Nhập"}
+          {loading ? "⏳ Đang kiểm tra..." : "Đăng Nhập"}
         </button>
       </div>
     </div>
@@ -503,10 +503,10 @@ function ProductHistoryModal({ qr, orders, onClose, onOpenOrder }) {
         {/* Header */}
         <div style={{ padding:"18px 20px 12px", borderBottom:"1px solid #f3f4f6", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <div>
-            <div style={{ fontWeight:800, fontSize:17, color:"#1f2937" }}>📱 Lịch sử sản phẩm</div>
+            <div style={{ fontWeight:800, fontSize:17, color:"#1f2937"}}>  Lịch sử sản phẩm</div>
             <div style={{ fontSize:12, color:"#6b7280", marginTop:2, fontFamily:"monospace" }}>QR: {qr}</div>
           </div>
-          <button onClick={onClose} style={{ background:"#f3f4f6", border:"none", width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
+          <button onClick={onClose} style={{ background:"#f3f4f6", border:"none", width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer"}}> </button>
         </div>
         {/* List */}
         <div style={{ overflowY:"auto", flex:1, padding:"12px 16px" }}>
@@ -523,9 +523,9 @@ function ProductHistoryModal({ qr, orders, onClose, onOpenOrder }) {
                   {o.status}
                 </span>
               </div>
-              <div style={{ fontSize:13, color:"#374151" }}>👤 {o.customer_name} · 📞 {o.customer_phone}</div>
-              <div style={{ fontSize:13, color:"#6b7280", marginTop:3 }}>🔧 {Array.isArray(o.issues)?o.issues.join(", "):o.issues}</div>
-              <div style={{ fontSize:12, color:"#9ca3af", marginTop:4 }}>📅 {o.created ? new Date(o.created).toLocaleDateString("vi-VN") : ""}</div>
+              <div style={{ fontSize:13, color:"#374151"}}>  {o.customer_name} ·   {o.customer_phone}</div>
+              <div style={{ fontSize:13, color:"#6b7280", marginTop:3 }}>  {Array.isArray(o.issues)?o.issues.join(", "):o.issues}</div>
+              <div style={{ fontSize:12, color:"#9ca3af", marginTop:4 }}>  {o.created ? new Date(o.created).toLocaleDateString("vi-VN") : ""}</div>
             </div>
           ))}
         </div>
@@ -558,11 +558,10 @@ async function compressImage(file, maxPx = 1280, quality = 0.82) {
       canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
       canvas.toBlob(
         (blob) => {
-          const out = new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" });
-          console.log(`🗜 Ảnh nén: ${(file.size/1024).toFixed(0)}KB → ${(out.size/1024).toFixed(0)}KB`);
+          const out = new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg"});
+          console.log(`  Ảnh nén: ${(file.size/1024).toFixed(0)}KB → ${(out.size/1024).toFixed(0)}KB`);
           resolve(out);
-        },
-        "image/jpeg", quality
+        },"image/jpeg", quality
       );
     };
     img.onerror = () => { URL.revokeObjectURL(objUrl); resolve(file); };

@@ -133,11 +133,11 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
           Notification.create({
             user_id: uid,
             user_name: mentioned_names[i] || "",
-            title: `💬 Bạn được nhắc đến trong ${order.id}`,
+            title: `  Bạn được nhắc đến trong ${order.id}`,
             message: `${currentUser.name}: ${msgText.slice(0,80)}`,
             order_id: order.id,
             order_code: order.id,
-            type: "mention",
+            type:"mention",
             is_read: false,
           }).catch(() => {});
         });
@@ -172,11 +172,10 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         canvas.toBlob(
           (blob) => {
-            const compressed = new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" });
-            console.log(`🗜 Nén ảnh: ${(file.size/1024).toFixed(0)}KB → ${(compressed.size/1024).toFixed(0)}KB`);
+            const compressed = new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg"});
+            console.log(`  Nén ảnh: ${(file.size/1024).toFixed(0)}KB → ${(compressed.size/1024).toFixed(0)}KB`);
             resolve(compressed);
-          },
-          "image/jpeg",
+          },"image/jpeg",
           quality
         );
       };
@@ -202,7 +201,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
         else msgType = "image";
       }
       // Nếu file thực là video/webm nhưng ghi âm → vẫn dùng msgType "audio"
-      const msgText = msgType==="image" ? "📷 Ảnh" : msgType==="audio" ? "🎤 Ghi âm" : "🎥 Video";
+      const msgText = msgType==="image" ? "Ảnh" : msgType==="audio" ? "Ghi âm" : "Video";
       await sendChat(msgType, url, msgText);
     } catch(e) {
       console.error("Upload/send error:", e);
@@ -267,7 +266,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
   function handleAccept(ord, stage) {
     const k = `stage${stage}_at`;
     onUpdate(ord.id, { accept_stage:stage, [k]:new Date().toISOString() }, null);
-    showToast(`✅ Nhận máy lần ${stage} thành công!`);
+    showToast(`  Nhận máy lần ${stage} thành công!`);
   }
   function handleOpenChecklist(ord, stage) {
     setChecklistTarget({ ord, stage });
@@ -281,17 +280,17 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
     onUpdate(ord.id, {
       accept_stage: stage,
       [k]: new Date().toISOString(),
-      status: "Đang Sửa",
+      status:"Đang Sửa",
       checklist_done: checklist,
       estimated_done: estDate,
       technician_note: techNote || ord.technician_note || "",
     }, null);
     setShowChecklist(false);
-    showToast("✅ Đã nhận máy! Bắt đầu sửa chữa.");
+    showToast("Đã nhận máy! Bắt đầu sửa chữa.");
   }
   function handleMarkDone() {
     onUpdate(order.id, { status:"Hoàn Thành", accept_stage:3 }, { userId:order.assigned_to, delta:2, note:"Sửa xong +2 KPI" });
-    showToast("🎉 Hoàn thành! +2 KPI");
+    showToast("Hoàn thành! +2 KPI");
     setEditMode(false);
   }
   // sendChat is now defined above in useEffect block
@@ -311,27 +310,27 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
         {/* Header */}
         <div style={{ padding:"14px 16px", background:"#3730a3", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <div>
-            <div style={{ color:"#fff", fontWeight:800, fontSize:16 }}>📋 {order.id}</div>
+            <div style={{ color:"#fff", fontWeight:800, fontSize:16 }}>  {order.id}</div>
             <span style={{ fontSize:11, background:col?.bg, color:col?.color, padding:"2px 10px", borderRadius:20, fontWeight:700 }}>{col?.icon} {order.status}</span>
           </div>
           <div style={{ display:"flex", gap:8, alignItems:"center" }}>
             {(currentUser.role === "manager" || currentUser.role === "admin") && (
               <>
                 <button onClick={() => setShowEditOrder(true)}
-                  style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:13, fontWeight:700, cursor:"pointer" }}>✏️ Sửa</button>
+                  style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:13, fontWeight:700, cursor:"pointer"}}>  Sửa</button>
                 <button onClick={() => {
                   if (window.confirm("Xóa đơn " + order.id + "? Thao tác này không thể hoàn tác!")) {
                     RepairOrder.delete(order.id).then(() => { onClose(); onUpdate && onUpdate(); }).catch(e => alert("Lỗi xóa: " + e.message));
                   }
-                }} style={{ background:"rgba(220,38,38,.7)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:13, fontWeight:700, cursor:"pointer" }}>🗑️ Xóa</button>
+                }} style={{ background:"rgba(220,38,38,.7)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:13, fontWeight:700, cursor:"pointer"}}>  Xóa</button>
               </>
             )}
-            <button onClick={onClose} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:34, height:34, borderRadius:"50%", fontSize:17, cursor:"pointer" }}>✕</button>
+            <button onClick={onClose} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:34, height:34, borderRadius:"50%", fontSize:17, cursor:"pointer"}}> </button>
           </div>
         </div>
         {/* Tabs */}
         <div style={{ display:"flex", borderBottom:"1px solid #e5e7eb" }}>
-          {[["info","📄 Thông tin"],["parts","🔩 Linh kiện"],["chat","💬 Chat"]].map(([t,lbl]) => (
+          {[["info","Thông tin"],["parts","Linh kiện"],["chat","Chat"]].map(([t,lbl]) => (
             <button key={t} onClick={() => setTab(t)}
               style={{ flex:1, padding:"11px", border:"none", background:"none", fontWeight:700, fontSize:13, cursor:"pointer", borderBottom:tab===t?"3px solid #4f46e5":"3px solid transparent", color:tab===t?"#4f46e5":"#6b7280", position:"relative" }}>
               {lbl}
@@ -349,17 +348,17 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
             <AcceptTimer order={order} currentUser={currentUser} onUpdate={onUpdate} />
             {/* Customer */}
             <div style={{ background:"#eef2ff", borderRadius:14, padding:14, marginBottom:14 }}>
-              <div style={{ fontWeight:800, fontSize:16, marginBottom:4 }}>👤 {cust?.full_name}</div>
-              <a href={`tel:${cust?.phone}`} style={{ color:"#4f46e5", fontWeight:700, fontSize:15 }}>📞 {cust?.phone}</a>
+              <div style={{ fontWeight:800, fontSize:16, marginBottom:4 }}>  {cust?.full_name}</div>
+              <a href={`tel:${cust?.phone}`} style={{ color:"#4f46e5", fontWeight:700, fontSize:15 }}>  {cust?.phone}</a>
             </div>
             {/* Grid info */}
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:14 }}>
               {[
-                { label:"📱 Thiết bị", val:order.device_model },
-                { label:"👨‍🔧 KTV",    val:assignee?.name||"—" },
+                { label:"Thiết bị", val:order.device_model },
+                { label:"‍  KTV",    val:assignee?.name||"—" },
                 { label:"IMEI",        val:order.imei_serial||"—", mono:true },
-                { label:"🔑 Mã PIN",   val:order.passcode||"—", hi:!!order.passcode },
-                ...(order.qr_code ? [{ label:"📲 Mã QR", val:order.qr_code, mono:true }] : []),
+                { label:"Mã PIN",   val:order.passcode||"—", hi:!!order.passcode },
+                ...(order.qr_code ? [{ label:"Mã QR", val:order.qr_code, mono:true }] : []),
               ].map(f => (
                 <div key={f.label} style={{ background:f.hi?"#fffbeb":"#f9fafb", borderRadius:12, padding:12 }}>
                   <div style={{ fontSize:11, color:"#9ca3af", marginBottom:4 }}>{f.label}</div>
@@ -370,24 +369,24 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
             {/* Issues */}
             {(order.issues||[]).length > 0 && (
               <div style={{ marginBottom:14 }}>
-                <div style={{ fontSize:12, color:"#9ca3af", marginBottom:6 }}>🛠️ Lỗi báo cáo:</div>
+                <div style={{ fontSize:12, color:"#9ca3af", marginBottom:6 }}>  Lỗi báo cáo:</div>
                 <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
                   {(order.issues||[]).map(i => <span key={i} style={{ background:"#fee2e2", color:"#991b1b", fontSize:12, padding:"4px 10px", borderRadius:20, fontWeight:600 }}>{i}</span>)}
                 </div>
               </div>
             )}
-            {order.notes && <div style={{ background:"#fffbeb", borderRadius:12, padding:12, marginBottom:14, fontSize:14, color:"#92400e" }}>📝 {order.notes}</div>}
+            {order.notes && <div style={{ background:"#fffbeb", borderRadius:12, padding:12, marginBottom:14, fontSize:14, color:"#92400e"}}>  {order.notes}</div>}
             {/* Images — bấm mở to */}
             {order.images?.length > 0 && (
               <div style={{ marginBottom:14 }}>
-                <div style={{ fontSize:12, color:"#9ca3af", marginBottom:6 }}>📸 Hình ảnh & video ({order.images.length}):</div>
+                <div style={{ fontSize:12, color:"#9ca3af", marginBottom:6 }}>  Hình ảnh & video ({order.images.length}):</div>
                 <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
                   {order.images.map((url,i) => (
                     <div key={i} onClick={() => setMediaViewer({ items:order.images, startIndex:i })}
                       style={{ width:84, height:84, borderRadius:12, overflow:"hidden", cursor:"pointer", border:"2px solid #e0e7ff", position:"relative", flexShrink:0, background:"#1f2937" }}>
                       {url.startsWith("video:")
                         ? <div style={{ width:"100%", height:"100%", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:4 }}>
-                            <span style={{ fontSize:28 }}>🎥</span>
+                            <span style={{ fontSize:28 }}> </span>
                             <span style={{ fontSize:10, color:"#9ca3af" }}>Video</span>
                           </div>
                         : <img src={url} style={{ width:"100%", height:"100%", objectFit:"cover" }} alt="" />
@@ -396,7 +395,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
                       <div style={{ position:"absolute", inset:0, background:"rgba(0,0,0,0)", display:"flex", alignItems:"center", justifyContent:"center", transition:"background .15s" }}
                         onMouseEnter={e=>e.currentTarget.style.background="rgba(0,0,0,.3)"}
                         onMouseLeave={e=>e.currentTarget.style.background="rgba(0,0,0,0)"}>
-                        <span style={{ fontSize:20, color:"#fff", textShadow:"0 1px 4px rgba(0,0,0,.8)", opacity:.85 }}>{url.startsWith("video:")?"▶":"🔍"}</span>
+                        <span style={{ fontSize:20, color:"#fff", textShadow:"0 1px 4px rgba(0,0,0,.8)", opacity:.85 }}>{url.startsWith("video:")?"▶":"search"}</span>
                       </div>
                     </div>
                   ))}
@@ -406,7 +405,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
             {/* ── Cảnh báo Quản lý: Đơn cần chuyển KTV ─────── */}
             {order.needs_reassign && currentUser.role === "manager" && !["Hoàn Thành","Đã Giao"].includes(order.status) && (
               <div style={{ background:"#fef2f2", border:"2px solid #fca5a5", borderRadius:14, padding:"14px 16px", marginBottom:14 }}>
-                <div style={{ fontWeight:800, fontSize:15, color:"#dc2626", marginBottom:6 }}>🚨 Hệ thống chuyển việc cho Quản lý</div>
+                <div style={{ fontWeight:800, fontSize:15, color:"#dc2626", marginBottom:6 }}>  Hệ thống chuyển việc cho Quản lý</div>
                 <div style={{ fontSize:13, color:"#6b7280", marginBottom:12 }}>KTV đã quá 120 phút không Nhận máy. Cần phân công lại.</div>
                 <div style={{ marginBottom:8 }}>
                   <div style={{ fontSize:13, fontWeight:700, marginBottom:6 }}>Chọn KTV mới:</div>
@@ -427,8 +426,8 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
                         }, null);
                         showToast("Đã chuyển đơn cho " + u.name);
                       }}
-                        style={{ padding:"10px 14px", borderRadius:10, border:"1.5px solid #e5e7eb", background:"#fff", fontWeight:700, fontSize:14, cursor:"pointer", textAlign:"left" }}>
-                        🔧 {u.name} <span style={{ color:"#6b7280", fontWeight:400, fontSize:12 }}>(KPI: {u.kpi})</span>
+                        style={{ padding:"10px 14px", borderRadius:10, border:"1.5px solid #e5e7eb", background:"#fff", fontWeight:700, fontSize:14, cursor:"pointer", textAlign:"left"}}>
+                          {u.name} <span style={{ color:"#6b7280", fontWeight:400, fontSize:12 }}>(KPI: {u.kpi})</span>
                       </button>
                     ))}
                   </div>
@@ -443,14 +442,14 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
                 {isKTV && !editMode && (
                   <button onClick={() => setEditMode(true)}
                     style={{ width:"100%", height:52, borderRadius:14, border:"2px solid #4f46e5", background:"#eef2ff", color:"#4f46e5", fontWeight:800, fontSize:16, cursor:"pointer", marginBottom:8 }}>
-                    ✏️ Cập nhật trạng thái
+                      Cập nhật trạng thái
                   </button>
                 )}
                 {(!isKTV || editMode) && (
                   <>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                      <div style={{ fontSize:13, fontWeight:700, color:"#374151" }}>⚙️ Chọn trạng thái:</div>
-                      {isKTV && <button onClick={() => setEditMode(false)} style={{ background:"none", border:"none", color:"#9ca3af", fontSize:13, cursor:"pointer" }}>✕ Đóng</button>}
+                      <div style={{ fontSize:13, fontWeight:700, color:"#374151"}}>  Chọn trạng thái:</div>
+                      {isKTV && <button onClick={() => setEditMode(false)} style={{ background:"none", border:"none", color:"#9ca3af", fontSize:13, cursor:"pointer"}}>  Đóng</button>}
                     </div>
                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:10 }}>
                       {STATUS_COLS.filter(c => c.key !== "Đã Giao").map(c => (
@@ -462,8 +461,8 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
                       ))}
                     </div>
                     <button onClick={handleMarkDone}
-                      style={{ width:"100%", height:54, borderRadius:14, background:"#059669", color:"#fff", border:"none", fontWeight:800, fontSize:17, cursor:"pointer" }}>
-                      ✅ Sửa Xong! (+2 KPI)
+                      style={{ width:"100%", height:54, borderRadius:14, background:"#059669", color:"#fff", border:"none", fontWeight:800, fontSize:17, cursor:"pointer"}}>
+                        Sửa Xong! (+2 KPI)
                     </button>
                   </>
                 )}
@@ -472,7 +471,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
             {/* Thời gian dự kiến */}
             {order.estimated_done && (
               <div style={{ background:"#f0fdf4", borderRadius:12, padding:"10px 14px", marginBottom:14, fontSize:13 }}>
-                <span style={{ color:"#059669", fontWeight:700 }}>⏱️ Dự kiến xong: </span>
+                <span style={{ color:"#059669", fontWeight:700 }}>⏱ Dự kiến xong: </span>
                 <span style={{ fontWeight:600 }}>{new Date(order.estimated_done).toLocaleString("vi-VN",{dateStyle:"short",timeStyle:"short"})}</span>
               </div>
             )}
@@ -544,7 +543,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
                           {!isMe && <div style={{ fontSize:11, color:"#4f46e5", fontWeight:700, marginBottom:3 }}>{msg.sender_name}</div>}
                           {hasMention && !isMe && (
                             <div style={{ fontSize:11, color:"#f59e0b", fontWeight:600, marginBottom:3 }}>
-                              👉 {msg.mentioned_names.map(n=>`@${n}`).join(" ")}
+                                {msg.mentioned_names.map(n=>`@${n}`).join(" ")}
                             </div>
                           )}
                           <div
@@ -593,14 +592,14 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
             {/* @mention popup */}
             {showMention && mentionList.length > 0 && (
               <div style={{ position:"absolute", bottom:70, left:14, right:14, background:"#fff", borderRadius:14, boxShadow:"0 8px 32px rgba(0,0,0,.18)", border:"1.5px solid #e5e7eb", zIndex:100, overflow:"hidden", maxHeight:200 }}>
-                <div style={{ padding:"8px 14px", fontSize:12, color:"#6b7280", fontWeight:700, background:"#f9fafb", borderBottom:"1px solid #f3f4f6" }}>👥 Chọn người nhắc đến</div>
+                <div style={{ padding:"8px 14px", fontSize:12, color:"#6b7280", fontWeight:700, background:"#f9fafb", borderBottom:"1px solid #f3f4f6"}}>  Chọn người nhắc đến</div>
                 {mentionList.map((u, idx) => (
                   <div key={u.id} onClick={() => pickMention(u)}
                     style={{ padding:"12px 14px", cursor:"pointer", background:idx===mentionCursor?"#eef2ff":"#fff", borderBottom:"1px solid #f9fafb", display:"flex", gap:10, alignItems:"center" }}>
                     <div style={{ width:32, height:32, borderRadius:"50%", background:u.role==="manager"?"#7c3aed":u.role==="technician"?"#2563eb":"#059669", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, fontSize:13 }}>{(u.name||"?")[0]}</div>
                     <div>
                       <div style={{ fontWeight:700, fontSize:14 }}>{u.name}</div>
-                      <div style={{ fontSize:12, color:"#9ca3af" }}>{u.role==="manager"?"👑 Quản lý":u.role==="technician"?"🔧 Kỹ thuật":u.role==="receptionist"?"🗂️ Tiếp tân":"🏪 Kho"}</div>
+                      <div style={{ fontSize:12, color:"#9ca3af" }}>{u.role==="manager"?"Quản lý":u.role==="technician"?"Kỹ thuật":u.role==="receptionist"?"Tiếp tân":"Kho"}</div>
                     </div>
                   </div>
                 ))}
@@ -613,7 +612,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
                 {pendingMentions.map(m => (
                   <span key={m.id} style={{ background:"#4f46e5", color:"#fff", borderRadius:20, padding:"2px 10px", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", gap:4 }}>
                     @{m.name}
-                    <span onClick={() => setPendingMentions(p=>p.filter(x=>x.id!==m.id))} style={{ cursor:"pointer", opacity:.7, fontWeight:900 }}>✕</span>
+                    <span onClick={() => setPendingMentions(p=>p.filter(x=>x.id!==m.id))} style={{ cursor:"pointer", opacity:.7, fontWeight:900 }}> </span>
                   </span>
                 ))}
               </div>
@@ -624,19 +623,19 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
               {/* Media buttons row */}
               <div style={{ display:"flex", gap:8 }}>
                 {/* Camera / Photo */}
-                <label style={{ flex:1, height:40, borderRadius:10, border:"1.5px solid #e5e7eb", background:"#f9fafb", display:"flex", alignItems:"center", justifyContent:"center", gap:6, cursor:"pointer", fontSize:13, fontWeight:600, color:"#374151" }}>
-                  📷 Ảnh
+                <label style={{ flex:1, height:40, borderRadius:10, border:"1.5px solid #e5e7eb", background:"#f9fafb", display:"flex", alignItems:"center", justifyContent:"center", gap:6, cursor:"pointer", fontSize:13, fontWeight:600, color:"#374151"}}>
+                    Ảnh
                   <input type="file" accept="image/*" capture="environment" style={{ display:"none" }} onChange={e => e.target.files[0] && handleMediaUpload(e.target.files[0], "image")} />
                 </label>
                 {/* Video */}
-                <label style={{ flex:1, height:40, borderRadius:10, border:"1.5px solid #e5e7eb", background:"#f9fafb", display:"flex", alignItems:"center", justifyContent:"center", gap:6, cursor:"pointer", fontSize:13, fontWeight:600, color:"#374151" }}>
-                  🎥 Video
+                <label style={{ flex:1, height:40, borderRadius:10, border:"1.5px solid #e5e7eb", background:"#f9fafb", display:"flex", alignItems:"center", justifyContent:"center", gap:6, cursor:"pointer", fontSize:13, fontWeight:600, color:"#374151"}}>
+                    Video
                   <input type="file" accept="video/*" capture="environment" style={{ display:"none" }} onChange={e => e.target.files[0] && handleMediaUpload(e.target.files[0], "video")} />
                 </label>
                 {/* Voice */}
                 <button onClick={toggleRecording}
                   style={{ flex:1, height:40, borderRadius:10, border:`1.5px solid ${recording?"#dc2626":"#e5e7eb"}`, background:recording?"#fef2f2":"#f9fafb", color:recording?"#dc2626":"#374151", cursor:"pointer", fontSize:13, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
-                  {recording ? "⏹ Dừng" : "🎤 Ghi âm"}
+                  {recording ? "⏹ Dừng" : "Ghi âm"}
                 </button>
               </div>
               {/* Text row */}
@@ -662,20 +661,20 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
                   style={{ flex:1, height:46, borderRadius:24, border:"1.5px solid #e5e7eb", padding:"0 16px", fontSize:14, outline:"none" }}
                 />
                 <button onClick={() => sendChat()}
-                  style={{ width:46, height:46, borderRadius:"50%", background:"#4f46e5", border:"none", color:"#fff", fontSize:20, cursor:"pointer", flexShrink:0 }}>➤</button>
+                  style={{ width:46, height:46, borderRadius:"50%", background:"#4f46e5", border:"none", color:"#fff", fontSize:20, cursor:"pointer", flexShrink:0 }}> </button>
               </div>
             </div>
           </div>
         )}
 
-        {tab === "parts" && (
+        {tab ==="parts" && (
           <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24 }}>
-            <div style={{ fontSize:40, marginBottom:12 }}>🔩</div>
+            <div style={{ fontSize:40, marginBottom:12 }}> </div>
             <div style={{ fontWeight:800, fontSize:16, color:"#1e1b4b", marginBottom:6 }}>Quản lý linh kiện</div>
             <div style={{ fontSize:13, color:"#6b7280", marginBottom:20, textAlign:"center" }}>Chọn linh kiện, auto chat kho,<br/>trả linh kiện và bấm Sửa Xong.</div>
             <button onClick={() => setShowSparePart(true)}
-              style={{ height:52, padding:"0 32px", background:"linear-gradient(135deg,#4f46e5,#7c3aed)", color:"#fff", border:"none", borderRadius:16, fontWeight:800, fontSize:16, cursor:"pointer", boxShadow:"0 4px 16px rgba(79,70,229,.4)" }}>
-              🔩 Mở màn hình linh kiện
+              style={{ height:52, padding:"0 32px", background:"linear-gradient(135deg,#4f46e5,#7c3aed)", color:"#fff", border:"none", borderRadius:16, fontWeight:800, fontSize:16, cursor:"pointer", boxShadow:"0 4px 16px rgba(79,70,229,.4)"}}>
+                Mở màn hình linh kiện
             </button>
           </div>
         )}
@@ -693,7 +692,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
 
         {tab === "qr" && (
           <div style={{ flex:1, overflowY:"auto", padding:20, display:"flex", flexDirection:"column", alignItems:"center" }}>
-            <div style={{ fontWeight:800, fontSize:16, marginBottom:4, textAlign:"center" }}>📱 Mã QR Phiếu Sửa</div>
+            <div style={{ fontWeight:800, fontSize:16, marginBottom:4, textAlign:"center"}}>  Mã QR Phiếu Sửa</div>
             <div style={{ color:"#6b7280", fontSize:13, marginBottom:16, textAlign:"center" }}>Dán lên máy để tra cứu nhanh</div>
             <div style={{ background:"#f9fafb", borderRadius:20, padding:24, marginBottom:16, textAlign:"center", border:"2px dashed #a5b4fc" }}>
               <QRCanvas key={qrContent} text={qrContent} size={180} />
@@ -834,15 +833,15 @@ function EditOrderModal({ order, users, onClose, onSave }) {
       <div style={{ background:"#fff", borderRadius:22, width:"100%", maxWidth:520, maxHeight:"92vh", overflowY:"auto", boxShadow:"0 24px 64px rgba(0,0,0,.3)" }}>
         {/* Header */}
         <div style={{ position:"sticky", top:0, background:"#7c3aed", padding:"16px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", borderRadius:"22px 22px 0 0", zIndex:1 }}>
-          <div style={{ color:"#fff", fontWeight:800, fontSize:17 }}>✏️ Sửa đơn #{order.order_code||order.id}</div>
-          <button onClick={onClose} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:34, height:34, borderRadius:"50%", fontSize:16, cursor:"pointer" }}>✕</button>
+          <div style={{ color:"#fff", fontWeight:800, fontSize:17 }}>  Sửa đơn #{order.order_code||order.id}</div>
+          <button onClick={onClose} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:34, height:34, borderRadius:"50%", fontSize:16, cursor:"pointer"}}> </button>
         </div>
 
         <div style={{ padding:"16px 16px 8px" }}>
 
           {/* ── KHÁCH HÀNG ── */}
           <div style={{ ...sec, background:"#f0f9ff" }}>
-            <div style={{ fontWeight:800, fontSize:14, color:"#0369a1", marginBottom:10 }}>👤 Khách Hàng</div>
+            <div style={{ fontWeight:800, fontSize:14, color:"#0369a1", marginBottom:10 }}>  Khách Hàng</div>
             <div style={row2}>
               <div style={{ flex:2 }}>
                 <label style={lbl}>Tên khách</label>
@@ -857,7 +856,7 @@ function EditOrderModal({ order, users, onClose, onSave }) {
 
           {/* ── THIẾT BỊ ── */}
           <div style={sec}>
-            <div style={{ fontWeight:800, fontSize:14, color:"#3730a3", marginBottom:10 }}>📱 Thiết Bị</div>
+            <div style={{ fontWeight:800, fontSize:14, color:"#3730a3", marginBottom:10 }}>  Thiết Bị</div>
             <div style={row2}>
               <div style={{ flex:2 }}>
                 <label style={lbl}>Hãng / Tên máy</label>
@@ -865,10 +864,10 @@ function EditOrderModal({ order, users, onClose, onSave }) {
               </div>
               <div style={{ flex:2 }}>
                 <label style={lbl}>Model *</label>
-                <input value={form.device_model} onChange={e => set("device_model", e.target.value)} style={inp} placeholder="iPhone 14 Pro..." />
+                <input value={form.device_model} onChange={e => set("device_model", e.target.value)} style={inp} placeholder="iPhone 14 Pro..."/>
               </div>
               <div style={{ width:80 }}>
-                <label style={lbl}>🔑 PIN</label>
+                <label style={lbl}>  PIN</label>
                 <input value={form.passcode} onChange={e => set("passcode", e.target.value)} maxLength={8}
                   style={{ ...inp, textAlign:"center", letterSpacing:3, fontWeight:700 }} />
               </div>
@@ -885,7 +884,7 @@ function EditOrderModal({ order, users, onClose, onSave }) {
                     background:  form.issues.includes(issue)?"#eef2ff":"#fff",
                     color:       form.issues.includes(issue)?"#4f46e5":"#6b7280",
                     fontWeight:700, fontSize:13, cursor:"pointer" }}>
-                  {form.issues.includes(issue) ? "✓ " : ""}{issue}
+                  {form.issues.includes(issue) ? "check" : ""}{issue}
                 </button>
               ))}
             </div>
@@ -896,7 +895,7 @@ function EditOrderModal({ order, users, onClose, onSave }) {
 
           {/* ── PHÂN CÔNG & TRẠNG THÁI ── */}
           <div style={{ ...sec, background:"#fdf4ff" }}>
-            <div style={{ fontWeight:800, fontSize:14, color:"#7c3aed", marginBottom:10 }}>⚙️ Phân công & Trạng thái</div>
+            <div style={{ fontWeight:800, fontSize:14, color:"#7c3aed", marginBottom:10 }}>  Phân công & Trạng thái</div>
             <div style={row2}>
               <div style={{ flex:1 }}>
                 <label style={lbl}>Kỹ thuật viên</label>
@@ -914,27 +913,27 @@ function EditOrderModal({ order, users, onClose, onSave }) {
               <div style={{ flex:1 }}>
                 <label style={lbl}>Trạng thái</label>
                 <select value={form.status} onChange={e => set("status", e.target.value)} style={inp}>
-                  <option value="Moi Nhan">📥 Mới Nhận</option>
-                  <option value="Dang Kiem Tra">🔍 Đang Kiểm Tra</option>
-                  <option value="Dang Sua">🔧 Đang Sửa</option>
+                  <option value="Moi Nhan">  Mới Nhận</option>
+                  <option value="Dang Kiem Tra">  Đang Kiểm Tra</option>
+                  <option value="Dang Sua">  Đang Sửa</option>
                   <option value="Cho Linh Kien">⏳ Chờ Linh Kiện</option>
-                  <option value="Hoan Thanh">✅ Hoàn Thành</option>
-                  <option value="Da Giao">📦 Đã Giao</option>
-                  <option value="Huy">❌ Hủy</option>
+                  <option value="Hoan Thanh">  Hoàn Thành</option>
+                  <option value="Da Giao">  Đã Giao</option>
+                  <option value="Huy">  Hủy</option>
                 </select>
               </div>
             </div>
             <label style={lbl}>Ưu tiên</label>
             <select value={form.priority} onChange={e => set("priority", e.target.value)} style={inp}>
-              <option value="Thuong">🟢 Bình thường</option>
-              <option value="Gap">🔴 Khẩn cấp</option>
+              <option value="Thuong">  Bình thường</option>
+              <option value="Gap">  Khẩn cấp</option>
               <option value="VIP">⭐ VIP</option>
             </select>
           </div>
 
           {/* ── THỜI GIAN ── */}
           <div style={{ ...sec, background:"#fff7ed" }}>
-            <div style={{ fontWeight:800, fontSize:14, color:"#c2410c", marginBottom:10 }}>🕐 Thời Gian</div>
+            <div style={{ fontWeight:800, fontSize:14, color:"#c2410c", marginBottom:10 }}>  Thời Gian</div>
             <div style={row2}>
               <div style={{ flex:1 }}>
                 <label style={lbl}>Ngày nhận</label>
@@ -951,7 +950,7 @@ function EditOrderModal({ order, users, onClose, onSave }) {
 
           {/* ── CHI PHÍ ── */}
           <div style={{ ...sec, background:"#f0fdf4" }}>
-            <div style={{ fontWeight:800, fontSize:14, color:"#059669", marginBottom:10 }}>💰 Chi Phí</div>
+            <div style={{ fontWeight:800, fontSize:14, color:"#059669", marginBottom:10 }}>  Chi Phí</div>
             <div style={row2}>
               <div style={{ flex:1 }}>
                 <label style={lbl}>Dự kiến</label>
@@ -977,7 +976,7 @@ function EditOrderModal({ order, users, onClose, onSave }) {
           <button onClick={onClose} style={{ flex:1, height:48, borderRadius:14, border:"1.5px solid #e5e7eb", background:"#fff", color:"#6b7280", fontWeight:700, fontSize:15, cursor:"pointer" }}>Hủy</button>
           <button onClick={handleSave} disabled={saving}
             style={{ flex:2, height:48, borderRadius:14, border:"none", background:saving?"#a5b4fc":"#7c3aed", color:"#fff", fontWeight:800, fontSize:15, cursor:saving?"not-allowed":"pointer" }}>
-            {saving ? "⏳ Đang lưu..." : "💾 Lưu thay đổi"}
+            {saving ? "⏳ Đang lưu..." : "Lưu thay đổi"}
           </button>
         </div>
       </div>

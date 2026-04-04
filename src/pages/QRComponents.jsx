@@ -67,7 +67,7 @@ function QRCanvas({ text, size = 160 }) {
           correctLevel: window.QRCode.CorrectLevel.M,
         });
       } catch (e) {
-        el.innerHTML = `<div style="width:${size}px;height:${size}px;background:#f3f4f6;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:8px;font-size:11px;color:#6b7280;text-align:center;padding:6px"><div style="font-size:24px">📱</div><div style="font-weight:700;margin-top:4px;word-break:break-all">${text}</div></div>`;
+        el.innerHTML = `<div style="width:${size}px;height:${size}px;background:#f3f4f6;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:8px;font-size:11px;color:#6b7280;text-align:center;padding:6px"><div style="font-size:24px"> </div><div style="font-weight:700;margin-top:4px;word-break:break-all">${text}</div></div>`;
       }
     });
   }, [text, size]);
@@ -172,14 +172,14 @@ function QRScanModal({ onClose, onFound, orders = [], mode = "search" }) {
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
           <div>
             <div style={{ color:"#fff", fontWeight:800, fontSize:20 }}>
-              {isCapture ? "📷 Quét Mã QR Máy" : "🔍 Quét QR Sản Phẩm"}
+              {isCapture ? "Quét Mã QR Máy" : "Quét QR Sản Phẩm"}
             </div>
             <div style={{ color:"#a5b4fc", fontSize:12, marginTop:2 }}>
               {isCapture ? "Lấy mã QR dán lên máy → điền vào đơn" : "QR đã gán: xem lịch sử · QR mới: gán cho đơn này"}
             </div>
           </div>
           <button onClick={() => { streamRef.current?.getTracks().forEach(t => t.stop()); onClose(); }}
-            style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:40, height:40, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
+            style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:40, height:40, borderRadius:"50%", fontSize:18, cursor:"pointer"}}> </button>
         </div>
 
         {/* Camera */}
@@ -205,7 +205,7 @@ function QRScanModal({ onClose, onFound, orders = [], mode = "search" }) {
           {/* Status */}
           <div style={{ position:"absolute", bottom:10, left:0, right:0, textAlign:"center" }}>
             {!libOk && <span style={{ background:"rgba(0,0,0,.7)", color:"#fcd34d", padding:"5px 14px", borderRadius:20, fontSize:12 }}>⏳ Đang tải thư viện QR...</span>}
-            {libOk && !camReady && !err && <span style={{ background:"rgba(0,0,0,.7)", color:"#fff", padding:"5px 14px", borderRadius:20, fontSize:12 }}>📷 Đang mở camera...</span>}
+            {libOk && !camReady && !err && <span style={{ background:"rgba(0,0,0,.7)", color:"#fff", padding:"5px 14px", borderRadius:20, fontSize:12 }}>  Đang mở camera...</span>}
             {libOk && camReady && !err && <span style={{ background:"rgba(0,0,0,.7)", color:"#a5b4fc", padding:"5px 14px", borderRadius:20, fontSize:12 }}>Đưa mã QR vào khung...</span>}
           </div>
         </div>
@@ -246,8 +246,8 @@ function QRPrintModal({ order, onClose }) {
   if (!order) return null;
   return (
     <div style={{ position:"fixed", inset:0, zIndex:5000, background:"rgba(0,0,0,.85)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-      <div style={{ background:"#fff", borderRadius:20, padding:28, maxWidth:340, width:"100%", textAlign:"center" }}>
-        <div style={{ fontWeight:800, fontSize:18, marginBottom:4 }}>🖨️ In Phiếu QR</div>
+      <div style={{ background:"#fff", borderRadius:20, padding:28, maxWidth:340, width:"100%", textAlign:"center"}}>
+        <div style={{ fontWeight:800, fontSize:18, marginBottom:4 }}>  In Phiếu QR</div>
         <div style={{ color:"#6b7280", fontSize:13, marginBottom:16 }}>Đơn: {order.id || order.order_code}</div>
         <div ref={qrRef} style={{ display:"flex", justifyContent:"center", marginBottom:16 }}>
           <QRCanvas key={order.id || order.order_code} text={order.id || order.order_code} size={180} />
@@ -256,7 +256,7 @@ function QRPrintModal({ order, onClose }) {
         <div style={{ color:"#6b7280", fontSize:13, marginBottom:16 }}>{order.device_model}</div>
         <div style={{ display:"flex", gap:10, justifyContent:"center" }}>
           <button onClick={onClose} style={{ padding:"10px 24px", borderRadius:12, border:"1.5px solid #e5e7eb", background:"#f9fafb", fontWeight:700, cursor:"pointer" }}>Đóng</button>
-          <button onClick={() => window.print()} style={{ padding:"10px 24px", borderRadius:12, background:"#4f46e5", color:"#fff", border:"none", fontWeight:700, cursor:"pointer" }}>🖨️ In</button>
+          <button onClick={() => window.print()} style={{ padding:"10px 24px", borderRadius:12, background:"#4f46e5", color:"#fff", border:"none", fontWeight:700, cursor:"pointer"}}>  In</button>
         </div>
       </div>
     </div>
@@ -371,11 +371,11 @@ export function IMEIScanModal({ onClose, onFound }) {
             <div style={{ color:"#94a3b8", fontSize:12, marginTop:2 }}>Hướng camera vào mã vạch trên máy</div>
           </div>
           <button onClick={() => { streamRef.current?.getTracks().forEach(t => t.stop()); onClose(); }}
-            style={{ background:"rgba(255,255,255,.15)", border:"none", color:"#fff", width:38, height:38, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
+            style={{ background:"rgba(255,255,255,.15)", border:"none", color:"#fff", width:38, height:38, borderRadius:"50%", fontSize:18, cursor:"pointer"}}> </button>
         </div>
 
         {/* Camera view */}
-        {status !== "done" && (
+        {status !=="done" && (
           <div style={{ position:"relative", borderRadius:16, overflow:"hidden", background:"#000", aspectRatio:"16/9", marginBottom:14 }}>
             <video ref={videoRef} muted playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }} />
             <canvas ref={canvasRef} style={{ display:"none" }} />
@@ -397,16 +397,16 @@ export function IMEIScanModal({ onClose, onFound }) {
             )}
             {status === "error" && (
               <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,.7)", borderRadius:16 }}>
-                <div style={{ color:"#f87171", fontSize:13, textAlign:"center", padding:16 }}>📵 {errMsg}</div>
+                <div style={{ color:"#f87171", fontSize:13, textAlign:"center", padding:16 }}>  {errMsg}</div>
               </div>
             )}
           </div>
         )}
 
         {/* Kết quả đã quét */}
-        {status === "done" && (
+        {status ==="done" && (
           <div style={{ background:"#f0fdf4", borderRadius:14, padding:18, marginBottom:14, border:"2px solid #6ee7b7", textAlign:"center" }}>
-            <div style={{ fontSize:13, color:"#065f46", fontWeight:700, marginBottom:6 }}>✅ Đã quét được:</div>
+            <div style={{ fontSize:13, color:"#065f46", fontWeight:700, marginBottom:6 }}>  Đã quét được:</div>
             <input value={detected} onChange={e => setDetected(e.target.value)}
               style={{ width:"100%", background:"#fff", border:"1.5px solid #6ee7b7", borderRadius:10, padding:"10px 14px", fontSize:16, fontWeight:800, textAlign:"center", fontFamily:"monospace", boxSizing:"border-box", outline:"none" }} />
             <div style={{ fontSize:11, color:"#6b7280", marginTop:6 }}>Chỉnh sửa nếu cần rồi nhấn Xác Nhận</div>
@@ -417,12 +417,12 @@ export function IMEIScanModal({ onClose, onFound }) {
         {status === "done" ? (
           <div style={{ display:"flex", gap:10 }}>
             <button onClick={() => { setStatus("loading"); setDetected(""); initDetector(); }}
-              style={{ flex:1, height:48, background:"rgba(255,255,255,.1)", border:"1.5px solid rgba(255,255,255,.3)", color:"#fff", borderRadius:12, fontWeight:700, cursor:"pointer" }}>
-              🔄 Quét lại
+              style={{ flex:1, height:48, background:"rgba(255,255,255,.1)", border:"1.5px solid rgba(255,255,255,.3)", color:"#fff", borderRadius:12, fontWeight:700, cursor:"pointer"}}>
+                Quét lại
             </button>
             <button onClick={() => confirmImei(detected)}
-              style={{ flex:2, height:48, background:"#4f46e5", border:"none", color:"#fff", borderRadius:12, fontWeight:800, fontSize:15, cursor:"pointer" }}>
-              ✅ Xác Nhận IMEI
+              style={{ flex:2, height:48, background:"#4f46e5", border:"none", color:"#fff", borderRadius:12, fontWeight:800, fontSize:15, cursor:"pointer"}}>
+                Xác Nhận IMEI
             </button>
           </div>
         ) : (

@@ -5,7 +5,7 @@ import { uploadFile } from "./pb.jsx";
 const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ default: ({ onClose }) => (
   <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}}>
     <div style={{background:"#fff",borderRadius:16,padding:32,textAlign:"center"}}>
-      <div style={{fontSize:32}}>⚠️</div>
+      <div style={{fontSize:32}}> </div>
       <div style={{fontWeight:700,marginTop:8}}>Module không tải được</div>
       <button onClick={onClose} style={{marginTop:16,padding:"10px 24px",background:"#4f46e5",color:"#fff",border:"none",borderRadius:8,cursor:"pointer"}}>Đóng</button>
     </div>
@@ -13,20 +13,20 @@ const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ defa
 )})));
 const StaffManagerPage = lazy(() => import("./StaffManager").catch(() => ({ default: () => (
   <div style={{padding:32,textAlign:"center"}}>
-    <div style={{fontSize:32}}>⚠️</div>
+    <div style={{fontSize:32}}> </div>
     <div style={{fontWeight:700,marginTop:8}}>Module không tải được</div>
   </div>
 )})));
 const SettingsPage = lazy(() => import("./Settings").catch(() => ({ default: () => (
   <div style={{padding:32,textAlign:"center"}}>
-    <div style={{fontSize:32}}>⚠️</div>
+    <div style={{fontSize:32}}> </div>
     <div style={{fontWeight:700,marginTop:8}}>Module không tải được</div>
   </div>
 )})));
 
 
 // Components loaded from OrderComponents
-import { QRScanModal } from "./QRComponents";
+import { QRScanModal } from"./QRComponents";
 import { MediaViewer, AcceptChecklistModal, AcceptTimer, timeAgo, genOrderId, getKpiTimerInfo, STATUS_PB, STATUS_DISPLAY, PRIORITY_PB, PRIORITY_DISPLAY, STATUS_COLS } from "./MediaViewer";
 import { OrderDrawer } from "./OrderDrawer";
 import { NewOrderModal, KPIPage, ProductHistoryModal } from "./OrderForms";
@@ -42,14 +42,14 @@ class ErrorBoundary extends React.Component {
     if (this.state.error) {
       return (
         <div style={{ minHeight:"100vh", background:"#1e1b4b", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", padding:24 }}>
-          <div style={{ fontSize:48, marginBottom:16 }}>⚠️</div>
+          <div style={{ fontSize:48, marginBottom:16 }}> </div>
           <div style={{ color:"#fff", fontWeight:800, fontSize:18, marginBottom:8 }}>Ứng dụng gặp lỗi</div>
           <div style={{ color:"#c7d2fe", fontSize:13, textAlign:"center", marginBottom:20, fontFamily:"monospace", background:"rgba(255,255,255,.1)", padding:12, borderRadius:10, maxWidth:400, wordBreak:"break-all" }}>
             {this.state.error?.message || String(this.state.error)}
           </div>
           <button onClick={() => { this.setState({error:null}); window.location.reload(); }}
-            style={{ background:"#4f46e5", color:"#fff", border:"none", borderRadius:12, padding:"12px 28px", fontSize:16, fontWeight:700, cursor:"pointer" }}>
-            🔄 Tải lại
+            style={{ background:"#4f46e5", color:"#fff", border:"none", borderRadius:12, padding:"12px 28px", fontSize:16, fontWeight:700, cursor:"pointer"}}>
+              Tải lại
           </button>
         </div>
       );
@@ -226,7 +226,7 @@ function MainAppInner() {
           if ((o.accept_stage||0) === 0 && !o.kpi_stage1_penalized && now >= assignedAt + 60*60000) {
             patch.kpi_stage1_penalized = true;
             kpiChanges.push({ userId: o.assigned_to, delta: -1 });
-            notifMsgs.push(`⚠️ Đơn ${o.id}: KTV quá 60 phút chưa Nhận máy → -1 KPI`);
+            notifMsgs.push(`  Đơn ${o.id}: KTV quá 60 phút chưa Nhận máy → -1 KPI`);
             changed = true;
           }
 
@@ -235,7 +235,7 @@ function MainAppInner() {
             patch.kpi_stage2_penalized = true;
             patch.needs_reassign = true;
             kpiChanges.push({ userId: o.assigned_to, delta: -3 });
-            notifMsgs.push(`🚨 Đơn ${o.id}: KTV quá 120 phút → -3 KPI. Quản lý cần xử lý!`);
+            notifMsgs.push(`  Đơn ${o.id}: KTV quá 120 phút → -3 KPI. Quản lý cần xử lý!`);
             changed = true;
           }
 
@@ -267,7 +267,7 @@ function MainAppInner() {
 
   if (dataLoading) return (
     <div style={{ minHeight:"100vh", background:"linear-gradient(135deg,#1e1b4b,#4f46e5)", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:16 }}>
-      <div style={{ fontSize:56 }}>🔧</div>
+      <div style={{ fontSize:56 }}> </div>
       <div style={{ color:"#fff", fontWeight:800, fontSize:20 }}>Đang tải hệ thống...</div>
       <div style={{ color:"#c7d2fe", fontSize:14 }}>⏳ Vui lòng chờ</div>
     </div>
@@ -340,14 +340,14 @@ function MainAppInner() {
       data._pbSaved = true;
     } catch(e) {
       console.error("Lỗi lưu PocketBase:", e);
-      alert("⚠️ Không lưu được đơn vào database! Kiểm tra kết nối PocketBase.");
+      alert("Không lưu được đơn vào database! Kiểm tra kết nối PocketBase.");
       return;
     }
 
     setOrders(p => [data, ...p]);
     if (data.assigned_to) {
       const ktv = users.find(u => u.id===data.assigned_to);
-      setNotifications(n => [{ id:Math.random().toString(36), msg:`🔔 Đơn ${data.id} giao cho ${ktv?.name}. Quy trình KPI đã bắt đầu!`, time:new Date().toISOString() }, ...n.slice(0,9)]);
+      setNotifications(n => [{ id:Math.random().toString(36), msg:`  Đơn ${data.id} giao cho ${ktv?.name}. Quy trình KPI đã bắt đầu!`, time:new Date().toISOString() }, ...n.slice(0,9)]);
     }
     setCreatedOrder(data);
     setPage("board");
@@ -387,12 +387,12 @@ function MainAppInner() {
   const pendingAccepts = orders.filter(o => o.assigned_to===user.id && (o.accept_stage||0)<2 && o.assigned_at && !["Hoàn Thành","Đã Giao"].includes(o.status));
 
   const navItems = [
-    ...(user.role==="manager"?[{key:"dashboard",icon:"📊",label:"Tổng quan"}]:[]),
-    ...(user.role!=="technician"?[{key:"board",icon:"📋",label:"Bảng theo dõi"},{key:"new",icon:"➕",label:"Tạo đơn mới"}]:[]),
-    {key:"tasks",icon:"✅",label:"Danh sách đơn"},
-    ...(user.role!=="receptionist"?[{key:"kpi",icon:"🏆",label:"KPI Kỹ thuật"}]:[]),
-    ...(user.role!=="technician"?[{key:"customers",icon:"👥",label:"Khách hàng"}]:[]),
-    ...(user.role==="admin"||user.role==="manager"?[{key:"staff",icon:"👤",label:"Nhân viên"},{key:"settings",icon:"⚙️",label:"Cài đặt"}]:[]),
+    ...(user.role==="manager"?[{key:"dashboard",icon:"bar_chart",label:"Tổng quan"}]:[]),
+    ...(user.role!=="technician"?[{key:"board",icon:"assignment",label:"Bảng theo dõi"},{key:"new",icon:"add",label:"Tạo đơn mới"}]:[]),
+    {key:"tasks",icon:"check_circle",label:"Danh sách đơn"},
+    ...(user.role!=="receptionist"?[{key:"kpi",icon:"emoji_events",label:"KPI Kỹ thuật"}]:[]),
+    ...(user.role!=="technician"?[{key:"customers",icon:"group",label:"Khách hàng"}]:[]),
+    ...(user.role==="admin"||user.role==="manager"?[{key:"staff",icon:"person",label:"Nhân viên"},{key:"settings",icon:"settings",label:"Cài đặt"}]:[]),
   ];
 
   // ── Kanban Board ─────────────────────────────────────────
@@ -427,10 +427,10 @@ function MainAppInner() {
     return (
       <div onClick={onClick} style={{ background:"#fff", borderRadius:12, padding:12, marginBottom:8, cursor:"pointer", boxShadow:highlight?"0 0 0 3px #f59e0b":"0 1px 4px rgba(0,0,0,.08)", border:highlight?"2px solid #f59e0b":"2px solid transparent", transition:"box-shadow .2s" }}>
         <div style={{ fontWeight:800, fontSize:13, color:"#1e1b4b", marginBottom:4 }}>{o.id}</div>
-        <div style={{ fontSize:12, color:"#374151", marginBottom:2 }}>👤 {o.customer_name||"?"} · {o.customer_phone||""}</div>
-        <div style={{ fontSize:12, color:"#6b7280", marginBottom:4 }}>📱 {o.device_model}</div>
+        <div style={{ fontSize:12, color:"#374151", marginBottom:2 }}>  {o.customer_name||"?"} · {o.customer_phone||""}</div>
+        <div style={{ fontSize:12, color:"#6b7280", marginBottom:4 }}>  {o.device_model}</div>
         {o.issues?.length>0 && <div style={{ fontSize:11, color:"#7c3aed", marginBottom:4 }}>{o.issues.slice(0,2).join(" · ")}</div>}
-        {ktv && <div style={{ fontSize:11, color:"#059669", marginBottom:timerInfo?4:0 }}>🔧 {ktv.name}</div>}
+        {ktv && <div style={{ fontSize:11, color:"#059669", marginBottom:timerInfo?4:0 }}>  {ktv.name}</div>}
         {timerInfo && (
           <div style={{ fontSize:11, color:timerInfo.urgent?"#dc2626":"#d97706", fontWeight:700 }}>
             ⏱ {timerInfo.label}: {timerInfo.timeStr}
@@ -462,10 +462,10 @@ function MainAppInner() {
                 <div style={{ fontWeight:800, color:"#1e1b4b" }}>{o.id}</div>
                 <div style={{ fontSize:12, padding:"3px 10px", borderRadius:99, background: o.status==="Hoàn Thành"?"#dcfce7":o.status==="Đang Sửa"?"#ede9fe":"#fef3c7", color:"#374151" }}>{o.status}</div>
               </div>
-              <div style={{ fontSize:13, color:"#374151", marginBottom:2 }}>👤 {o.customer_name} · 📱 {o.device_model}</div>
-              {ktv && <div style={{ fontSize:12, color:"#6b7280" }}>🔧 {ktv.name}</div>}
+              <div style={{ fontSize:13, color:"#374151", marginBottom:2 }}>  {o.customer_name} ·   {o.device_model}</div>
+              {ktv && <div style={{ fontSize:12, color:"#6b7280"}}>  {ktv.name}</div>}
               {timerInfo && <div style={{ fontSize:12, color:timerInfo.urgent?"#dc2626":"#d97706", fontWeight:700, marginTop:4 }}>⏱ {timerInfo.label}: {timerInfo.timeStr}</div>}
-              {o.needs_reassign && <div style={{ fontSize:12, color:"#ef4444", fontWeight:700, marginTop:4 }}>🚨 Cần chuyển KTV khác!</div>}
+              {o.needs_reassign && <div style={{ fontSize:12, color:"#ef4444", fontWeight:700, marginTop:4 }}>  Cần chuyển KTV khác!</div>}
             </div>
           );
         })}
@@ -491,7 +491,7 @@ function MainAppInner() {
         {custs.map(c => (
           <div key={c.phone} style={{ background:"#fff", borderRadius:14, padding:14, marginBottom:8, boxShadow:"0 1px 4px rgba(0,0,0,.06)" }}>
             <div style={{ fontWeight:800, fontSize:15 }}>{c.name}</div>
-            <div style={{ fontSize:13, color:"#6b7280", marginTop:2 }}>📞 {c.phone} · {c.orders} đơn</div>
+            <div style={{ fontSize:13, color:"#6b7280", marginTop:2 }}>  {c.phone} · {c.orders} đơn</div>
           </div>
         ))}
       </div>
@@ -507,18 +507,18 @@ function MainAppInner() {
       needsReassign: orders.filter(o=>o.needs_reassign).length,
     };
     const cards = [
-      { label:"Tổng đơn", value:stats.total, icon:"📋", bg:"#eef2ff", color:"#4f46e5" },
-      { label:"Đang xử lý", value:stats.active, icon:"⚙️", bg:"#fffbeb", color:"#d97706" },
-      { label:"Hoàn thành", value:stats.done, icon:"✅", bg:"#f0fdf4", color:"#059669" },
-      { label:"Cần xử lý", value:stats.needsReassign, icon:"🚨", bg:"#fef2f2", color:"#dc2626" },
+      { label:"Tổng đơn", value:stats.total, icon:"assignment", bg:"#eef2ff", color:"#4f46e5" },
+      { label:"Đang xử lý", value:stats.active, icon:"settings", bg:"#fffbeb", color:"#d97706" },
+      { label:"Hoàn thành", value:stats.done, icon:"check_circle", bg:"#f0fdf4", color:"#059669" },
+      { label:"Cần xử lý", value:stats.needsReassign, icon:"notifications_active", bg:"#fef2f2", color:"#dc2626" },
     ];
     return (
       <div style={{ padding:"0 16px 80px" }}>
-        <div style={{ fontWeight:900, fontSize:18, color:"#1e1b4b", marginBottom:16 }}>📊 Tổng quan hôm nay</div>
+        <div style={{ fontWeight:900, fontSize:18, color:"#1e1b4b", marginBottom:16 }}>  Tổng quan hôm nay</div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:20 }}>
           {cards.map(c => (
             <div key={c.label} style={{ background:c.bg, borderRadius:16, padding:16, textAlign:"center" }}>
-              <div style={{ fontSize:32 }}>{c.icon}</div>
+              <span className="material-icons" style={{fontSize:32,fontFamily:"Material Icons",verticalAlign:"middle",lineHeight:1,color:c.color}}>{c.icon}</span>
               <div style={{ fontSize:32, fontWeight:900, color:c.color }}>{c.value}</div>
               <div style={{ fontSize:12, color:"#6b7280", marginTop:2 }}>{c.label}</div>
             </div>
@@ -533,15 +533,15 @@ function MainAppInner() {
     <div style={{ minHeight:"100vh", background:"#f8fafc", fontFamily:"system-ui,-apple-system,sans-serif" }}>
       {/* Header */}
       <div style={{ position:"sticky", top:0, zIndex:100, background:"#1e1b4b", padding:"12px 16px", display:"flex", alignItems:"center", gap:12 }}>
-        <button onClick={() => setSidebarOpen(v=>!v)} style={{ background:"none", border:"none", color:"#fff", fontSize:22, cursor:"pointer", padding:4 }}>☰</button>
-        <div style={{ flex:1, fontWeight:800, fontSize:16, color:"#fff" }}>🛠️ HK One Touch</div>
+        <button onClick={() => setSidebarOpen(v=>!v)} style={{ background:"none", border:"none", color:"#fff", fontSize:22, cursor:"pointer", padding:4 }}> </button>
+        <div style={{ flex:1, fontWeight:800, fontSize:16, color:"#fff"}}>  HK One Touch</div>
         <div style={{ position:"relative" }}>
           <button onClick={() => setShowNotif(v=>!v)} style={{ background:"none", border:"none", color:"#fff", fontSize:22, cursor:"pointer", padding:4 }}>
-            🔔
+             
             {notifications.length>0 && <span style={{ position:"absolute", top:-2, right:-2, background:"#ef4444", color:"#fff", borderRadius:"50%", width:16, height:16, fontSize:10, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800 }}>{notifications.length}</span>}
           </button>
         </div>
-        <button onClick={() => setShowQRScan(true)} style={{ background:"none", border:"none", color:"#fff", fontSize:22, cursor:"pointer", padding:4 }}>📷</button>
+        <button onClick={() => setShowQRScan(true)} style={{ background:"none", border:"none", color:"#fff", fontSize:22, cursor:"pointer", padding:4 }}> </button>
         <button onClick={doLogout} style={{ background:"rgba(255,255,255,.15)", border:"none", color:"#fff", borderRadius:10, padding:"6px 12px", fontSize:12, cursor:"pointer", fontWeight:700 }}>Thoát</button>
       </div>
 
@@ -551,7 +551,7 @@ function MainAppInner() {
           <div style={{ position:"absolute", inset:0, background:"rgba(0,0,0,.4)" }} onClick={() => setSidebarOpen(false)} />
           <div style={{ position:"absolute", left:0, top:0, bottom:0, width:260, background:"#fff", boxShadow:"4px 0 20px rgba(0,0,0,.15)", display:"flex", flexDirection:"column" }}>
             <div style={{ background:"#1e1b4b", padding:24, color:"#fff" }}>
-              <div style={{ fontSize:40 }}>{user.avatar_url ? <img src={user.avatar_url} style={{width:48,height:48,borderRadius:"50%"}} alt="" /> : "👤"}</div>
+              <div style={{ fontSize:40 }}>{user.avatar_url ? <img src={user.avatar_url} style={{width:48,height:48,borderRadius:"50%"}} alt="" /> : <span className="material-icons" style={{fontSize:48,fontFamily:"Material Icons",color:"#9ca3af"}}>person</span>}</div>
               <div style={{ fontWeight:800, fontSize:16, marginTop:8 }}>{user.name}</div>
               <div style={{ fontSize:12, color:"#c7d2fe", marginTop:2 }}>{user.role} · KPI: {user.kpi}</div>
             </div>
@@ -559,12 +559,12 @@ function MainAppInner() {
               {navItems.map(n => (
                 <button key={n.key} onClick={() => { setPage(n.key); setSidebarOpen(false); }}
                   style={{ width:"100%", textAlign:"left", padding:"14px 16px", borderRadius:12, border:"none", background:page===n.key?"#eef2ff":"transparent", color:page===n.key?"#4f46e5":"#374151", fontWeight:page===n.key?800:500, fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", gap:10, marginBottom:2 }}>
-                  <span style={{fontSize:20}}>{n.icon}</span> {n.label}
+                  <span className="material-icons" style={{fontSize:20,fontFamily:"Material Icons",verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>{n.icon}</span> {n.label}
                 </button>
               ))}
             </div>
             <div style={{ padding:16, borderTop:"1px solid #f3f4f6" }}>
-              <button onClick={doLogout} style={{ width:"100%", padding:14, background:"#fef2f2", border:"none", borderRadius:12, color:"#dc2626", fontWeight:700, cursor:"pointer" }}>🚪 Đăng xuất</button>
+              <button onClick={doLogout} style={{ width:"100%", padding:14, background:"#fef2f2", border:"none", borderRadius:12, color:"#dc2626", fontWeight:700, cursor:"pointer"}}>  Đăng xuất</button>
             </div>
           </div>
         </div>
@@ -575,7 +575,7 @@ function MainAppInner() {
         <div style={{ position:"fixed", inset:0, zIndex:300 }}>
           <div style={{ position:"absolute", inset:0 }} onClick={() => setShowNotif(false)} />
           <div style={{ position:"absolute", top:60, right:8, width:320, background:"#fff", borderRadius:16, boxShadow:"0 8px 32px rgba(0,0,0,.2)", overflow:"hidden" }}>
-            <div style={{ padding:"14px 16px", fontWeight:800, borderBottom:"1px solid #f3f4f6" }}>🔔 Thông báo</div>
+            <div style={{ padding:"14px 16px", fontWeight:800, borderBottom:"1px solid #f3f4f6"}}>  Thông báo</div>
             {notifications.length===0 ? <div style={{ padding:24, textAlign:"center", color:"#9ca3af" }}>Không có thông báo</div> : notifications.map(n => (
               <div key={n.id} style={{ padding:"12px 16px", borderBottom:"1px solid #f9fafb", fontSize:13 }}>
                 <div>{n.msg}</div>
@@ -591,12 +591,12 @@ function MainAppInner() {
       {(page==="board"||page==="tasks") && (
         <div style={{ padding:"10px 16px 6px", display:"flex", gap:8, alignItems:"center" }}>
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="🔍 Tìm kiếm..."
+            placeholder="Tìm kiếm..."
             style={{ flex:1, height:38, borderRadius:12, border:"1.5px solid #e5e7eb", padding:"0 14px", fontSize:14, outline:"none" }} />
           {user.role!=="technician" && (
             <button onClick={() => setShowNewOrder(true)}
               style={{ height:38, padding:"0 16px", background:"#4f46e5", color:"#fff", border:"none", borderRadius:12, fontWeight:700, fontSize:14, cursor:"pointer", flexShrink:0 }}>
-              ➕ Tạo
+                Tạo
             </button>
           )}
         </div>
@@ -606,7 +606,7 @@ function MainAppInner() {
       <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
         {page==="board" && <KanbanBoard />}
         {page==="tasks" && <TaskList />}
-        {page==="new" && <div style={{padding:16}}><button onClick={() => setShowNewOrder(true)} style={{ width:"100%", height:56, background:"#4f46e5", color:"#fff", border:"none", borderRadius:16, fontWeight:800, fontSize:16, cursor:"pointer" }}>➕ Tạo Đơn Mới</button></div>}
+        {page==="new" && <div style={{padding:16}}><button onClick={() => setShowNewOrder(true)} style={{ width:"100%", height:56, background:"#4f46e5", color:"#fff", border:"none", borderRadius:16, fontWeight:800, fontSize:16, cursor:"pointer"}}>  Tạo Đơn Mới</button></div>}
         {page==="kpi" && <KPIPage users={users} orders={orders} />}
         {page==="customers" && <CustomerList />}
         {page==="dashboard" && <Dashboard />}
@@ -619,7 +619,7 @@ function MainAppInner() {
         {navItems.slice(0,5).map(n => (
           <button key={n.key} onClick={() => setPage(n.key)}
             style={{ flex:1, padding:"10px 4px", background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
-            <span style={{ fontSize:20 }}>{n.icon}</span>
+            <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",lineHeight:1}}>{n.icon}</span>
             <span style={{ fontSize:10, color:page===n.key?"#4f46e5":"#9ca3af", fontWeight:page===n.key?800:500 }}>{n.label}</span>
           </button>
         ))}
@@ -651,9 +651,9 @@ function MainAppInner() {
 
       {/* Created order toast */}
       {createdOrder && (
-        <div style={{ position:"fixed", bottom:80, left:16, right:16, zIndex:400, background:"#059669", borderRadius:16, padding:"14px 18px", color:"#fff", boxShadow:"0 8px 24px rgba(0,0,0,.2)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        <div style={{ position:"fixed", bottom:80, left:16, right:16, zIndex:400, background:"#059669", borderRadius:16, padding:"14px 18px", color:"#fff", boxShadow:"0 8px 24px rgba(0,0,0,.2)", display:"flex", justifyContent:"space-between", alignItems:"center"}}>
           <div>
-            <div style={{ fontWeight:800 }}>✅ Đã tạo đơn {createdOrder.id}</div>
+            <div style={{ fontWeight:800 }}>  Đã tạo đơn {createdOrder.id}</div>
             <div style={{ fontSize:12, opacity:.9, marginTop:2 }}>{createdOrder.customer_name} · {createdOrder.device_model}</div>
           </div>
           <button onClick={() => setCreatedOrder(null)}

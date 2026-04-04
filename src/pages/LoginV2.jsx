@@ -2,6 +2,21 @@
 import React, { useState, useEffect } from "react";
 import { Staff, pbAuth, getPbUrl, setPbUrl, testConnection } from "./pb.jsx";
 
+// Inject Material Icons font
+(function injectMaterialIcons() {
+  if (document.getElementById('material-icons-font')) return;
+  const link = document.createElement('link');
+  link.id = 'material-icons-font';
+  link.rel = 'stylesheet';
+  link.href = 'https://fonts.googleapis.com/icon?family=Material+Icons';
+  document.head.appendChild(link);
+  // Global style
+  const style = document.createElement('style');
+  style.textContent = '.material-icons { font-family: "Material Icons"; font-weight: normal; font-style: normal; display: inline-block; line-height: 1; text-transform: none; letter-spacing: normal; word-wrap: normal; white-space: nowrap; direction: ltr; -webkit-font-smoothing: antialiased; }';
+  document.head.appendChild(style);
+})();
+
+
 // Inject PWA manifest + meta tags động
 (function injectPWA() {
   const ICON192 = "https://base44.app/api/apps/69bf5d0a924e0a8766577274/files/mp/public/69bf5d0a924e0a8766577274/43c978c50_icon-192.png";
@@ -160,7 +175,7 @@ export default function LoginV2({ onLogin, loggedOut }) {
             else                                  setErr("Sai mật khẩu!");
           }
         } catch {
-          setErr(`❌ Không kết nối được PocketBase!\nKiểm tra server: ${getPbUrl()}`);
+          setErr(`  Không kết nối được PocketBase!\nKiểm tra server: ${getPbUrl()}`);
           setShowConfig(true);
         }
       }
@@ -173,10 +188,10 @@ export default function LoginV2({ onLogin, loggedOut }) {
       }
     } catch(e) {
       if (e.message?.includes("fetch") || e.message?.includes("network") || e.message?.includes("Failed")) {
-        setErr(`❌ Không kết nối được PocketBase!\nKiểm tra server: ${getPbUrl()}`);
+        setErr(`  Không kết nối được PocketBase!\nKiểm tra server: ${getPbUrl()}`);
         setShowConfig(true);
       } else {
-        setErr(e.message || "Lỗi kết nối, thử lại!");
+        setErr(e.message ||"Lỗi kết nối, thử lại!");
       }
     } finally {
       setLoading(false);
@@ -229,9 +244,9 @@ export default function LoginV2({ onLogin, loggedOut }) {
         {showConfig && (
           <div style={{ background:"#fef3c7", borderRadius:14, padding:14, border:"1.5px solid #fbbf24", marginBottom:16 }}>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-              <span style={{ fontWeight:800, fontSize:13, color:"#92400e" }}>⚙️ Cấu hình PocketBase</span>
+              <span style={{ fontWeight:800, fontSize:13, color:"#92400e"}}>  Cấu hình PocketBase</span>
               <button onClick={() => { setShowConfig(false); setConnStatus(null); }}
-                style={{ fontSize:13, color:"#92400e", background:"none", border:"none", cursor:"pointer", fontWeight:700 }}>✕</button>
+                style={{ fontSize:13, color:"#92400e", background:"none", border:"none", cursor:"pointer", fontWeight:700 }}> </button>
             </div>
             <input value={pbUrl} onChange={e => { setPbUrlState(e.target.value); setConnStatus(null); }}
               placeholder="http://192.168.1.234:8090"
@@ -239,21 +254,21 @@ export default function LoginV2({ onLogin, loggedOut }) {
             <div style={{ display:"flex", gap:8, marginTop:8 }}>
               <button onClick={doTestConn} disabled={testingConn}
                 style={{ flex:1, height:36, background:"#0ea5e9", color:"#fff", border:"none", borderRadius:10, fontWeight:700, fontSize:13, cursor:"pointer" }}>
-                {testingConn ? "⏳..." : "🔌 Test"}
+                {testingConn ? "⏳..." : "Test"}
               </button>
               <button onClick={savePbUrl}
-                style={{ flex:1, height:36, background:"#059669", color:"#fff", border:"none", borderRadius:10, fontWeight:700, fontSize:13, cursor:"pointer" }}>
-                💾 Lưu
+                style={{ flex:1, height:36, background:"#059669", color:"#fff", border:"none", borderRadius:10, fontWeight:700, fontSize:13, cursor:"pointer"}}>
+                  Lưu
               </button>
             </div>
-            {connStatus === "ok"   && <div style={{ marginTop:8, color:"#059669", fontWeight:700, fontSize:13, textAlign:"center" }}>✅ Kết nối thành công!</div>}
-            {connStatus === "fail" && <div style={{ marginTop:8, color:"#dc2626", fontWeight:700, fontSize:13, textAlign:"center" }}>❌ Không kết nối được!</div>}
+            {connStatus ==="ok"   && <div style={{ marginTop:8, color:"#059669", fontWeight:700, fontSize:13, textAlign:"center"}}>  Kết nối thành công!</div>}
+            {connStatus ==="fail" && <div style={{ marginTop:8, color:"#dc2626", fontWeight:700, fontSize:13, textAlign:"center"}}>  Không kết nối được!</div>}
           </div>
         )}
 
         {/* Username */}
         <div style={{ marginBottom:14 }}>
-          <label style={{ display:"block", fontSize:13, fontWeight:700, color:"#374151", marginBottom:6 }}>👤 Tên đăng nhập</label>
+          <label style={{ display:"block", fontSize:13, fontWeight:700, color:"#374151", marginBottom:6 }}>  Tên đăng nhập</label>
           <input value={username} onChange={e => { setUsername(e.target.value); setErr(""); }}
             onKeyDown={e => e.key==="Enter" && doLogin()}
             placeholder="Nhập username..." autoFocus
@@ -262,7 +277,7 @@ export default function LoginV2({ onLogin, loggedOut }) {
 
         {/* Password */}
         <div style={{ marginBottom:14 }}>
-          <label style={{ display:"block", fontSize:13, fontWeight:700, color:"#374151", marginBottom:6 }}>🔑 Mật khẩu</label>
+          <label style={{ display:"block", fontSize:13, fontWeight:700, color:"#374151", marginBottom:6 }}>  Mật khẩu</label>
           <div style={{ position:"relative" }}>
             <input value={password} onChange={e => { setPassword(e.target.value); setErr(""); }}
               onKeyDown={e => e.key==="Enter" && doLogin()}
@@ -270,7 +285,7 @@ export default function LoginV2({ onLogin, loggedOut }) {
               style={{ width:"100%", height:50, borderRadius:12, border:`2px solid ${err?"#ef4444":"#e5e7eb"}`, padding:"0 50px 0 16px", fontSize:15, outline:"none", boxSizing:"border-box" }} />
             <button onClick={() => setShowPw(v=>!v)} type="button"
               style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:20, color:"#9ca3af" }}>
-              {showPw?"🙈":"👁️"}
+              {showPw ? <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",lineHeight:1}}>visibility_off</span> : <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",lineHeight:1}}>visibility</span>}
             </button>
           </div>
         </div>
@@ -288,15 +303,15 @@ export default function LoginV2({ onLogin, loggedOut }) {
 
         {/* Error */}
         {err && (
-          <div style={{ background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:10, padding:"10px 14px", marginBottom:14, fontSize:13, color:"#dc2626", fontWeight:600, whiteSpace:"pre-line" }}>
-            ⚠️ {err}
+          <div style={{ background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:10, padding:"10px 14px", marginBottom:14, fontSize:13, color:"#dc2626", fontWeight:600, whiteSpace:"pre-line"}}>
+              {err}
           </div>
         )}
 
         {/* Submit */}
         <button onClick={() => doLogin()} disabled={loading}
           style={{ width:"100%", height:54, background:loading?"#a5b4fc":"linear-gradient(135deg,#4f46e5,#7c3aed)", color:"#fff", border:"none", borderRadius:14, fontSize:18, fontWeight:800, cursor:loading?"not-allowed":"pointer", boxShadow:"0 4px 16px rgba(79,70,229,.4)" }}>
-          {loading ? "⏳ Đang đăng nhập..." : "🚀 Đăng Nhập"}
+          {loading ? "⏳ Đang đăng nhập..." : <><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",lineHeight:1}}>login</span> Đăng Nhập</>}
         </button>
       </div>
     </div>

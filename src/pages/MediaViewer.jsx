@@ -186,9 +186,9 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
     try{
       const blob=await new Promise(r=>canvasRef.current.toBlob(r,"image/jpeg",0.88));
       await onSendAnnotated(new File([blob],`annotated_${Date.now()}.jpg`,{type:"image/jpeg"}));
-      setShareStatus("✅ Đã gửi ảnh vào chat!");
+      setShareStatus("Đã gửi ảnh vào chat!");
       setTimeout(()=>{setShareStatus("");setDrawMode(false);},2000);
-    }catch{setShareStatus("❌ Gửi thất bại!");}
+    }catch{setShareStatus("Gửi thất bại!");}
     finally{setSending(false);}
   }
 
@@ -200,9 +200,9 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
         const file=new File([blob],`repair_media.${ext}`,{type:blob.type});
         if(navigator.canShare&&navigator.canShare({files:[file]})) await navigator.share({files:[file],title:"Ảnh/Video sửa chữa"});
         else await navigator.share({url,title:"Ảnh/Video sửa chữa"});
-        setShareStatus("✅ Đã chia sẻ!");
-      } else { await navigator.clipboard.writeText(url);setShareStatus("✅ Đã copy link!"); }
-    }catch(e){if(e.name!=="AbortError") setShareStatus("❌ Lỗi chia sẻ");}
+        setShareStatus("Đã chia sẻ!");
+      } else { await navigator.clipboard.writeText(url);setShareStatus("Đã copy link!"); }
+    }catch(e){if(e.name!=="AbortError") setShareStatus("Lỗi chia sẻ");}
     setTimeout(()=>setShareStatus(""),2500);
   }
 
@@ -213,7 +213,7 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
   }
 
   const COLORS=["#ff3b30","#ff9500","#ffcc00","#34c759","#007aff","#af52de","#fff","#000"];
-  const TOOLS=[{id:"pen",icon:"✏️"},{id:"rect",icon:"⬜"},{id:"oval",icon:"⭕"}];
+  const TOOLS=[{id:"pen",icon:"edit"},{id:"rect",icon:"crop_square"},{id:"oval",icon:"circle"}];
 
   return(
     <div style={{position:"fixed",inset:0,zIndex:6000,background:"rgba(0,0,0,.97)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}
@@ -223,10 +223,10 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
         onClick={e=>e.stopPropagation()}>
         <div style={{color:"#fff",fontSize:13,fontWeight:600}}>{idx+1} / {items.length}</div>
         <div style={{display:"flex",gap:6}}>
-          {!isVideo&&<button onClick={()=>setDrawMode(d=>!d)} style={{background:drawMode?"#f59e0b":"rgba(255,255,255,.2)",border:"none",color:"#fff",height:34,padding:"0 12px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer"}}>{drawMode?"✏️ Đang vẽ":"✏️ Vẽ"}</button>}
-          <button onClick={handleShare} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",height:34,padding:"0 12px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer"}}>📤</button>
-          <button onClick={handleDownload} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",height:34,padding:"0 12px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer"}}>⬇️</button>
-          <button onClick={onClose} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",width:36,height:36,borderRadius:"50%",fontSize:18,cursor:"pointer"}}>✕</button>
+          {!isVideo&&<button onClick={()=>setDrawMode(d=>!d)} style={{background:drawMode?"#f59e0b":"rgba(255,255,255,.2)",border:"none",color:"#fff",height:34,padding:"0 12px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer"}}>{drawMode ? <><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:14,verticalAlign:"middle",lineHeight:1}}>edit</span> Đang vẽ</> : <><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:14,verticalAlign:"middle",lineHeight:1}}>edit</span> Vẽ</>}</button>}
+          <button onClick={handleShare} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",height:34,padding:"0 12px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer"}}> </button>
+          <button onClick={handleDownload} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",height:34,padding:"0 12px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer"}}>⬇</button>
+          <button onClick={onClose} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",width:36,height:36,borderRadius:"50%",fontSize:18,cursor:"pointer"}}> </button>
         </div>
       </div>
 
@@ -236,17 +236,17 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
           <div style={{display:"flex",gap:6,alignItems:"center"}}>
             {TOOLS.map(t=>(
               <button key={t.id} onClick={()=>setDrawTool(t.id)}
-                style={{background:drawTool===t.id?"#4f46e5":"rgba(255,255,255,.15)",border:`2px solid ${drawTool===t.id?"#818cf8":"transparent"}`,color:"#fff",width:40,height:40,borderRadius:10,fontSize:17,cursor:"pointer"}}>
-                {t.icon}
+                style={{background:drawTool===t.id?"#4f46e5":"rgba(255,255,255,.15)",border:`2px solid ${drawTool===t.id?"#818cf8":"transparent"}`,color:"#fff",width:40,height:40,borderRadius:10,fontSize:20,cursor:"pointer"}}>
+                <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",lineHeight:1}}>{t.icon}</span>
               </button>
             ))}
             <div style={{width:1,height:30,background:"rgba(255,255,255,.25)",margin:"0 2px"}}/>
             <button onClick={handleUndo} title="Undo"
-              style={{background:"rgba(255,255,255,.15)",border:"none",color:"#fff",width:40,height:40,borderRadius:10,fontSize:17,cursor:"pointer"}}>↩️</button>
+              style={{background:"rgba(255,255,255,.15)",border:"none",color:"#fff",width:40,height:40,borderRadius:10,fontSize:17,cursor:"pointer"}}>↩</button>
             <div style={{width:1,height:30,background:"rgba(255,255,255,.25)",margin:"0 2px"}}/>
             <button onClick={handleSendAnnotated} disabled={sending}
               style={{background:"#4f46e5",border:"none",color:"#fff",height:40,padding:"0 16px",borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer",minWidth:60}}>
-              {sending?"⏳":"📨 Gửi"}
+              {sending?"⏳":"Gửi"}
             </button>
           </div>
           {/* Dòng 2: Màu */}
@@ -283,7 +283,7 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
           videoSrc&&(videoSrc.startsWith("blob:")||videoSrc.startsWith("http"))?(
             <video src={videoSrc} controls autoPlay playsInline preload="metadata" style={{maxWidth:"96vw",maxHeight:"82vh",borderRadius:12,background:"#000"}}/>
           ):(
-            <div style={{textAlign:"center",color:"#fff"}}><div style={{fontSize:72}}>🎥</div></div>
+            <div style={{textAlign:"center",color:"#fff"}}><div style={{fontSize:72}}> </div></div>
           )
         ):drawMode?(
           <canvas ref={canvasRef}
@@ -307,7 +307,7 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
         <div onClick={e=>e.stopPropagation()} style={{position:"absolute",bottom:16,left:0,right:0,display:"flex",justifyContent:"center",gap:8,padding:"0 16px",flexWrap:"wrap",zIndex:5}}>
           {items.map((it,i)=>(
             <div key={i} onClick={()=>setIdx(i)} style={{width:50,height:50,borderRadius:10,overflow:"hidden",border:`2px solid ${i===idx?"#a5b4fc":"transparent"}`,cursor:"pointer",background:"#1f2937",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
-              {it.startsWith("video:")?<span style={{fontSize:20}}>🎥</span>:<img src={it} style={{width:"100%",height:"100%",objectFit:"cover"}} alt=""/>}
+              {it.startsWith("video:")?<span style={{fontSize:20}}> </span>:<img src={it} style={{width:"100%",height:"100%",objectFit:"cover"}} alt=""/>}
             </div>
           ))}
         </div>
@@ -363,21 +363,21 @@ function AcceptChecklistModal({ order, onConfirm, onClose }) {
         <div style={{ padding:"0 20px 24px" }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
             <div>
-              <div style={{ fontWeight:800, fontSize:18 }}>✋ Nhận Máy Lần 1</div>
+              <div style={{ fontWeight:800, fontSize:18 }}>  Nhận Máy Lần 1</div>
               <div style={{ fontSize:13, color:"#6b7280" }}>Kiểm tra và xác nhận trước khi nhận</div>
             </div>
-            <button onClick={onClose} style={{ background:"#f3f4f6", border:"none", width:36, height:36, borderRadius:"50%", fontSize:17, cursor:"pointer" }}>✕</button>
+            <button onClick={onClose} style={{ background:"#f3f4f6", border:"none", width:36, height:36, borderRadius:"50%", fontSize:17, cursor:"pointer"}}> </button>
           </div>
 
           {/* Checklist */}
           <div style={{ marginBottom:18 }}>
-            <div style={{ fontWeight:700, fontSize:14, marginBottom:10, color:"#374151" }}>☑️ Kiểm tra trước khi nhận:</div>
+            <div style={{ fontWeight:700, fontSize:14, marginBottom:10, color:"#374151"}}>  Kiểm tra trước khi nhận:</div>
             <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
               {CHECKLIST_ITEMS.map(item => (
                 <div key={item} onClick={() => toggle(item)}
                   style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 14px", borderRadius:12, border:`2px solid ${checked.includes(item)?"#4f46e5":"#e5e7eb"}`, background:checked.includes(item)?"#eef2ff":"#fff", cursor:"pointer" }}>
                   <div style={{ width:24, height:24, borderRadius:6, border:`2px solid ${checked.includes(item)?"#4f46e5":"#d1d5db"}`, background:checked.includes(item)?"#4f46e5":"#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                    {checked.includes(item) && <span style={{ color:"#fff", fontSize:14, fontWeight:900 }}>✓</span>}
+                    {checked.includes(item) && <span style={{ color:"#fff", fontSize:14, fontWeight:900 }}> </span>}
                   </div>
                   <span style={{ fontSize:14, fontWeight:checked.includes(item)?700:400, color:checked.includes(item)?"#3730a3":"#374151" }}>{item}</span>
                 </div>
@@ -388,7 +388,7 @@ function AcceptChecklistModal({ order, onConfirm, onClose }) {
 
           {/* Thời gian dự kiến */}
           <div style={{ marginBottom:18 }}>
-            <div style={{ fontWeight:700, fontSize:14, marginBottom:10, color:"#374151" }}>⏱️ Thời gian dự kiến hoàn thành: <span style={{ color:"#dc2626" }}>*</span></div>
+            <div style={{ fontWeight:700, fontSize:14, marginBottom:10, color:"#374151" }}>⏱ Thời gian dự kiến hoàn thành: <span style={{ color:"#dc2626" }}>*</span></div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
               {EST_OPTIONS.map(opt => (
                 <button key={opt.value} onClick={() => setEstMins(opt.value)}
@@ -401,14 +401,14 @@ function AcceptChecklistModal({ order, onConfirm, onClose }) {
 
           {/* Ghi chú */}
           <div style={{ marginBottom:20 }}>
-            <div style={{ fontWeight:700, fontSize:14, marginBottom:8, color:"#374151" }}>📝 Ghi chú kỹ thuật:</div>
+            <div style={{ fontWeight:700, fontSize:14, marginBottom:8, color:"#374151"}}>  Ghi chú kỹ thuật:</div>
             <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Tình trạng thực tế khi nhận máy..."
               rows={3} style={{ width:"100%", borderRadius:12, border:"1.5px solid #e5e7eb", padding:"12px 14px", fontSize:14, outline:"none", resize:"vertical", boxSizing:"border-box" }} />
           </div>
 
           <button onClick={() => canConfirm && onConfirm({ checklist:checked, estMins, note })}
             style={{ width:"100%", height:58, borderRadius:16, background:canConfirm?"#059669":"#d1d5db", color:"#fff", border:"none", fontWeight:800, fontSize:18, cursor:canConfirm?"pointer":"not-allowed" }}>
-            {canConfirm ? "✅ Xác Nhận Nhận Máy" : "Chọn thời gian dự kiến để tiếp tục"}
+            {canConfirm ? "Xác Nhận Nhận Máy" : "Chọn thời gian dự kiến để tiếp tục"}
           </button>
         </div>
       </div>
@@ -429,7 +429,7 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
     return (
       <div style={{ background:"#f3f4f6", border:"2px solid #d1d5db", borderRadius:14, padding:"12px 14px", marginBottom:14, opacity:0.6 }}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <div style={{ fontSize:22 }}>✅</div>
+          <div style={{ fontSize:22 }}> </div>
           <div>
             <div style={{ fontWeight:800, fontSize:14, color:"#6b7280" }}>Đã nhận máy</div>
             <div style={{ fontSize:12, color:"#9ca3af" }}>Giai đoạn 1 hoàn tất — tiếp tục sửa chữa</div>
@@ -463,7 +463,7 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
         <div>
           <div style={{ fontWeight: 800, fontSize: 14, color: expired ? "#dc2626" : "#374151" }}>
-            {expired ? (info.phase === 1 ? "⚠️ Quá mốc 60 phút!" : "🚨 Quá mốc 120 phút!") : `⏰ ${info.label}`}
+            {expired ? (info.phase === 1 ? "Quá mốc 60 phút!" : "Quá mốc 120 phút!") : `⏰ ${info.label}`}
           </div>
           <div style={{ fontSize: 12, color: "#6b7280" }}>
             {expired
@@ -480,18 +480,18 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
       {isMyOrder && (
         done ? (
           <div style={{ width:"100%", height:52, borderRadius:14, background:"#d1d5db", color:"#6b7280", fontWeight:800, fontSize:17, display:"flex", alignItems:"center", justifyContent:"center", opacity:0.7 }}>
-            ✅ Đã nhận máy
+              Đã nhận máy
           </div>
         ) : (
           <button onClick={handleNhanMay}
-            style={{ width:"100%", height:52, borderRadius:14, border:"none", background: expired ? "#dc2626" : "#4f46e5", color:"#fff", fontWeight:800, fontSize:17, cursor:"pointer" }}>
-            ✋ Nhận máy
+            style={{ width:"100%", height:52, borderRadius:14, border:"none", background: expired ? "#dc2626" : "#4f46e5", color:"#fff", fontWeight:800, fontSize:17, cursor:"pointer"}}>
+              Nhận máy
           </button>
         )
       )}
-      {!isMyOrder && currentUser.role === "manager" && info.phase === 2 && expired && (
-        <div style={{ marginTop: 8, fontSize: 13, color: "#dc2626", fontWeight: 700, textAlign: "center" }}>
-          🔔 Hệ thống đã báo quản lý — có thể "Đổi KTV" bên dưới
+      {!isMyOrder && currentUser.role ==="manager" && info.phase === 2 && expired && (
+        <div style={{ marginTop: 8, fontSize: 13, color: "#dc2626", fontWeight: 700, textAlign: "center"}}>
+            Hệ thống đã báo quản lý — có thể"Đổi KTV" bên dưới
         </div>
       )}
     </div>
@@ -527,12 +527,12 @@ const PRIORITY_DISPLAY = Object.fromEntries(
   Object.entries(PRIORITY_PB).map(([display, pb]) => [pb, display])
 );
 const STATUS_COLS = [
-  { key:"Mới Nhận",      pb:"Moi Nhan",      color:"#2563eb", bg:"#dbeafe",  emoji:"📥" },
-  { key:"Đang Kiểm Tra", pb:"Dang Kiem Tra", color:"#d97706", bg:"#fef3c7",  emoji:"🔍" },
-  { key:"Đang Sửa",      pb:"Dang Sua",      color:"#7c3aed", bg:"#ede9fe",  emoji:"🔧" },
+  { key:"Mới Nhận",      pb:"Moi Nhan",      color:"#2563eb", bg:"#dbeafe",  emoji:"inbox" },
+  { key:"Đang Kiểm Tra", pb:"Dang Kiem Tra", color:"#d97706", bg:"#fef3c7",  emoji:"search" },
+  { key:"Đang Sửa",      pb:"Dang Sua",      color:"#7c3aed", bg:"#ede9fe",  emoji:"build" },
   { key:"Chờ Linh Kiện", pb:"Cho Linh Kien", color:"#db2777", bg:"#fce7f3",  emoji:"⏳" },
-  { key:"Hoàn Thành",    pb:"Hoan Thanh",    color:"#059669", bg:"#dcfce7",  emoji:"✅" },
-  { key:"Đã Giao",       pb:"Da Giao",       color:"#64748b", bg:"#f1f5f9",  emoji:"📦" },
+  { key:"Hoàn Thành",    pb:"Hoan Thanh",    color:"#059669", bg:"#dcfce7",  emoji:"check_circle" },
+  { key:"Đã Giao",       pb:"Da Giao",       color:"#64748b", bg:"#f1f5f9",  emoji:"inventory_2" },
 ];
 
 export { timeAgo, genOrderId, getKpiTimerInfo, MediaViewer, AcceptChecklistModal, AcceptTimer, STATUS_PB, STATUS_DISPLAY, STATUS_COLS, PRIORITY_PB, PRIORITY_DISPLAY };

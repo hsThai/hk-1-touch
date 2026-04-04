@@ -18,18 +18,18 @@ const SHOP_KEYS = [
 
 // ── Âm thanh thông báo ──
 const BUILT_IN_SOUNDS = [
-  { key:"none",    label:"🔕 Tắt âm thanh",   url:null },
-  { key:"ding",    label:"🔔 Ding (mặc định)", url:"data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2ozLS5bnNPsqmE3Li5bm9PtqmE5MC5bm9PsqmE3MC5anNPuqmI4MC5anNPuqmE4MC5am9PuqmE3MC5anNPuqmE4MC5am9PuqmE3MC5am9PuqmE3MC1am9PvqmE4MC1am9PvqmE4MC1am9PvqmE4MC1am9PvqmE4MC1am9PvqmE4MC1am9PvqmE3MC1am9Pvql84MC1am9PvqmE4MC1am9Pvql84MC1am9PvqmE4MC1am9PvqmE4MC1am9PvqmE4MC1am9PvqmE4MC1am9PvqmE3" },
-  { key:"chime",   label:"🎵 Chime nhẹ",       url:"data:audio/wav;base64,UklGRl9vT1hXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YT" },
-  { key:"beep",    label:"📳 Beep ngắn",       url:"beep" },
-  { key:"bell",    label:"🔔 Chuông điện thoại", url:"bell" },
+  { key:"none",    label:"Tắt âm thanh",   url:null },
+  { key:"ding",    label:"Ding (mặc định)", url:"data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2ozLS5bnNPsqmE3Li5bm9PtqmE5MC5bm9PsqmE3MC5anNPuqmI4MC5anNPuqmE4MC5am9PuqmE3MC5anNPuqmE4MC5am9PuqmE3MC5am9PuqmE3MC1am9PvqmE4MC1am9PvqmE4MC1am9PvqmE4MC1am9PvqmE4MC1am9PvqmE4MC1am9PvqmE3MC1am9Pvql84MC1am9PvqmE4MC1am9Pvql84MC1am9PvqmE4MC1am9PvqmE4MC1am9PvqmE4MC1am9PvqmE4MC1am9PvqmE3" },
+  { key:"chime",   label:"Chime nhẹ",       url:"data:audio/wav;base64,UklGRl9vT1hXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YT" },
+  { key:"beep",    label:"Beep ngắn",       url:"beep" },
+  { key:"bell",    label:"Chuông điện thoại", url:"bell" },
 ];
 
 const NOTIF_TYPES = [
-  { key:"notif_sound_new_order", label:"📋 Đơn mới",       default:"ding" },
-  { key:"notif_sound_chat",      label:"💬 Tin nhắn chat", default:"ding" },
-  { key:"notif_sound_done",      label:"✅ Sửa xong",      default:"ding" },
-  { key:"notif_sound_assign",    label:"🔧 Giao việc KTV", default:"ding" },
+  { key:"notif_sound_new_order", label:"Đơn mới",       default:"ding" },
+  { key:"notif_sound_chat",      label:"Tin nhắn chat", default:"ding" },
+  { key:"notif_sound_done",      label:"Sửa xong",      default:"ding" },
+  { key:"notif_sound_assign",    label:"Giao việc KTV", default:"ding" },
 ];
 
 // Tạo âm thanh bằng Web Audio API
@@ -136,7 +136,7 @@ export default function Settings({ user }) {
   async function saveAll(keys) {
     setSaving(true);
     for (const k of keys) await saveSetting(k, settings[k] || "");
-    showToast("✅ Đã lưu cài đặt!");
+    showToast("Đã lưu cài đặt!");
     setSaving(false);
   }
 
@@ -144,7 +144,7 @@ export default function Settings({ user }) {
     setSaving(true);
     const keys = ["notif_sound_master", ...NOTIF_TYPES.map(n=>n.key), "notif_custom_url"];
     for (const k of keys) await saveSetting(k, settings[k] || "");
-    showToast("✅ Đã lưu cài đặt âm thanh!");
+    showToast("Đã lưu cài đặt âm thanh!");
     setSaving(false);
   }
 
@@ -158,12 +158,12 @@ export default function Settings({ user }) {
     const patch = {};
     NOTIF_TYPES.forEach(n => { patch[n.key] = "custom"; });
     setSettings(p => ({...p, ...patch, notif_custom_url: url}));
-    showToast("✅ Đã tải âm thanh tùy chỉnh!");
+    showToast("Đã tải âm thanh tùy chỉnh!");
   }
 
   function testSound(key) {
     const soundKey = settings[key] || "ding";
-    if (soundKey === "none") { showToast("🔕 Âm thanh đã tắt"); return; }
+    if (soundKey === "none") { showToast("Âm thanh đã tắt"); return; }
     if (soundKey === "custom" && customSoundFile) {
       const audio = new Audio(customSoundFile);
       audio.play().catch(() => {});
@@ -178,7 +178,7 @@ export default function Settings({ user }) {
     const clientSecret = settings["kv_client_secret"] || "";
     if (!clientId || !clientSecret) {
       setKvStatus("error");
-      showToast("⚠️ Vui lòng nhập đầy đủ Client ID và Secret!");
+      showToast("Vui lòng nhập đầy đủ Client ID và Secret!");
       setTesting(false); return;
     }
     try {
@@ -188,9 +188,9 @@ export default function Settings({ user }) {
         body: new URLSearchParams({ scopes:"PublicApi.Access", grant_type:"client_credentials", client_id:clientId, client_secret:clientSecret }),
       });
       const data = await res.json();
-      if (data.access_token) { setKvStatus("ok"); showToast("🎉 Kết nối KiotViet thành công!"); }
-      else { setKvStatus("error"); showToast("❌ Sai Client ID hoặc Secret!"); }
-    } catch { setKvStatus("error"); showToast("❌ Không kết nối được!"); }
+      if (data.access_token) { setKvStatus("ok"); showToast("Kết nối KiotViet thành công!"); }
+      else { setKvStatus("error"); showToast("Sai Client ID hoặc Secret!"); }
+    } catch { setKvStatus("error"); showToast("Không kết nối được!"); }
     setTesting(false);
   }
 
@@ -218,7 +218,7 @@ export default function Settings({ user }) {
 
   const pbSection = (
     <div style={{ background:"#f0f9ff", borderRadius:18, padding:20, marginBottom:20, border:"1.5px solid #bae6fd" }}>
-      <div style={{ fontWeight:800, fontSize:15, color:"#0369a1", marginBottom:14 }}>🖥️ Kết nối PocketBase Server</div>
+      <div style={{ fontWeight:800, fontSize:15, color:"#0369a1", marginBottom:14 }}>  Kết nối PocketBase Server</div>
       <label style={{ fontSize:13, fontWeight:700, color:"#0369a1", display:"block", marginBottom:6 }}>Địa chỉ server (IP:Port)</label>
       <input value={pbUrl} onChange={e => { setPbUrlState(e.target.value); setPbConnStatus(null); }}
         placeholder="http://192.168.1.234:8090"
@@ -227,21 +227,21 @@ export default function Settings({ user }) {
       <div style={{ display:"flex", gap:8, marginTop:10 }}>
         <button onClick={doTestPb} disabled={pbTesting}
           style={{ flex:1, height:42, background:"#0ea5e9", color:"#fff", border:"none", borderRadius:10, fontWeight:700, fontSize:13, cursor:"pointer" }}>
-          {pbTesting ? "⏳ Đang test..." : "🔌 Test kết nối"}
+          {pbTesting ? "⏳ Đang test..." : "Test kết nối"}
         </button>
         <button onClick={savePbUrl}
           style={{ flex:1, height:42, background: pbSaved ? "#059669" : "#0284c7", color:"#fff", border:"none", borderRadius:10, fontWeight:700, fontSize:13, cursor:"pointer" }}>
-          {pbSaved ? "✅ Đã lưu!" : "💾 Lưu địa chỉ"}
+          {pbSaved ? "Đã lưu!" : "Lưu địa chỉ"}
         </button>
       </div>
       {pbConnStatus === "ok" && (
         <div style={{ marginTop:10, background:"#ecfdf5", border:"1px solid #6ee7b7", borderRadius:10, padding:"10px 14px", fontSize:13, color:"#065f46", fontWeight:700 }}>
-          ✅ Kết nối thành công! Server đang hoạt động.
+            Kết nối thành công! Server đang hoạt động.
         </div>
       )}
-      {pbConnStatus === "fail" && (
+      {pbConnStatus ==="fail" && (
         <div style={{ marginTop:10, background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:10, padding:"10px 14px", fontSize:13, color:"#dc2626", fontWeight:700 }}>
-          ❌ Không kết nối được! Kiểm tra:<br/>• Máy tính đang bật PocketBase chưa?<br/>• IP có đúng không? ({pbUrl})<br/>• Thiết bị có cùng mạng WiFi không?
+            Không kết nối được! Kiểm tra:<br/>• Máy tính đang bật PocketBase chưa?<br/>• IP có đúng không? ({pbUrl})<br/>• Thiết bị có cùng mạng WiFi không?
         </div>
       )}
     </div>
@@ -253,7 +253,7 @@ export default function Settings({ user }) {
 
       {/* ── Thông tin cửa hàng ── */}
       <div style={{ background:"#fff", borderRadius:20, padding:24, marginBottom:20, boxShadow:"0 2px 12px rgba(0,0,0,.07)" }}>
-        <div style={{ fontSize:16, fontWeight:800, color:"#1e1b4b", marginBottom:16 }}>🏪 Thông tin cửa hàng</div>
+        <div style={{ fontSize:16, fontWeight:800, color:"#1e1b4b", marginBottom:16 }}>  Thông tin cửa hàng</div>
         {SHOP_KEYS.map(f => (
           <div key={f.key} style={{ marginBottom:14 }}>
             <label style={{ fontSize:13, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>{f.label}</label>
@@ -264,13 +264,13 @@ export default function Settings({ user }) {
         ))}
         <button onClick={() => saveAll(SHOP_KEYS.map(f=>f.key))} disabled={saving}
           style={{ height:44, padding:"0 24px", background:"#4f46e5", color:"#fff", border:"none", borderRadius:12, fontWeight:800, fontSize:14, cursor:"pointer" }}>
-          {saving ? "Đang lưu..." : "💾 Lưu thông tin"}
+          {saving ? "Đang lưu..." : "Lưu thông tin"}
         </button>
       </div>
 
       {/* ── Âm thanh thông báo ── */}
       <div style={{ background:"#fff", borderRadius:20, padding:24, marginBottom:20, boxShadow:"0 2px 12px rgba(0,0,0,.07)" }}>
-        <div style={{ fontSize:16, fontWeight:800, color:"#1e1b4b", marginBottom:6 }}>🔔 Âm thanh thông báo</div>
+        <div style={{ fontSize:16, fontWeight:800, color:"#1e1b4b", marginBottom:6 }}>  Âm thanh thông báo</div>
         <div style={{ fontSize:13, color:"#6b7280", marginBottom:16 }}>Tùy chỉnh âm thanh cho từng loại thông báo trên điện thoại</div>
 
         {/* Master switch */}
@@ -311,15 +311,15 @@ export default function Settings({ user }) {
                   <button onClick={() => { setSettings(p=>({...p,[nt.key]:"chime"})); playSound("chime"); }}
                     style={{ padding:"8px 4px", borderRadius:10, border:`2px solid ${settings[nt.key]==="chime"?"#4f46e5":"#e5e7eb"}`,
                       background: settings[nt.key]==="chime"?"#eef2ff":"#fff", color: settings[nt.key]==="chime"?"#4f46e5":"#374151",
-                      fontWeight: settings[nt.key]==="chime"?800:500, fontSize:11, cursor:"pointer" }}>
-                    🎵 Chime
+                      fontWeight: settings[nt.key]==="chime"?800:500, fontSize:11, cursor:"pointer"}}>
+                      Chime
                   </button>
                   {customSoundFile && (
                     <button onClick={() => setSettings(p=>({...p,[nt.key]:"custom"}))}
                       style={{ padding:"8px 4px", borderRadius:10, border:`2px solid ${settings[nt.key]==="custom"?"#7c3aed":"#e5e7eb"}`,
                         background: settings[nt.key]==="custom"?"#f5f3ff":"#fff", color: settings[nt.key]==="custom"?"#7c3aed":"#374151",
-                        fontWeight: settings[nt.key]==="custom"?800:500, fontSize:11, cursor:"pointer" }}>
-                      🎶 Tùy chỉnh
+                        fontWeight: settings[nt.key]==="custom"?800:500, fontSize:11, cursor:"pointer"}}>
+                        Tùy chỉnh
                     </button>
                   )}
                 </div>
@@ -328,43 +328,43 @@ export default function Settings({ user }) {
 
             {/* Upload âm thanh tùy chỉnh */}
             <div style={{ border:"2px dashed #c7d2fe", borderRadius:14, padding:16, marginTop:4, textAlign:"center" }}>
-              <div style={{ fontSize:13, fontWeight:700, color:"#374151", marginBottom:4 }}>🎶 Upload âm thanh tùy chỉnh</div>
+              <div style={{ fontSize:13, fontWeight:700, color:"#374151", marginBottom:4 }}>  Upload âm thanh tùy chỉnh</div>
               <div style={{ fontSize:12, color:"#6b7280", marginBottom:12 }}>Hỗ trợ .mp3, .wav, .ogg (tối đa 2MB)</div>
-              <label style={{ display:"inline-block", height:40, padding:"0 20px", lineHeight:"40px", background:"#4f46e5", color:"#fff", borderRadius:10, fontWeight:700, fontSize:13, cursor:"pointer" }}>
-                📁 Chọn file âm thanh
+              <label style={{ display:"inline-block", height:40, padding:"0 20px", lineHeight:"40px", background:"#4f46e5", color:"#fff", borderRadius:10, fontWeight:700, fontSize:13, cursor:"pointer"}}>
+                  Chọn file âm thanh
                 <input type="file" accept="audio/mp3,audio/wav,audio/ogg,audio/*" onChange={handleCustomFile} style={{ display:"none" }} />
               </label>
               {customSoundFile && (
                 <div style={{ marginTop:10 }}>
                   <audio ref={customAudioRef} src={customSoundFile} controls style={{ width:"100%", borderRadius:8 }} />
-                  <div style={{ fontSize:11, color:"#059669", fontWeight:600, marginTop:6 }}>✅ File đã tải — chọn "Tùy chỉnh" ở các loại thông báo bên trên</div>
+                  <div style={{ fontSize:11, color:"#059669", fontWeight:600, marginTop:6 }}>  File đã tải — chọn"Tùy chỉnh" ở các loại thông báo bên trên</div>
                 </div>
               )}
             </div>
 
-            <div style={{ background:"#eff6ff", border:"1px solid #bfdbfe", borderRadius:12, padding:"10px 14px", marginTop:12, fontSize:12, color:"#1d4ed8" }}>
-              💡 <b>Lưu ý:</b> Trình duyệt chỉ phát âm thanh khi người dùng đã tương tác với trang (bấm/chạm ít nhất 1 lần). Trên iOS Safari cần bật "Allow Audio" trong cài đặt.
+            <div style={{ background:"#eff6ff", border:"1px solid #bfdbfe", borderRadius:12, padding:"10px 14px", marginTop:12, fontSize:12, color:"#1d4ed8"}}>
+                <b>Lưu ý:</b> Trình duyệt chỉ phát âm thanh khi người dùng đã tương tác với trang (bấm/chạm ít nhất 1 lần). Trên iOS Safari cần bật"Allow Audio" trong cài đặt.
             </div>
           </>
         )}
 
         <button onClick={saveNotifSettings} disabled={saving}
           style={{ marginTop:16, height:44, padding:"0 24px", background:"#4f46e5", color:"#fff", border:"none", borderRadius:12, fontWeight:800, fontSize:14, cursor:"pointer" }}>
-          {saving ? "Đang lưu..." : "💾 Lưu cài đặt âm thanh"}
+          {saving ? "Đang lưu..." : "Lưu cài đặt âm thanh"}
         </button>
       </div>
 
       {/* ── KiotViet API ── */}
       <div style={{ background:"#fff", borderRadius:20, padding:24, boxShadow:"0 2px 12px rgba(0,0,0,.07)" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-          <div style={{ fontSize:16, fontWeight:800, color:"#1e1b4b" }}>🔗 Kết nối KiotViet</div>
-          {kvStatus==="ok"    && <span style={{ background:"#ecfdf5", color:"#059669", fontSize:12, fontWeight:700, padding:"4px 12px", borderRadius:20 }}>✅ Đã kết nối</span>}
-          {kvStatus==="error" && <span style={{ background:"#fef2f2", color:"#dc2626", fontSize:12, fontWeight:700, padding:"4px 12px", borderRadius:20 }}>❌ Lỗi kết nối</span>}
+          <div style={{ fontSize:16, fontWeight:800, color:"#1e1b4b"}}>  Kết nối KiotViet</div>
+          {kvStatus==="ok"    && <span style={{ background:"#ecfdf5", color:"#059669", fontSize:12, fontWeight:700, padding:"4px 12px", borderRadius:20 }}>  Đã kết nối</span>}
+          {kvStatus==="error" && <span style={{ background:"#fef2f2", color:"#dc2626", fontSize:12, fontWeight:700, padding:"4px 12px", borderRadius:20 }}>  Lỗi kết nối</span>}
         </div>
         <div style={{ fontSize:13, color:"#6b7280", marginBottom:16 }}>Đồng bộ khách hàng, linh kiện và xuất hóa đơn tự động.</div>
 
-        <div style={{ background:"#fffbeb", border:"1px solid #fde68a", borderRadius:12, padding:"12px 14px", marginBottom:18, fontSize:13, color:"#92400e" }}>
-          📌 <b>Cách lấy API:</b> Đăng nhập KiotViet (Admin) → Thiết lập → Thiết lập cửa hàng → <b>Thiết lập kết nối API</b>
+        <div style={{ background:"#fffbeb", border:"1px solid #fde68a", borderRadius:12, padding:"12px 14px", marginBottom:18, fontSize:13, color:"#92400e"}}>
+            <b>Cách lấy API:</b> Đăng nhập KiotViet (Admin) → Thiết lập → Thiết lập cửa hàng → <b>Thiết lập kết nối API</b>
         </div>
 
         {KV_KEYS.map(f => (
@@ -378,7 +378,7 @@ export default function Settings({ user }) {
               {f.type==="password" && (
                 <button onClick={()=>setShowSecret(v=>!v)}
                   style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:16 }}>
-                  {showSecret ? "🙈" : "👁️"}
+                  {showSecret ? "visibility_off" : "visibility"}
                 </button>
               )}
             </div>
@@ -388,17 +388,17 @@ export default function Settings({ user }) {
         <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
           <button onClick={() => saveAll(KV_KEYS.map(f=>f.key))} disabled={saving}
             style={{ flex:1, height:46, borderRadius:12, border:"none", background:"#4f46e5", color:"#fff", fontWeight:800, fontSize:14, cursor:"pointer", minWidth:120 }}>
-            {saving ? "Đang lưu..." : "💾 Lưu API"}
+            {saving ? "Đang lưu..." : "Lưu API"}
           </button>
           <button onClick={testKiotViet} disabled={testing}
             style={{ flex:1, height:46, borderRadius:12, border:"2px solid #4f46e5", background:"#eef2ff", color:"#4f46e5", fontWeight:800, fontSize:14, cursor:"pointer", minWidth:120 }}>
-            {testing ? "Đang test..." : "🔌 Test kết nối"}
+            {testing ? "Đang test..." : "Test kết nối"}
           </button>
         </div>
 
         {kvStatus==="ok" && (
           <div style={{ marginTop:16, background:"#ecfdf5", border:"1px solid #6ee7b7", borderRadius:12, padding:"12px 16px", fontSize:13, color:"#065f46", fontWeight:600 }}>
-            🎉 KiotViet đã kết nối!
+              KiotViet đã kết nối!
           </div>
         )}
       </div>
@@ -409,14 +409,14 @@ export default function Settings({ user }) {
       {/* ── Đổi mật khẩu ── */}
       {user && (
         <div style={{ background:"#fff", borderRadius:20, padding:24, marginBottom:20, boxShadow:"0 2px 12px rgba(0,0,0,.07)" }}>
-          <div style={{ fontSize:16, fontWeight:800, color:"#1e1b4b", marginBottom:6 }}>🔐 Bảo mật tài khoản</div>
+          <div style={{ fontSize:16, fontWeight:800, color:"#1e1b4b", marginBottom:6 }}>  Bảo mật tài khoản</div>
           <div style={{ fontSize:13, color:"#6b7280", marginBottom:16 }}>Tài khoản: <b>{user.username}</b> · {user.role}</div>
           {showChangePw ? (
-            <ChangePassword user={user} onClose={() => setShowChangePw(false)} onSuccess={() => { setShowChangePw(false); showToast("✅ Đổi mật khẩu thành công!"); }} />
+            <ChangePassword user={user} onClose={() => setShowChangePw(false)} onSuccess={() => { setShowChangePw(false); showToast("Đổi mật khẩu thành công!"); }} />
           ) : (
             <button onClick={() => setShowChangePw(true)}
-              style={{ width:"100%", height:46, background:"linear-gradient(135deg,#4f46e5,#7c3aed)", color:"#fff", border:"none", borderRadius:12, fontWeight:700, fontSize:15, cursor:"pointer" }}>
-              🔑 Đổi mật khẩu
+              style={{ width:"100%", height:46, background:"linear-gradient(135deg,#4f46e5,#7c3aed)", color:"#fff", border:"none", borderRadius:12, fontWeight:700, fontSize:15, cursor:"pointer"}}>
+                Đổi mật khẩu
             </button>
           )}
         </div>

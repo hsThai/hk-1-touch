@@ -84,8 +84,8 @@ export default function ChangePassword({ user, onClose, onSuccess, forceChange =
       background: forceChange ? "rgba(0,0,0,0.6)" : "transparent",
       zIndex: 9999, display:"flex", alignItems:"center", justifyContent:"center"
     }}>
-      <div style={{ background:"#fff", borderRadius:20, padding:40, textAlign:"center", maxWidth:360, width:"100%" }}>
-        <div style={{ fontSize:56 }}>✅</div>
+      <div style={{ background:"#fff", borderRadius:20, padding:40, textAlign:"center", maxWidth:360, width:"100%"}}>
+        <div style={{ fontSize:56 }}> </div>
         <div style={{ fontWeight:800, fontSize:18, color:"#059669", marginTop:12 }}>Đổi mật khẩu thành công!</div>
         <div style={{ color:"#6b7280", fontSize:13, marginTop:8 }}>Đang chuyển hướng...</div>
       </div>
@@ -95,13 +95,13 @@ export default function ChangePassword({ user, onClose, onSuccess, forceChange =
   const content = (
     <div style={{ background:"#fff", borderRadius:20, padding:28, width:"100%", maxWidth:400, boxShadow: forceChange ? "0 24px 64px rgba(0,0,0,.3)" : "none" }}>
       <div style={{ textAlign:"center", marginBottom:24 }}>
-        <div style={{ fontSize:40 }}>🔐</div>
+        <div style={{ fontSize:40 }}> </div>
         <div style={{ fontWeight:900, fontSize:20, color:"#1e1b4b", marginTop:8 }}>
           {forceChange ? "Đặt mật khẩu mới" : "Đổi mật khẩu"}
         </div>
         {forceChange && (
-          <div style={{ background:"#fef3c7", border:"1px solid #fcd34d", borderRadius:10, padding:"10px 14px", marginTop:12, fontSize:13, color:"#92400e" }}>
-            ⚠️ Tài khoản yêu cầu đặt mật khẩu mới trước khi sử dụng
+          <div style={{ background:"#fef3c7", border:"1px solid #fcd34d", borderRadius:10, padding:"10px 14px", marginTop:12, fontSize:13, color:"#92400e"}}>
+              Tài khoản yêu cầu đặt mật khẩu mới trước khi sử dụng
           </div>
         )}
         {!forceChange && (
@@ -111,7 +111,7 @@ export default function ChangePassword({ user, onClose, onSuccess, forceChange =
 
       {!forceChange && (
         <div style={{ marginBottom:16 }}>
-          <label style={{ display:"block", fontSize:13, fontWeight:700, color:"#374151", marginBottom:6 }}>🔑 Mật khẩu hiện tại</label>
+          <label style={{ display:"block", fontSize:13, fontWeight:700, color:"#374151", marginBottom:6 }}>  Mật khẩu hiện tại</label>
           <div style={{ position:"relative" }}>
             <input value={oldPw} onChange={e => { setOldPw(e.target.value); setErr(""); }}
               type={showOld ? "text" : "password"}
@@ -119,7 +119,7 @@ export default function ChangePassword({ user, onClose, onSuccess, forceChange =
               style={{ width:"100%", height:48, borderRadius:12, border:`2px solid ${err?"#ef4444":"#e5e7eb"}`, padding:"0 50px 0 16px", fontSize:15, outline:"none", boxSizing:"border-box" }} />
             <button onClick={() => setShowOld(v=>!v)} type="button"
               style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:18, color:"#9ca3af" }}>
-              {showOld ? "🙈" : "👁️"}
+              {showOld ? <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",lineHeight:1}}>visibility_off</span> : <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",lineHeight:1}}>visibility</span>}
             </button>
           </div>
         </div>
@@ -134,13 +134,13 @@ export default function ChangePassword({ user, onClose, onSuccess, forceChange =
             style={{ width:"100%", height:48, borderRadius:12, border:`2px solid ${err?"#ef4444":"#e5e7eb"}`, padding:"0 50px 0 16px", fontSize:15, outline:"none", boxSizing:"border-box" }} />
           <button onClick={() => setShowNew(v=>!v)} type="button"
             style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:18, color:"#9ca3af" }}>
-            {showNew ? "🙈" : "👁️"}
+            {showNew ? <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",lineHeight:1}}>visibility_off</span> : <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",lineHeight:1}}>visibility</span>}
           </button>
         </div>
       </div>
 
       <div style={{ marginBottom:20 }}>
-        <label style={{ display:"block", fontSize:13, fontWeight:700, color:"#374151", marginBottom:6 }}>✅ Xác nhận mật khẩu mới</label>
+        <label style={{ display:"block", fontSize:13, fontWeight:700, color:"#374151", marginBottom:6 }}>  Xác nhận mật khẩu mới</label>
         <div style={{ position:"relative" }}>
           <input value={confirmPw} onChange={e => { setConfirmPw(e.target.value); setErr(""); }}
             type={showConfirm ? "text" : "password"}
@@ -149,17 +149,17 @@ export default function ChangePassword({ user, onClose, onSuccess, forceChange =
             style={{ width:"100%", height:48, borderRadius:12, border:`2px solid ${confirmPw && confirmPw !== newPw ? "#ef4444" : confirmPw && confirmPw === newPw ? "#10b981" : "#e5e7eb"}`, padding:"0 50px 0 16px", fontSize:15, outline:"none", boxSizing:"border-box" }} />
           <button onClick={() => setShowConfirm(v=>!v)} type="button"
             style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:18, color:"#9ca3af" }}>
-            {showConfirm ? "🙈" : "👁️"}
+            {showConfirm ? <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",lineHeight:1}}>visibility_off</span> : <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",lineHeight:1}}>visibility</span>}
           </button>
         </div>
         {confirmPw && confirmPw === newPw && (
-          <div style={{ fontSize:12, color:"#10b981", marginTop:4, fontWeight:600 }}>✅ Mật khẩu khớp</div>
+          <div style={{ fontSize:12, color:"#10b981", marginTop:4, fontWeight:600 }}>  Mật khẩu khớp</div>
         )}
       </div>
 
       {err && (
         <div style={{ background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:10, padding:"10px 14px", marginBottom:16, fontSize:13, color:"#dc2626", fontWeight:600 }}>
-          ⚠️ {err}
+            {err}
         </div>
       )}
 
@@ -172,7 +172,7 @@ export default function ChangePassword({ user, onClose, onSuccess, forceChange =
         )}
         <button onClick={doChange} disabled={loading}
           style={{ flex:2, height:48, background:loading?"#a5b4fc":"#4f46e5", color:"#fff", border:"none", borderRadius:12, fontSize:15, fontWeight:800, cursor:loading?"not-allowed":"pointer" }}>
-          {loading ? "⏳ Đang lưu..." : "💾 Đổi mật khẩu"}
+          {loading ? "⏳ Đang lưu..." : <><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",lineHeight:1}}>save</span> Đổi mật khẩu</>}
         </button>
       </div>
     </div>
