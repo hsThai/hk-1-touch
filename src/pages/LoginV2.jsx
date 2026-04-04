@@ -74,6 +74,40 @@ import { Staff, pbAuth, getPbUrl, setPbUrl, testConnection } from "./pb.jsx";
 
   // Page title
   document.title = "HK One Touch";
+
+  // Đăng ký inline Service Worker để cho phép showNotification trên Android PWA
+  if ("serviceWorker" in navigator) {
+    const swCode = `
+self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
+self.addEventListener("notificationclick", e => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({ type:"window" }).then(cs => {
+    if (cs.length) { cs[0].focus(); } else { self.clients.openWindow("/"); }
+  }));
+});
+self.addEventListener("push", e => {
+  const d = e.data ? e.data.json() : { title:"HK One Touch", body:"Thông báo mới" };
+  e.waitUntil(self.registration.showNotification(d.title || "HK One Touch", {
+    body: d.body || "",
+    icon: d.icon || "https://base44.app/api/apps/69bf5d0a924e0a8766577274/files/mp/public/69bf5d0a924e0a8766577274/43c978c50_icon-192.png",
+    tag: d.tag || "hkapp",
+    renotify: true,
+    vibrate: [200, 100, 200]
+  }));
+});
+`;
+    try {
+      const swBlob = new Blob([swCode], { type: "application/javascript" });
+      const swUrl  = URL.createObjectURL(swBlob);
+      navigator.serviceWorker.register(swUrl, { scope: "/" })
+        .then(r => console.log("[SW] registered", r.scope))
+        .catch(e => {
+          // Blob SW không cho phép trên một số trình duyệt → thử path cố định
+          console.warn("[SW] blob fail, skip:", e.message);
+        });
+    } catch(e) { console.warn("[SW] err:", e); }
+  }
 })();
 
 // Lưu/đọc credential dùng cả 3 nơi để tránh mất do cache bust
@@ -128,16 +162,29 @@ export async function requestNotifPermission() {
 export function showSystemNotif(title, body, opts={}) {
   if (!("Notification" in window)) return;
   if (Notification.permission !== "granted") return;
+  const payload = {
+    body: body || "",
+    icon: APP_ICON,
+    badge: APP_ICON,
+    tag: opts.tag || "hkapp-notif",
+    renotify: true,
+    vibrate: [200, 100, 200],
+    ...opts,
+  };
+  // Ưu tiên dùng ServiceWorker (hoạt động trên Android PWA)
   try {
-    new Notification(title, {
-      body,
-      icon: APP_ICON,
-      badge: APP_ICON,
-      tag: opts.tag || "hkapp-notif",
-      renotify: true,
-      ...opts,
-    });
-  } catch(e) { console.warn("Notif err:", e); }
+    if (navigator.serviceWorker?.controller) {
+      navigator.serviceWorker.ready.then(reg => {
+        reg.showNotification(title, payload);
+      }).catch(() => {
+        // Fallback: Notification API thường
+        try { new Notification(title, payload); } catch {}
+      });
+      return;
+    }
+  } catch {}
+  // Fallback
+  try { new Notification(title, payload); } catch(e) { console.warn("Notif:", e); }
 }
 
 export default function LoginV2({ onLogin, loggedOut }) {
@@ -155,7 +202,7 @@ export default function LoginV2({ onLogin, loggedOut }) {
   // Splash screen: luôn hiện 2 giây khi app mở
   const [showSplash, setShowSplash] = useState(true);
   useEffect(() => {
-    const t = setTimeout(() => setShowSplash(false), 2200);
+    const t = setTimeout(() => setShowSplash(false), 2500);
     return () => clearTimeout(t);
   }, []);
 
@@ -248,7 +295,7 @@ export default function LoginV2({ onLogin, loggedOut }) {
       <img
         src={`${SPLASH}?v=${Date.now()}`}
         alt="HK Robot"
-        style={{ width:"min(320px,80vw)", objectFit:"contain", marginBottom:20, filter:"drop-shadow(0 12px 32px rgba(0,0,0,.4))", animation:"fadeIn .6s ease" }}
+        style={{ width:"min(280px,75vw)", objectFit:"contain", marginBottom:20, animation:"fadeIn .5s ease" }}
       />
       <div style={{ fontWeight:900, fontSize:32, color:"#1e1b4b", letterSpacing:"-0.5px", textAlign:"center" }}>HK One Touch</div>
       <div style={{ color:"#4f46e5", fontSize:15, marginTop:8, marginBottom:32, textAlign:"center", fontStyle:"italic" }}>Quản lý với một chạm !</div>
