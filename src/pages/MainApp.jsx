@@ -427,6 +427,25 @@ function MainAppInner() {
     loadData();
   }, []);
 
+  // ── Realtime subscribe repair_orders via SSE ──────────────
+  useEffect(() => {
+    if (!user?.id) return;
+    const unsub = RepairOrder.subscribe((action, raw) => {
+      const mapped = mapPbOrder(raw, STATUS_DISPLAY, PRIORITY_DISPLAY);
+      if (action === "create") {
+        setOrders(prev => {
+          if (prev.find(o => o.id === mapped.id)) return prev;
+          return [mapped, ...prev];
+        });
+      } else if (action === "update") {
+        setOrders(prev => prev.map(o => o.id === mapped.id ? { ...o, ...mapped } : o));
+      } else if (action === "delete") {
+        setOrders(prev => prev.filter(o => o.id !== mapped.id));
+      }
+    });
+    return () => unsub?.();
+  }, [user?.id]);
+
   // ── Auto KPI deduction per timeline diagram ──────────────
   useEffect(() => {
     const iv = setInterval(() => {

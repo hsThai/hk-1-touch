@@ -121,6 +121,66 @@ function makeCollection(collectionName) {
         method: "DELETE",
       });
     },
+
+    // ── Realtime SSE subscribe ─────────────────────────────
+    // callback(event, record) — event = "create"|"update"|"delete"
+    // returns unsubscribe function
+    subscribe(callback, recordId = "*") {
+      const base = getPbUrl();
+      const { token } = getAuth();
+      const sseUrl = `${base}/api/realtime`;
+      let es = null;
+      let clientId = null;
+      let retryTimer = null;
+      let dead = false;
+
+      const connect = () => {
+        if (dead) return;
+        try {
+          es = new EventSource(sseUrl);
+
+          es.onmessage = (e) => {
+            try {
+              const data = JSON.parse(e.data);
+              if (data.clientId && !clientId) {
+                clientId = data.clientId;
+                const sub = `${collectionName}/${recordId}`;
+                fetch(sseUrl, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    ...(token ? { Authorization: token } : {}),
+                  },
+                  body: JSON.stringify({ clientId, subscriptions: [sub] }),
+                }).catch(() => {});
+              }
+            } catch {}
+          };
+
+          es.addEventListener(collectionName, (e) => {
+            try {
+              const evt = JSON.parse(e.data);
+              const action = evt.action || "update";
+              const record = evt.record || evt;
+              callback(action, record);
+            } catch {}
+          });
+
+          es.onerror = () => {
+            es?.close();
+            if (!dead) retryTimer = setTimeout(connect, 5000);
+          };
+        } catch {}
+      };
+
+      connect();
+
+      return () => {
+        dead = true;
+        clearTimeout(retryTimer);
+        es?.close();
+      };
+    },
   };
 }
 

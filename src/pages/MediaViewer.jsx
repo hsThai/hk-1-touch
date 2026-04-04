@@ -637,8 +637,8 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
         }}/>
       </div>
 
-      {/* KTV action button */}
-      {isMyOrder && !order.needs_reassign && (
+      {/* KTV action button — chỉ hiện khi còn thời gian (expired dùng nút riêng bên dưới) */}
+      {isMyOrder && !order.needs_reassign && !expired && (
         <button onClick={handleAction} disabled={acting}
           style={{ width:"100%", height:52, borderRadius:12, border:"none",
             background: acting ? "#d1d5db" : c.btnBg,
@@ -651,16 +651,30 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
         </button>
       )}
 
-      {/* KTV bị ngừng giao việc */}
-      {isMyOrder && order.needs_reassign && (
+      {/* KTV bị ngừng giao việc — chỉ hiện cho đúng KTV bị ảnh hưởng VÀ needs_reassign vẫn true */}
+      {isMyOrder && order.needs_reassign && order.assigned_to === currentUser.id && (
         <div style={{ padding:"10px 12px", background:"#fef2f2", borderRadius:10, border:"1px solid #fca5a5",
           display:"flex", alignItems:"center", gap:8 }}>
           <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:"#dc2626"}}>block</span>
           <div>
             <div style={{ fontWeight:800, fontSize:13, color:"#dc2626" }}>Đơn đã chuyển về Quản lý</div>
-            <div style={{ fontSize:12, color:"#6b7280" }}>Quản lý sẽ giao cho KTV khác</div>
+            <div style={{ fontSize:12, color:"#6b7280" }}>Quản lý sẽ giao cho KTV khác. Bạn không cần làm gì thêm.</div>
           </div>
         </div>
+      )}
+
+      {/* Nếu timer expired mà KTV chưa bấm → vẫn cho bấm (sau khi trừ KPI) */}
+      {isMyOrder && !order.needs_reassign && expired && (
+        <button onClick={handleAction} disabled={acting}
+          style={{ width:"100%", height:52, borderRadius:12, border:"2px solid #dc2626",
+            background: acting ? "#d1d5db" : "#fff",
+            color:"#dc2626", fontWeight:800, fontSize:15, cursor: acting?"not-allowed":"pointer",
+            display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+          <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20}}>
+            {acting ? "hourglass_top" : (info.phase===0 ? "assignment_turned_in" : "build_circle")}
+          </span>
+          {acting ? "Đang xử lý..." : `${info.actionLabel} (Đã quá hạn)`}
+        </button>
       )}
 
       {/* Manager: cảnh báo + nút Giao Việc Lại */}
