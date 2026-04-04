@@ -231,28 +231,43 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
       </div>
 
       {drawMode&&!isVideo&&(
-        <div onClick={e=>e.stopPropagation()} style={{position:"absolute",bottom:items.length>1?96:16,left:"50%",transform:"translateX(-50%)",display:"flex",flexDirection:"column",gap:8,alignItems:"center",background:"rgba(0,0,0,.9)",padding:"10px 14px",borderRadius:20,zIndex:20,backdropFilter:"blur(10px)"}}>
+        <div onClick={e=>e.stopPropagation()} style={{position:"absolute",bottom:items.length>1?96:16,left:"50%",transform:"translateX(-50%)",display:"flex",flexDirection:"column",gap:8,alignItems:"center",background:"rgba(0,0,0,.9)",padding:"12px 16px",borderRadius:20,zIndex:20,backdropFilter:"blur(10px)",minWidth:320}}>
+          {/* Dòng 1: Tools + Undo + Gửi */}
           <div style={{display:"flex",gap:6,alignItems:"center"}}>
             {TOOLS.map(t=>(
               <button key={t.id} onClick={()=>setDrawTool(t.id)}
-                style={{background:drawTool===t.id?"#4f46e5":"rgba(255,255,255,.15)",border:`2px solid ${drawTool===t.id?"#818cf8":"transparent"}`,color:"#fff",width:38,height:38,borderRadius:10,fontSize:16,cursor:"pointer"}}>
+                style={{background:drawTool===t.id?"#4f46e5":"rgba(255,255,255,.15)",border:`2px solid ${drawTool===t.id?"#818cf8":"transparent"}`,color:"#fff",width:40,height:40,borderRadius:10,fontSize:17,cursor:"pointer"}}>
                 {t.icon}
               </button>
             ))}
-            <div style={{width:1,height:28,background:"rgba(255,255,255,.25)",margin:"0 2px"}}/>
-            <button onClick={handleUndo} title="Undo" style={{background:"rgba(255,255,255,.15)",border:"none",color:"#fff",width:38,height:38,borderRadius:10,fontSize:16,cursor:"pointer"}}>↩️</button>
-            <div style={{width:1,height:28,background:"rgba(255,255,255,.25)",margin:"0 2px"}}/>
-            <button onClick={handleSendAnnotated} disabled={sending} style={{background:"#4f46e5",border:"none",color:"#fff",height:38,padding:"0 14px",borderRadius:10,fontSize:12,fontWeight:700,cursor:"pointer"}}>{sending?"⏳":"📨 Gửi"}</button>
+            <div style={{width:1,height:30,background:"rgba(255,255,255,.25)",margin:"0 2px"}}/>
+            <button onClick={handleUndo} title="Undo"
+              style={{background:"rgba(255,255,255,.15)",border:"none",color:"#fff",width:40,height:40,borderRadius:10,fontSize:17,cursor:"pointer"}}>↩️</button>
+            <div style={{width:1,height:30,background:"rgba(255,255,255,.25)",margin:"0 2px"}}/>
+            <button onClick={handleSendAnnotated} disabled={sending}
+              style={{background:"#4f46e5",border:"none",color:"#fff",height:40,padding:"0 16px",borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer",minWidth:60}}>
+              {sending?"⏳":"📨 Gửi"}
+            </button>
           </div>
-          <div style={{display:"flex",gap:5,alignItems:"center",flexWrap:"wrap",justifyContent:"center"}}>
+          {/* Dòng 2: Màu */}
+          <div style={{display:"flex",gap:5,alignItems:"center",justifyContent:"center"}}>
+            <span style={{color:"rgba(255,255,255,.5)",fontSize:11,marginRight:2}}>Màu</span>
             {COLORS.map(c=>(
               <div key={c} onClick={()=>setDrawColor(c)}
-                style={{width:22,height:22,borderRadius:"50%",background:c,border:`3px solid ${drawColor===c?"#fff":"rgba(255,255,255,.15)"}`,cursor:"pointer",boxShadow:drawColor===c?"0 0 0 2px #4f46e5":"none"}}/>
+                style={{width:24,height:24,borderRadius:"50%",background:c,border:`3px solid ${drawColor===c?"#fff":"rgba(255,255,255,.12)"}`,cursor:"pointer",flexShrink:0,
+                  boxShadow:drawColor===c?"0 0 0 2px #818cf8, 0 0 0 4px rgba(129,140,248,.3)":"none",transition:"box-shadow .15s"}}/>
             ))}
-            <div style={{width:1,height:20,background:"rgba(255,255,255,.25)",margin:"0 2px"}}/>
-            {[2,5,9].map(s=>(
+          </div>
+          {/* Dòng 3: Độ dày nét (thanh thẳng) */}
+          <div style={{display:"flex",gap:8,alignItems:"center",justifyContent:"center"}}>
+            <span style={{color:"rgba(255,255,255,.5)",fontSize:11,marginRight:2}}>Nét</span>
+            {[1,3,6,10,16].map(s=>(
               <div key={s} onClick={()=>setDrawSize(s)}
-                style={{width:s*2+10,height:s*2+10,borderRadius:"50%",background:"#fff",border:`3px solid ${drawSize===s?"#f59e0b":"rgba(255,255,255,.12)"}`,cursor:"pointer"}}/>
+                style={{display:"flex",alignItems:"center",justifyContent:"center",width:40,height:30,borderRadius:8,
+                  background:drawSize===s?"rgba(129,140,248,.3)":"rgba(255,255,255,.08)",
+                  border:`1.5px solid ${drawSize===s?"#818cf8":"rgba(255,255,255,.12)"}`,cursor:"pointer"}}>
+                <div style={{width:24,height:s,borderRadius:s/2,background:drawColor,transition:"background .15s"}}/>
+              </div>
             ))}
           </div>
         </div>

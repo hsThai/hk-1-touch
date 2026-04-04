@@ -115,8 +115,8 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
       message: msgText,
       message_type: type,
       media_url: mediaUrl || "",
-      mentioned_ids,
-      mentioned_names,
+      mentioned_ids: JSON.stringify(mentioned_ids),
+      mentioned_names: JSON.stringify(mentioned_names),
     };
     // Optimistic UI
     const tempId = "tmp_" + Math.random().toString(36);
@@ -142,7 +142,8 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
       }
     } catch(err) {
       setChats(p => p.filter(m => m.id!==tempId));
-      alert("Gửi thất bại! Thử lại.");
+      console.error("sendChat error:", err);
+      alert("Gửi thất bại: " + (err?.message || String(err)));
     }
   }
 
@@ -202,7 +203,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
       const msgText = msgType==="image" ? "📷 Ảnh" : msgType==="audio" ? "🎤 Ghi âm" : "🎥 Video";
       await sendChat(msgType, url, msgText);
     } catch(e) {
-      console.error("Upload error:", e);
+      console.error("Upload/send error:", e);
       alert("Upload thất bại: " + (e.message || "Lỗi kết nối PocketBase. Kiểm tra server!"));
     } finally {
       setChatUploading(false);
