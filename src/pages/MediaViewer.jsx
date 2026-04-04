@@ -23,46 +23,48 @@ function genOrderId() { return "SC24"+String(Math.floor(Math.random()*9000)+1000
 //   3 = Hoàn tất
 // assigned_at   = thời điểm phân công (bắt đầu đếm 15')
 // stage1_at     = thời điểm nhận đơn (bắt đầu đếm 60')
+// ── KPI Timeline ──────────────────────────────────────────────────────────
+// Stage 0: vừa phân công → KTV nhận đơn trong 60'
+//          → mỗi 15 giây gửi thông báo nhắc
+//          → hết 60' chưa nhận → -1 KPI
+// Stage 1: KTV đã nhận → bắt đầu sửa trong 60'
+//          → mỗi 15 giây gửi thông báo nhắc
+//          → hết 60' chưa bắt đầu sửa → -3 KPI + ngừng giao việc + báo quản lý
+// Stage 2: đang sửa → không còn timer bắt buộc
 function getKpiTimerInfo(order) {
   if (!order.assigned_to || !order.assigned_at) return null;
   if ((order.accept_stage||0) >= 2) return null;
-  if (order.status === "Hoàn Thành" || order.status === "Đã Giao" || order.status === "Hủy") return null;
+  if (["Hoàn Thành","Đã Giao","Hủy","Hoan Thanh","Da Giao","Huy"].includes(order.status)) return null;
 
   const assignedAt = new Date(order.assigned_at).getTime();
   const stage = order.accept_stage || 0;
 
-  // Giai đoạn 0: chưa nhận đơn → 15 phút
+  // Stage 0: chưa nhận → 60 phút
   if (stage === 0) {
-    const deadline = assignedAt + 15 * 60000;
     return {
       phase: 0,
-      label: "Nhận đơn trong 15 phút",
-      deadline,
+      label: "Nhận đơn trong 60 phút",
+      deadline: assignedAt + 60 * 60000,
+      totalMs: 60 * 60000,
       penalized: !!order.kpi_stage1_penalized,
-      limitLabel: "15 phút",
       actionLabel: "Nhận Đơn Ngay",
-      color: "#dc2626",
-      urgentColor: "#dc2626",
-      bgNormal: "#fff7ed",
-      borderNormal: "#fed7aa",
+      kpiPenalty: -1,
+      penaltyNote: "-1 KPI",
     };
   }
 
-  // Giai đoạn 1: đã nhận đơn → 60 phút
+  // Stage 1: đã nhận → bắt đầu sửa trong 60 phút
   if (stage === 1 && order.stage1_at) {
     const acceptedAt = new Date(order.stage1_at).getTime();
-    const deadline = acceptedAt + 60 * 60000;
     return {
       phase: 1,
-      label: "Bắt đầu kiểm tra / sửa trong 60 phút",
-      deadline,
+      label: "Bắt đầu sửa trong 60 phút",
+      deadline: acceptedAt + 60 * 60000,
+      totalMs: 60 * 60000,
       penalized: !!order.kpi_stage2_penalized,
-      limitLabel: "60 phút",
       actionLabel: "Bắt Đầu Sửa",
-      color: "#7c3aed",
-      urgentColor: "#dc2626",
-      bgNormal: "#f5f3ff",
-      borderNormal: "#ddd6fe",
+      kpiPenalty: -3,
+      penaltyNote: "-3 KPI + Ngừng giao việc",
     };
   }
   return null;
@@ -527,17 +529,21 @@ function AcceptChecklistModal({ order, onConfirm, onClose, pb }) {
 function AcceptTimer({ order, currentUser, onUpdate }) {
   const [now, setNow] = useState(Date.now());
   const [acting, setActing] = useState(false);
-  useEffect(() => { const iv = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(iv); }, []);
+
+  useEffect(() => {
+    const iv = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(iv);
+  }, []);
 
   if (!order.assigned_to) return null;
-  const isMyOrder = order.assigned_to === currentUser.id;
-  const isManager = currentUser.role === "manager";
+  const isMyOrder  = order.assigned_to === currentUser.id;
+  const isManager  = currentUser.role === "manager";
   if (!isMyOrder && !isManager) return null;
 
   const stage = order.accept_stage || 0;
 
-  // Đã hoàn tất tất cả stages → hiện badge xanh gọn
-  if (stage >= 2 || order.status === "Hoàn Thành" || order.status === "Đã Giao") {
+  // Stage >= 2 hoặc đơn xong → badge xanh gọn
+  if (stage >= 2 || ["Hoàn Thành","Đã Giao","Hủy","Hoan Thanh","Da Giao","Huy"].includes(order.status)) {
     return (
       <div style={{ display:"flex", alignItems:"center", gap:8, background:"#dcfce7", border:"2px solid #6ee7b7", borderRadius:12, padding:"10px 14px", marginBottom:14 }}>
         <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,color:"#059669"}}>verified</span>
@@ -552,76 +558,92 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
   const info = getKpiTimerInfo(order);
   if (!info) return null;
 
-  const rem = Math.max(0, info.deadline - now);
-  const totalMs = info.phase === 0 ? 15 * 60000 : 60 * 60000;
-  const percent = Math.round((1 - rem / totalMs) * 100);
-  const mins = Math.floor(rem / 60000);
-  const secs = Math.floor((rem % 60000) / 1000);
-  const expired = rem === 0;
-  const urgent = rem < 3 * 60000 && rem > 0;
+  const rem      = Math.max(0, info.deadline - now);
+  const percent  = Math.min(100, Math.round((1 - rem / info.totalMs) * 100));
+  const mins     = Math.floor(rem / 60000);
+  const secs     = Math.floor((rem % 60000) / 1000);
+  const expired  = rem === 0;
+  const urgent   = rem > 0 && rem < 5 * 60000;
 
-  // Màu sắc theo trạng thái
-  const bg     = expired ? "#fef2f2"  : urgent ? "#fff7ed"  : (info.phase===0 ? "#fff7ed" : "#f5f3ff");
-  const border = expired ? "#fca5a5"  : urgent ? "#fdba74"  : (info.phase===0 ? "#fed7aa" : "#ddd6fe");
-  const timerColor = expired ? "#dc2626" : urgent ? "#ea580c" : (info.phase===0 ? "#c2410c" : "#7c3aed");
-  const btnBg  = expired ? "#dc2626"  : (info.phase===0 ? "#ea580c" : "#7c3aed");
+  // Màu theo phase + trạng thái
+  const colors = {
+    0: { bg:"#fff7ed", border:"#fed7aa", timerC:"#c2410c", btnBg:"#ea580c" },
+    1: { bg:"#f5f3ff", border:"#ddd6fe", timerC:"#7c3aed", btnBg:"#7c3aed" },
+  };
+  const c = expired
+    ? { bg:"#fef2f2", border:"#fca5a5", timerC:"#dc2626", btnBg:"#dc2626" }
+    : urgent
+    ? { bg:"#fffbeb", border:"#fde68a", timerC:"#d97706", btnBg: colors[info.phase].btnBg }
+    : colors[info.phase];
 
   async function handleAction() {
     if (acting) return;
     setActing(true);
-    const now = new Date().toISOString();
+    const ts = new Date().toISOString();
     if (info.phase === 0) {
-      // Nhận đơn → mở checklist (gọi qua event hoặc trực tiếp update stage1)
-      // Stage 0→1: set stage1_at, accept_stage=1
-      onUpdate(order.id, { accept_stage: 1, stage1_at: now, assigned_at: order.assigned_at || now }, null);
-    } else if (info.phase === 1) {
-      // Bắt đầu sửa → stage 1→2
-      onUpdate(order.id, { accept_stage: 2, stage2_at: now, status: "Đang Sửa" }, null);
+      // KTV nhận đơn → stage 0→1, stage1_at = now
+      onUpdate(order.id, {
+        accept_stage: 1,
+        stage1_at: ts,
+        status: "Mới Nhận",
+      }, null);
+    } else {
+      // KTV bắt đầu sửa → stage 1→2
+      onUpdate(order.id, {
+        accept_stage: 2,
+        stage2_at: ts,
+        status: "Đang Sửa",
+      }, null);
     }
     setTimeout(() => setActing(false), 2000);
   }
 
   return (
-    <div style={{ background: bg, border: `2px solid ${border}`, borderRadius: 14, padding: "14px 16px", marginBottom: 14 }}>
-      {/* Header row */}
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
-        <div style={{ flex:1 }}>
+    <div style={{ background:c.bg, border:`2px solid ${c.border}`, borderRadius:14, padding:"14px 16px", marginBottom:14 }}>
+      {/* Header */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
+        <div style={{ flex:1, paddingRight:8 }}>
           <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:4 }}>
-            <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:timerColor}}>
+            <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:c.timerC}}>
               {expired ? "warning" : "timer"}
             </span>
-            <span style={{ fontWeight:900, fontSize:14, color: expired ? "#dc2626" : "#1e1b4b" }}>
+            <span style={{ fontWeight:900, fontSize:14, color:c.timerC }}>
               {expired
-                ? (info.phase===0 ? "⚠️ Quá 15 phút chưa nhận đơn!" : "⚠️ Quá 60 phút chưa bắt đầu sửa!")
+                ? (info.phase===0 ? "⚠️ Quá 60 phút chưa nhận đơn!" : "⚠️ Quá 60 phút chưa bắt đầu sửa!")
                 : info.label}
             </span>
           </div>
           <div style={{ fontSize:12, color:"#6b7280" }}>
             {expired
-              ? (info.penalized ? "Đã trừ KPI" : "Sắp bị trừ KPI — hành động ngay!")
-              : `Còn ${mins} phút ${secs.toString().padStart(2,"0")} giây`}
+              ? (info.penalized ? `Đã trừ ${info.penaltyNote}` : `Sắp bị ${info.penaltyNote} — hành động ngay!`)
+              : `Còn ${mins} phút ${String(secs).padStart(2,"0")} giây để hành động`}
           </div>
         </div>
-        {/* Đồng hồ to */}
-        <div style={{ textAlign:"center", flexShrink:0, marginLeft:12 }}>
-          <div style={{ fontSize:28, fontWeight:900, fontFamily:"monospace", color:timerColor, lineHeight:1 }}>
+        {/* Đồng hồ */}
+        <div style={{ textAlign:"center", flexShrink:0 }}>
+          <div style={{ fontSize:30, fontWeight:900, fontFamily:"monospace", color:c.timerC, lineHeight:1 }}>
             {expired ? "00:00" : `${String(mins).padStart(2,"0")}:${String(secs).padStart(2,"0")}`}
           </div>
-          <div style={{ fontSize:10, color:"#9ca3af", marginTop:2 }}>
-            {info.phase === 0 ? "/ 15:00" : "/ 60:00"}
-          </div>
+          <div style={{ fontSize:10, color:"#9ca3af", marginTop:2 }}>/ 60:00</div>
         </div>
       </div>
 
       {/* Progress bar */}
-      <div style={{ height:6, background:"rgba(0,0,0,.08)", borderRadius:4, marginBottom:10, overflow:"hidden" }}>
-        <div style={{ height:"100%", width:`${Math.min(100,percent)}%`, background: expired ? "#dc2626" : urgent ? "#ea580c" : btnBg, borderRadius:4, transition:"width .5s linear" }} />
+      <div style={{ height:7, background:"rgba(0,0,0,.08)", borderRadius:4, marginBottom:10, overflow:"hidden" }}>
+        <div style={{
+          height:"100%", width:`${percent}%`,
+          background: expired ? "#dc2626" : urgent ? "#f59e0b" : c.btnBg,
+          borderRadius:4, transition:"width .5s linear"
+        }}/>
       </div>
 
-      {/* Action button - chỉ KTV của đơn mới thấy */}
-      {isMyOrder && (
+      {/* KTV action button */}
+      {isMyOrder && !order.needs_reassign && (
         <button onClick={handleAction} disabled={acting}
-          style={{ width:"100%", height:52, borderRadius:12, border:"none", background: acting ? "#d1d5db" : btnBg, color:"#fff", fontWeight:800, fontSize:16, cursor: acting ? "not-allowed":"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8, transition:"background .2s" }}>
+          style={{ width:"100%", height:52, borderRadius:12, border:"none",
+            background: acting ? "#d1d5db" : c.btnBg,
+            color:"#fff", fontWeight:800, fontSize:16, cursor: acting?"not-allowed":"pointer",
+            display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
           <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20}}>
             {acting ? "hourglass_top" : (info.phase===0 ? "assignment_turned_in" : "build_circle")}
           </span>
@@ -629,16 +651,38 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
         </button>
       )}
 
-      {/* Manager view — không có nút action nhưng thấy cảnh báo */}
-      {!isMyOrder && isManager && expired && (
-        <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:4, padding:"8px 10px", background:"rgba(220,38,38,.08)", borderRadius:8 }}>
-          <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,color:"#dc2626"}}>info</span>
-          <span style={{ fontSize:12, color:"#dc2626", fontWeight:700 }}>KTV đã quá hạn — cân nhắc đổi KTV bên dưới</span>
+      {/* KTV bị ngừng giao việc */}
+      {isMyOrder && order.needs_reassign && (
+        <div style={{ padding:"10px 12px", background:"#fef2f2", borderRadius:10, border:"1px solid #fca5a5",
+          display:"flex", alignItems:"center", gap:8 }}>
+          <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:"#dc2626"}}>block</span>
+          <div>
+            <div style={{ fontWeight:800, fontSize:13, color:"#dc2626" }}>Đơn đã chuyển về Quản lý</div>
+            <div style={{ fontSize:12, color:"#6b7280" }}>Quản lý sẽ giao cho KTV khác</div>
+          </div>
+        </div>
+      )}
+
+      {/* Manager: cảnh báo + nút Giao Việc Lại */}
+      {isManager && (
+        <div style={{ marginTop: (isMyOrder && !order.needs_reassign) ? 8 : 0 }}>
+          {(expired || order.needs_reassign) && (
+            <div style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 10px",
+              background:"rgba(220,38,38,.08)", borderRadius:8, marginBottom: order.needs_reassign ? 8 : 0 }}>
+              <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:15,color:"#dc2626"}}>error_outline</span>
+              <span style={{ fontSize:12, color:"#dc2626", fontWeight:700 }}>
+                {order.needs_reassign
+                  ? "KTV đã bị ngừng giao việc — cần phân công lại!"
+                  : "KTV đang quá hạn — cân nhắc giao việc lại"}
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
+
 
 // ══════════════════════════════════════════════
 //  ORDER DRAWER

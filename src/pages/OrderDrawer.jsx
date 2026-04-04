@@ -623,35 +623,61 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 </div>
               </div>
             )}
-            {/* ── Cảnh báo Quản lý: Đơn cần chuyển KTV ─────── */}
-            {order.needs_reassign && currentUser.role === "manager" && !["Hoàn Thành","Đã Giao"].includes(order.status) && (
-              <div style={{ background:"#fef2f2", border:"2px solid #fca5a5", borderRadius:14, padding:"14px 16px", marginBottom:14 }}>
-                <div style={{ fontWeight:800, fontSize:15, color:"#dc2626", marginBottom:6 }}>  Hệ thống chuyển việc cho Quản lý</div>
-                <div style={{ fontSize:13, color:"#6b7280", marginBottom:12 }}>KTV đã quá 120 phút không Nhận máy. Cần phân công lại.</div>
-                <div style={{ marginBottom:8 }}>
-                  <div style={{ fontSize:13, fontWeight:700, marginBottom:6 }}>Chọn KTV mới:</div>
-                  <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                    {users.filter(u => u.role==="technician" && u.id !== order.assigned_to && u.is_active!==false).map(u => (
-                      <button key={u.id} onClick={() => {
-                        const newAssignAt = new Date().toISOString();
-                        onUpdate(order.id, {
-                          assigned_to: u.id,
-                          assigned_to_name: u.name,
-                          assigned_at: newAssignAt,
-                          accept_stage: 0,
-                          stage1_at: null,
-                          stage2_at: null,
-                          kpi_stage1_penalized: false,
-                          kpi_stage2_penalized: false,
-                          needs_reassign: false,
-                        }, null);
-                        showToast("Đã chuyển đơn cho " + u.name);
-                      }}
-                        style={{ padding:"10px 14px", borderRadius:10, border:"1.5px solid #e5e7eb", background:"#fff", fontWeight:700, fontSize:14, cursor:"pointer", textAlign:"left"}}>
-                          {u.name} <span style={{ color:"#6b7280", fontWeight:400, fontSize:12 }}>(KPI: {u.kpi})</span>
-                      </button>
-                    ))}
+            {/* ── Giao Việc Lại: chỉ hiện khi needs_reassign = true ─── */}
+            {order.needs_reassign && currentUser.role === "manager" && !["Hoàn Thành","Đã Giao","Hủy"].includes(order.status) && (
+              <div style={{ background:"#fef2f2", border:"2.5px solid #ef4444", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                {/* Header cảnh báo */}
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
+                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:24,color:"#dc2626"}}>assignment_late</span>
+                  <div>
+                    <div style={{ fontWeight:900, fontSize:15, color:"#dc2626" }}>⚠️ Cần Giao Việc Lại!</div>
+                    <div style={{ fontSize:12, color:"#9ca3af" }}>KTV <b>{order.assigned_to_name||"?"}</b> quá 60 phút không bắt đầu sửa → -3 KPI & ngừng nhận việc</div>
                   </div>
+                </div>
+
+                {/* Danh sách KTV khả dụng */}
+                <div style={{ fontSize:13, fontWeight:700, color:"#374151", marginBottom:8 }}>
+                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:14,verticalAlign:"middle",marginRight:4}}>engineering</span>
+                  Chọn KTV mới để giao:
+                </div>
+                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                  {users.filter(u => u.role==="technician" && u.id !== order.assigned_to && u.is_active!==false).length === 0 && (
+                    <div style={{ fontSize:13, color:"#9ca3af", fontStyle:"italic", padding:"10px 0" }}>Không có KTV khả dụng</div>
+                  )}
+                  {users.filter(u => u.role==="technician" && u.id !== order.assigned_to && u.is_active!==false).map(u => (
+                    <button key={u.id}
+                      onClick={async () => {
+                        const now = new Date().toISOString();
+                        onUpdate(order.id, {
+                          assigned_to:           u.id,
+                          assigned_to_name:      u.name || u.full_name,
+                          assigned_at:           now,
+                          accept_stage:          0,
+                          stage1_at:             null,
+                          stage2_at:             null,
+                          kpi_stage1_penalized:  false,
+                          kpi_stage2_penalized:  false,
+                          needs_reassign:        false,
+                          status:                "Chưa Nhận",
+                        }, null);
+                        showToast(`✅ Đã giao đơn cho ${u.name || u.full_name}`);
+                      }}
+                      style={{
+                        display:"flex", alignItems:"center", justifyContent:"space-between",
+                        padding:"12px 14px", borderRadius:12,
+                        border:"2px solid #4f46e5", background:"#eef2ff",
+                        fontWeight:700, fontSize:14, cursor:"pointer", textAlign:"left"
+                      }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:"#4f46e5"}}>engineering</span>
+                        <span style={{ color:"#1e1b4b" }}>{u.name || u.full_name}</span>
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                        <span style={{ fontSize:12, color:"#6b7280" }}>KPI: {u.kpi??0}</span>
+                        <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:"#4f46e5"}}>arrow_forward</span>
+                      </div>
+                    </button>
+                  ))}
                 </div>
               </div>
             )}

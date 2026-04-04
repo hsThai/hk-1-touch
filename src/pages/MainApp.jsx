@@ -125,6 +125,7 @@ function mapPbOrder(o, STATUS_DISPLAY, PRIORITY_DISPLAY) {
 function MainAppInner() {
   const [user, setUser] = useState(null);
   const ordersRef = useRef([]); // luôn giữ latest orders snapshot
+  const usersRef  = useRef([]); // luôn giữ latest users snapshot
   // ── Âm thanh thông báo ─────────────────────────
   const notifAudioRef = useRef(null);
 
@@ -176,7 +177,15 @@ function MainAppInner() {
       return next;
     });
   };
-  const [users, setUsers] = useState([]);
+  const [users_raw, setUsers_raw] = useState([]);
+  const setUsers = (fn_or_val) => {
+    setUsers_raw(prev => {
+      const next = typeof fn_or_val === "function" ? fn_or_val(prev) : fn_or_val;
+      usersRef.current = next;
+      return next;
+    });
+  };
+  const users = users_raw;
   const [dataLoading, setDataLoading] = useState(true);
   const [page, setPage] = useState("board");
   const [search, setSearch] = useState("");
@@ -422,59 +431,163 @@ function MainAppInner() {
   useEffect(() => {
     const iv = setInterval(() => {
       const now = Date.now();
-      let kpiChanges = []; // { userId, delta }
-      let notifMsgs = [];
+      let kpiChanges   = [];
+      let pbPatches    = []; // [{ orderId, pbId, patch }]
+      let notifPayload = []; // thông báo đẩy vào PocketBase + state
 
       setOrders(prev => {
-        let changed = false;
-        kpiChanges = [];
-        notifMsgs = [];
+        kpiChanges   = [];
+        pbPatches    = [];
+        notifPayload = [];
+        let changed  = false;
+
         const next = prev.map(o => {
-          if (!o.assigned_to || !o.assigned_at || o.accept_stage >= 3) return o;
-          if (["Hoàn Thành","Đã Giao","Hoan Thanh","Da Giao"].includes(o.status)) return o;
-          const assignedAt = new Date(o.assigned_at).getTime();
+          if (!o.assigned_to || !o.assigned_at) return o;
+          if ((o.accept_stage||0) >= 2) return o;
+          if (["Hoàn Thành","Đã Giao","Hủy","Hoan Thanh","Da Giao","Huy"].includes(o.status)) return o;
+
+          const assignedAt  = new Date(o.assigned_at).getTime();
+          const stage1At    = o.stage1_at ? new Date(o.stage1_at).getTime() : null;
+          const stage       = o.accept_stage || 0;
           let patch = {};
 
-          // Mốc 1: T=60' — chưa cập nhật lần 1, chưa bị trừ
-          if ((o.accept_stage||0) === 0 && !o.kpi_stage1_penalized && now >= assignedAt + 60*60000) {
-            patch.kpi_stage1_penalized = true;
-            kpiChanges.push({ userId: o.assigned_to, delta: -1 });
-            notifMsgs.push(`  Đơn ${o.id}: KTV quá 60 phút chưa Nhận máy → -1 KPI`);
-            changed = true;
+          // ── STAGE 0: KTV chưa nhận → 60 phút ──────────────────────────────
+          if (stage === 0) {
+            const deadline   = assignedAt + 60 * 60000;
+            const remMs      = deadline - now;
+            const remMins    = Math.floor(remMs / 60000);
+
+            // Nhắc mỗi 15 giây khi còn thời gian
+            if (remMs > 0) {
+              const urgentLevel = remMs < 5*60000 ? "🚨" : remMs < 15*60000 ? "⚠️" : "⏰";
+              notifPayload.push({
+                userId: o.assigned_to,
+                title: `${urgentLevel} Nhận đơn ${o.order_code || o.id}`,
+                message: `Còn ${remMins} phút để nhận đơn! Bấm vào đơn để nhận ngay.`,
+                orderId: o.id,
+                orderCode: o.order_code || o.id,
+                type: "kpi_reminder",
+                role: null, // chỉ gửi cho KTV
+              });
+            }
+
+            // Hết 60' → -1 KPI, đánh dấu
+            if (remMs <= 0 && !o.kpi_stage1_penalized) {
+              patch.kpi_stage1_penalized = true;
+              kpiChanges.push({ userId: o.assigned_to, delta: -1 });
+              notifPayload.push({
+                userId: o.assigned_to,
+                title: `🔴 Trừ KPI — Đơn ${o.order_code || o.id}`,
+                message: "Đã quá 60 phút không nhận đơn → -1 KPI.",
+                orderId: o.id, orderCode: o.order_code || o.id, type: "kpi_penalty", role: null,
+              });
+              changed = true;
+            }
           }
 
-          // Mốc 2: T=120' — chưa cập nhật lần 2, chưa bị trừ
-          if ((o.accept_stage||0) < 2 && !o.kpi_stage2_penalized && now >= assignedAt + 120*60000) {
-            patch.kpi_stage2_penalized = true;
-            patch.needs_reassign = true;
-            kpiChanges.push({ userId: o.assigned_to, delta: -3 });
-            notifMsgs.push(`  Đơn ${o.id}: KTV quá 120 phút → -3 KPI. Quản lý cần xử lý!`);
-            changed = true;
+          // ── STAGE 1: KTV đã nhận, chưa bắt đầu sửa → 60 phút ─────────────
+          if (stage === 1 && stage1At) {
+            const deadline   = stage1At + 60 * 60000;
+            const remMs      = deadline - now;
+            const remMins    = Math.floor(remMs / 60000);
+
+            // Nhắc mỗi 15 giây
+            if (remMs > 0) {
+              const urgentLevel = remMs < 5*60000 ? "🚨" : remMs < 15*60000 ? "⚠️" : "⏰";
+              notifPayload.push({
+                userId: o.assigned_to,
+                title: `${urgentLevel} Bắt đầu sửa đơn ${o.order_code || o.id}`,
+                message: `Còn ${remMins} phút để bắt đầu sửa! Vào đơn → Bắt Đầu Sửa.`,
+                orderId: o.id, orderCode: o.order_code || o.id, type: "kpi_reminder", role: null,
+              });
+            }
+
+            // Hết 60' → -3 KPI, ngừng giao việc, báo quản lý
+            if (remMs <= 0 && !o.kpi_stage2_penalized) {
+              patch.kpi_stage2_penalized = true;
+              patch.needs_reassign       = true;
+              kpiChanges.push({ userId: o.assigned_to, delta: -3 });
+              // Thông báo cho KTV
+              notifPayload.push({
+                userId: o.assigned_to,
+                title: `🔴 Trừ -3 KPI & Ngừng giao việc`,
+                message: `Đơn ${o.order_code||o.id}: Quá 60 phút chưa bắt đầu sửa. Ngừng nhận việc tạm thời.`,
+                orderId: o.id, orderCode: o.order_code||o.id, type: "kpi_penalty", role: null,
+              });
+              // Thông báo cho tất cả Manager
+              notifPayload.push({
+                userId: null,
+                title: `📋 Cần Giao Việc Lại — ${o.order_code||o.id}`,
+                message: `KTV ${o.assigned_to_name||"?"} quá 60 phút không sửa. Vui lòng giao KTV khác.`,
+                orderId: o.id, orderCode: o.order_code||o.id, type: "needs_reassign", role: "manager",
+              });
+              changed = true;
+            }
           }
 
-          if (Object.keys(patch).length > 0) { changed = true; return {...o, ...patch}; }
+          if (Object.keys(patch).length > 0) {
+            changed = true;
+            if (o._id) pbPatches.push({ orderId: o.id, pbId: o._id, patch });
+            return { ...o, ...patch };
+          }
           return o;
         });
+
         return changed ? next : prev;
       });
 
-      // Apply KPI changes after orders update
+      // Apply KPI changes to users
       if (kpiChanges.length > 0) {
         setUsers(u => {
           let next = [...u];
           kpiChanges.forEach(({ userId, delta }) => {
-            next = next.map(x => x.id===userId ? {...x, kpi:Math.max(0,x.kpi+delta)} : x);
+            next = next.map(x => x.id===userId ? { ...x, kpi: Math.max(0, (x.kpi||0) + delta) } : x);
           });
           return next;
         });
+        // Lưu KPI mới xuống PocketBase
+        kpiChanges.forEach(async ({ userId, delta }) => {
+          try {
+            const staffRec = usersRef?.current?.find(u => u.id === userId) || [];
+            if (staffRec?._id) {
+              const newKpi = Math.max(0, (staffRec.kpi||0) + delta);
+              await Staff.update(staffRec._id, { kpi_score: newKpi });
+            }
+          } catch(e) { console.warn("KPI PB update error:", e); }
+        });
       }
-      if (notifMsgs.length > 0) {
-        setNotifications(n => [
-          ...notifMsgs.map(msg => ({ id: Math.random().toString(36), msg, time: new Date().toISOString() })),
-          ...n
-        ].slice(0, 10));
-      }
-    }, 15000); // check mỗi 15 giây
+
+      // Lưu các patch đơn xuống PocketBase
+      pbPatches.forEach(async ({ pbId, patch }) => {
+        try { await RepairOrder.update(pbId, patch); } catch(e) { console.warn("Order patch error:", e); }
+      });
+
+      // Gửi thông báo (chỉ lưu vào Notification entity — SSE sẽ push real-time)
+      notifPayload.forEach(async (n) => {
+        try {
+          if (n.role === "manager") {
+            // Broadcast cho tất cả manager
+            const managers = usersRef?.current?.filter(u => u.role === "manager") || [];
+            for (const m of managers) {
+              await Notification.create({
+                user_id: m.id, user_name: m.name || m.full_name || "",
+                title: n.title, message: n.message,
+                order_id: n.orderId, order_code: n.orderCode,
+                type: n.type, is_read: false,
+              });
+            }
+          } else if (n.userId) {
+            await Notification.create({
+              user_id: n.userId, user_name: "",
+              title: n.title, message: n.message,
+              order_id: n.orderId, order_code: n.orderCode,
+              type: n.type, is_read: false,
+            });
+          }
+        } catch(e) { console.warn("Notif push error:", e); }
+      });
+
+    }, 15000); // chạy mỗi 15 giây
     return () => clearInterval(iv);
   }, []);
 
