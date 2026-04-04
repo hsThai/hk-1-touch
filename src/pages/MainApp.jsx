@@ -2,6 +2,7 @@
 import React, { lazy, Suspense, useState, useEffect, useRef, useCallback } from "react";
 import { RepairChat, Notification, Staff, RepairOrder, Customer } from "./pb.jsx";
 import { uploadFile } from "./pb.jsx";
+import { getNotifSound } from "./Settings";
 const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ default: ({ onClose }) => (
   <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}}>
     <div style={{background:"#fff",borderRadius:16,padding:32,textAlign:"center"}}>
@@ -30,7 +31,7 @@ import { QRScanModal } from"./QRComponents";
 import { MediaViewer, AcceptChecklistModal, AcceptTimer, timeAgo, genOrderId, getKpiTimerInfo, STATUS_PB, STATUS_DISPLAY, PRIORITY_PB, PRIORITY_DISPLAY, STATUS_COLS } from "./MediaViewer";
 import { OrderDrawer } from "./OrderDrawer";
 import { NewOrderModal, KPIPage, ProductHistoryModal } from "./OrderForms";
-import LoginPage from "./LoginV2";
+import LoginPage, { showSystemNotif, requestNotifPermission } from "./LoginV2";
 import ChangePassword from "./ChangePassword";
 
 const _BUILD_V4 = "loginv2-real-db";
@@ -131,12 +132,54 @@ function MainAppInner() {
   const [showNotif, setShowNotif] = useState(false);
 
   // Poll DB notifications cho user hiện tại mỗi 15s
+  // Ref lưu ID thông báo đã thấy, tránh show lại
+  const seenNotifIds = useRef(new Set());
+
   useEffect(() => {
     if (!user?.id) return;
+    // Xin quyền thông báo hệ thống
+    requestNotifPermission().catch(() => {});
+
     const fetchNotifs = async () => {
       try {
         const list = await Notification.filter({ user_id: user.id, is_read: false });
-        setDbNotifications(list.sort((a,b) => new Date(b.created_date)-new Date(a.created_date)));
+        const sorted = list.sort((a,b) => new Date(b.created_date)-new Date(a.created_date));
+        setDbNotifications(sorted);
+
+        // Phát thông báo hệ thống HĐH cho các thông báo mới chưa thấy
+        const master = await getNotifSound("notif_sound_master").catch(()=>"on");
+        if (master !== "off") {
+          for (const n of sorted) {
+            if (!seenNotifIds.current.has(n.id)) {
+              seenNotifIds.current.add(n.id);
+              // Chỉ show system notif cho thông báo mới (dưới 5 phút)
+              const age = Date.now() - new Date(n.created_date).getTime();
+              if (age < 300000) {
+                showSystemNotif(n.title || "HK One Touch", n.message || "", {
+                  tag: n.id,
+                  data: { order_id: n.order_id }
+                });
+                // Phát âm thanh app
+                try {
+                  const soundKey = await getNotifSound(
+                    n.type === "mention" ? "notif_sound_chat" : "notif_sound_assign"
+                  );
+                  if (soundKey && soundKey !== "none") {
+                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    const osc = ctx.createOscillator(); const gain = ctx.createGain();
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    osc.type = "sine";
+                    osc.frequency.setValueAtTime(880, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.3);
+                    gain.gain.setValueAtTime(0.5, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+                    osc.start(); osc.stop(ctx.currentTime + 0.5);
+                  }
+                } catch {}
+              }
+            }
+          }
+        }
       } catch {}
     };
     fetchNotifs();

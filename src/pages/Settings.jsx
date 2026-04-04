@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import ChangePassword from "./ChangePassword";
 import { AppSettings, getPbUrl, setPbUrl, testConnection } from "./pb.jsx";
+import { requestNotifPermission, showSystemNotif } from "./LoginV2";
 
 const KV_KEYS = [
   { key:"kv_client_id",     label:"Client ID",       placeholder:"83a5bcbe-3c39-458c-bdd9-...",  type:"text" },
@@ -270,8 +271,47 @@ export default function Settings({ user }) {
 
       {/* ── Âm thanh thông báo ── */}
       <div style={{ background:"#fff", borderRadius:20, padding:24, marginBottom:20, boxShadow:"0 2px 12px rgba(0,0,0,.07)" }}>
-        <div style={{ fontSize:16, fontWeight:800, color:"#1e1b4b", marginBottom:6 }}>  Âm thanh thông báo</div>
-        <div style={{ fontSize:13, color:"#6b7280", marginBottom:16 }}>Tùy chỉnh âm thanh cho từng loại thông báo trên điện thoại</div>
+        <div style={{ fontSize:16, fontWeight:800, color:"#1e1b4b", marginBottom:6 }}>
+          <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle",lineHeight:1}}>notifications_active</span> Âm thanh & Thông báo
+        </div>
+        <div style={{ fontSize:13, color:"#6b7280", marginBottom:12 }}>Tùy chỉnh âm thanh và thông báo hệ thống</div>
+
+        {/* Banner xin quyền thông báo HĐH */}
+        {typeof Notification !== "undefined" && Notification.permission !== "granted" && (
+          <div style={{ background: Notification.permission==="denied" ? "#fef2f2" : "#fffbeb", border:`1.5px solid ${Notification.permission==="denied"?"#fca5a5":"#fbbf24"}`, borderRadius:14, padding:"14px 16px", marginBottom:16, display:"flex", alignItems:"center", gap:12 }}>
+            <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:28,color:Notification.permission==="denied"?"#dc2626":"#d97706",flexShrink:0}}>
+              {Notification.permission==="denied" ? "notifications_off" : "notification_important"}
+            </span>
+            <div style={{ flex:1 }}>
+              <div style={{ fontWeight:700, fontSize:13, color:Notification.permission==="denied"?"#dc2626":"#92400e" }}>
+                {Notification.permission==="denied" ? "Thông báo bị chặn" : "Chưa bật thông báo hệ thống"}
+              </div>
+              <div style={{ fontSize:12, color:"#6b7280", marginTop:2 }}>
+                {Notification.permission==="denied"
+                  ? "Vào Cài đặt trình duyệt → bật lại thông báo cho trang này"
+                  : "Bật để nhận thông báo @mention, trạng thái đơn ngay trên màn hình"}
+              </div>
+            </div>
+            {Notification.permission !== "denied" && (
+              <button onClick={async () => {
+                const ok = await requestNotifPermission();
+                if (ok) {
+                  showSystemNotif("HK One Touch ✓", "Thông báo hệ thống đã bật! Bạn sẽ nhận được tin nhắn @mention và cập nhật đơn hàng.");
+                  window.location.reload();
+                } else { alert("Trình duyệt đã chặn. Vào Settings trình duyệt để bật lại."); }
+              }} style={{ flexShrink:0, padding:"10px 14px", background:"#d97706", color:"#fff", border:"none", borderRadius:10, fontWeight:700, fontSize:13, cursor:"pointer" }}>
+                Bật ngay
+              </button>
+            )}
+          </div>
+        )}
+        {typeof Notification !== "undefined" && Notification.permission === "granted" && (
+          <div style={{ background:"#f0fdf4", border:"1.5px solid #6ee7b7", borderRadius:14, padding:"10px 16px", marginBottom:12, display:"flex", alignItems:"center", gap:10 }}>
+            <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,color:"#059669"}}>check_circle</span>
+            <span style={{ fontSize:13, color:"#065f46", fontWeight:600 }}>Thông báo hệ thống đã được bật</span>
+            <button onClick={() => showSystemNotif("HK One Touch", "Đây là thử nghiệm thông báo hệ thống ✓")} style={{ marginLeft:"auto", fontSize:12, background:"#059669", color:"#fff", border:"none", borderRadius:8, padding:"6px 12px", cursor:"pointer", fontWeight:600 }}>Test</button>
+          </div>
+        )}
 
         {/* Master switch */}
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:"#f9fafb", borderRadius:14, padding:"14px 16px", marginBottom:16 }}>

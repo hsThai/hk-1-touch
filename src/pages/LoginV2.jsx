@@ -111,6 +111,32 @@ function clearCred() {
 }
 
 const LOGO = "https://media.base44.com/images/public/69bf5d0a924e0a8766577274/37193b36d_HKlogo.jpg";
+const SPLASH = "https://base44.app/api/apps/69bf5d0a924e0a8766577274/files/mp/public/69bf5d0a924e0a8766577274/a9a0ff879_a3c337028_Gemini_Generated_Image_d3qkd9d3qkd9d3qk.png";
+const APP_ICON = "https://base44.app/api/apps/69bf5d0a924e0a8766577274/files/mp/public/69bf5d0a924e0a8766577274/43c978c50_icon-192.png";
+
+// ── Web Notification API (thông báo hệ thống HĐH) ───────────
+export async function requestNotifPermission() {
+  if (!("Notification" in window)) return false;
+  if (Notification.permission === "granted") return true;
+  if (Notification.permission === "denied") return false;
+  const result = await Notification.requestPermission();
+  return result === "granted";
+}
+
+export function showSystemNotif(title, body, opts={}) {
+  if (!("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
+  try {
+    new Notification(title, {
+      body,
+      icon: APP_ICON,
+      badge: APP_ICON,
+      tag: opts.tag || "hkapp-notif",
+      renotify: true,
+      ...opts,
+    });
+  } catch(e) { console.warn("Notif err:", e); }
+}
 
 export default function LoginV2({ onLogin, loggedOut }) {
   const [username, setUsername] = useState("");
@@ -212,7 +238,7 @@ export default function LoginV2({ onLogin, loggedOut }) {
   if (autoLogging) return (
     <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#0f172a 0%,#1e1b4b 60%,#312e81 100%)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24 }}>
       <img
-        src="https://base44.app/api/apps/69bf5d0a924e0a8766577274/files/mp/public/69bf5d0a924e0a8766577274/7915944d0_a3c337028_Gemini_Generated_Image_d3qkd9d3qkd9d3qk.png"
+        src={`${SPLASH}?v=${Date.now()}`}
         alt="HK Robot"
         style={{ width:"min(320px,80vw)", objectFit:"contain", marginBottom:20, filter:"drop-shadow(0 12px 32px rgba(0,0,0,.4))", animation:"fadeIn .6s ease" }}
       />
