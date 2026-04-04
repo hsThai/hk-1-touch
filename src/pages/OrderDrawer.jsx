@@ -64,11 +64,14 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
 
   // Tự mở tab chat nếu được trigger từ notification click
   useEffect(() => {
-    if (window.__hk_open_chat && window.__hk_open_chat === order.id) {
-      setTab("chat");
-      window.__hk_open_chat = null;
+    if (window.__hk_open_chat) {
+      const flag = window.__hk_open_chat;
+      if (flag === order.id || flag === order._id || flag === order.qr_code) {
+        setTab("chat");
+        window.__hk_open_chat = null;
+      }
     }
-  }, [order.id]);
+  }, [order.id, order._id]);
   const chatInputRef = useRef();
   const [toast, setToast] = useState(null);
   const [showChecklist, setShowChecklist] = useState(false);
@@ -215,7 +218,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
         // Thêm manager + receptionist + assigned_to
         const allRelated = users.filter(u =>
           u.id !== currentUser.id &&
-          (["manager","receptionist"].includes(u.role) || u.id === order.assigned_to)
+          (["manager","admin","receptionist"].includes(u.role) || u.id === order.assigned_to)
         );
         allRelated.forEach(u => {
           if (!notifyIds.includes(u.id)) { notifyIds.push(u.id); notifyNames.push(u.name); }
@@ -228,7 +231,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
             user_name: notifyNames[i] || "",
             title: `💬 Được nhắc trong ${order.id}`,
             message: `${currentUser.name}: ${msgPreview}`,
-            order_id: order.id,
+            order_id: order._id || order.id,
             order_code: order.id,
             type:"mention",
             is_read: false,
@@ -560,7 +563,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
         user_name: u.name || "",
         title: `🔧 ${currentUser.name} cập nhật ${order.id}`,
         message: `Trạng thái: ${c.key}`,
-        order_id: order.id,
+        order_id: order._id || order.id,
         order_code: order.id,
         type:"status_change",
         is_read: false,

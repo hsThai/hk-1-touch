@@ -59,6 +59,40 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+// Helper: map raw PocketBase repair_orders record → app order object
+function mapPbOrder(o, STATUS_DISPLAY, PRIORITY_DISPLAY) {
+  return {
+    id: o.order_code || o.id,
+    _id: o.id,
+    _pbSaved: true,
+    customer_id: o.customer_name,
+    device_model: o.device_model || o.device_name || "",
+    imei_serial: o.imei || "",
+    passcode: "",
+    issues: o.issue_description
+      ? o.issue_description.split(/[,;]/).map(s=>s.trim()).filter(Boolean)
+      : [],
+    status: STATUS_DISPLAY[o.status] || o.status || "Mới Nhận",
+    notes: o.technician_note || "",
+    assigned_to: o.assigned_to || "",
+    assigned_to_name: o.assigned_to_name || "",
+    assigned_at: o.received_date || o.created_date,
+    accept_stage: (["Hoan Thanh","Da Giao","Hoàn Thành","Đã Giao"].includes(o.status)) ? 3 : 0,
+    created: o.received_date || o.created_date,
+    images: o.images || [],
+    videos: o.videos || [],
+    qr_code: o.order_code || "",
+    product_qr: o.product_qr || "",
+    customer_name: o.customer_name || "",
+    customer_phone: o.customer_phone || "",
+    estimated_cost: o.estimated_cost || 0,
+    final_cost: o.final_cost || 0,
+    deposit: o.deposit || 0,
+    warranty_days: o.warranty_days || 0,
+    priority: PRIORITY_DISPLAY[o.priority] || o.priority || "Bình thường",
+  };
+}
+
 function MainAppInner() {
   const [user, setUser] = useState(null);
   // ── Âm thanh thông báo ─────────────────────────
@@ -238,7 +272,7 @@ function MainAppInner() {
               fetch(sseUrl, {
                 method: "POST",
                 headers: { "Content-Type":"application/json", ...(token?{Authorization:token}:{}) },
-                body: JSON.stringify({ clientId, subscriptions: ["notifications/*"] }),
+                body: JSON.stringify({ clientId, subscriptions: [`notifications/${user?.id}`, "notifications/*"] }),
               }).then(r => console.log("[SSE] subscribed:", r.status)).catch(e => console.warn("[SSE] sub fail:", e));
             }
           } catch {}
@@ -291,7 +325,7 @@ function MainAppInner() {
           }
         }
       } catch {}
-    }, 30000);
+    }, 10000);
 
     return () => {
       es?.close();
@@ -815,23 +849,27 @@ function MainAppInner() {
                     Notification.update(n.id, { is_read: true }).catch(()=>{});
                     setDbNotifications(p => p.filter(x=>x.id!==n.id));
                     setShowNotif(false);
-                    // Mở đơn sửa nếu có order_id
-                    if (n.order_id) {
+                    // Mở đơn sửa nếu có order_id hoặc order_code
+                    const targetId   = n.order_id;
+                    const targetCode = n.order_code;
+                    if (targetId || targetCode) {
                       try {
-                        const order = await RepairOrder.get(n.order_id);
-                        if (order) {
-                          // Chuyển sang đúng trang
+                        // Ưu tiên tìm trong state đã map (nhanh, đúng format)
+                        let mapped = null;
+                        if (targetId)   mapped = orders.find(o => o._id === targetId);
+                        if (!mapped && targetCode) mapped = orders.find(o => o.id === targetCode || o.qr_code === targetCode);
+                        if (!mapped && targetId) {
+                          // Fallback: fetch từ PocketBase rồi map
+                          const raw = await RepairOrder.get(targetId);
+                          if (raw) mapped = mapPbOrder(raw, STATUS_DISPLAY, PRIORITY_DISPLAY);
+                        }
+                        if (mapped) {
                           if (user?.role === "technician") setPage("tasks");
                           else setPage("board");
-                          // Đợi re-render rồi mở drawer
                           setTimeout(() => {
-                            setSelectedOrder(order);
-                            // Nếu là mention chat → mở tab chat
+                            setSelectedOrder(mapped);
                             if (n.type === "mention") {
-                              setTimeout(() => {
-                                // Set flag để OrderDrawer tự scroll sang tab chat
-                                window.__hk_open_chat = order.id;
-                              }, 100);
+                              setTimeout(() => { window.__hk_open_chat = mapped._id || mapped.id; }, 100);
                             }
                           }, 150);
                         }

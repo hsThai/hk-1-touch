@@ -3,10 +3,10 @@ import { useState, useEffect } from "react";
 import { Staff } from "./pb.jsx";
 
 const ROLES = [
-  { value:"manager",      label:"Quản lý",        color:"#7c3aed", bg:"#f5f3ff", icon:"workspace_premium" },
-  { value:"receptionist", label:"Tiếp tân",        color:"#1d4ed8", bg:"#dbeafe", icon:"support_agent" },
-  { value:"technician",   label:"Kỹ thuật viên",   color:"#065f46", bg:"#dcfce7", icon:"build" },
-  { value:"warehouse",    label:"Nhân viên kho",   color:"#0369a1", bg:"#e0f2fe", icon:"inventory_2" },
+  { value:"manager",      label:"Quản lý",        color:"#7c3aed", bg:"#f5f3ff", icon:"workspace_premium",  emoji:"👑" },
+  { value:"receptionist", label:"Tiếp tân",        color:"#1d4ed8", bg:"#dbeafe", icon:"support_agent",      emoji:"🎧" },
+  { value:"technician",   label:"Kỹ thuật viên",   color:"#065f46", bg:"#dcfce7", icon:"build",              emoji:"🔧" },
+  { value:"warehouse",    label:"Nhân viên kho",   color:"#0369a1", bg:"#e0f2fe", icon:"inventory_2",        emoji:"📦" },
 ];
 
 function simpleHash(str) { return btoa(unescape(encodeURIComponent(str))); }
@@ -119,7 +119,7 @@ export default function StaffManager({ currentStaff }) {
         <select value={filterRole} onChange={e=>setFilterRole(e.target.value)}
           style={{ height:40, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:13, background:"#fff", cursor:"pointer" }}>
           <option value="all">Tất cả vai trò</option>
-          {ROLES.map(r=><option key={r.value} value={r.value}>{r.icon} {r.label}</option>)}
+          {ROLES.map(r=><option key={r.value} value={r.value}>{r.emoji} {r.label}</option>)}
         </select>
       </div>
 
@@ -205,7 +205,7 @@ export default function StaffManager({ currentStaff }) {
               <label style={{ fontSize:13, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>Vai trò *</label>
               <select value={form.role} onChange={e=>setForm(p=>({...p,role:e.target.value}))}
                 style={{ width:"100%", height:44, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:14, background:"#fff", boxSizing:"border-box" }}>
-                {ROLES.map(r=><option key={r.value} value={r.value}>{r.icon} {r.label}</option>)}
+                {ROLES.map(r=><option key={r.value} value={r.value}>{r.emoji} {r.label}</option>)}
               </select>
             </div>
             <div style={{ marginBottom:14 }}>
