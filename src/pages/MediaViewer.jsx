@@ -663,17 +663,17 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
         </div>
       )}
 
-      {/* Nếu timer expired mà KTV chưa bấm → vẫn cho bấm (sau khi trừ KPI) */}
-      {isMyOrder && !order.needs_reassign && expired && (
+      {/* Stage 1 expired nhưng needs_reassign chưa kịp set → vẫn cho bấm Bắt Đầu Sửa */}
+      {isMyOrder && !order.needs_reassign && expired && info.phase === 1 && (
         <button onClick={handleAction} disabled={acting}
           style={{ width:"100%", height:52, borderRadius:12, border:"2px solid #dc2626",
             background: acting ? "#d1d5db" : "#fff",
             color:"#dc2626", fontWeight:800, fontSize:15, cursor: acting?"not-allowed":"pointer",
             display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
           <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20}}>
-            {acting ? "hourglass_top" : (info.phase===0 ? "assignment_turned_in" : "build_circle")}
+            {acting ? "hourglass_top" : "build_circle"}
           </span>
-          {acting ? "Đang xử lý..." : `${info.actionLabel} (Đã quá hạn)`}
+          {acting ? "Đang xử lý..." : "Bắt Đầu Sửa (Đã quá hạn)"}
         </button>
       )}
 

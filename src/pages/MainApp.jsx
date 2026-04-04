@@ -486,19 +486,31 @@ function MainAppInner() {
                 orderId: o.id,
                 orderCode: o.order_code || o.id,
                 type: "kpi_reminder",
-                role: null, // chỉ gửi cho KTV
+                role: null,
               });
             }
 
-            // Hết 60' → -1 KPI, đánh dấu
+            // Hết 60' chưa nhận → -1 KPI + TỰ CHUYỂN stage 1
             if (remMs <= 0 && !o.kpi_stage1_penalized) {
+              const autoStage1At = new Date(assignedAt + 60 * 60000).toISOString();
               patch.kpi_stage1_penalized = true;
+              patch.accept_stage         = 1;
+              patch.stage1_at            = autoStage1At; // mốc bắt đầu tính stage 1
+              patch.status               = "Mới Nhận";   // cập nhật trạng thái
               kpiChanges.push({ userId: o.assigned_to, delta: -1 });
+              // Thông báo KTV
               notifPayload.push({
                 userId: o.assigned_to,
-                title: `🔴 Trừ KPI — Đơn ${o.order_code || o.id}`,
-                message: "Đã quá 60 phút không nhận đơn → -1 KPI.",
+                title: `🔴 Hết hạn lần 1 — Đơn ${o.order_code || o.id}`,
+                message: `Quá 60 phút không bấm Nhận Đơn → -1 KPI. Hệ thống tự chuyển sang giai đoạn sửa chữa. Hãy bắt đầu sửa ngay!`,
                 orderId: o.id, orderCode: o.order_code || o.id, type: "kpi_penalty", role: null,
+              });
+              // Thông báo Manager
+              notifPayload.push({
+                userId: null,
+                title: `⚠️ KTV chậm nhận — ${o.order_code || o.id}`,
+                message: `KTV ${o.assigned_to_name || "?"} quá 60' không nhận đơn → -1 KPI. Hệ thống tự chuyển stage.`,
+                orderId: o.id, orderCode: o.order_code || o.id, type: "kpi_penalty", role: "manager",
               });
               changed = true;
             }
