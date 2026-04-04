@@ -373,7 +373,7 @@ export default function LoginV2({ onLogin, loggedOut }) {
             <div style={{ position:"absolute", top:2, left:rememberMe?22:2, width:20, height:20, borderRadius:"50%", background:"#fff", boxShadow:"0 1px 4px rgba(0,0,0,.3)", transition:"left .2s" }} />
           </div>
           <span onClick={() => setRememberMe(v=>!v)} style={{ fontSize:13, fontWeight:600, color:"#374151", cursor:"pointer", userSelect:"none" }}>
-            Ghi nhớ — tự động đăng nhập lần sau
+            Ghi nhớ đăng nhập lần sau
           </span>
         </div>
 
