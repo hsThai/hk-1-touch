@@ -691,21 +691,48 @@ function MainAppInner() {
               ))}
               {/* DB notifications (mention, status change) */}
               {dbNotifications.map(n => (
-                <div key={n.id} style={{ padding:"12px 16px", borderBottom:"1px solid #f9fafb", fontSize:13, display:"flex", gap:10, alignItems:"flex-start", background: n.type==="mention"?"#eef2ff":"#fff" }}>
+                <div key={n.id}
+                  onClick={async () => {
+                    // Đánh dấu đã đọc
+                    Notification.update(n.id, { is_read: true }).catch(()=>{});
+                    setDbNotifications(p => p.filter(x=>x.id!==n.id));
+                    setShowNotif(false);
+                    // Mở đơn sửa nếu có order_id
+                    if (n.order_id) {
+                      try {
+                        const order = await RepairOrder.get(n.order_id);
+                        if (order) {
+                          // Chuyển sang đúng trang
+                          if (user?.role === "technician") setPage("tasks");
+                          else setPage("board");
+                          // Đợi re-render rồi mở drawer
+                          setTimeout(() => {
+                            setSelectedOrder(order);
+                            // Nếu là mention chat → mở tab chat
+                            if (n.type === "mention") {
+                              setTimeout(() => {
+                                // Set flag để OrderDrawer tự scroll sang tab chat
+                                window.__hk_open_chat = order.id;
+                              }, 100);
+                            }
+                          }, 150);
+                        }
+                      } catch(e) { console.warn("open order:", e); }
+                    }
+                  }}
+                  style={{ padding:"12px 16px", borderBottom:"1px solid #f9fafb", fontSize:13, display:"flex", gap:10, alignItems:"flex-start", background: n.type==="mention"?"#eef2ff":"#fff", cursor:"pointer" }}
+                  onMouseEnter={e => e.currentTarget.style.background="#f0f4ff"}
+                  onMouseLeave={e => e.currentTarget.style.background=n.type==="mention"?"#eef2ff":"#fff"}
+                >
                   <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:n.type==="mention"?"#4f46e5":"#059669",marginTop:1,flexShrink:0}}>
-                    {n.type==="mention"?"alternate_email":n.type==="status_change"?"update":"notifications"}
+                    {n.type==="mention"?"chat":n.type==="status_change"?"update":"notifications"}
                   </span>
                   <div style={{ flex:1 }}>
                     <div style={{ fontWeight:700, fontSize:12, marginBottom:2 }}>{n.title}</div>
                     <div style={{ color:"#374151" }}>{n.message}</div>
                     <div style={{ color:"#9ca3af", fontSize:11, marginTop:2 }}>{timeAgo(n.created_date)}</div>
                   </div>
-                  <button onClick={() => {
-                    Notification.update(n.id, { is_read: true }).catch(()=>{});
-                    setDbNotifications(p => p.filter(x=>x.id!==n.id));
-                  }} style={{ background:"none", border:"none", cursor:"pointer", color:"#9ca3af", padding:2, flexShrink:0 }} title="Đánh dấu đã đọc">
-                    <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16}}>done</span>
-                  </button>
+                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,color:"#9ca3af",marginTop:2,flexShrink:0}}>chevron_right</span>
                 </div>
               ))}
             </div>

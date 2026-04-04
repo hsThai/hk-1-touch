@@ -64,12 +64,12 @@ import { Staff, pbAuth, getPbUrl, setPbUrl, testConnection } from "./pb.jsx";
   // Apple touch icon
   let touchIcon = document.querySelector('link[rel="apple-touch-icon"]');
   if (!touchIcon) { touchIcon = document.createElement("link"); touchIcon.rel = "apple-touch-icon"; document.head.appendChild(touchIcon); }
-  touchIcon.href = ICON192;
+  touchIcon.href = "https://base44.app/api/apps/69bf5d0a924e0a8766577274/files/mp/public/69bf5d0a924e0a8766577274/cd197582b_robot_splash.webp";
 
   // Favicon
   let favicon = document.querySelector('link[rel="icon"]');
   if (!favicon) { favicon = document.createElement("link"); favicon.rel = "icon"; document.head.appendChild(favicon); }
-  favicon.href = "https://base44.app/api/apps/69bf5d0a924e0a8766577274/files/mp/public/69bf5d0a924e0a8766577274/b9de39dcd_favicon-32.png";
+  favicon.href = "https://base44.app/api/apps/69bf5d0a924e0a8766577274/files/mp/public/69bf5d0a924e0a8766577274/cd197582b_robot_splash.webp";
   favicon.type = "image/png";
 
   // Page title
@@ -199,12 +199,6 @@ export default function LoginV2({ onLogin, loggedOut }) {
   const [testingConn, setTestingConn] = useState(false);
   const [connStatus, setConnStatus] = useState(null);
   const [autoLogging, setAutoLogging] = useState(false);
-  // Splash screen: luôn hiện 2 giây khi app mở
-  const [showSplash, setShowSplash] = useState(true);
-  useEffect(() => {
-    const t = setTimeout(() => setShowSplash(false), 2500);
-    return () => clearTimeout(t);
-  }, []);
 
   // Auto-login khi vào app (trừ khi vừa logout)
   useEffect(() => {
@@ -289,29 +283,21 @@ export default function LoginV2({ onLogin, loggedOut }) {
 
   const savePbUrl = () => { setPbUrl(pbUrl); setShowConfig(false); setConnStatus(null); };
 
-  // Màn hình Splash (luôn hiện khi mở app hoặc đang tự đăng nhập)
-  if (showSplash || autoLogging) return (
-    <div style={{ minHeight:"100vh", background:"#ffffff", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24 }}>
-      <img
-        src={`${SPLASH}?v=${Date.now()}`}
-        alt="HK Robot"
-        style={{ width:"min(280px,75vw)", objectFit:"contain", marginBottom:20, animation:"fadeIn .5s ease" }}
-      />
-      <div style={{ fontWeight:900, fontSize:32, color:"#1e1b4b", letterSpacing:"-0.5px", textAlign:"center" }}>HK One Touch</div>
-      <div style={{ color:"#4f46e5", fontSize:15, marginTop:8, marginBottom:32, textAlign:"center", fontStyle:"italic" }}>Quản lý với một chạm !</div>
-      <div style={{ display:"flex", gap:10 }}>
+  // Khi đang tự đăng nhập → hiện loading nhỏ
+  if (autoLogging) return (
+    <div style={{ minHeight:"100vh", background:"#fff", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16 }}>
+      <img src={SPLASH} alt="HK" style={{ width:120, objectFit:"contain" }} />
+      <div style={{ fontWeight:800, fontSize:20, color:"#1e1b4b" }}>HK One Touch</div>
+      <div style={{ display:"flex", gap:8 }}>
         {[0,1,2].map(i => (
-          <div key={i} style={{ width:10, height:10, borderRadius:"50%", background:"#4f46e5",
-            animation:`bounce 1.2s ease-in-out ${i*0.2}s infinite`,
-          }} />
+          <div key={i} style={{ width:8, height:8, borderRadius:"50%", background:"#4f46e5",
+            animation:`bounce 1.2s ease-in-out ${i*0.2}s infinite` }} />
         ))}
       </div>
-      <style>{`
-        @keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
-        @keyframes fadeIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-      `}</style>
+      <style>{`@keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}`}</style>
     </div>
   );
+
 
   return (
     <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#0f172a 0%,#1e1b4b 50%,#312e81 100%)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
@@ -319,10 +305,8 @@ export default function LoginV2({ onLogin, loggedOut }) {
 
         {/* Logo + tên app */}
         <div style={{ textAlign:"center", marginBottom:28 }}>
-          <div style={{ display:"inline-flex", alignItems:"center", justifyContent:"center",
-            width:96, height:96, borderRadius:"50%", background:"#fff",
-            boxShadow:"0 4px 20px rgba(79,70,229,.2)", marginBottom:14, overflow:"hidden", border:"3px solid #e0e7ff" }}>
-            <img src={LOGO} alt="HK Logo" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+          <div style={{ marginBottom:10 }}>
+            <img src={SPLASH} alt="HK Robot" style={{ width:110, height:110, objectFit:"contain" }} />
           </div>
           <div style={{ fontWeight:900, fontSize:26, color:"#1e1b4b", letterSpacing:"-0.5px" }}>HK One Touch</div>
           <div style={{ color:"#6b7280", fontSize:13, marginTop:4, fontStyle:"italic" }}>Quản lý với một chạm !</div>

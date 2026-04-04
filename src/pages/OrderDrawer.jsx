@@ -61,6 +61,14 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
   const [mentionList, setMentionList] = useState([]);
   const [pendingMentions, setPendingMentions] = useState([]); // [{id, name}]
   const [tab, setTab] = useState("info");
+
+  // Tự mở tab chat nếu được trigger từ notification click
+  useEffect(() => {
+    if (window.__hk_open_chat && window.__hk_open_chat === order.id) {
+      setTab("chat");
+      window.__hk_open_chat = null;
+    }
+  }, [order.id]);
   const chatInputRef = useRef();
   const [toast, setToast] = useState(null);
   const [showChecklist, setShowChecklist] = useState(false);
@@ -205,7 +213,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
             is_read: false,
           }).catch(() => {});
         });
-        playNotifSound("notif_sound_chat").catch(()=>{});
+        // Không phát sound ở đây - sound sẽ phát ở người NHẬN qua notification poll
       }
     } catch(err) {
       setChats(p => p.filter(m => m.id!==tempId));
@@ -537,7 +545,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
         is_read: false,
       }).catch(()=>{});
     });
-    playNotifSound("notif_sound_chat").catch(()=>{});
+    // Sound phát ở người NHẬN notification
   }
 }}
                           style={{ padding:"12px 8px", borderRadius:12, border:`2px solid ${order.status===c.key?c.color:"#e5e7eb"}`, background:order.status===c.key?c.bg:"#fff", color:order.status===c.key?c.color:"#374151", fontWeight:700, fontSize:13, cursor:"pointer", textAlign:"center" }}>
