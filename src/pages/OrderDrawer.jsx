@@ -441,7 +441,11 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
                   style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:13, fontWeight:700, cursor:"pointer"}}>  Sửa</button>
                 <button onClick={() => {
                   if (window.confirm("Xóa đơn " + order.id + "? Thao tác này không thể hoàn tác!")) {
-                    RepairOrder.delete(order.id).then(() => { onClose(); onUpdate && onUpdate(); }).catch(e => alert("Lỗi xóa: " + e.message));
+                    const delId = order._id || order.id;
+                    RepairOrder.delete(delId).then(() => {
+                      onClose();
+                      onUpdate && onUpdate(order.id || order.order_code, null, null, "delete");
+                    }).catch(e => alert("Lỗi xóa: " + e.message));
                   }
                 }} style={{ background:"rgba(220,38,38,.7)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:13, fontWeight:700, cursor:"pointer"}}>  Xóa</button>
               </>
@@ -900,7 +904,34 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
         order={order}
         users={users}
         onClose={() => setShowEditOrder(false)}
-        onSave={(updated) => { setShowEditOrder(false); onUpdate && onUpdate(updated.id, updated); }}
+        onSave={(updated) => {
+          setShowEditOrder(false);
+          // updated là PB record — dùng order_code làm app-id để onUpdate tìm đúng đơn
+          const appId = updated.order_code || order.id;
+          const patch = {
+            customer_name:       updated.customer_name,
+            customer_phone:      updated.customer_phone,
+            device_name:         updated.device_name,
+            device_model:        updated.device_model,
+            imei:                updated.imei,
+            passcode:            updated.passcode,
+            issue_description:   updated.issue_description,
+            technician_note:     updated.technician_note,
+            assigned_to:         updated.assigned_to,
+            assigned_to_name:    updated.assigned_to_name,
+            status:              updated.status,
+            priority:            updated.priority,
+            estimated_cost:      updated.estimated_cost,
+            final_cost:          updated.final_cost,
+            deposit:             updated.deposit,
+            warranty_days:       updated.warranty_days,
+            received_date:       updated.received_date,
+            estimated_done_date: updated.estimated_done_date,
+            done_date:           updated.done_date,
+            _pbSaved:            true,
+          };
+          onUpdate && onUpdate(appId, patch, null);
+        }}
       />
     )}
     </>

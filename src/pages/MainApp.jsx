@@ -485,9 +485,15 @@ function MainAppInner() {
   if (!user) return <LoginPage onLogin={u => { setUser(u); setLoggedOut(false); setPage(u.role==="technician"?"tasks":u.role==="receptionist"?"new":"dashboard"); }} loggedOut={loggedOut} />;
   if (user.must_change_password) return <ChangePassword user={user} forceChange={true} onSuccess={() => setUser(u => ({...u, must_change_password: false}))} />;
 
-  async function updateOrder(id, patch, kpiEvent) {
-    setOrders(p => p.map(o => o.id===id ? {...o,...patch} : o));
-    if (selectedOrder?.id===id) setSelectedOrder(p => ({...p,...patch}));
+  async function updateOrder(id, patch, kpiEvent, action) {
+    // Xóa đơn khỏi state
+    if (action === "delete" || patch === null) {
+      setOrders(p => p.filter(o => o.id !== id && o.order_code !== id));
+      if (selectedOrder?.id === id || selectedOrder?.order_code === id) setSelectedOrder(null);
+      return;
+    }
+    setOrders(p => p.map(o => (o.id===id || o.order_code===id) ? {...o,...patch} : o));
+    if (selectedOrder?.id===id || selectedOrder?.order_code===id) setSelectedOrder(p => ({...p,...patch}));
     if (kpiEvent) setUsers(p => p.map(u => u.id===kpiEvent.userId ? {...u, kpi:Math.max(0,u.kpi+kpiEvent.delta)} : u));
 
     // Lưu xuống PocketBase (dùng _id thật)
@@ -497,16 +503,20 @@ function MainAppInner() {
       if (!pbId) return; // đơn chưa lưu vào PB
       // Map patch field sang schema PocketBase
       const pbPatch = {};
-      if (patch.status         !== undefined) pbPatch.status          = STATUS_PB[patch.status] || patch.status;
-      if (patch.assigned_to    !== undefined) pbPatch.assigned_to     = patch.assigned_to;
-      if (patch.passcode        !== undefined) pbPatch.passcode         = patch.passcode;
-      if (patch.notes          !== undefined) pbPatch.technician_note  = patch.notes;
-      if (patch.technician_note!== undefined) pbPatch.technician_note  = patch.technician_note;
-      if (patch.estimated_cost !== undefined) pbPatch.estimated_cost   = patch.estimated_cost;
-      if (patch.final_cost     !== undefined) pbPatch.final_cost       = patch.final_cost;
-      if (patch.priority       !== undefined) pbPatch.priority         = PRIORITY_PB[patch.priority] || patch.priority;
-      if (patch.images         !== undefined) pbPatch.images           = patch.images;
-      if (patch.accept_stage   !== undefined) pbPatch.status           = pbPatch.status || (patch.status ? STATUS_PB[patch.status] : null) || STATUS_PB[order?.status] || order?.status;
+      // Fields trực tiếp (1-1 với PB schema)
+      const directFields = [
+        "customer_name","customer_phone","device_name","device_model","imei","passcode",
+        "issue_description","technician_note","assigned_to","assigned_to_name",
+        "estimated_cost","final_cost","deposit","warranty_days",
+        "received_date","estimated_done_date","done_date","images","videos",
+      ];
+      directFields.forEach(f => { if (patch[f] !== undefined) pbPatch[f] = patch[f]; });
+      // Fields cần map enum
+      if (patch.status    !== undefined) pbPatch.status   = STATUS_PB[patch.status]   || patch.status;
+      if (patch.priority  !== undefined) pbPatch.priority = PRIORITY_PB[patch.priority]|| patch.priority;
+      // Alias cũ
+      if (patch.notes     !== undefined) pbPatch.technician_note = patch.notes;
+      if (patch.accept_stage !== undefined) pbPatch.status = pbPatch.status || STATUS_PB[order?.status] || order?.status;
       if (Object.keys(pbPatch).length > 0) {
         await RepairOrder.update(pbId, pbPatch);
       }
@@ -942,7 +952,7 @@ function MainAppInner() {
         <OrderDrawer
           order={selectedOrder}
           onClose={() => setSelectedOrder(null)}
-          onUpdate={(id, patch, kpiEvent) => { updateOrder(id, patch, kpiEvent); }}
+          onUpdate={(id, patch, kpiEvent, action) => { updateOrder(id, patch, kpiEvent, action); }}
           onAcceptStage={(id, stage) => updateOrder(id, { accept_stage:stage, assigned_at: stage===1 ? new Date().toISOString() : selectedOrder.assigned_at })}
           users={users}
           currentUser={user}
