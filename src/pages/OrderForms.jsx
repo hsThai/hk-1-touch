@@ -363,7 +363,7 @@ function KPIPage({ users, orders }) {
   const techs = users.filter(u => u.role==="technician");
   return (
     <div style={{ padding:16, maxWidth:800, margin:"0 auto" }}>
-      <div style={{ fontWeight:900, fontSize:20, color:"#1e1b4b", marginBottom:16 }}>  Bảng KPI Kỹ Thuật Viên</div>
+      <div style={{ fontWeight:900, fontSize:20, color:"#1e1b4b", marginBottom:16 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22,verticalAlign:"middle",lineHeight:1}}>emoji_events</span> Bảng KPI Kỹ Thuật Viên</div>
       {techs.length === 0 && <div style={{ textAlign:"center", color:"#9ca3af", padding:40 }}>Chưa có KTV nào</div>}
       {techs.sort((a,b) => b.kpi - a.kpi).map((u, i) => {
         const myOrders = orders.filter(o => o.assigned_to === u.id);
@@ -373,12 +373,12 @@ function KPIPage({ users, orders }) {
         return (
           <div key={u.id} style={{ background:"#fff", borderRadius:16, padding:18, marginBottom:12, boxShadow:"0 2px 12px rgba(0,0,0,.08)", display:"flex", alignItems:"center", gap:16 }}>
             <div style={{ fontSize:32, minWidth:40, textAlign:"center" }}>
-              {i===0?"looks_one":i===1?"looks_two":i===2?"looks_3":"‍"}
+              {i===0 ? <span style={{fontSize:28}}>🥇</span> : i===1 ? <span style={{fontSize:28}}>🥈</span> : i===2 ? <span style={{fontSize:28}}>🥉</span> : <span style={{fontSize:22,color:"#9ca3af",fontWeight:700}}>#{i+1}</span>}
             </div>
             <div style={{ flex:1 }}>
               <div style={{ fontWeight:800, fontSize:16, color:"#1e1b4b" }}>{u.name}</div>
               <div style={{ fontSize:13, color:"#6b7280", marginTop:2 }}>
-                  Hoàn thành: {done} · ⏳ Đang làm: {pending}
+                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:14,verticalAlign:"middle",lineHeight:1}}>check_circle</span> Hoàn thành: {done} · <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:14,verticalAlign:"middle",lineHeight:1}}>hourglass_empty</span> Đang làm: {pending}
               </div>
               <div style={{ marginTop:8, height:8, background:"#f3f4f6", borderRadius:99, overflow:"hidden" }}>
                 <div style={{ height:"100%", width:`${Math.min(100,u.kpi)}%`, background:kpiColor, borderRadius:99, transition:"width .3s" }} />

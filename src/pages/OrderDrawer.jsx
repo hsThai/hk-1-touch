@@ -554,7 +554,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
                                 {isManager && (
                                   <button
                                     onClick={(e)=>{ e.stopPropagation(); if(window.confirm("Xóa ảnh này?")) RepairChat.delete(msg.id).then(()=>setChats(p=>p.filter(m=>m.id!==msg.id))); }}
-                                    style={{ position:"absolute", top:4, right:4, width:32, height:32, borderRadius:"50%", background:"rgba(220,38,38,0.85)", border:"2px solid #fff", color:"#fff", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", lineHeight:1, zIndex:10, fontWeight:900 }}>×</button>
+                                    style={{ position:"absolute", top:4, right:4, background:"rgba(220,38,38,.85)", border:"none", borderRadius:"50%", width:26, height:26, color:"#fff", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:10 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:15,verticalAlign:"middle",lineHeight:1}}>delete</span></button>
                                 )}
                               </div>
                             )}

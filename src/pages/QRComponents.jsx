@@ -179,7 +179,7 @@ function QRScanModal({ onClose, onFound, orders = [], mode = "search" }) {
             </div>
           </div>
           <button onClick={() => { streamRef.current?.getTracks().forEach(t => t.stop()); onClose(); }}
-            style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:40, height:40, borderRadius:"50%", fontSize:18, cursor:"pointer"}}> </button>
+            style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:40, height:40, borderRadius:"50%", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22,verticalAlign:"middle",lineHeight:1}}>close</span></button>
         </div>
 
         {/* Camera */}
