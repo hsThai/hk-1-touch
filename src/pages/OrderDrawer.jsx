@@ -559,10 +559,28 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
                               </div>
                             )}
                             {msg.message_type === "video" && msg.media_url && (
-                              <video src={msg.media_url} controls style={{ maxWidth:220, borderRadius:10, display:"block" }} />
+                              <div style={{ position:"relative", display:"inline-block" }}>
+                                <video src={msg.media_url} controls style={{ maxWidth:220, borderRadius:10, display:"block" }} />
+                                {isManager && (
+                                  <button
+                                    onClick={(e)=>{ e.stopPropagation(); if(window.confirm("Xóa video này?")) RepairChat.delete(msg.id).then(()=>setChats(p=>p.filter(m=>m.id!==msg.id))); }}
+                                    style={{ position:"absolute", top:4, right:4, background:"rgba(220,38,38,.85)", border:"none", borderRadius:"50%", width:26, height:26, color:"#fff", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", backdropFilter:"blur(4px)" }}>
+                                    <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:15,verticalAlign:"middle",lineHeight:1}}>delete</span>
+                                  </button>
+                                )}
+                              </div>
                             )}
                             {msg.message_type === "audio" && msg.media_url && (
-                              <audio src={msg.media_url} controls style={{ maxWidth:220 }} />
+                              <div style={{ position:"relative", display:"inline-block" }}>
+                                <audio src={msg.media_url} controls style={{ maxWidth:220 }} />
+                                {isManager && (
+                                  <button
+                                    onClick={(e)=>{ e.stopPropagation(); if(window.confirm("Xóa ghi âm này?")) RepairChat.delete(msg.id).then(()=>setChats(p=>p.filter(m=>m.id!==msg.id))); }}
+                                    style={{ position:"absolute", top:-10, right:-6, background:"rgba(220,38,38,.85)", border:"none", borderRadius:"50%", width:26, height:26, color:"#fff", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                                    <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:15,verticalAlign:"middle",lineHeight:1}}>delete</span>
+                                  </button>
+                                )}
+                              </div>
                             )}
                             {(msg.message_type === "text" || !msg.media_url) && (
                               <span style={{ whiteSpace:"pre-wrap", wordBreak:"break-word" }}>
@@ -623,19 +641,19 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
               {/* Media buttons row */}
               <div style={{ display:"flex", gap:8 }}>
                 {/* Camera / Photo */}
-                <label style={{ flex:1, height:40, borderRadius:10, border:"1.5px solid #e5e7eb", background:"#f9fafb", display:"flex", alignItems:"center", justifyContent:"center", gap:6, cursor:"pointer", fontSize:13, fontWeight:600, color:"#374151"}}>
-                    Ảnh
+                <label style={{ flex:1, height:40, borderRadius:10, border:"1.5px solid #e5e7eb", background:"#f9fafb", display:"flex", alignItems:"center", justifyContent:"center", gap:4, cursor:"pointer", fontSize:13, fontWeight:600, color:"#374151"}}>
+                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle",lineHeight:1}}>photo_camera</span> Ảnh
                   <input type="file" accept="image/*" capture="environment" style={{ display:"none" }} onChange={e => e.target.files[0] && handleMediaUpload(e.target.files[0], "image")} />
                 </label>
                 {/* Video */}
-                <label style={{ flex:1, height:40, borderRadius:10, border:"1.5px solid #e5e7eb", background:"#f9fafb", display:"flex", alignItems:"center", justifyContent:"center", gap:6, cursor:"pointer", fontSize:13, fontWeight:600, color:"#374151"}}>
-                    Video
+                <label style={{ flex:1, height:40, borderRadius:10, border:"1.5px solid #e5e7eb", background:"#f9fafb", display:"flex", alignItems:"center", justifyContent:"center", gap:4, cursor:"pointer", fontSize:13, fontWeight:600, color:"#374151"}}>
+                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle",lineHeight:1}}>videocam</span> Video
                   <input type="file" accept="video/*" capture="environment" style={{ display:"none" }} onChange={e => e.target.files[0] && handleMediaUpload(e.target.files[0], "video")} />
                 </label>
                 {/* Voice */}
                 <button onClick={toggleRecording}
                   style={{ flex:1, height:40, borderRadius:10, border:`1.5px solid ${recording?"#dc2626":"#e5e7eb"}`, background:recording?"#fef2f2":"#f9fafb", color:recording?"#dc2626":"#374151", cursor:"pointer", fontSize:13, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
-                  {recording ? "⏹ Dừng" : "Ghi âm"}
+                  {recording ? <>{<span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle",lineHeight:1}}>stop</span>} Dừng</> : <>{<span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle",lineHeight:1}}>mic</span>} Ghi âm</>}
                 </button>
               </div>
               {/* Text row */}
@@ -661,7 +679,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
                   style={{ flex:1, height:46, borderRadius:24, border:"1.5px solid #e5e7eb", padding:"0 16px", fontSize:14, outline:"none" }}
                 />
                 <button onClick={() => sendChat()}
-                  style={{ width:46, height:46, borderRadius:"50%", background:"#4f46e5", border:"none", color:"#fff", fontSize:20, cursor:"pointer", flexShrink:0 }}> </button>
+                  style={{ width:46, height:46, borderRadius:"50%", background:"#4f46e5", border:"none", color:"#fff", fontSize:20, cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center" }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",lineHeight:1}}>send</span></button>
               </div>
             </div>
           </div>
