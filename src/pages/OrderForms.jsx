@@ -274,12 +274,13 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
           </div>
 
           <div style={sec}>
-            <div style={{ fontWeight:800, fontSize:14, color:"#3730a3", marginBottom:10 }}>  Tình Trạng Lỗi</div>
+            <div style={{ fontWeight:800, fontSize:14, color:"#3730a3", marginBottom:10, display:"flex", alignItems:"center", gap:6 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>build_circle</span> Tình Trạng Lỗi</div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:10 }}>
               {ISSUE_OPTIONS.map(issue => (
                 <button key={issue} onClick={() => set("issues", form.issues.includes(issue)?form.issues.filter(i=>i!==issue):[...form.issues,issue])}
-                  style={{ padding:"14px 10px", borderRadius:12, border:`2px solid ${form.issues.includes(issue)?"#4f46e5":"#e5e7eb"}`, background:form.issues.includes(issue)?"#eef2ff":"#fff", color:form.issues.includes(issue)?"#4f46e5":"#374151", fontSize:14, fontWeight:form.issues.includes(issue)?800:500, cursor:"pointer", textAlign:"left", minHeight:48 }}>
-                  {form.issues.includes(issue)?"check":""}{issue}
+                  style={{ padding:"10px 10px", borderRadius:12, border:`2px solid ${form.issues.includes(issue)?"#4f46e5":"#e5e7eb"}`, background:form.issues.includes(issue)?"#eef2ff":"#fff", color:form.issues.includes(issue)?"#4f46e5":"#374151", fontSize:13, fontWeight:form.issues.includes(issue)?800:500, cursor:"pointer", textAlign:"left", minHeight:48, display:"flex", alignItems:"center", gap:6 }}>
+                  {form.issues.includes(issue) && <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,color:"#4f46e5",lineHeight:1,flexShrink:0}}>check_circle</span>}
+                  {issue}
                 </button>
               ))}
             </div>
@@ -314,7 +315,7 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
           </div>
 
           <div style={{ ...sec, background:"#fffbeb", border:"1.5px solid #fcd34d" }}>
-            <div style={{ fontWeight:800, fontSize:14, color:"#d97706", marginBottom:10 }}> ‍  Giao Cho KTV</div>
+            <div style={{ fontWeight:800, fontSize:14, color:"#d97706", marginBottom:10, display:"flex", alignItems:"center", gap:6 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>engineering</span> Giao Cho KTV</div>
             <select value={form.assigned_to} onChange={e => set("assigned_to", e.target.value)}
               style={{ ...inp, color:form.assigned_to?"#111":"#9ca3af" }}>
               <option value="">-- Chưa giao (giao sau) --</option>
