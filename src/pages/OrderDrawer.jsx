@@ -96,11 +96,30 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
     if (tab !== "chat") return;
     let cancelled = false;
     setChatLoading(true);
-    RepairChat.filter({ order_id: order.id }, { sort: "received_date" })
+    RepairChat.filter({ order_id: order.id }, { sort: "created" })
       .then(data => { if (!cancelled) { setChats(data); setChatLoading(false); } })
       .catch(() => { if (!cancelled) setChatLoading(false); });
     return () => { cancelled = true; };
   }, [order.id, tab]);
+
+  // Realtime: poll chat mỗi 5s khi đang ở tab chat
+  useEffect(() => {
+    if (tab !== "chat") return;
+    const iv = setInterval(async () => {
+      try {
+        const fresh = await RepairChat.filter({ order_id: order.id }, { sort: "created" });
+        setChats(prev => {
+          // Chỉ cập nhật nếu có tin mới (so sánh độ dài hoặc ID cuối)
+          if (fresh.length === prev.length && fresh.length > 0 &&
+              fresh[fresh.length-1]?.id === prev[prev.length-1]?.id) return prev;
+          // Giữ lại temp messages (id bắt đầu bằng "tmp_"), merge với server data
+          const temps = prev.filter(m => m.id?.startsWith("tmp_"));
+          return [...fresh, ...temps];
+        });
+      } catch {}
+    }, 5000);
+    return () => clearInterval(iv);
+  }, [tab, order.id]);
 
   // Auto-scroll
   useEffect(() => { setTimeout(() => chatRef.current?.scrollIntoView({ behavior:"smooth" }), 80); }, [chats, tab]);
@@ -967,7 +986,8 @@ function EditOrderModal({ order, users, onClose, onSave }) {
         estimated_done_date: form.estimated_done_date || null,
         done_date:           form.done_date || null,
       };
-      const updated = await RepairOrder.update(order.id, payload);
+      const pbId = order._id || order.id;
+      const updated = await RepairOrder.update(pbId, payload);
       onSave(updated);
     } catch(e) {
       alert("Lỗi lưu: " + (e.message || JSON.stringify(e)));

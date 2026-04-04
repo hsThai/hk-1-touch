@@ -68,7 +68,7 @@ function mapPbOrder(o, STATUS_DISPLAY, PRIORITY_DISPLAY) {
     customer_id: o.customer_name,
     device_model: o.device_model || o.device_name || "",
     imei_serial: o.imei || "",
-    passcode: "",
+    passcode: o.passcode || "",
     issues: o.issue_description
       ? o.issue_description.split(/[,;]/).map(s=>s.trim()).filter(Boolean)
       : [],
@@ -376,7 +376,7 @@ function MainAppInner() {
           customer_id: o.customer_name,
           device_model: o.device_model || o.device_name || "",
           imei_serial: o.imei || "",
-          passcode: "",
+          passcode: o.passcode || "",
           issues: o.issue_description
             ? o.issue_description.split(/[,;]/).map(s=>s.trim()).filter(Boolean)
             : [],
@@ -499,6 +499,7 @@ function MainAppInner() {
       const pbPatch = {};
       if (patch.status         !== undefined) pbPatch.status          = STATUS_PB[patch.status] || patch.status;
       if (patch.assigned_to    !== undefined) pbPatch.assigned_to     = patch.assigned_to;
+      if (patch.passcode        !== undefined) pbPatch.passcode         = patch.passcode;
       if (patch.notes          !== undefined) pbPatch.technician_note  = patch.notes;
       if (patch.technician_note!== undefined) pbPatch.technician_note  = patch.technician_note;
       if (patch.estimated_cost !== undefined) pbPatch.estimated_cost   = patch.estimated_cost;
@@ -529,6 +530,7 @@ function MainAppInner() {
         device_name:      data.device_model || "",
         device_model:     data.device_model || "",
         imei:             data.imei_serial || "",
+        passcode:         data.passcode || "",
         product_qr:       data.product_qr || "",
         issue_description: Array.isArray(data.issues) ? data.issues.join(", ") : (data.notes || ""),
         status:           STATUS_PB["Mới Nhận"],

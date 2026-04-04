@@ -91,7 +91,7 @@ function makeCollection(collectionName) {
       return pbFetch(`collections/${collectionName}/records/${id}`);
     },
 
-    async filter(query = {}) {
+    async filter(query = {}, options = {}) {
       // Build PocketBase filter string from object
       const parts = Object.entries(query).map(([k, v]) => {
         if (typeof v === "string") return `${k}="${v}"`;
@@ -99,7 +99,7 @@ function makeCollection(collectionName) {
         return `${k}=${v}`;
       });
       const filter = parts.join(" && ");
-      return this.list({ filter });
+      return this.list({ filter, ...options });
     },
 
     async create(data) {
