@@ -578,6 +578,7 @@ function MainAppInner() {
         order_code: orderCode,
         type:       "assign",
         is_read:    false,
+        created_at: new Date().toISOString(),
       }).catch(() => {});
     }
 
@@ -595,6 +596,7 @@ function MainAppInner() {
         order_code: orderCode,
         type:       "new_order",
         is_read:    false,
+        created_at: new Date().toISOString(),
       }).catch(() => {});
     });
 
@@ -898,7 +900,7 @@ function MainAppInner() {
                   <div style={{ flex:1 }}>
                     <div style={{ fontWeight:700, fontSize:12, marginBottom:2 }}>{n.title}</div>
                     <div style={{ color:"#374151" }}>{n.message}</div>
-                    <div style={{ color:"#9ca3af", fontSize:11, marginTop:2 }}>{timeAgo(n.created_date)}</div>
+                    <div style={{ color:"#9ca3af", fontSize:11, marginTop:2 }}>{timeAgo(n.created_at || n.created_date)}</div>
                   </div>
                   <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,color:"#9ca3af",marginTop:2,flexShrink:0}}>chevron_right</span>
                 </div>

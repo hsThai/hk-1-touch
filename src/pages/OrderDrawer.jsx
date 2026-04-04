@@ -259,6 +259,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
             order_code: order.id,
             type:"mention",
             is_read: false,
+            created_at: new Date().toISOString(),
           }).catch(() => {});
         });
         // Không phát sound ở đây - sound sẽ phát ở người NHẬN qua notification poll
@@ -595,6 +596,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
         order_code: order.id,
         type:"status_change",
         is_read: false,
+        created_at: new Date().toISOString(),
       }).catch(()=>{});
     });
     // Sound phát ở người NHẬN notification

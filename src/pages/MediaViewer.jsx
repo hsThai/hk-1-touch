@@ -4,9 +4,14 @@ import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage
 import { uploadFile } from "./pb.jsx";
 
 function timeAgo(d) {
-  const diff = Math.floor((Date.now()-new Date(d))/60000);
-  if(diff<1) return"Vừa xong"; if(diff<60) return`${diff}p trước`;
-  if(diff<1440) return`${Math.floor(diff/60)}h trước`; return`${Math.floor(diff/1440)}ng trước`;
+  if (!d) return "";
+  const t = new Date(d).getTime();
+  if (isNaN(t)) return "";
+  const diff = Math.floor((Date.now() - t) / 60000);
+  if (diff < 1) return "Vừa xong";
+  if (diff < 60) return `${diff}p trước`;
+  if (diff < 1440) return `${Math.floor(diff/60)}h trước`;
+  return `${Math.floor(diff/1440)}ng trước`;
 }
 function genOrderId() { return "SC24"+String(Math.floor(Math.random()*9000)+1000); }
 

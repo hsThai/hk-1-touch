@@ -178,42 +178,45 @@ export function subscribeCollection(collectionName, callback) {
   const base = getPbUrl();
   const { token } = getAuth();
   const realtimeUrl = `${base}/api/realtime`;
-  const headers = token ? { Authorization: token } : {};
+  // EventSource KHÔNG hỗ trợ header → truyền token qua query param
+  const esUrl = token ? `${realtimeUrl}?token=${encodeURIComponent(token)}` : realtimeUrl;
+  const fetchHeaders = { "Content-Type": "application/json", ...(token ? { Authorization: token } : {}) };
 
-  const es = new EventSource(realtimeUrl);
+  let es = null;
   let clientId = null;
+  let closed = false;
 
-  // Bước 1: nhận clientId từ PB_CONNECT
-  es.addEventListener("PB_CONNECT", async (e) => {
-    try {
-      const data = JSON.parse(e.data);
-      clientId = data.clientId;
-      // Bước 2: subscribe collection
-      await fetch(realtimeUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...headers },
-        body: JSON.stringify({ clientId, subscriptions: [`${collectionName}/*`] }),
-      });
-    } catch {}
-  });
+  function connect() {
+    if (closed) return;
+    es = new EventSource(esUrl);
 
-  // Bước 3: nhận events khi có thay đổi
-  es.addEventListener(collectionName, (e) => {
-    try { callback(JSON.parse(e.data)); } catch {}
-  });
+    es.addEventListener("PB_CONNECT", async (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        clientId = data.clientId;
+        await fetch(realtimeUrl, {
+          method: "POST",
+          headers: fetchHeaders,
+          body: JSON.stringify({ clientId, subscriptions: [`${collectionName}/*`] }),
+        });
+      } catch {}
+    });
 
-  es.onerror = () => {
-    // SSE tự reconnect, nhưng cần re-subscribe
-    if (clientId) {
-      fetch(realtimeUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...headers },
-        body: JSON.stringify({ clientId, subscriptions: [`${collectionName}/*`] }),
-      }).catch(() => {});
-    }
-  };
+    // PB gửi event với tên = collectionName
+    es.addEventListener(collectionName, (e) => {
+      try { callback(JSON.parse(e.data)); } catch {}
+    });
 
-  return () => es.close();
+    es.onerror = () => {
+      if (closed) return;
+      es.close();
+      // Reconnect sau 3 giây
+      setTimeout(connect, 3000);
+    };
+  }
+
+  connect();
+  return () => { closed = true; es && es.close(); };
 }
 
 // ── Settings helper ───────────────────────────────────────
