@@ -473,59 +473,103 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
             <div style={{ flex:1, overflowY:"auto", padding:"12px 14px", display:"flex", flexDirection:"column", gap:10, background:"#f1f5f9" }}>
               {chatLoading && <div style={{ textAlign:"center", color:"#9ca3af", marginTop:32, fontSize:13 }}>⏳ Đang tải...</div>}
               {!chatLoading && chats.length===0 && <div style={{ textAlign:"center", color:"#9ca3af", marginTop:32, fontSize:13 }}>Chưa có tin nhắn nào</div>}
-              {chats.map(msg => {
-                const isMe = msg.sender_id === currentUser.id;
-                const isSystem = msg.message_type === "system";
-                if (isSystem) return (
-                  <div key={msg.id} style={{ textAlign:"center", fontSize:12, color:"#9ca3af", padding:"4px 0" }}>
-                    <span style={{ background:"#e5e7eb", padding:"3px 12px", borderRadius:12 }}>{msg.message}</span>
-                  </div>
-                );
-                const hasMention = msg.mentioned_names?.length > 0;
-                return (
-                  <div key={msg.id} style={{ display:"flex", justifyContent:isMe?"flex-end":"flex-start", gap:8, alignItems:"flex-end" }}>
-                    {!isMe && (
-                      <div style={{ width:32, height:32, borderRadius:"50%", background:"#818cf8", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, fontSize:13, flexShrink:0 }}>
-                        {(msg.sender_name||"?")[0]}
-                      </div>
-                    )}
-                    <div style={{ maxWidth:"78%" }}>
-                      {!isMe && <div style={{ fontSize:11, color:"#4f46e5", fontWeight:700, marginBottom:3 }}>{msg.sender_name}</div>}
-                      {hasMention && !isMe && (
-                        <div style={{ fontSize:11, color:"#f59e0b", fontWeight:600, marginBottom:3 }}>
-                          👉 {msg.mentioned_names.map(n=>`@${n}`).join(" ")}
+              {(() => {
+                let lastDateStr = null;
+                const fmtDate = (d) => {
+                  if (!d) return "";
+                  const dt = new Date(d);
+                  const now = new Date();
+                  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                  const yesterday = new Date(today - 86400000);
+                  const msgDay = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+                  if (msgDay >= today) return "Hôm nay";
+                  if (msgDay >= yesterday) return "Hôm qua";
+                  return dt.toLocaleDateString("vi-VN", { weekday:"long", day:"2-digit", month:"2-digit", year:"numeric" });
+                };
+                const fmtTime = (d) => {
+                  if (!d) return "";
+                  const dt = new Date(d);
+                  return dt.toLocaleTimeString("vi-VN", { hour:"2-digit", minute:"2-digit", hour12:false });
+                };
+                return chats.map(msg => {
+                  const isMe = msg.sender_id === currentUser.id;
+                  const isSystem = msg.message_type === "system";
+                  const isManager = currentUser.role === "manager";
+                  const msgTs = msg.created || msg.created_date;
+                  const msgDateStr = msgTs ? fmtDate(msgTs) : null;
+                  const showDateSep = msgDateStr && msgDateStr !== lastDateStr;
+                  if (showDateSep) lastDateStr = msgDateStr;
+
+                  if (isSystem) return (
+                    <React.Fragment key={msg.id}>
+                      {showDateSep && (
+                        <div style={{ textAlign:"center", fontSize:11, color:"#9ca3af", padding:"6px 0 2px" }}>
+                          <span style={{ background:"#e2e8f0", padding:"3px 14px", borderRadius:12, fontWeight:600 }}>{msgDateStr}</span>
                         </div>
                       )}
-                      <div style={{ padding: msg.message_type==="text"?"10px 14px":"6px", borderRadius:isMe?"18px 18px 4px 18px":"18px 18px 18px 4px", background:isMe?"#4f46e5":"#fff", color:isMe?"#fff":"#111", fontSize:14, border:isMe?"none":"1px solid #e5e7eb", boxShadow:"0 1px 3px rgba(0,0,0,.06)" }}>
-                        {msg.message_type === "image" && msg.media_url && (
-                          <img src={msg.media_url} alt="ảnh" style={{ maxWidth:220, maxHeight:220, borderRadius:10, display:"block", cursor:"pointer", objectFit:"cover" }} onClick={() => setMediaViewer({ items:[msg.media_url], startIndex:0 })} />
+                      <div style={{ textAlign:"center", fontSize:12, color:"#9ca3af", padding:"4px 0" }}>
+                        <span style={{ background:"#e5e7eb", padding:"3px 12px", borderRadius:12 }}>{msg.message}</span>
+                      </div>
+                    </React.Fragment>
+                  );
+
+                  const hasMention = msg.mentioned_names?.length > 0;
+                  return (
+                    <React.Fragment key={msg.id}>
+                      {showDateSep && (
+                        <div style={{ textAlign:"center", fontSize:11, color:"#9ca3af", padding:"6px 0 2px" }}>
+                          <span style={{ background:"#e2e8f0", padding:"3px 14px", borderRadius:12, fontWeight:600 }}>{msgDateStr}</span>
+                        </div>
+                      )}
+                      <div style={{ display:"flex", justifyContent:isMe?"flex-end":"flex-start", gap:8, alignItems:"flex-end" }}>
+                        {!isMe && (
+                          <div style={{ width:32, height:32, borderRadius:"50%", background:"#818cf8", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, fontSize:13, flexShrink:0 }}>
+                            {(msg.sender_name||"?")[0]}
+                          </div>
                         )}
-                        {msg.message_type === "video" && msg.media_url && (
-                          <video src={msg.media_url} controls style={{ maxWidth:220, borderRadius:10, display:"block" }} />
-                        )}
-                        {msg.message_type === "audio" && msg.media_url && (
-                          <audio src={msg.media_url} controls style={{ maxWidth:220 }} />
-                        )}
-                        {(msg.message_type === "text" || !msg.media_url) && (
-                          <span style={{ whiteSpace:"pre-wrap", wordBreak:"break-word" }}>
-                            {(msg.message||"").split(/(@\S+)/g).map((part,i) =>
-                              part.startsWith("@")
-                                ? <span key={i} style={{ color:isMe?"#c7d2fe":"#4f46e5", fontWeight:700 }}>{part}</span>
-                                : part
+                        <div style={{ maxWidth:"78%" }}>
+                          {!isMe && <div style={{ fontSize:11, color:"#4f46e5", fontWeight:700, marginBottom:3 }}>{msg.sender_name}</div>}
+                          {hasMention && !isMe && (
+                            <div style={{ fontSize:11, color:"#f59e0b", fontWeight:600, marginBottom:3 }}>
+                              👉 {msg.mentioned_names.map(n=>`@${n}`).join(" ")}
+                            </div>
+                          )}
+                          <div
+                            onContextMenu={isManager && msg.message_type==="image" ? (e)=>{ e.preventDefault(); if(window.confirm("Xóa ảnh này?")) RepairChat.delete(msg.id).then(()=>setChats(p=>p.filter(m=>m.id!==msg.id))); } : undefined}
+                            onTouchStart={isManager && msg.message_type==="image" ? (e)=>{ const t=setTimeout(()=>{ if(window.confirm("Xóa ảnh này?")) RepairChat.delete(msg.id).then(()=>setChats(p=>p.filter(m=>m.id!==msg.id))); },600); e.currentTarget._lt=t; } : undefined}
+                            onTouchEnd={isManager && msg.message_type==="image" ? (e)=>{ clearTimeout(e.currentTarget._lt); } : undefined}
+                            style={{ padding: msg.message_type==="text"?"10px 14px":"6px", borderRadius:isMe?"18px 18px 4px 18px":"18px 18px 18px 4px", background:isMe?"#4f46e5":"#fff", color:isMe?"#fff":"#111", fontSize:14, border:isMe?"none":"1px solid #e5e7eb", boxShadow:"0 1px 3px rgba(0,0,0,.06)" }}>
+                            {msg.message_type === "image" && msg.media_url && (
+                              <img src={msg.media_url} alt="ảnh" style={{ maxWidth:220, maxHeight:220, borderRadius:10, display:"block", cursor:"pointer", objectFit:"cover" }} onClick={() => setMediaViewer({ items:[msg.media_url], startIndex:0 })} />
                             )}
-                          </span>
+                            {msg.message_type === "video" && msg.media_url && (
+                              <video src={msg.media_url} controls style={{ maxWidth:220, borderRadius:10, display:"block" }} />
+                            )}
+                            {msg.message_type === "audio" && msg.media_url && (
+                              <audio src={msg.media_url} controls style={{ maxWidth:220 }} />
+                            )}
+                            {(msg.message_type === "text" || !msg.media_url) && (
+                              <span style={{ whiteSpace:"pre-wrap", wordBreak:"break-word" }}>
+                                {(msg.message||"").split(/(@\S+)/g).map((part,i) =>
+                                  part.startsWith("@")
+                                    ? <span key={i} style={{ color:isMe?"#c7d2fe":"#4f46e5", fontWeight:700 }}>{part}</span>
+                                    : part
+                                )}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize:11, color:"#9ca3af", marginTop:2, textAlign:isMe?"right":"left" }}>{fmtTime(msgTs)}</div>
+                        </div>
+                        {isMe && (
+                          <div style={{ width:32, height:32, borderRadius:"50%", background:"#4f46e5", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, fontSize:13, flexShrink:0 }}>
+                            {(currentUser.name||"?")[0]}
+                          </div>
                         )}
                       </div>
-                      <div style={{ fontSize:11, color:"#9ca3af", marginTop:2, textAlign:isMe?"right":"left" }}>{timeAgo(msg.created_date||msg.created)}</div>
-                    </div>
-                    {isMe && (
-                      <div style={{ width:32, height:32, borderRadius:"50%", background:"#4f46e5", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, fontSize:13, flexShrink:0 }}>
-                        {(currentUser.name||"?")[0]}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                    </React.Fragment>
+                  );
+                });
+              })()}
               <div ref={chatRef} />
             </div>
 
