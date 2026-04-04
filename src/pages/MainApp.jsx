@@ -534,7 +534,7 @@ function MainAppInner() {
       {/* Header */}
       <div style={{ position:"sticky", top:0, zIndex:100, background:"#1e1b4b", padding:"12px 16px", display:"flex", alignItems:"center", gap:12 }}>
         <button onClick={() => setSidebarOpen(v=>!v)} style={{ background:"none", border:"none", color:"#fff", fontSize:22, cursor:"pointer", padding:4 }}>☰</button>
-        <div style={{ flex:1, fontWeight:800, fontSize:16, color:"#fff" }}>🔧 Quản Lý Sửa Chữa</div>
+        <div style={{ flex:1, fontWeight:800, fontSize:16, color:"#fff" }}>🛠️ HK One Touch</div>
         <div style={{ position:"relative" }}>
           <button onClick={() => setShowNotif(v=>!v)} style={{ background:"none", border:"none", color:"#fff", fontSize:22, cursor:"pointer", padding:4 }}>
             🔔
