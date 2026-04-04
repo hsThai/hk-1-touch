@@ -1,6 +1,6 @@
 /* v1774860462-5727 */
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage, subscribeCollection } from "./pb.jsx";
+import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage, subscribeCollection, getPbUrl, getAuth } from "./pb.jsx";
 import { getNotifSound } from "./Settings";
 import { uploadFile } from "./pb.jsx";
 
@@ -50,7 +50,7 @@ async function playNotifSound(type) {
   } catch {}
 }
 
-function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, pb, onGoToPendingAccept }) {
+function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, onGoToPendingAccept }) {
   const [chatInput, setChatInput] = useState("");
   const [chats, setChats] = useState([]);
   const [chatLoading, setChatLoading] = useState(false);
@@ -447,8 +447,8 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, p
         const formData = new FormData();
         (extraImages||[]).forEach(f => formData.append("images", f));
         (extraVideos||[]).forEach(f => formData.append("videos", f));
-        const pbToken = pb?.authStore?.token || "";
-        const res = await fetch(`${pb.baseUrl}/api/collections/repair_orders/records/${ord._id}`, {
+        const { token: pbToken } = getAuth();
+        const res = await fetch(`${getPbUrl()}/api/collections/repair_orders/records/${ord._id}`, {
           method: "PATCH",
           headers: { Authorization: pbToken },
           body: formData,
@@ -986,7 +986,6 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, p
         order={checklistTarget.ord}
         onConfirm={handleChecklistConfirm}
         onClose={() => setShowChecklist(false)}
-        pb={pb}
       />
     )}
     {mediaViewer && (
