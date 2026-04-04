@@ -61,40 +61,70 @@ class ErrorBoundary extends React.Component {
 
 // Helper: map raw PocketBase repair_orders record → app order object
 function mapPbOrder(o, STATUS_DISPLAY, PRIORITY_DISPLAY) {
+  const displayStatus = STATUS_DISPLAY[o.status] || o.status || "Chưa Nhận";
   return {
-    id: o.order_code || o.id,
-    _id: o.id,
-    _pbSaved: true,
-    customer_id: o.customer_name,
-    device_model: o.device_model || o.device_name || "",
-    imei_serial: o.imei || "",
-    passcode: o.passcode || "",
+    // ── Identity ──
+    id:              o.order_code || o.id,
+    _id:             o.id,
+    order_code:      o.order_code || "",
+    _pbSaved:        true,
+    // ── Customer / Device ──
+    customer_id:     o.customer_name,
+    customer_name:   o.customer_name || "",
+    customer_phone:  o.customer_phone || "",
+    device_name:     o.device_name || "",
+    device_model:    o.device_model || o.device_name || "",
+    imei:            o.imei || "",
+    imei_serial:     o.imei || "",
+    passcode:        o.passcode || "",
+    issue_description: o.issue_description || "",
     issues: o.issue_description
       ? o.issue_description.split(/[,;]/).map(s=>s.trim()).filter(Boolean)
       : [],
-    status: STATUS_DISPLAY[o.status] || o.status || "Chưa Nhận",
-    notes: o.technician_note || "",
-    assigned_to: o.assigned_to || "",
+    // ── Status / Priority ──
+    status:          displayStatus,
+    priority:        PRIORITY_DISPLAY[o.priority] || o.priority || "Bình thường",
+    // ── Assignment ──
+    assigned_to:      o.assigned_to || "",
     assigned_to_name: o.assigned_to_name || "",
-    assigned_at: o.received_date || o.created_date,
-    accept_stage: (["Hoan Thanh","Da Giao","Hoàn Thành","Đã Giao"].includes(o.status)) ? 3 : 0,
-    created: o.received_date || o.created_date,
-    images: o.images || [],
-    videos: o.videos || [],
-    qr_code: o.order_code || "",
-    product_qr: o.product_qr || "",
-    customer_name: o.customer_name || "",
-    customer_phone: o.customer_phone || "",
+    assigned_at:      o.assigned_at || null,
+    // Nếu PB chưa có accept_stage field, suy ra từ status
+    accept_stage: o.accept_stage != null
+      ? (o.accept_stage ?? 0)
+      : (["Chua Nhan",""].includes(o.status||"") ? 0 : ["Moi Nhan","Dang Kiem Tra"].includes(o.status||"") ? 1 : ["Dang Sua","Cho Linh Kien"].includes(o.status||"") ? 2 : ["Hoan Thanh","Da Giao"].includes(o.status||"") ? 3 : 0),
+    stage1_at:        o.stage1_at || null,
+    stage2_at:        o.stage2_at || null,
+    checklist_done:   o.checklist_done || null,
+    estimated_done:   o.estimated_done || null,
+    estimated_done_date: o.estimated_done_date || null,
+    needs_reassign:   o.needs_reassign || false,
+    kpi_stage1_penalized: o.kpi_stage1_penalized || false,
+    kpi_stage2_penalized: o.kpi_stage2_penalized || false,
+    // ── Dates ──
+    received_date:     o.received_date || o.created_date || "",
+    done_date:         o.done_date || null,
+    created:           o.received_date || o.created_date,
+    created_date:      o.created_date || "",
+    // ── Finance ──
     estimated_cost: o.estimated_cost || 0,
-    final_cost: o.final_cost || 0,
-    deposit: o.deposit || 0,
-    warranty_days: o.warranty_days || 0,
-    priority: PRIORITY_DISPLAY[o.priority] || o.priority || "Bình thường",
+    final_cost:     o.final_cost || 0,
+    deposit:        o.deposit || 0,
+    warranty_days:  o.warranty_days || 0,
+    // ── Notes ──
+    notes:             o.technician_note || "",
+    technician_note:   o.technician_note || "",
+    // ── Media ──
+    images:   o.images || [],
+    videos:   o.videos || [],
+    // ── QR ──
+    qr_code:    o.order_code || "",
+    product_qr: o.product_qr || "",
   };
 }
 
 function MainAppInner() {
   const [user, setUser] = useState(null);
+  const ordersRef = useRef([]); // luôn giữ latest orders snapshot
   // ── Âm thanh thông báo ─────────────────────────
   const notifAudioRef = useRef(null);
 
@@ -138,7 +168,14 @@ function MainAppInner() {
     } catch(e) { console.warn("Sound:", e); }
   };
   const [loggedOut, setLoggedOut] = useState(false);
-  const [orders, setOrders] = useState([]);
+  const [orders, setOrders_raw] = useState([]);
+  const setOrders = (fn_or_val) => {
+    setOrders_raw(prev => {
+      const next = typeof fn_or_val === "function" ? fn_or_val(prev) : fn_or_val;
+      ordersRef.current = next;
+      return next;
+    });
+  };
   const [users, setUsers] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [page, setPage] = useState("board");
@@ -369,36 +406,7 @@ function MainAppInner() {
           avatar_url: s.avatar_url || "",
           must_change_password: s.must_change_password || false,
         }));
-        const mappedOrders = orderList.map(o => ({
-          id: o.order_code || o.id,
-          _id: o.id,             // PocketBase real ID để update/delete
-          _pbSaved: true,
-          customer_id: o.customer_name,
-          device_model: o.device_model || o.device_name || "",
-          imei_serial: o.imei || "",
-          passcode: o.passcode || "",
-          issues: o.issue_description
-            ? o.issue_description.split(/[,;]/).map(s=>s.trim()).filter(Boolean)
-            : [],
-          status: STATUS_DISPLAY[o.status] || o.status || "Chưa Nhận",
-          notes: o.technician_note || "",
-          assigned_to: o.assigned_to || "",
-          assigned_to_name: o.assigned_to_name || "",
-          assigned_at: o.received_date || o.created_date,
-          accept_stage: (o.status==="Hoan Thanh"||o.status==="Da Giao"||o.status==="Hoàn Thành"||o.status==="Đã Giao") ? 3 : 0,
-          created: o.received_date || o.created_date,
-          images: o.images || [],
-          videos: o.videos || [],
-          qr_code: o.order_code || "",
-          product_qr: o.product_qr || "",
-          customer_name: o.customer_name || "",
-          customer_phone: o.customer_phone || "",
-          estimated_cost: o.estimated_cost || 0,
-          final_cost: o.final_cost || 0,
-          deposit: o.deposit || 0,
-          warranty_days: o.warranty_days || 0,
-          priority: PRIORITY_DISPLAY[o.priority] || o.priority || "Bình thường",
-        }));
+        const mappedOrders = orderList.map(o => mapPbOrder(o, STATUS_DISPLAY, PRIORITY_DISPLAY));
         setUsers(mappedUsers);
         setOrders(mappedOrders);
       } catch(e) {
@@ -498,7 +506,7 @@ function MainAppInner() {
 
     // Lưu xuống PocketBase (dùng _id thật)
     try {
-      const order = orders.find(o => o.id === id);
+      const order = ordersRef.current.find(o => o.id === id) || orders.find(o => o.id === id);
       const pbId = order?._id;
       if (!pbId) return; // đơn chưa lưu vào PB
       // Map patch field sang schema PocketBase
@@ -520,7 +528,14 @@ function MainAppInner() {
       if (patch.notes     !== undefined) pbPatch.technician_note = patch.notes;
       // accept_stage đã có trong directFields - không cần làm gì thêm
       if (Object.keys(pbPatch).length > 0) {
-        await RepairOrder.update(pbId, pbPatch);
+        const saved = await RepairOrder.update(pbId, pbPatch);
+        // Sau khi PB lưu thành công → map lại từ PB để đảm bảo đồng bộ
+        if (saved && saved.id) {
+          const fresh = mapPbOrder(saved, STATUS_DISPLAY, PRIORITY_DISPLAY);
+          // Chỉ sync nếu không có thêm patch đang pending
+          setOrders(p => p.map(o => (o._id === saved.id) ? { ...fresh, ...patch } : o));
+          if (selectedOrder?._id === saved.id) setSelectedOrder(p => ({ ...fresh, ...patch }));
+        }
       }
       if (kpiEvent) {
         const staffRec = users.find(u => u.id === kpiEvent.userId);
@@ -545,7 +560,7 @@ function MainAppInner() {
         passcode:         data.passcode || "",
         product_qr:       data.product_qr || "",
         issue_description: Array.isArray(data.issues) ? data.issues.join(", ") : (data.notes || ""),
-        status:           "Chua Nhan",
+        status:           "Chua Nhan",  // Cần thêm vào PB enum (chạy fix_pb_schema_v2.js)
         assigned_to:      data.assigned_to || null,
         received_date:    new Date().toISOString(),
         images:           data.images || [],
@@ -559,8 +574,16 @@ function MainAppInner() {
       data._pbSaved = true;
     } catch(e) {
       console.error("Lỗi lưu PocketBase:", e);
-      alert("Không lưu được đơn vào database! Kiểm tra kết nối PocketBase.");
-      return;
+      // Thử lại không có status (nếu PB enum chưa có Chua Nhan)
+      try {
+        pbData.status = "";
+        const saved2 = await RepairOrder.create(pbData);
+        data._id = saved2.id;
+        data._pbSaved = true;
+      } catch(e2) {
+        alert("Không lưu được đơn vào database! Kiểm tra kết nối PocketBase.");
+        return;
+      }
     }
 
     setOrders(p => [data, ...p]);

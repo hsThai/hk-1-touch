@@ -622,16 +622,23 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
             )}
 
             {/* Status + Actions — KTV cần bấm "Chỉnh" để edit */}
-            {!["Hoàn Thành","Đã Giao"].includes(order.status) && (currentUser.role==="manager" || isMyOrder) && (
+            {!["Hoàn Thành","Đã Giao","Chưa Nhận"].includes(order.status) && (currentUser.role==="manager" || isMyOrder) && (
               <div style={{ marginBottom:14 }}>
-                {/* Toggle edit mode for KTV */}
-                {isKTV && !editMode && (
+                {/* KTV chưa nhận đơn → disable toàn bộ status picker */}
+                {isKTV && isMyOrder && (order.accept_stage||0) < 1 && order.status !== "Chưa Nhận" && (
+                  <div style={{ padding:"14px 16px", background:"#fef3c7", border:"2px solid #fcd34d", borderRadius:14, textAlign:"center", marginBottom:8 }}>
+                    <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",marginRight:6,color:"#92400e"}}>lock</span>
+                    <span style={{ fontWeight:700, color:"#92400e", fontSize:14 }}>Nhận đơn trước khi đổi trạng thái</span>
+                  </div>
+                )}
+                {/* Toggle edit mode for KTV (chỉ khi đã nhận) */}
+                {isKTV && !editMode && (order.accept_stage||0) >= 1 && (
                   <button onClick={() => setEditMode(true)}
                     style={{ width:"100%", height:52, borderRadius:14, border:"2px solid #4f46e5", background:"#eef2ff", color:"#4f46e5", fontWeight:800, fontSize:16, cursor:"pointer", marginBottom:8 }}>
                       Cập nhật trạng thái
                   </button>
                 )}
-                {(!isKTV || editMode) && (
+                {(!isKTV || (editMode && (order.accept_stage||0) >= 1)) && (
                   <>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                       <div style={{ fontSize:13, fontWeight:700, color:"#374151"}}>  Chọn trạng thái:</div>
