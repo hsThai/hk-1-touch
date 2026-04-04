@@ -176,18 +176,16 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
     <div style={{ position:"fixed", inset:0, zIndex:2000, background:"rgba(0,0,0,.55)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
       <div style={{ background:"#fff", borderRadius:22, width:"100%", maxWidth:540, maxHeight:"92vh", overflowY:"auto", boxShadow:"0 24px 64px rgba(0,0,0,.25)" }}>
         <div style={{ position:"sticky", top:0, background:"#3730a3", padding:"16px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", borderRadius:"22px 22px 0 0" }}>
-          <div style={{ color:"#fff", fontWeight:800, fontSize:18 }}>  Tạo Đơn Mới</div>
-          <button onClick={onClose} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:34, height:34, borderRadius:"50%", fontSize:16, cursor:"pointer"}}> </button>
+          <div style={{ color:"#fff", fontWeight:800, fontSize:18, display:"flex", alignItems:"center", gap:8 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>add_circle</span> Tạo Đơn Mới</div>
+          <button onClick={onClose} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:34, height:34, borderRadius:"50%", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>close</span></button>
         </div>
 
         <div style={{ padding:"20px 20px 8px" }}>
           <div style={{ ...sec, background:"#eef2ff", border:"1.5px solid #a5b4fc" }}>
             <div style={{ fontWeight:800, fontSize:14, color:"#3730a3", marginBottom:10, display:"flex", justifyContent:"space-between", alignItems:"center"}}>
               <span>  Mã QR Sản Phẩm</span>
-              <button onClick={() => setShowQRScan(true)}
-                style={{ height:36, padding:"0 14px", borderRadius:10, background:"#4f46e5", color:"#fff", border:"none", fontWeight:700, fontSize:13, cursor:"pointer"}}>
-                  Quét QR
-              </button>
+              <button onClick={() => setShowQRScan(true)} title="Quét QR"
+                style={{ height:36, width:36, borderRadius:10, background:"#4f46e5", color:"#fff", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>qr_code_scanner</span></button>
             </div>
             <input value={form.product_qr} onChange={e => { set("product_qr", e.target.value); setQrMsg(null); }}
               placeholder="Quét hoặc nhập mã QR dán trên máy..."
@@ -296,9 +294,9 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
             <input ref={videoRef} type="file" accept="video/*" capture="environment" style={{ display:"none" }} onChange={handleFiles} />
             <input ref={fileRef} type="file" accept="image/*,video/*" multiple style={{ display:"none" }} onChange={handleFiles} />
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom:10 }}>
-              <button onClick={() => photoRef.current.click()} style={{ padding:"14px 8px", background:"#f0fdf4", border:"2px dashed #6ee7b7", borderRadius:12, cursor:"pointer", fontSize:20, textAlign:"center"}}> <div style={{fontSize:11,color:"#065f46",marginTop:4}}>Chụp ảnh</div></button>
-              <button onClick={() => videoRef.current.click()} style={{ padding:"14px 8px", background:"#fdf4ff", border:"2px dashed #d8b4fe", borderRadius:12, cursor:"pointer", fontSize:20, textAlign:"center"}}> <div style={{fontSize:11,color:"#7e22ce",marginTop:4}}>Quay video</div></button>
-              <button onClick={() => fileRef.current.click()} style={{ padding:"14px 8px", background:"#f0f9ff", border:"2px dashed #bae6fd", borderRadius:12, cursor:"pointer", fontSize:20, textAlign:"center"}}> <div style={{fontSize:11,color:"#0369a1",marginTop:4}}>Chọn file</div></button>
+              <button onClick={() => photoRef.current.click()} style={{ padding:"14px 8px", background:"#f0fdf4", border:"2px dashed #6ee7b7", borderRadius:12, cursor:"pointer", textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:24,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>photo_camera</span><div style={{fontSize:11,color:"#065f46"}}>Chụp ảnh</div></button>
+              <button onClick={() => videoRef.current.click()} style={{ padding:"14px 8px", background:"#fdf4ff", border:"2px dashed #d8b4fe", borderRadius:12, cursor:"pointer", textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:24,verticalAlign:"middle",lineHeight:1,userSelect:"none",color:"#7e22ce"}}>videocam</span><div style={{fontSize:11,color:"#7e22ce"}}>Quay video</div></button>
+              <button onClick={() => fileRef.current.click()} style={{ padding:"14px 8px", background:"#f0f9ff", border:"2px dashed #bae6fd", borderRadius:12, cursor:"pointer", textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:24,verticalAlign:"middle",lineHeight:1,userSelect:"none",color:"#0369a1"}}>folder_open</span><div style={{fontSize:11,color:"#0369a1"}}>Chọn file</div></button>
             </div>
             {mediaFiles.length > 0 && (
               <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
@@ -343,9 +341,9 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
         </div>
 
         <div style={{ padding:"0 20px 20px", display:"flex", gap:10 }}>
-          <button onClick={onClose} style={{ flex:1, height:52, background:"#f3f4f6", border:"none", borderRadius:14, fontWeight:700, fontSize:16, cursor:"pointer" }}>Hủy</button>
+          <button onClick={onClose} style={{ flex:1, height:52, background:"#f3f4f6", border:"none", borderRadius:14, fontWeight:700, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>close</span> Hủy</button>
           <button onClick={submit} disabled={submitting} style={{ flex:2, height:52, background:submitting?"#9ca3af":"#4f46e5", border:"none", borderRadius:14, color:"#fff", fontWeight:800, fontSize:16, cursor:submitting?"not-allowed":"pointer" }}>
-            {submitting ? "⏳ Đang upload..." : "Tạo Đơn"}
+            {submitting ? <>{<span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>hourglass_empty</span>} Đang upload...</> : <>{<span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>add_task</span>} Tạo Đơn</>}
           </button>
         </div>
       </div>
@@ -506,7 +504,7 @@ function ProductHistoryModal({ qr, orders, onClose, onOpenOrder }) {
             <div style={{ fontWeight:800, fontSize:17, color:"#1f2937"}}>  Lịch sử sản phẩm</div>
             <div style={{ fontSize:12, color:"#6b7280", marginTop:2, fontFamily:"monospace" }}>QR: {qr}</div>
           </div>
-          <button onClick={onClose} style={{ background:"#f3f4f6", border:"none", width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer"}}> </button>
+          <button onClick={onClose} style={{ background:"#f3f4f6", border:"none", width:36, height:36, borderRadius:"50%", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>close</span></button>
         </div>
         {/* List */}
         <div style={{ overflowY:"auto", flex:1, padding:"12px 16px" }}>
