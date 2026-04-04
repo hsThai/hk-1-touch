@@ -213,7 +213,7 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
   }
 
   const COLORS=["#ff3b30","#ff9500","#ffcc00","#34c759","#007aff","#af52de","#fff","#000"];
-  const TOOLS=[{id:"pen",icon:"edit"},{id:"rect",icon:"crop_square"},{id:"oval",icon:"circle"}];
+  const TOOLS=[{id:"pen",icon:"edit"},{id:"rect",icon:"crop_square"},{id:"oval",icon:"radio_button_unchecked"}];
 
   return(
     <div style={{position:"fixed",inset:0,zIndex:6000,background:"rgba(0,0,0,.97)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}
@@ -224,9 +224,9 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
         <div style={{color:"#fff",fontSize:13,fontWeight:600}}>{idx+1} / {items.length}</div>
         <div style={{display:"flex",gap:6}}>
           {!isVideo&&<button onClick={()=>setDrawMode(d=>!d)} style={{background:drawMode?"#f59e0b":"rgba(255,255,255,.2)",border:"none",color:"#fff",height:34,padding:"0 12px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer"}}>{drawMode ? <><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:14,verticalAlign:"middle",lineHeight:1}}>edit</span> Đang vẽ</> : <><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:14,verticalAlign:"middle",lineHeight:1}}>edit</span> Vẽ</>}</button>}
-          <button onClick={handleShare} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",height:34,padding:"0 12px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer"}}> </button>
-          <button onClick={handleDownload} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",height:34,padding:"0 12px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer"}}>⬇</button>
-          <button onClick={onClose} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",width:36,height:36,borderRadius:"50%",fontSize:18,cursor:"pointer"}}> </button>
+          <button onClick={handleShare} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",height:34,width:36,borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20}}>share</span></button>
+          <button onClick={handleDownload} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",height:34,width:36,borderRadius:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20}}>download</span></button>
+          <button onClick={onClose} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",width:36,height:36,borderRadius:"50%",fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20}}>close</span></button>
         </div>
       </div>
 
@@ -242,7 +242,7 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
             ))}
             <div style={{width:1,height:30,background:"rgba(255,255,255,.25)",margin:"0 2px"}}/>
             <button onClick={handleUndo} title="Undo"
-              style={{background:"rgba(255,255,255,.15)",border:"none",color:"#fff",width:40,height:40,borderRadius:10,fontSize:17,cursor:"pointer"}}>↩</button>
+              style={{background:"rgba(255,255,255,.15)",border:"none",color:"#fff",width:40,height:40,borderRadius:10,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22}}>undo</span></button>
             <div style={{width:1,height:30,background:"rgba(255,255,255,.25)",margin:"0 2px"}}/>
             <button onClick={handleSendAnnotated} disabled={sending}
               style={{background:"#4f46e5",border:"none",color:"#fff",height:40,padding:"0 16px",borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer",minWidth:60}}>
