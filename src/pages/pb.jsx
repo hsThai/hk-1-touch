@@ -170,24 +170,48 @@ export async function uploadFile(file, orderId = "") {
   return `${base}/api/files/media_files/${data.id}/${fileName}`;
 }
 // ── Realtime helper (SSE) ─────────────────────────────────
+// PB Realtime protocol:
+//   1. GET /api/realtime  → SSE stream, đầu tiên nhận event "PB_CONNECT" chứa clientId
+//   2. POST /api/realtime { clientId, subscriptions: ["collection/*"] }  → đăng ký
+//   3. Mỗi record change → SSE event tên "collectionName" với data JSON
 export function subscribeCollection(collectionName, callback) {
   const base = getPbUrl();
   const { token } = getAuth();
-  const url = `${base}/api/realtime`;
-  const es = new EventSource(`${url}?token=${token || ""}`);
+  const realtimeUrl = `${base}/api/realtime`;
+  const headers = token ? { Authorization: token } : {};
 
-  es.onopen = () => {
-    // Subscribe after connect
-    fetch(`${url}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: token || "" },
-      body: JSON.stringify({ clientId: es.clientId, subscriptions: [`${collectionName}/*`] }),
-    });
-  };
+  const es = new EventSource(realtimeUrl);
+  let clientId = null;
 
+  // Bước 1: nhận clientId từ PB_CONNECT
+  es.addEventListener("PB_CONNECT", async (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      clientId = data.clientId;
+      // Bước 2: subscribe collection
+      await fetch(realtimeUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({ clientId, subscriptions: [`${collectionName}/*`] }),
+      });
+    } catch {}
+  });
+
+  // Bước 3: nhận events khi có thay đổi
   es.addEventListener(collectionName, (e) => {
     try { callback(JSON.parse(e.data)); } catch {}
   });
+
+  es.onerror = () => {
+    // SSE tự reconnect, nhưng cần re-subscribe
+    if (clientId) {
+      fetch(realtimeUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({ clientId, subscriptions: [`${collectionName}/*`] }),
+      }).catch(() => {});
+    }
+  };
 
   return () => es.close();
 }

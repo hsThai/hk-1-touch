@@ -1,6 +1,6 @@
 /* v1774860462-5727 */
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage } from "./pb.jsx";
+import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage, subscribeCollection } from "./pb.jsx";
 import { getNotifSound } from "./Settings";
 import { uploadFile } from "./pb.jsx";
 
@@ -102,23 +102,28 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
     return () => { cancelled = true; };
   }, [order.id, tab]);
 
-  // Realtime: poll chat mỗi 5s khi đang ở tab chat
+  // Realtime: subscribe SSE PocketBase khi đang ở tab chat
   useEffect(() => {
     if (tab !== "chat") return;
-    const iv = setInterval(async () => {
-      try {
-        const fresh = await RepairChat.filter({ order_id: order.id }, { sort: "created" });
+    const unsub = subscribeCollection("repair_chats", async (event) => {
+      // Chỉ quan tâm record thuộc order này
+      const rec = event.record;
+      if (!rec || rec.order_id !== order.id) return;
+      if (event.action === "create") {
         setChats(prev => {
-          // Chỉ cập nhật nếu có tin mới (so sánh độ dài hoặc ID cuối)
-          if (fresh.length === prev.length && fresh.length > 0 &&
-              fresh[fresh.length-1]?.id === prev[prev.length-1]?.id) return prev;
-          // Giữ lại temp messages (id bắt đầu bằng "tmp_"), merge với server data
+          // Tránh duplicate với temp message
+          if (prev.find(m => m.id === rec.id)) return prev;
           const temps = prev.filter(m => m.id?.startsWith("tmp_"));
-          return [...fresh, ...temps];
+          const saved = prev.filter(m => !m.id?.startsWith("tmp_"));
+          return [...saved, rec, ...temps];
         });
-      } catch {}
-    }, 5000);
-    return () => clearInterval(iv);
+      } else if (event.action === "update") {
+        setChats(prev => prev.map(m => m.id === rec.id ? rec : m));
+      } else if (event.action === "delete") {
+        setChats(prev => prev.filter(m => m.id !== rec.id));
+      }
+    });
+    return () => unsub();
   }, [tab, order.id]);
 
   // Auto-scroll
