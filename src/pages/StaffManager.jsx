@@ -138,14 +138,14 @@ export default function StaffManager({ currentStaff }) {
             return (
               <div key={s.id} style={{ background:"#fff", borderRadius:16, padding:16, boxShadow:"0 2px 12px rgba(0,0,0,.07)", border:"1.5px solid #f3f4f6", display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }}>
                 {/* Avatar */}
-                <div style={{ width:50, height:50, borderRadius:"50%", background: ri.bg, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0, border:`2px solid ${ri.color}22` }}>
-                  {ri.icon}
+                <div style={{ width:50, height:50, borderRadius:"50%", background: ri.bg, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, border:`2px solid ${ri.color}22` }}>
+                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:24,color:ri.color,lineHeight:1}}>{ri.icon}</span>
                 </div>
                 {/* Info */}
                 <div style={{ flex:1, minWidth:160 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
                     <span style={{ fontWeight:800, fontSize:15, color:"#1e1b4b" }}>{s.full_name}</span>
-                    <span style={{ background:ri.bg, color:ri.color, fontSize:11, fontWeight:700, padding:"2px 9px", borderRadius:20 }}>{ri.icon} {ri.label}</span>
+                    <span style={{ background:ri.bg, color:ri.color, fontSize:11, fontWeight:700, padding:"2px 9px", borderRadius:20, display:"inline-flex", alignItems:"center", gap:3 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:13,lineHeight:1}}>{ri.icon}</span>{ri.label}</span>
                     {!s.is_active && <span style={{ background:"#fef2f2", color:"#dc2626", fontSize:11, fontWeight:700, padding:"2px 9px", borderRadius:20 }}>  Đã khóa</span>}
                     {s.must_change_password && <span style={{ background:"#fffbeb", color:"#d97706", fontSize:11, fontWeight:700, padding:"2px 9px", borderRadius:20 }}>  Chưa đổi pass</span>}
                   </div>
