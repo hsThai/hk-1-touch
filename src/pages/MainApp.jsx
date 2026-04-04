@@ -486,7 +486,7 @@ function MainAppInner() {
     const custs = Object.values(custMap).sort((a,b) => b.orders - a.orders);
     return (
       <div style={{ padding:"0 16px 80px" }}>
-        <div style={{ fontWeight:900, fontSize:18, color:"#1e1b4b", marginBottom:12 }}>👥 Khách Hàng ({custs.length})</div>
+
         {custs.length===0 && <div style={{ textAlign:"center", color:"#9ca3af", padding:40 }}>Chưa có khách hàng</div>}
         {custs.map(c => (
           <div key={c.phone} style={{ background:"#fff", borderRadius:14, padding:14, marginBottom:8, boxShadow:"0 1px 4px rgba(0,0,0,.06)" }}>
@@ -587,25 +587,20 @@ function MainAppInner() {
         </div>
       )}
 
-      {/* Page title bar */}
-      <div style={{ padding:"14px 16px 8px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-        <div style={{ fontWeight:900, fontSize:18, color:"#1e1b4b" }}>
-          {navItems.find(n=>n.key===page)?.icon} {navItems.find(n=>n.key===page)?.label || ""}
+      {/* Search + Tạo đơn bar (chỉ hiện ở board/tasks) */}
+      {(page==="board"||page==="tasks") && (
+        <div style={{ padding:"10px 16px 6px", display:"flex", gap:8, alignItems:"center" }}>
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="🔍 Tìm kiếm..."
+            style={{ flex:1, height:38, borderRadius:12, border:"1.5px solid #e5e7eb", padding:"0 14px", fontSize:14, outline:"none" }} />
+          {user.role!=="technician" && (
+            <button onClick={() => setShowNewOrder(true)}
+              style={{ height:38, padding:"0 16px", background:"#4f46e5", color:"#fff", border:"none", borderRadius:12, fontWeight:700, fontSize:14, cursor:"pointer", flexShrink:0 }}>
+              ➕ Tạo
+            </button>
+          )}
         </div>
-        {(page==="board"||page==="tasks") && (
-          <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-            <input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="🔍 Tìm kiếm..."
-              style={{ height:36, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:13, outline:"none", width:160 }} />
-            {user.role!=="technician" && (
-              <button onClick={() => setShowNewOrder(true)}
-                style={{ height:36, padding:"0 14px", background:"#4f46e5", color:"#fff", border:"none", borderRadius:10, fontWeight:700, fontSize:13, cursor:"pointer" }}>
-                ➕ Tạo đơn
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Main content */}
       <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>

@@ -315,7 +315,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
             <span style={{ fontSize:11, background:col?.bg, color:col?.color, padding:"2px 10px", borderRadius:20, fontWeight:700 }}>{col?.icon} {order.status}</span>
           </div>
           <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-            {currentUser.role === "manager" && (
+            {(currentUser.role === "manager" || currentUser.role === "admin") && (
               <>
                 <button onClick={() => setShowEditOrder(true)}
                   style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:13, fontWeight:700, cursor:"pointer" }}>✏️ Sửa</button>
@@ -507,7 +507,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
                 return chats.map(msg => {
                   const isMe = msg.sender_id === currentUser.id;
                   const isSystem = msg.message_type === "system";
-                  const isManager = currentUser.role === "manager";
+                  const isManager = currentUser.role === "manager" || currentUser.role === "admin";
                   const msgTs = msg.created || msg.created_date;
                   const msgDateStr = msgTs ? fmtDate(msgTs) : null;
                   const showDateSep = msgDateStr && msgDateStr !== lastDateStr;
@@ -555,7 +555,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
                                 {isManager && (
                                   <button
                                     onClick={(e)=>{ e.stopPropagation(); if(window.confirm("Xóa ảnh này?")) RepairChat.delete(msg.id).then(()=>setChats(p=>p.filter(m=>m.id!==msg.id))); }}
-                                    style={{ position:"absolute", top:4, right:4, width:24, height:24, borderRadius:"50%", background:"rgba(0,0,0,0.6)", border:"none", color:"#fff", fontSize:14, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", lineHeight:1, zIndex:10 }}>×</button>
+                                    style={{ position:"absolute", top:4, right:4, width:32, height:32, borderRadius:"50%", background:"rgba(220,38,38,0.85)", border:"2px solid #fff", color:"#fff", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", lineHeight:1, zIndex:10, fontWeight:900 }}>×</button>
                                 )}
                               </div>
                             )}

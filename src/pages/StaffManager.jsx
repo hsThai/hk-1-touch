@@ -104,10 +104,7 @@ export default function StaffManager({ currentStaff }) {
     <div style={{ padding:16, maxWidth:900, margin:"0 auto" }}>
       {/* Header */}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20, flexWrap:"wrap", gap:10 }}>
-        <div>
-          <div style={{ fontSize:20, fontWeight:900, color:"#1e1b4b" }}>👥 Quản lý nhân viên</div>
-          <div style={{ fontSize:13, color:"#6b7280" }}>{list.filter(s=>s.is_active).length} đang hoạt động / {list.length} tổng</div>
-        </div>
+        <div></div>
         <button onClick={openAdd}
           style={{ height:44, padding:"0 20px", background:"#4f46e5", color:"#fff", border:"none", borderRadius:12, fontWeight:800, fontSize:14, cursor:"pointer" }}>
           ＋ Thêm nhân viên

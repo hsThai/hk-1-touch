@@ -249,8 +249,7 @@ export default function Settings({ user }) {
 
   return (
     <div style={{ padding:16, maxWidth:640, margin:"0 auto", paddingBottom:40 }}>
-      <div style={{ fontSize:20, fontWeight:900, color:"#1e1b4b", marginBottom:4 }}>⚙️ Cài đặt hệ thống</div>
-      <div style={{ fontSize:13, color:"#6b7280", marginBottom:24 }}>Thông tin cửa hàng · Âm thanh thông báo · KiotViet</div>
+
 
       {/* ── Thông tin cửa hàng ── */}
       <div style={{ background:"#fff", borderRadius:20, padding:24, marginBottom:20, boxShadow:"0 2px 12px rgba(0,0,0,.07)" }}>
