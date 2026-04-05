@@ -105,7 +105,6 @@ self.addEventListener("push", e => {
       const swBlob = new Blob([swCode], { type: "application/javascript" });
       const swUrl  = URL.createObjectURL(swBlob);
       navigator.serviceWorker.register(swUrl, { scope: "/" })
-        .then(r => console.log("[SW] registered", r.scope))
         .catch(e => {
           // Blob SW không cho phép trên một số trình duyệt → thử path cố định
           console.warn("[SW] blob fail, skip:", e.message);

@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import ChangePassword from './pages/ChangePassword';
 import Home from './pages/Home';
-import Index from './pages/Index';
 import LoginV2 from './pages/LoginV2';
 import MainApp from './pages/MainApp';
 import MediaViewer from './pages/MediaViewer';
@@ -21,7 +20,6 @@ function App() {
         <Route path="/" element={<Navigate to="/Home" replace />} />
         <Route path="/ChangePassword" element={<ChangePassword />} />
         <Route path="/Home" element={<Home />} />
-        <Route path="/Index" element={<Index />} />
         <Route path="/LoginV2" element={<LoginV2 />} />
         <Route path="/MainApp" element={<MainApp />} />
         <Route path="/MediaViewer" element={<MediaViewer />} />

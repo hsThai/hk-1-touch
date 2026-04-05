@@ -107,7 +107,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
     if (tab !== "chat") return;
     let lastTs = Date.now();
     let pollTimer = null;
-    let sseFailed = false;
+    let sseActive = false;
 
     async function pollNewChats() {
       try {
@@ -115,22 +115,23 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
         setChats(prev => {
           const serverIds = new Set(all.map(r => r.id));
           const savedIds = new Set(prev.filter(m => !m.id?.startsWith("tmp_")).map(m => m.id));
-          // Kiểm tra có record mới từ server không
           const hasNew = all.some(r => !savedIds.has(r.id));
           const hasDeleted = prev.filter(m => !m.id?.startsWith("tmp_")).some(m => !serverIds.has(m.id));
-          if (!hasNew && !hasDeleted) return prev; // Không thay đổi → giữ nguyên
+          if (!hasNew && !hasDeleted) return prev;
           const temps = prev.filter(m => m.id?.startsWith("tmp_"));
           return [...all, ...temps];
         });
       } catch {}
     }
 
-    // Thử SSE trước
+    // SSE realtime - ưu tiên hơn polling
     let unsub = null;
     try {
       unsub = subscribeCollection("repair_chats", async (event) => {
         const rec = event.record;
         if (!rec || rec.order_id !== order.id) return;
+        sseActive = true;
+        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } // tắt poll khi SSE ok
         if (event.action === "create") {
           setChats(prev => {
             if (prev.find(m => m.id === rec.id)) return prev;
@@ -144,10 +145,14 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
           setChats(prev => prev.filter(m => m.id !== rec.id));
         }
       });
-    } catch { sseFailed = true; }
+    } catch {}
 
-    // Polling mỗi 3 giây làm backup (luôn bật để đảm bảo sync)
-    pollTimer = setInterval(pollNewChats, 3000);
+    // Fallback poll 5s - chỉ chạy nếu SSE chưa active sau 3s
+    setTimeout(() => {
+      if (!sseActive) {
+        pollTimer = setInterval(pollNewChats, 5000);
+      }
+    }, 3000);
 
     return () => {
       unsub && unsub();
@@ -197,14 +202,12 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
       const q = atMatch[1].toLowerCase();
       setMentionQuery(q);
       const candidates = getMentionCandidates();
-      console.log("[MENTION] candidates:", candidates.map(u=>u.name+"("+u.role+")"));
       const filtered = candidates.filter(u => {
         if (u.id === "__all__") return true;
         const name = (u.name || u.full_name || "").toLowerCase();
         const uname = (u.username || "").toLowerCase();
         return name.includes(q) || uname.includes(q);
       });
-      console.log("[MENTION] filtered:", filtered.map(u=>u.name));
       setMentionList(filtered);
       setMentionCursor(0);
       setShowMention(filtered.length > 0);
@@ -295,7 +298,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
       }
     } catch(err) {
       setChats(p => p.filter(m => m.id!==tempId));
-      console.error("sendChat error:", err, "payload:", JSON.stringify(newMsg));
+      // sendChat error suppressed
       alert("Gửi thất bại: " + (err?.message || String(err)));
     }
   }
@@ -324,7 +327,6 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
         canvas.toBlob(
           (blob) => {
             const compressed = new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg"});
-            console.log(`  Nén ảnh: ${(file.size/1024).toFixed(0)}KB → ${(compressed.size/1024).toFixed(0)}KB`);
             resolve(compressed);
           },"image/jpeg",
           quality
@@ -355,7 +357,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
       const msgText = msgType==="image" ? "Ảnh" : msgType==="audio" ? "Ghi âm" : "Video";
       await sendChat(msgType, url, msgText);
     } catch(e) {
-      console.error("Upload/send error:", e);
+      // upload error suppressed
       alert("Upload thất bại: " + (e.message || "Lỗi kết nối PocketBase. Kiểm tra server!"));
     } finally {
       setChatUploading(false);
@@ -400,7 +402,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
         mediaRecRef.current = mr;
         setRecording(true);
       } catch(e) {
-        console.error("Recording error:", e);
+        // recording error suppressed
         alert("Không thể ghi âm: " + (e.message || "Kiểm tra quyền microphone!"));
       }
     }
@@ -1152,7 +1154,7 @@ function EditOrderModal({ order, users, onClose, onSave }) {
       const updated = await RepairOrder.update(pbId, payload);
       onSave(updated);
     } catch(e) {
-      console.error("EditOrderModal save error:", e);
+      // edit order error suppressed
       alert("Lỗi lưu: " + (e?.message || JSON.stringify(e)));
     }
     setSaving(false);

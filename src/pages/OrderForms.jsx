@@ -159,7 +159,7 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
             price:        newOrder.estimated_cost || 0,
           }],
         });
-        console.log("[KiosThong] Đã tạo đơn:", newOrder.id);
+        
       } catch(e) {
         console.warn("[KiosThong] Gửi đơn thất bại (không ảnh hưởng hệ thống):", e.message);
       }
@@ -558,7 +558,7 @@ async function compressImage(file, maxPx = 1280, quality = 0.82) {
       canvas.toBlob(
         (blob) => {
           const out = new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg"});
-          console.log(`  Ảnh nén: ${(file.size/1024).toFixed(0)}KB → ${(out.size/1024).toFixed(0)}KB`);
+          
           resolve(out);
         },"image/jpeg", quality
       );

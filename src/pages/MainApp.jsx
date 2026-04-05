@@ -69,7 +69,7 @@ function mapPbOrder(o, STATUS_DISPLAY, PRIORITY_DISPLAY) {
     order_code:      o.order_code || "",
     _pbSaved:        true,
     // ── Customer / Device ──
-    customer_id:     o.customer_name,
+    customer_id:     o.customer_id || o.customer_name || "",
     customer_name:   o.customer_name || "",
     customer_phone:  o.customer_phone || "",
     device_name:     o.device_name || "",
@@ -318,8 +318,8 @@ function MainAppInner() {
               fetch(sseUrl, {
                 method: "POST",
                 headers: { "Content-Type":"application/json", ...(token?{Authorization:token}:{}) },
-                body: JSON.stringify({ clientId, subscriptions: [`notifications/${user?.id}`, "notifications/*"] }),
-              }).then(r => console.log("[SSE] subscribed:", r.status)).catch(e => console.warn("[SSE] sub fail:", e));
+                body: JSON.stringify({ clientId, subscriptions: [`notifications/${user?.id}`] }),
+              }).catch(() => {});
             }
           } catch {}
         };
@@ -334,18 +334,6 @@ function MainAppInner() {
             }
           } catch {}
         });
-
-        // Fallback: lắng nghe message thường (một số PB version dùng onmessage)
-        const origOnMsg = es.onmessage;
-        es.onmessage = (e) => {
-          origOnMsg?.(e);
-          try {
-            const data = JSON.parse(e.data);
-            if (data.action === "create" && data.record && !data.record.is_read) {
-              handleNewNotif(data.record);
-            }
-          } catch {}
-        };
 
         es.onerror = () => {
           es?.close();
@@ -419,7 +407,6 @@ function MainAppInner() {
         setUsers(mappedUsers);
         setOrders(mappedOrders);
       } catch(e) {
-        console.error("Load data error:", e);
       } finally {
         setDataLoading(false);
       }
@@ -456,6 +443,14 @@ function MainAppInner() {
       let kpiChanges   = [];
       let pbPatches    = []; // [{ orderId, pbId, patch }]
       let notifPayload = []; // thông báo đẩy vào PocketBase + state
+
+      // Kiểm tra nhanh trước khi setOrders để tránh re-render không cần thiết
+      const snapshot = ordersRef.current;
+      const hasActive = snapshot.some(o =>
+        o.assigned_to && o.assigned_at && (o.accept_stage||0) < 2 &&
+        !["Hoàn Thành","Đã Giao","Hủy","Hoan Thanh","Da Giao","Huy"].includes(o.status)
+      );
+      if (!hasActive) return;
 
       setOrders(prev => {
         kpiChanges   = [];
@@ -730,7 +725,6 @@ function MainAppInner() {
       data._id = saved.id;
       data._pbSaved = true;
     } catch(e) {
-      console.error("Lỗi lưu PocketBase:", e);
       // Thử lại không có status (nếu PB enum chưa có Chua Nhan)
       try {
         pbData.status = "";
@@ -837,13 +831,12 @@ function MainAppInner() {
     const scrollRef = useRef(null);
     const savedScrollLeft = useRef(0);
 
-    // Lưu scroll position trước mỗi render
+    // Restore scroll position chỉ 1 lần sau mount
     useLayoutEffect(() => {
       const el = scrollRef.current;
       if (!el) return;
-      // Restore sau render
       el.scrollLeft = savedScrollLeft.current;
-    });
+    }, []); // chỉ chạy 1 lần
 
     const handleScroll = (e) => {
       savedScrollLeft.current = e.currentTarget.scrollLeft;

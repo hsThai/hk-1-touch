@@ -224,7 +224,6 @@ export async function uploadFile(file, orderId = "") {
   const fileName = data.file || data.image || data.video || data.audio
     || Object.entries(data).find(([k,v]) => typeof v === "string" && v.match(/\.(jpg|jpeg|png|gif|webp|webm|mp4|ogg|mp3|wav|m4a)$/i))?.[1];
   if (!fileName) {
-    console.error("PB response:", data);
     throw new Error("PocketBase không trả về tên file. Fields: " + Object.keys(data).join(", "));
   }
   return `${base}/api/files/media_files/${data.id}/${fileName}`;
