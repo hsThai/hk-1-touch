@@ -122,10 +122,84 @@ function mapPbOrder(o, STATUS_DISPLAY, PRIORITY_DISPLAY) {
   };
 }
 
+
+// ── SwipeableNotif: vuốt trái để xóa thông báo ──────────────
+function SwipeableNotif({ notif: n, onDelete, onClick }) {
+  const [offsetX, setOffsetX] = React.useState(0);
+  const [isDragging, setIsDragging] = React.useState(false);
+  const startXRef = React.useRef(null);
+  const startOffsetRef = React.useRef(0);
+  const THRESHOLD = 80; // px cần vuốt để xóa
+
+  const onTouchStart = (e) => {
+    startXRef.current = e.touches[0].clientX;
+    startOffsetRef.current = offsetX;
+    setIsDragging(true);
+  };
+  const onTouchMove = (e) => {
+    if (startXRef.current === null) return;
+    const dx = e.touches[0].clientX - startXRef.current;
+    const newOffset = Math.min(0, startOffsetRef.current + dx); // chỉ vuốt trái
+    setOffsetX(newOffset);
+  };
+  const onTouchEnd = () => {
+    setIsDragging(false);
+    if (offsetX < -THRESHOLD) {
+      setOffsetX(-320); // bay ra ngoài
+      setTimeout(onDelete, 200);
+    } else {
+      setOffsetX(0); // snap về
+    }
+    startXRef.current = null;
+  };
+
+  const bg = n.type === "mention" ? "#eef2ff" : "#fff";
+  const iconName = n.type==="mention"?"chat":n.type==="status_change"?"update":"notifications";
+  const iconColor = n.type==="mention"?"#4f46e5":"#059669";
+  const deleteVisible = offsetX < -20;
+
+  return (
+    <div style={{ position:"relative", overflow:"hidden", borderBottom:"1px solid #f9fafb" }}>
+      {/* Nền đỏ xóa phía sau */}
+      <div style={{
+        position:"absolute", inset:0, background:"#ef4444",
+        display:"flex", alignItems:"center", justifyContent:"flex-end", paddingRight:20,
+        opacity: deleteVisible ? 1 : 0, transition:"opacity .15s"
+      }}>
+        <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22,color:"#fff"}}>delete</span>
+      </div>
+      {/* Nội dung chính */}
+      <div
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onClick={() => { if (Math.abs(offsetX) < 5) onClick(); }}
+        style={{
+          transform: `translateX(${offsetX}px)`,
+          transition: isDragging ? "none" : "transform .2s ease",
+          padding:"12px 16px", fontSize:13, display:"flex", gap:10,
+          alignItems:"flex-start", background: bg, cursor:"pointer",
+          position:"relative", zIndex:1,
+        }}
+      >
+        <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:iconColor,marginTop:1,flexShrink:0}}>{iconName}</span>
+        <div style={{ flex:1 }}>
+          <div style={{ fontWeight:700, fontSize:12, marginBottom:2 }}>{n.title}</div>
+          <div style={{ color:"#374151" }}>{n.message}</div>
+          <div style={{ color:"#9ca3af", fontSize:11, marginTop:2 }}>{timeAgo(n.created_at || n.created_date)}</div>
+        </div>
+        <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,color:"#9ca3af",marginTop:2,flexShrink:0}}>chevron_right</span>
+      </div>
+    </div>
+  );
+}
+
 function MainAppInner() {
   const [user, setUser] = useState(null);
   const ordersRef = useRef([]); // luôn giữ latest orders snapshot
   const usersRef  = useRef([]); // luôn giữ latest users snapshot
+  const kanbanScrollRef = useRef(null); // persist scroll qua re-render
+  const kanbanScrollLeft = useRef(0);   // lưu vị trí scroll
   // ── Âm thanh thông báo ─────────────────────────
   const notifAudioRef = useRef(null);
 
@@ -828,23 +902,20 @@ function MainAppInner() {
   const colBorder = { "Chưa Nhận":"#d1d5db","Mới Nhận":"#93c5fd","Đang Kiểm Tra":"#fcd34d","Chờ Linh Kiện":"#f9a8d4","Đang Sửa":"#c4b5fd","Hoàn Thành":"#86efac","Đã Giao":"#cbd5e1" };
 
   function KanbanBoard() {
-    const scrollRef = useRef(null);
-    const savedScrollLeft = useRef(0);
-
-    // Restore scroll position chỉ 1 lần sau mount
+    // Dùng ref từ outer scope → không bị reset khi re-render
     useLayoutEffect(() => {
-      const el = scrollRef.current;
+      const el = kanbanScrollRef.current;
       if (!el) return;
-      el.scrollLeft = savedScrollLeft.current;
-    }, []); // chỉ chạy 1 lần
+      el.scrollLeft = kanbanScrollLeft.current;
+    }, []); // restore sau mount
 
     const handleScroll = (e) => {
-      savedScrollLeft.current = e.currentTarget.scrollLeft;
+      kanbanScrollLeft.current = e.currentTarget.scrollLeft;
     };
 
     return (
       <div
-        ref={scrollRef}
+        ref={kanbanScrollRef}
         onScroll={handleScroll}
         style={{ overflowX:"auto", padding:"0 16px 80px", WebkitOverflowScrolling:"touch" }}
       >
@@ -1049,25 +1120,25 @@ function MainAppInner() {
                   </button>
                 </div>
               ))}
-              {/* DB notifications (mention, status change) */}
+              {/* DB notifications (mention, status change) — swipe left to delete */}
               {dbNotifications.map(n => (
-                <div key={n.id}
+                <SwipeableNotif key={n.id} notif={n}
+                  onDelete={() => {
+                    Notification.update(n.id, { is_read: true }).catch(()=>{});
+                    setDbNotifications(p => p.filter(x=>x.id!==n.id));
+                  }}
                   onClick={async () => {
-                    // Đánh dấu đã đọc
                     Notification.update(n.id, { is_read: true }).catch(()=>{});
                     setDbNotifications(p => p.filter(x=>x.id!==n.id));
                     setShowNotif(false);
-                    // Mở đơn sửa nếu có order_id hoặc order_code
                     const targetId   = n.order_id;
                     const targetCode = n.order_code;
                     if (targetId || targetCode) {
                       try {
-                        // Ưu tiên tìm trong state đã map (nhanh, đúng format)
                         let mapped = null;
                         if (targetId)   mapped = orders.find(o => o._id === targetId);
                         if (!mapped && targetCode) mapped = orders.find(o => o.id === targetCode || o.qr_code === targetCode);
                         if (!mapped && targetId) {
-                          // Fallback: fetch từ PocketBase rồi map
                           const raw = await RepairOrder.get(targetId);
                           if (raw) mapped = mapPbOrder(raw, STATUS_DISPLAY, PRIORITY_DISPLAY);
                         }
@@ -1081,23 +1152,10 @@ function MainAppInner() {
                             }
                           }, 150);
                         }
-                      } catch(e) { console.warn("open order:", e); }
+                      } catch {}
                     }
                   }}
-                  style={{ padding:"12px 16px", borderBottom:"1px solid #f9fafb", fontSize:13, display:"flex", gap:10, alignItems:"flex-start", background: n.type==="mention"?"#eef2ff":"#fff", cursor:"pointer" }}
-                  onMouseEnter={e => e.currentTarget.style.background="#f0f4ff"}
-                  onMouseLeave={e => e.currentTarget.style.background=n.type==="mention"?"#eef2ff":"#fff"}
-                >
-                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:n.type==="mention"?"#4f46e5":"#059669",marginTop:1,flexShrink:0}}>
-                    {n.type==="mention"?"chat":n.type==="status_change"?"update":"notifications"}
-                  </span>
-                  <div style={{ flex:1 }}>
-                    <div style={{ fontWeight:700, fontSize:12, marginBottom:2 }}>{n.title}</div>
-                    <div style={{ color:"#374151" }}>{n.message}</div>
-                    <div style={{ color:"#9ca3af", fontSize:11, marginTop:2 }}>{timeAgo(n.created_at || n.created_date)}</div>
-                  </div>
-                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,color:"#9ca3af",marginTop:2,flexShrink:0}}>chevron_right</span>
-                </div>
+                />
               ))}
             </div>
           </div>
