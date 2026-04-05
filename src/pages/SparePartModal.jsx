@@ -86,7 +86,7 @@ export default function SparePartModal({ order, currentStaff, onClose, onDone })
 
   // ── Đề nghị xuất hàng KiotViet ──
   async function handleRequestExport() {
-    const pendingUsages = usages.filter(u => u.status === "pending" || u.status === "approved");
+    const pendingUsages = usages.filter(u => u.status === "pending");
     if (pendingUsages.length === 0) {
       showToast("Không có linh kiện nào cần xuất!");
       return;
@@ -123,13 +123,13 @@ export default function SparePartModal({ order, currentStaff, onClose, onDone })
         parts:           toExport.filter(p => p.kvProductId),
       });
 
-      // Cập nhật status usage → "requested"
+      // Cập nhật status usage → "issued"
       for (const p of toExport) {
-        await SparePartUsage.update(p.usageId, { status: "approved", note: `KiotViet: ${result.transferCode || result.invoiceCode || "OK"}` });
+        await SparePartUsage.update(p.usageId, { status: "issued", note: `KiotViet: ${result.transferCode || result.invoiceCode || "OK"}` });
       }
       setUsages(prev => prev.map(u => {
         const found = toExport.find(p => p.usageId === u.id);
-        return found ? { ...u, status: "approved"} : u;
+        return found ? { ...u, status: "issued"} : u;
       }));
 
       setExportResult(result);
@@ -315,8 +315,8 @@ export default function SparePartModal({ order, currentStaff, onClose, onDone })
                           </div>
                           <div style={{ textAlign:"right", flexShrink:0 }}>
                             <div style={{ fontSize:13, fontWeight:800, color:"#4f46e5" }}>{(u.total_price||0).toLocaleString()}đ</div>
-                            <div style={{ fontSize:11, color: u.status==="approved"?"#059669":u.status==="pending"?"#d97706":"#6b7280", fontWeight:700, marginTop:2 }}>
-                              {u.status==="approved" ? "Đã xuất" : u.status==="pending" ? "⏳ Chờ xuất" : u.status}
+                            <div style={{ fontSize:11, color: u.status==="issued"?"#059669":u.status==="confirmed"?"#7c3aed":u.status==="returned"?"#6b7280":u.status==="pending"?"#d97706":"#6b7280", fontWeight:700, marginTop:2 }}>
+                              {u.status==="issued" ? "✅ Đã xuất" : u.status==="confirmed" ? "✔ Xác nhận" : u.status==="returned" ? "↩ Đã trả" : u.status==="pending" ? "⏳ Chờ xuất" : u.status}
                             </div>
                           </div>
                         </div>
