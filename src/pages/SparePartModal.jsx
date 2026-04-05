@@ -77,10 +77,29 @@ export default function SparePartModal({ order, currentStaff, onClose, onDone })
       });
       await sendWarehouseChat(part, usage.id);
       setUsages(prev => [...prev, usage]);
-      setTab("used");
-      showToast(`  Đã thêm"${part.name}"`);
+      // Không chuyển tab - ở lại để chọn tiếp
+      showToast(`✅ Đã thêm "${part.name}"`);
     } catch {
       showToast("Lỗi thêm linh kiện!");
+    }
+  }
+
+  // ── Bỏ chọn linh kiện ──
+  async function removePart(usage) {
+    try {
+      // Nếu đã pending (chưa xuất kho) thì xóa hẳn
+      if (usage.status === "pending") {
+        await SparePartUsage.delete(usage.id);
+        setUsages(prev => prev.filter(u => u.id !== usage.id));
+        showToast("↩ Đã bỏ chọn linh kiện");
+      } else {
+        // Nếu đã xuất/xác nhận → chỉ đổi status về returned
+        await SparePartUsage.update(usage.id, { status: "returned" });
+        setUsages(prev => prev.map(u => u.id === usage.id ? { ...u, status: "returned" } : u));
+        showToast("↩ Đã trả linh kiện vào kho");
+      }
+    } catch {
+      showToast("Lỗi bỏ chọn linh kiện!");
     }
   }
 
@@ -233,7 +252,9 @@ export default function SparePartModal({ order, currentStaff, onClose, onDone })
                 {kvSyncing ? "⏳" : "refresh"} KiotViet
               </button>
               <button onClick={onClose}
-                style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer"}}> </button>
+                style={{ background:"rgba(255,255,255,.2)", border:"1.5px solid rgba(255,255,255,.35)", color:"#fff", width:36, height:36, borderRadius:"50%", fontSize:20, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                <span className="material-icons" style={{ fontSize:20 }}>close</span>
+              </button>
             </div>
           </div>
           {kvSyncMsg && (
@@ -288,10 +309,17 @@ export default function SparePartModal({ order, currentStaff, onClose, onDone })
                       </div>
                       <div style={{ fontSize:13, fontWeight:800, color:"#4f46e5", marginTop:2 }}>{(part.price||0).toLocaleString()}đ</div>
                     </div>
-                    <button onClick={() => inOrder ? null : addPart(part)} disabled={!!inOrder}
-                      style={{ height:38, padding:"0 14px", borderRadius:10, border:"none", background:inOrder?"#d1fae5":"#4f46e5", color:inOrder?"#059669":"#fff", fontWeight:800, fontSize:13, cursor:inOrder?"default":"pointer", flexShrink:0, minWidth:70 }}>
-                      {inOrder ? "Đã chọn" : "+ Thêm"}
-                    </button>
+                    {inOrder ? (
+                      <button onClick={() => removePart(inOrder)}
+                        style={{ height:38, padding:"0 12px", borderRadius:10, border:"1.5px solid #fca5a5", background:"#fff1f2", color:"#dc2626", fontWeight:800, fontSize:12, cursor:"pointer", flexShrink:0, minWidth:72, display:"flex", alignItems:"center", gap:4 }}>
+                        <span className="material-icons" style={{ fontSize:14 }}>remove_circle</span>Bỏ chọn
+                      </button>
+                    ) : (
+                      <button onClick={() => addPart(part)}
+                        style={{ height:38, padding:"0 14px", borderRadius:10, border:"none", background:"#4f46e5", color:"#fff", fontWeight:800, fontSize:13, cursor:"pointer", flexShrink:0, minWidth:70, display:"flex", alignItems:"center", gap:4 }}>
+                        <span className="material-icons" style={{ fontSize:16 }}>add</span>Thêm
+                      </button>
+                    )}
                   </div>
                 );
               })}
