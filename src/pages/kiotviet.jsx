@@ -188,13 +188,23 @@ export async function syncKvProducts(onProgress) {
 
   // Sync vào PocketBase
   let synced = 0;
+
+  // Lấy hết spare_parts hiện tại 1 lần → tạo lookup map theo kiotviet_id
+  let existingMap = {};
+  try {
+    const allExisting = await SparePart.list({ limit: 500 });
+    allExisting.forEach(r => {
+      if (r.kiotviet_id) existingMap[String(r.kiotviet_id)] = r;
+    });
+  } catch {}
+
   for (const p of allItems) {
     try {
       // KiotViet thật: inventories[].onHand | KiosThong mock: onHand trực tiếp
       const stock = p.onHand !== undefined
         ? (p.onHand || 0)
         : (p.inventories || []).reduce((sum, inv) => sum + (inv.onHand || 0), 0);
-      const existing = await SparePart.filter({ kiotviet_id: String(p.id) });
+
       const data = {
         name:        p.name || "",
         sku:         p.code || "",
@@ -205,13 +215,20 @@ export async function syncKvProducts(onProgress) {
         is_active:   p.isActive !== false,
         category:    p.categoryName || "",
       };
-      if (existing.length > 0) {
-        await SparePart.update(existing[0].id, data);
+
+      const existing = existingMap[String(p.id)];
+      if (existing) {
+        await SparePart.update(existing.id, data);
       } else {
         await SparePart.create(data);
       }
       synced++;
-    } catch {}
+    } catch (e) {
+      // Ghi lỗi để debug nếu cần
+      if (typeof window !== "undefined" && window.__hk_debug) {
+        console.warn("syncKvProducts item error:", p.name, e.message);
+      }
+    }
   }
   return { total: allItems.length, synced };
 }
