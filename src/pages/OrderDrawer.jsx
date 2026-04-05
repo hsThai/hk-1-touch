@@ -1,5 +1,14 @@
 /* v1774860462-5727 */
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
+const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ default: ({ onClose }) => (
+  <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}}>
+    <div style={{background:"#fff",borderRadius:16,padding:32,textAlign:"center"}}>
+      <div style={{fontSize:32}}>⚠️</div>
+      <div style={{fontWeight:700,marginTop:8}}>Không tải được module linh kiện</div>
+      <button onClick={onClose} style={{marginTop:16,padding:"10px 24px",background:"#4f46e5",color:"#fff",border:"none",borderRadius:8,cursor:"pointer"}}>Đóng</button>
+    </div>
+  </div>
+)})));
 import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage, subscribeCollection, getPbUrl, getAuth } from "./pb.jsx";
 import { getNotifSound } from "./Settings";
 import { uploadFile } from "./pb.jsx";
