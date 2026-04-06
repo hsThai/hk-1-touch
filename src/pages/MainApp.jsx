@@ -472,39 +472,92 @@ function MainAppInner() {
   }, []);
 
   // ── Smart Poll: cập nhật orders theo visibility ──────────────
-  // Active (tab đang mở): poll 10s | Background: poll 60s
+  // Active: poll 8s | Background: poll 60s
+  // Strategy: fetch light snapshot (id+status+accept_stage+kpi fields),
+  //           so sánh hash với state hiện tại → nếu có diff → fetch full record đó
   useEffect(() => {
     if (!user?.id) return;
     let timer = null;
-    let lastUpdated = new Date(0).toISOString(); // mốc thời gian lần poll trước
+
+    // Tạo hash nhanh từ các field quan trọng
+    const hashOrder = (o) => [
+      o.id, o.status, o.accept_stage,
+      o.kpi_manually_accepted, o.kpi_stage1_penalized, o.kpi_stage2_penalized,
+      o.needs_reassign, o.assigned_to
+    ].join("|");
 
     const poll = async () => {
       try {
-        // Chỉ fetch những đơn thay đổi SAU lastUpdated
-        const fresh = await RepairOrder.filter(
-          { updated_gt: lastUpdated },
-          { sort: "-updated", limit: 50 }
-        ).catch(() => null);
-        if (fresh && fresh.length > 0) {
-          lastUpdated = fresh[0].updated || fresh[0].updated_date; // cập nhật mốc mới nhất
-          const mapped = fresh.map(o => mapPbOrder(o, STATUS_DISPLAY, PRIORITY_DISPLAY));
-          setOrders(prev => {
-            let next = [...prev];
-            for (const o of mapped) {
-              const idx = next.findIndex(x => x._id === o._id || x.id === o.id);
-              if (idx >= 0) next[idx] = { ...next[idx], ...o }; // update
-              else next = [o, ...next];                          // new
+        // Fetch nhẹ: chỉ lấy các field cần so sánh
+        const snapshot = await RepairOrder.list({
+          sort: "-received_date",
+          limit: 200,
+          fields: "id,status,accept_stage,kpi_manually_accepted,kpi_stage1_penalized,kpi_stage2_penalized,needs_reassign,assigned_to,order_code"
+        }).catch(() => null);
+
+        if (!snapshot) return;
+
+        // So sánh với state hiện tại
+        setOrders(prev => {
+          const prevMap = Object.fromEntries(prev.map(o => [o._id || o.id, o]));
+          const changedIds = [];
+          const newIds = [];
+
+          for (const s of snapshot) {
+            const existing = prevMap[s.id];
+            if (!existing) {
+              newIds.push(s.id); // đơn mới
+            } else {
+              const prevHash = hashOrder({ ...existing, id: existing._id || existing.id });
+              const snapHash = hashOrder(s);
+              if (prevHash !== snapHash) changedIds.push(s.id); // có thay đổi
             }
-            return next;
-          });
-        }
+          }
+
+          // Kiểm tra đơn bị xóa
+          const snapshotIds = new Set(snapshot.map(s => s.id));
+          const deletedIds = prev.filter(o => {
+            const pbId = o._id || o.id;
+            return pbId && !snapshotIds.has(pbId);
+          }).map(o => o._id || o.id);
+
+          const toFetch = [...changedIds, ...newIds];
+
+          if (toFetch.length === 0 && deletedIds.length === 0) return prev; // không có gì thay đổi
+
+          // Fetch full record cho những cái thay đổi (async, update sau)
+          if (toFetch.length > 0) {
+            Promise.all(
+              toFetch.map(id => RepairOrder.get(id).catch(() => null))
+            ).then(results => {
+              setOrders(p => {
+                let next = [...p];
+                for (const raw of results) {
+                  if (!raw) continue;
+                  const mapped = mapPbOrder(raw, STATUS_DISPLAY, PRIORITY_DISPLAY);
+                  const idx = next.findIndex(x => (x._id || x.id) === raw.id);
+                  if (idx >= 0) next[idx] = { ...next[idx], ...mapped };
+                  else next = [mapped, ...next];
+                }
+                return next;
+              });
+            });
+          }
+
+          // Xóa ngay những đơn đã bị xóa
+          if (deletedIds.length > 0) {
+            return prev.filter(o => !deletedIds.includes(o._id || o.id));
+          }
+
+          return prev; // state chưa thay đổi, full update sẽ đến từ Promise.all
+        });
+
       } catch {}
-      // Schedule lần tiếp theo dựa vào visibility
-      const delay = document.hidden ? 60000 : 10000;
+
+      const delay = document.hidden ? 60000 : 8000;
       timer = setTimeout(poll, delay);
     };
 
-    // Khi tab active trở lại → poll ngay lập tức
     const onVisible = () => {
       if (!document.hidden) {
         clearTimeout(timer);
@@ -512,8 +565,6 @@ function MainAppInner() {
       }
     };
     document.addEventListener("visibilitychange", onVisible);
-
-    // Bắt đầu poll
     poll();
 
     return () => {
