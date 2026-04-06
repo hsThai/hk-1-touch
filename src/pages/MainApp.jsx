@@ -1,7 +1,7 @@
 /* REBUILD_20260406_1408 */
 /* v4-loginv2-real-db */
 import React, { lazy, Suspense, useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
-import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, StockExportRequest, StockImport, StockImportItem, getPbUrl, getAuth, subscribeCollection } from "./pb.jsx";
+import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, StockExportRequest, StockImport, StockImportItem, getPbUrl, getAuth, subscribeCollection, logHistory } from "./pb.jsx";
 import { uploadFile } from "./pb.jsx";
 import { getNotifSound } from "./Settings";
 const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ default: ({ onClose }) => (
