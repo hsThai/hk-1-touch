@@ -10,9 +10,9 @@ import QRComponents from './pages/QRComponents';
 import Settings from './pages/Settings';
 import SparePartModal from './pages/SparePartModal';
 import StaffManager from './pages/StaffManager';
+import StockExportFlow from './pages/StockExportFlow';
 import kiotviet from './pages/kiotviet';
 import pb from './pages/pb';
-import StockExportFlow from './pages/StockExportFlow';
 
 function App() {
   return (
@@ -30,9 +30,9 @@ function App() {
         <Route path="/Settings" element={<Settings />} />
         <Route path="/SparePartModal" element={<SparePartModal />} />
         <Route path="/StaffManager" element={<StaffManager />} />
+        <Route path="/StockExportFlow" element={<StockExportFlow />} />
         <Route path="/kiotviet" element={<kiotviet />} />
         <Route path="/pb" element={<pb />} />
-        <Route path="/StockExportFlow" element={<StockExportFlow />} />
       </Routes>
     </BrowserRouter>
   )

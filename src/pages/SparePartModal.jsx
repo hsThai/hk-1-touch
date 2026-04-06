@@ -1,8 +1,7 @@
 /* v3-export-request-flow */
 import React, { useState, useEffect, useRef } from "react";
-import { SparePart, SparePartUsage, RepairChat, RepairOrder, Notification, Staff } from "./pb.jsx";
+import { SparePart, SparePartUsage, RepairChat, RepairOrder, Notification, Staff, StockExportRequest } from "./pb.jsx";
 import { syncKvProducts, createKvDeliveryOrder } from "./kiotviet.jsx";
-import { StockExportRequest } from "@/api/entities";
 
 function genCode() {
   const now = new Date();
