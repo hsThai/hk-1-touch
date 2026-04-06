@@ -4,6 +4,8 @@ import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, Spar
 import { uploadFile } from "./pb.jsx";
 
 
+let _qrLibLoaded = false;
+let _qrLibCallbacks = [];
 function loadQRLib(cb) {
   if (_qrLibLoaded) { cb(); return; }
   _qrLibCallbacks.push(cb);
