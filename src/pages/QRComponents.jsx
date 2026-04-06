@@ -168,16 +168,6 @@ function QRScanModal({ onClose, onFound, orders = [], mode = "search" }) {
       onFound({ type: "assign_qr", qr: raw });
       onClose();
     })();
-    return; // exit sync flow
-    if (byOrderId) {
-      onFound({ type: "order", data: byOrderId });
-      onClose();
-      return;
-    }
-
-    // QR chưa gán cho sản phẩm nào → gán mới
-    onFound({ type: "assign_qr", qr: raw });
-    onClose();
   }
 
   function handleManual() {

@@ -448,6 +448,7 @@ function MainAppInner() {
   const [highlightId, setHighlightId] = useState(null);
   const [createdOrder, setCreatedOrder] = useState(null); // toast xác nhận tạo đơn
   const [productHistory, setProductHistory] = useState(null);
+  const [warehouseStockModal, setWarehouseStockModal] = useState(null);
 
   // ── Load real data from entities ──────────────────────────
   useEffect(() => {
@@ -860,7 +861,6 @@ function MainAppInner() {
     if (p) { setHighlightId(p.id); setTimeout(() => setHighlightId(null), 3000); }
   }
 
-  const [warehouseStockModal, setWarehouseStockModal] = React.useState(null);
 
   function handleGlobalQRScan(result) {
     setShowQRScan(false);
