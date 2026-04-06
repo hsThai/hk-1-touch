@@ -1,7 +1,7 @@
 /* REBUILD_20260406_1408 */
 /* v4-loginv2-real-db */
 import React, { lazy, Suspense, useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
-import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, StockExportRequest, StockImport, StockImportItem, getPbUrl, getAuth, subscribeCollection, logHistory } from "./pb.jsx";
+import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, StockExportRequest, StockImport, StockImportItem, getPbUrl, getAuth, logHistory } from "./pb.jsx";
 import { uploadFile } from "./pb.jsx";
 import { getNotifSound } from "./Settings";
 const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ default: ({ onClose }) => (
@@ -375,88 +375,51 @@ function MainAppInner() {
     if (!user?.id) return;
     requestNotifPermission().catch(() => {});
 
-    // 1. Load tất cả notif chưa đọc ban đầu
+    // Load notif cũ ban đầu
     const fetchAll = async () => {
       try {
         const list = await Notification.filter({ user_id: user.id, is_read: false });
         const sorted = list.sort((a,b) => new Date(b.created_date)-new Date(a.created_date));
-        // Đánh dấu seen để không phát sound cho notif cũ
-        sorted.forEach(n => seenNotifIds.current.add(n.id));
+        sorted.forEach(n => seenNotifIds.current.add(n.id)); // đánh dấu seen, ko phát sound
         setDbNotifications(sorted);
       } catch {}
     };
     fetchAll();
 
-    // 2. SSE Realtime: lắng nghe notification mới ngay lập tức
-    let es = null;
-    let retryTimer = null;
-    const connectSSE = () => {
+    // Smart poll notification: 10s khi active, 30s khi background
+    let notifTimer = null;
+    let lastNotifCheck = new Date(Date.now() - 60000).toISOString(); // nhìn lại 1 phút khi mới load
+
+    const pollNotif = async () => {
       try {
-        const pbBase = getPbUrl();
-        const authData = getAuth();
-        const token = authData?.token || "";
-        // PocketBase SSE realtime
-        const sseUrl = `${pbBase}/api/realtime`;
-        es = new EventSource(`${sseUrl}`);
-        let clientId = null;
-
-        // PocketBase SSE: kết nối → nhận clientId → subscribe
-        es.onmessage = (e) => {
-          try {
-            const data = JSON.parse(e.data);
-            // PocketBase gửi clientId qua message đầu tiên
-            if (data.clientId && !clientId) {
-              clientId = data.clientId;
-              fetch(sseUrl, {
-                method: "POST",
-                headers: { "Content-Type":"application/json", ...(token?{Authorization:token}:{}) },
-                body: JSON.stringify({ clientId, subscriptions: [`notifications/${user?.id}`] }),
-              }).catch(() => {});
-            }
-          } catch {}
-        };
-
-        // PocketBase emit event với type = collection name
-        es.addEventListener("notifications", (e) => {
-          try {
-            const evt = JSON.parse(e.data);
-            const record = evt.record || evt;
-            if (record && (evt.action === "create" || !evt.action)) {
-              if (!record.is_read) handleNewNotif(record);
-            }
-          } catch {}
-        });
-
-        es.onerror = () => {
-          es?.close();
-          // Retry sau 5s
-          retryTimer = setTimeout(connectSSE, 5000);
-        };
-      } catch(e) {
-        console.warn("SSE connect fail:", e);
-      }
-    };
-    connectSSE();
-
-    // 3. Fallback poll mỗi 30s (backup nếu SSE miss)
-    const iv = setInterval(async () => {
-      try {
-        const list = await Notification.filter({ user_id: user.id, is_read: false });
-        const sorted = list.sort((a,b) => new Date(b.created_date)-new Date(a.created_date));
-        setDbNotifications(sorted);
-        // Chỉ phát sound cho notif thực sự mới
-        for (const n of sorted) {
-          if (!seenNotifIds.current.has(n.id)) {
+        const fresh = await Notification.filter({
+          user_id: user.id,
+          is_read: false,
+          created_gt: lastNotifCheck,
+        }).catch(() => null);
+        if (fresh && fresh.length > 0) {
+          lastNotifCheck = fresh[0].created || fresh[0].created_date || new Date().toISOString();
+          for (const n of fresh) {
             await handleNewNotif(n);
           }
         }
       } catch {}
-    }, 10000);
+      const delay = document.hidden ? 30000 : 10000;
+      notifTimer = setTimeout(pollNotif, delay);
+    };
+
+    const onVisible = () => {
+      if (!document.hidden) {
+        clearTimeout(notifTimer);
+        pollNotif();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    pollNotif();
 
     return () => {
-      es?.close();
-      clearTimeout(retryTimer);
-      clearInterval(iv);
+      clearTimeout(notifTimer);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [user?.id, handleNewNotif]);
   const [qrOrder, setQrOrder] = useState(null);
@@ -507,35 +470,55 @@ function MainAppInner() {
     loadData();
   }, []);
 
-  // ── Realtime subscribe repair_orders via SSE ──────────────
+  // ── Smart Poll: cập nhật orders theo visibility ──────────────
+  // Active (tab đang mở): poll 10s | Background: poll 60s
   useEffect(() => {
     if (!user?.id) return;
-    const unsub = subscribeCollection("repair_orders", (evt) => {
-      const action = evt.action || "update";
-      const raw    = evt.record || evt;
-      if (!raw?.id) return;
-      const pbId   = raw.id; // PocketBase internal id (luôn có)
-      const mapped = mapPbOrder(raw, STATUS_DISPLAY, PRIORITY_DISPLAY);
-      if (action === "create") {
-        setOrders(prev => {
-          // Tránh duplicate: check cả _id lẫn order_code
-          if (prev.find(o => o._id === pbId || o.id === mapped.id)) return prev;
-          return [mapped, ...prev];
-        });
-      } else if (action === "update") {
-        // So sánh bằng _id (PB internal) để chắc chắn đúng record
-        setOrders(prev => prev.map(o =>
-          (o._id === pbId || o.id === mapped.id) ? { ...o, ...mapped } : o
-        ));
-      } else if (action === "delete") {
-        // Filter bằng _id (PB internal id) để chắc chắn xóa đúng 1 đơn
-        setOrders(prev => prev.filter(o =>
-          o._id !== pbId &&
-          o.id !== mapped.id
-        ));
+    let timer = null;
+    let lastUpdated = new Date(0).toISOString(); // mốc thời gian lần poll trước
+
+    const poll = async () => {
+      try {
+        // Chỉ fetch những đơn thay đổi SAU lastUpdated
+        const fresh = await RepairOrder.filter(
+          { updated_gt: lastUpdated },
+          { sort: "-updated", limit: 50 }
+        ).catch(() => null);
+        if (fresh && fresh.length > 0) {
+          lastUpdated = fresh[0].updated || fresh[0].updated_date; // cập nhật mốc mới nhất
+          const mapped = fresh.map(o => mapPbOrder(o, STATUS_DISPLAY, PRIORITY_DISPLAY));
+          setOrders(prev => {
+            let next = [...prev];
+            for (const o of mapped) {
+              const idx = next.findIndex(x => x._id === o._id || x.id === o.id);
+              if (idx >= 0) next[idx] = { ...next[idx], ...o }; // update
+              else next = [o, ...next];                          // new
+            }
+            return next;
+          });
+        }
+      } catch {}
+      // Schedule lần tiếp theo dựa vào visibility
+      const delay = document.hidden ? 60000 : 10000;
+      timer = setTimeout(poll, delay);
+    };
+
+    // Khi tab active trở lại → poll ngay lập tức
+    const onVisible = () => {
+      if (!document.hidden) {
+        clearTimeout(timer);
+        poll();
       }
-    });
-    return () => unsub?.();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    // Bắt đầu poll
+    poll();
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [user?.id]);
 
 

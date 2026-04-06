@@ -100,8 +100,15 @@ function makeCollection(collectionName) {
     },
 
     async filter(query = {}, options = {}) {
-      // Build PocketBase filter string from object
+      // Build PocketBase filter string
+      // Hỗ trợ suffix: _gt, _gte, _lt, _lte, _like, _neq
       const parts = Object.entries(query).map(([k, v]) => {
+        if (k.endsWith("_gt"))   return `${k.slice(0,-3)}>"${v}"`;
+        if (k.endsWith("_gte"))  return `${k.slice(0,-4)}>="${v}"`;
+        if (k.endsWith("_lt"))   return `${k.slice(0,-3)}<"${v}"`;
+        if (k.endsWith("_lte"))  return `${k.slice(0,-4)}<="${v}"`;
+        if (k.endsWith("_neq"))  return `${k.slice(0,-4)}!="${v}"`;
+        if (k.endsWith("_like")) return `${k.slice(0,-5)}~"${v}"`;
         if (typeof v === "string") return `${k}="${v}"`;
         if (typeof v === "boolean") return `${k}=${v}`;
         return `${k}=${v}`;
