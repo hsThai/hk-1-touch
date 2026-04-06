@@ -1059,8 +1059,14 @@ function MainAppInner() {
     const isPending = o.status === "Chưa Nhận";
     return (
       <div onClick={onClick}
-        className={isPending && !highlight ? "order-pending-pulse" : ""}
-        style={{ background:"#fff", borderRadius:12, padding:12, marginBottom:8, cursor:"pointer", boxShadow:highlight?"0 0 0 3px #f59e0b":"0 1px 4px rgba(0,0,0,.08)", border:highlight?"2px solid #f59e0b":isPending?"2px solid #ef4444":"2px solid transparent", transition:isPending?"none":"box-shadow .2s" }}>
+        style={{
+          background: isPending && !highlight ? "#fff5f5" : "#fff",
+          borderRadius:12, padding:12, marginBottom:8, cursor:"pointer",
+          boxShadow: highlight ? "0 0 0 3px #f59e0b" : "0 1px 4px rgba(0,0,0,.08)",
+          border: highlight ? "2px solid #f59e0b" : isPending ? "2px solid #ef4444" : "2px solid transparent",
+          animation: isPending && !highlight ? "pulseRed 1.6s ease-in-out infinite" : "none",
+          transition: isPending ? "none" : "box-shadow .2s"
+        }}>
         <div style={{ fontWeight:800, fontSize:13, color:"#1e1b4b", marginBottom:4 }}>{o.id}</div>
         <div style={{ fontSize:12, color:"#374151", marginBottom:2 }}>  {o.customer_name||"?"} · {o.customer_phone||""}</div>
         <div style={{ fontSize:12, color:"#6b7280", marginBottom:4 }}>  {o.device_model}</div>
@@ -1092,8 +1098,13 @@ function MainAppInner() {
           const timerInfo = getKpiTimerInfo(o);
           return (
             <div key={o.id} onClick={() => setSelectedOrder(o)}
-              className={o.status==="Chưa Nhận" && !o.needs_reassign ? "order-pending-pulse" : ""}
-              style={{ background:"#fff", borderRadius:14, padding:14, marginBottom:10, cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,.08)", border:`2px solid ${o.needs_reassign?"#ef4444":o.status==="Chưa Nhận"?"#ef4444":"#f3f4f6"}` }}>
+              style={{
+                background: o.status==="Chưa Nhận" && !o.needs_reassign ? "#fff5f5" : "#fff",
+                borderRadius:14, padding:14, marginBottom:10, cursor:"pointer",
+                boxShadow:"0 2px 8px rgba(0,0,0,.08)",
+                border:`2px solid ${o.needs_reassign?"#ef4444":o.status==="Chưa Nhận"?"#ef4444":"#f3f4f6"}`,
+                animation: o.status==="Chưa Nhận" && !o.needs_reassign ? "pulseRed 1.6s ease-in-out infinite" : "none"
+              }}>
               <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
                 <div style={{ fontWeight:800, color:"#1e1b4b" }}>{o.id}</div>
                 <div style={{ fontSize:12, padding:"3px 10px", borderRadius:99, background: o.status==="Chưa Nhận"?"#f3f4f6":o.status==="Hoàn Thành"?"#dcfce7":o.status==="Đang Sửa"?"#ede9fe":"#fef3c7", color:"#374151" }}>{o.status}</div>
