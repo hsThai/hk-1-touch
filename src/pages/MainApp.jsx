@@ -845,33 +845,31 @@ function MainAppInner() {
   }
   async function createOrder(data) {
     // Lưu vào PocketBase
+    // pbData khai báo ngoài try để catch có thể dùng lại
+    const pbData = {
+      order_code:       data.id,
+      customer_name:    data.customer_name || "",
+      customer_phone:   data.customer_phone || "",
+      device_name:      data.device_model || "",
+      device_model:     data.device_model || "",
+      imei:             data.imei_serial || "",
+      passcode:         data.passcode || "",
+      product_qr:       data.product_qr || "",
+      issue_description: Array.isArray(data.issues) ? data.issues.join(", ") : (data.notes || ""),
+      status:           "Chua Nhan",
+      assigned_to:      data.assigned_to || null,
+      assigned_at:      data.assigned_to ? new Date().toISOString() : null,
+      accept_stage:     0,
+      received_date:    new Date().toISOString(),
+      images:           data.images || [],
+      technician_note:  data.notes || "",
+      warranty_days:    0,
+      priority:         PRIORITY_PB["Bình thường"] || "Thuong",
+    };
     try {
-      const pbData = {
-        order_code:       data.id,
-        customer_name:    data.customer_name || "",
-        customer_phone:   data.customer_phone || "",
-        device_name:      data.device_model || "",
-        device_model:     data.device_model || "",
-        imei:             data.imei_serial || "",
-        passcode:         data.passcode || "",
-        product_qr:       data.product_qr || "",
-        issue_description: Array.isArray(data.issues) ? data.issues.join(", ") : (data.notes || ""),
-        status:           "Chua Nhan",
-        assigned_to:      data.assigned_to || null,
-        // Set assigned_at ngay khi có KTV → timer 15' bắt đầu chạy
-        assigned_at:      data.assigned_to ? new Date().toISOString() : null,
-        accept_stage:     0,
-        received_date:    new Date().toISOString(),
-        images:           data.images || [],
-        technician_note:  data.notes || "",
-        warranty_days:    0,
-        priority:         PRIORITY_PB["Bình thường"],
-      };
       const saved = await RepairOrder.create(pbData);
-      // Gắn _id thật từ PocketBase vào data
       data._id = saved.id;
       data._pbSaved = true;
-      // Ghi log lịch sử
       logHistory({
         order_id:        saved.id,
         order_code:      data.id,
@@ -883,14 +881,26 @@ function MainAppInner() {
         new_value:       `${data.device_model || ""} — ${data.customer_name || ""}`,
       });
     } catch(e) {
-      // Thử lại không có status (nếu PB enum chưa có Chua Nhan)
+      console.error("[createOrder] Lần 1 thất bại:", e?.message, e?.data || "");
+      // Thử lại với status rỗng (PocketBase enum chưa có "Chua Nhan")
       try {
-        pbData.status = "";
-        const saved2 = await RepairOrder.create(pbData);
+        const pbData2 = { ...pbData, status: "" };
+        const saved2 = await RepairOrder.create(pbData2);
         data._id = saved2.id;
         data._pbSaved = true;
+        logHistory({
+          order_id:        saved2.id,
+          order_code:      data.id,
+          action_type:     "created",
+          action_label:    "Tạo đơn mới",
+          changed_by_id:   user?.id || "",
+          changed_by_name: user?.name || user?.full_name || "",
+          changed_by_role: user?.role || "",
+          new_value:       `${data.device_model || ""} — ${data.customer_name || ""}`,
+        });
       } catch(e2) {
-        alert("Không lưu được đơn vào database! Kiểm tra kết nối PocketBase.");
+        console.error("[createOrder] Lần 2 thất bại:", e2?.message, e2?.data || "");
+        alert("Không lưu được đơn vào database!\n\nLỗi: " + (e2?.message || e?.message || "Kiểm tra kết nối PocketBase."));
         return;
       }
     }

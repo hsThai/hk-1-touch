@@ -9,7 +9,14 @@ const DEFAULT_PB_URL = "https://digiera.cameraddns.net";
 
 export function getPbUrl() {
   try {
-    return localStorage.getItem("pb_url") || DEFAULT_PB_URL;
+    const stored = localStorage.getItem("pb_url");
+    if (!stored) return DEFAULT_PB_URL;
+    // Nếu URL là địa chỉ LAN (192.168.x.x hoặc http://) → dùng DDNS thay thế
+    // Để tránh lỗi khi dùng app ngoài mạng LAN
+    if (stored.includes("192.168.") || stored.startsWith("http://")) {
+      return DEFAULT_PB_URL;
+    }
+    return stored;
   } catch {
     return DEFAULT_PB_URL;
   }
