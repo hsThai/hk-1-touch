@@ -267,33 +267,38 @@ export async function uploadFile(file, orderId = "") {
 //   3. Mỗi record change → SSE event tên "collectionName" với data JSON
 export function subscribeCollection(collectionName, callback) {
   const base = getPbUrl();
-  const { token } = getAuth();
   const realtimeUrl = `${base}/api/realtime`;
-  // EventSource KHÔNG hỗ trợ header → truyền token qua query param
-  const esUrl = token ? `${realtimeUrl}?token=${encodeURIComponent(token)}` : realtimeUrl;
-  const fetchHeaders = { "Content-Type": "application/json", ...(token ? { Authorization: token } : {}) };
 
   let es = null;
   let clientId = null;
   let closed = false;
+  let retryTimer = null;
 
   function connect() {
     if (closed) return;
-    es = new EventSource(esUrl);
+    // Lấy token FRESH mỗi lần connect
+    const { token } = getAuth();
+    const fetchHeaders = { "Content-Type": "application/json", ...(token ? { Authorization: token } : {}) };
 
-    es.addEventListener("PB_CONNECT", async (e) => {
+    // PocketBase SSE không cần token trong URL nếu collection là public
+    es = new EventSource(realtimeUrl);
+
+    // PocketBase gửi PB_CONNECT qua onmessage (plain message), KHÔNG phải named event
+    es.onmessage = async (e) => {
       try {
         const data = JSON.parse(e.data);
-        clientId = data.clientId;
-        await fetch(realtimeUrl, {
-          method: "POST",
-          headers: fetchHeaders,
-          body: JSON.stringify({ clientId, subscriptions: [`${collectionName}/*`] }),
-        });
+        if (data.clientId && !clientId) {
+          clientId = data.clientId;
+          await fetch(realtimeUrl, {
+            method: "POST",
+            headers: fetchHeaders,
+            body: JSON.stringify({ clientId, subscriptions: [`${collectionName}/*`] }),
+          });
+        }
       } catch {}
-    });
+    };
 
-    // PB gửi event với tên = collectionName
+    // PB gửi record changes dưới dạng named event với tên = collectionName
     es.addEventListener(collectionName, (e) => {
       try { callback(JSON.parse(e.data)); } catch {}
     });
@@ -301,13 +306,19 @@ export function subscribeCollection(collectionName, callback) {
     es.onerror = () => {
       if (closed) return;
       es.close();
+      es = null;
+      clientId = null;
       // Reconnect sau 3 giây
-      setTimeout(connect, 3000);
+      retryTimer = setTimeout(connect, 3000);
     };
   }
 
   connect();
-  return () => { closed = true; es && es.close(); };
+  return () => {
+    closed = true;
+    clearTimeout(retryTimer);
+    es && es.close();
+  };
 }
 
 // ── Settings helper ───────────────────────────────────────

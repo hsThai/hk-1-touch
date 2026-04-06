@@ -246,6 +246,8 @@ export default function LoginV2({ onLogin, loggedOut }) {
               phone: found.phone || "", must_change_password: found.must_change_password,
               avatar_url: found.avatar_url || "",
             };
+            // Thử lấy token qua pbAuth để SSE realtime hoạt động
+            try { await pbAuth.loginStaff(uname, pwd); } catch {}
           } else {
             const matchUser = staffList.find(s => s.username === uname);
             if (!matchUser)                      setErr("Không tìm thấy username!");
