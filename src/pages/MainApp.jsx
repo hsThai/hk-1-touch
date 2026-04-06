@@ -871,6 +871,17 @@ function MainAppInner() {
       // Gắn _id thật từ PocketBase vào data
       data._id = saved.id;
       data._pbSaved = true;
+      // Ghi log lịch sử
+      logHistory({
+        order_id:        saved.id,
+        order_code:      data.id,
+        action_type:     "created",
+        action_label:    "Tạo đơn mới",
+        changed_by_id:   user?.id || "",
+        changed_by_name: user?.name || user?.full_name || "",
+        changed_by_role: user?.role || "",
+        new_value:       `${data.device_model || ""} — ${data.customer_name || ""}`,
+      });
     } catch(e) {
       // Thử lại không có status (nếu PB enum chưa có Chua Nhan)
       try {

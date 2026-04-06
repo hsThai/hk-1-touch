@@ -9,7 +9,7 @@ const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ defa
     </div>
   </div>
 )})));
-import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage, StockExportRequest, subscribeCollection, getPbUrl, getAuth } from "./pb.jsx";
+import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage, StockExportRequest, subscribeCollection, getPbUrl, getAuth, logHistory } from "./pb.jsx";
 import { getNotifSound } from "./Settings";
 import { uploadFile } from "./pb.jsx";
 
@@ -92,6 +92,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
   const [showSparePart, setShowSparePart] = useState(false);
   const [mediaViewer, setMediaViewer] = useState(null); // {items, startIndex}
   const [showEditOrder, setShowEditOrder] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const chatRef = useRef();
 
   // Load count ngay khi mở đơn (để hiện số trên tab)
@@ -510,6 +511,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
   }
   function handleMarkDone() {
     onUpdate(order.id, { status:"Hoàn Thành", accept_stage:3 }, { userId:order.assigned_to, delta:2, note:"Sửa xong +2 KPI" });
+      logHistory({ order_id:order._id||order.id, order_code:order.order_code||order.id, action_type:"delivered", action_label:"Xác nhận hoàn thành", changed_by_id:currentUser?.id||"", changed_by_name:currentUser?.name||"", changed_by_role:currentUser?.role||"", old_value:order.status||"", new_value:"Hoàn Thành" });
     showToast("Hoàn thành! +2 KPI");
     setEditMode(false);
   }
@@ -538,6 +540,9 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
               <>
                 <button onClick={() => setShowEditOrder(true)}
                   style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:13, fontWeight:700, cursor:"pointer"}}>  Sửa</button>
+                <button onClick={() => setShowShareModal(true)}
+                  style={{ background:"rgba(134,239,172,.3)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
+                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>share</span> Share</button>
                 {(currentUser.role === "manager" || currentUser.role === "admin") && (
                 <button onClick={() => {
                   if (window.confirm("Xóa đơn " + order.id + "? Thao tác này không thể hoàn tác!")) {
@@ -750,6 +755,18 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
   if(c.key==="Hoàn Thành") { handleMarkDone(); }
   else {
     onUpdate(order.id,{status:c.key},null);
+    // Log lịch sử đổi trạng thái
+    logHistory({
+      order_id:        order._id || order.id,
+      order_code:      order.order_code || order.id,
+      action_type:     "status_changed",
+      action_label:    "Đổi trạng thái",
+      changed_by_id:   currentUser?.id || "",
+      changed_by_name: currentUser?.name || "",
+      changed_by_role: currentUser?.role || "",
+      old_value:       order.status || "",
+      new_value:       c.key,
+    });
     setEditMode(false);
     // Notify manager/admin + receptionist khi KTV đổi trạng thái
     const notifyUsers = users.filter(u => ["manager","admin","receptionist"].includes(u.role));
@@ -1196,6 +1213,10 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
         }}
       />
     )}
+    {/* ── Share Modal ── */}
+    {showShareModal && (
+      <ShareOrderModal order={order} onClose={() => setShowShareModal(false)} />
+    )}
     </>
   );
 }
@@ -1282,6 +1303,24 @@ function EditOrderModal({ order, users, currentUser, onClose, onSave }) {
       };
       const pbId = order._id || order.id;
       const updated = await RepairOrder.update(pbId, payload);
+      // Log lịch sử chỉnh sửa đơn
+      const changes = [];
+      if (form.assigned_to !== order.assigned_to) changes.push(`Reassign: ${order.assigned_to_name||"??"} → ${form.assigned_to_name||"??"}`);
+      if (form.status !== order.status) changes.push(`Trạng thái: ${order.status} → ${form.status}`);
+      if (String(form.estimated_cost) !== String(order.estimated_cost)) changes.push(`Báo giá: ${order.estimated_cost||0} → ${form.estimated_cost}`);
+      if (String(form.final_cost) !== String(order.final_cost)) changes.push(`Thanh toán: ${order.final_cost||0} → ${form.final_cost}`);
+      logHistory({
+        order_id:        pbId,
+        order_code:      order.order_code || order.id,
+        action_type:     form.assigned_to !== order.assigned_to ? "reassigned" : changes.some(c=>c.startsWith("Báo giá")||c.startsWith("Thanh toán")) ? "cost_updated" : form.status !== order.status ? "status_changed" : "other",
+        action_label:    "Cập nhật đơn",
+        changed_by_id:   currentUser?.id || "",
+        changed_by_name: currentUser?.name || "",
+        changed_by_role: currentUser?.role || "",
+        old_value:       order.status || "",
+        new_value:       form.status || "",
+        note:            changes.join("; "),
+      });
       onSave(updated);
     } catch(e) {
       // edit order error suppressed
@@ -1459,4 +1498,89 @@ function EditOrderModal({ order, users, currentUser, onClose, onSave }) {
 
 export { OrderDrawer };
 
+
+// ══════════════════════════════════════════════
+//  SHARE ORDER MODAL
+// ══════════════════════════════════════════════
+const PUBLIC_URL = "https://hk-app-copy-4cefbb7c.base44.app/order-public";
+
+function ShareOrderModal({ order, onClose }) {
+  const [qrReady, setQrReady] = React.useState(false);
+  const [copied, setCopied] = React.useState(false);
+  const qrRef = React.useRef(null);
+  const code = order.order_code || order.id;
+  const link = `${PUBLIC_URL}?code=${encodeURIComponent(code)}`;
+
+  React.useEffect(() => {
+    loadQRLib(() => {
+      setTimeout(() => {
+        if (qrRef.current && window.QRCode) {
+          qrRef.current.innerHTML = "";
+          new window.QRCode(qrRef.current, {
+            text: link, width: 200, height: 200,
+            colorDark:"#1e1b4b", colorLight:"#ffffff",
+            correctLevel: window.QRCode.CorrectLevel.M,
+          });
+          setQrReady(true);
+        }
+      }, 100);
+    });
+  }, [link]);
+
+  function copyLink() {
+    navigator.clipboard?.writeText(link).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); })
+      .catch(() => { const t = document.createElement("textarea"); t.value=link; document.body.appendChild(t); t.select(); document.execCommand("copy"); document.body.removeChild(t); setCopied(true); setTimeout(()=>setCopied(false),2000); });
+  }
+
+  function shareViaWeb() {
+    if (navigator.share) {
+      navigator.share({ title:"Tra cứu đơn sửa chữa " + code, text:"Theo dõi tiến độ sửa máy của bạn", url: link }).catch(()=>{});
+    } else {
+      copyLink();
+    }
+  }
+
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:6000, background:"rgba(0,0,0,.6)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+      <div style={{ background:"#fff", borderRadius:24, width:"100%", maxWidth:360, overflow:"hidden", boxShadow:"0 24px 64px rgba(0,0,0,.3)" }}>
+        <div style={{ background:"linear-gradient(135deg,#1e1b4b,#4338ca)", padding:"18px 20px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <div>
+            <div style={{ color:"#fff", fontWeight:800, fontSize:16, display:"flex", alignItems:"center", gap:6 }}>
+              <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>share</span>
+              Chia sẻ với khách
+            </div>
+            <div style={{ color:"rgba(255,255,255,.7)", fontSize:12, marginTop:2 }}>Đơn #{code}</div>
+          </div>
+          <button onClick={onClose} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:34, height:34, borderRadius:"50%", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>close</span>
+          </button>
+        </div>
+        <div style={{ padding:"20px 20px 24px" }}>
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", marginBottom:20 }}>
+            <div style={{ padding:12, background:"#f8fafc", borderRadius:16, border:"2px solid #e5e7eb", display:"inline-block" }}>
+              <div ref={qrRef} />
+              {!qrReady && <div style={{ width:200, height:200, display:"flex", alignItems:"center", justifyContent:"color:#9ca3af" }}>Đang tạo QR...</div>}
+            </div>
+            <div style={{ fontSize:12, color:"#6b7280", marginTop:8, textAlign:"center" }}>Khách quét QR để xem tiến độ sửa chữa</div>
+          </div>
+          <div style={{ background:"#f1f5f9", borderRadius:12, padding:"10px 12px", marginBottom:14, display:"flex", alignItems:"center", gap:8 }}>
+            <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,color:"#818cf8",verticalAlign:"middle",lineHeight:1,userSelect:"none",flexShrink:0}}>link</span>
+            <div style={{ flex:1, fontSize:11, color:"#475569", wordBreak:"break-all", lineHeight:"1.4" }}>{link}</div>
+          </div>
+          <div style={{ display:"flex", gap:10 }}>
+            <button onClick={copyLink} style={{ flex:1, height:44, borderRadius:12, border:"1.5px solid #818cf8", background:"#fff", color:"#4f46e5", fontWeight:700, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+              <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>{copied?"check":"content_copy"}</span>
+              {copied ? "Đã copy!" : "Copy link"}
+            </button>
+            <button onClick={shareViaWeb} style={{ flex:1, height:44, borderRadius:12, border:"none", background:"#4f46e5", color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+              <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>ios_share</span>
+              Chia sẻ
+            </button>
+          </div>
+          <div style={{ fontSize:11, color:"#9ca3af", textAlign:"center", marginTop:12 }}>Khách không cần tài khoản để xem tiến độ</div>
+        </div>
+      </div>
+    </div>
+  );
+}
 export default OrderDrawer;

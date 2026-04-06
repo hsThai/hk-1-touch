@@ -11,6 +11,7 @@ export const AppSettings = base44.entities.AppSettings;
 export const StockExportRequest = base44.entities.StockExportRequest;
 export const StockImport = base44.entities.StockImport;
 export const StockImportItem = base44.entities.StockImportItem;
+export const OrderHistory = base44.entities.OrderHistory;
 
 // auth sdk:
 export const User = base44.auth;

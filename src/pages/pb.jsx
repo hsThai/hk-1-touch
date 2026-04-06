@@ -197,6 +197,27 @@ export const AppSettings        = makeCollection("app_settings");
 export const StockExportRequest = makeCollection("stock_export_requests");
 export const StockImport        = makeCollection("stock_imports");
 export const StockImportItem    = makeCollection("stock_import_items");
+export const OrderHistory       = makeCollection("order_history");
+
+// ── Helper: ghi log lịch sử đơn ──────────────────────────
+export async function logHistory({ order_id, order_code, action_type, action_label, changed_by_id, changed_by_name, changed_by_role, old_value, new_value, note }) {
+  try {
+    await OrderHistory.create({
+      order_id:        order_id || "",
+      order_code:      order_code || "",
+      action_type:     action_type || "other",
+      action_label:    action_label || "",
+      changed_by_id:   changed_by_id || "",
+      changed_by_name: changed_by_name || "",
+      changed_by_role: changed_by_role || "",
+      old_value:       old_value || "",
+      new_value:       new_value || "",
+      note:            note || "",
+    });
+  } catch(e) {
+    // silent — không block UI
+  }
+}
 
 // ── File Upload ───────────────────────────────────────────
 export async function uploadFile(file, orderId = "") {
