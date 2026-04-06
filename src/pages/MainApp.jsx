@@ -647,9 +647,9 @@ function MainAppInner() {
             const remMs      = deadline - now;
             const remMins    = Math.floor(remMs / 60000);
 
-            // Nhắc mỗi 15 giây khi còn thời gian
-            if (remMs > 0) {
-              const urgentLevel = remMs < 5*60000 ? "🚨" : remMs < 15*60000 ? "⚠️" : "⏰";
+            // Nhắc khi còn < 20 phút (mỗi 15 phút interval sẽ nhắc đúng lúc)
+            if (remMs > 0 && remMs <= 20 * 60000) {
+              const urgentLevel = remMs < 5*60000 ? "🚨" : remMs < 10*60000 ? "⚠️" : "⏰";
               notifPayload.push({
                 userId: o.assigned_to,
                 title: `${urgentLevel} Nhận đơn ${o.order_code || o.id}`,
@@ -693,9 +693,9 @@ function MainAppInner() {
             const remMs      = deadline - now;
             const remMins    = Math.floor(remMs / 60000);
 
-            // Nhắc mỗi 15 giây
-            if (remMs > 0) {
-              const urgentLevel = remMs < 5*60000 ? "🚨" : remMs < 15*60000 ? "⚠️" : "⏰";
+            // Nhắc khi còn < 20 phút
+            if (remMs > 0 && remMs <= 20 * 60000) {
+              const urgentLevel = remMs < 5*60000 ? "🚨" : remMs < 10*60000 ? "⚠️" : "⏰";
               notifPayload.push({
                 userId: o.assigned_to,
                 title: `${urgentLevel} Bắt đầu sửa đơn ${o.order_code || o.id}`,
@@ -789,7 +789,7 @@ function MainAppInner() {
         } catch(e) { console.warn("Notif push error:", e); }
       });
 
-    }, 15000); // chạy mỗi 15 giây
+    }, 15 * 60 * 1000); // chạy mỗi 15 phút
     return () => clearInterval(iv);
   }, []);
 
