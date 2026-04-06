@@ -1,6 +1,6 @@
 /* v4-loginv2-real-db */
 import React, { lazy, Suspense, useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
-import { RepairChat, Notification, Staff, RepairOrder, Customer, getPbUrl, getAuth, subscribeCollection } from "./pb.jsx";
+import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, StockExportRequest, StockImport, StockImportItem, getPbUrl, getAuth, subscribeCollection } from "./pb.jsx";
 import { uploadFile } from "./pb.jsx";
 import { getNotifSound } from "./Settings";
 const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ default: ({ onClose }) => (
@@ -296,7 +296,7 @@ function MainAppInner() {
       if (selectedOrder) { setSelectedOrder(null); return; }
       if (sidebarOpen)   { setSidebarOpen(false);  return; }
       if (page !== "board" && page !== "tasks") {
-        setPage(user?.role === "technician" ? "tasks" : "board");
+        setPage(user?.role === "technician" ? "tasks" : user?.role === "warehouse" ? "wh_home" : "board");
       }
     };
 
@@ -706,7 +706,7 @@ function MainAppInner() {
     setLoggedOut(true);
     setSidebarOpen && setSidebarOpen(false);
   };
-  if (!user) return <LoginPage onLogin={u => { setUser(u); setLoggedOut(false); setPage(u.role==="technician"?"tasks":u.role==="receptionist"?"new":"dashboard"); }} loggedOut={loggedOut} />;
+  if (!user) return <LoginPage onLogin={u => { setUser(u); setLoggedOut(false); setPage(u.role==="technician"?"tasks":u.role==="receptionist"?"new":u.role==="warehouse"?"wh_home":"dashboard"); }} loggedOut={loggedOut} />;
   if (user.must_change_password) return <ChangePassword user={user} forceChange={true} onSuccess={() => setUser(u => ({...u, must_change_password: false}))} />;
 
   async function updateOrder(id, patch, kpiEvent, action) {
@@ -887,13 +887,23 @@ function MainAppInner() {
   });
   const pendingAccepts = orders.filter(o => o.assigned_to===user.id && (o.accept_stage||0)<2 && o.assigned_at && !["Hoàn Thành","Đã Giao"].includes(o.status));
 
-  const navItems = [
-    ...(user.role==="manager"?[{key:"dashboard",icon:"bar_chart",label:"Tổng quan"}]:[]),
-    ...(user.role!=="technician"?[{key:"board",icon:"assignment",label:"Bảng theo dõi"},{key:"new",icon:"add",label:"Tạo đơn mới"}]:[]),
+  const isWarehouse = user.role === "warehouse";
+  const isManager   = user.role === "manager" || user.role === "admin";
+  const isKtv       = user.role === "technician";
+  const isReception = user.role === "receptionist";
+
+  const navItems = isWarehouse ? [
+    {key:"wh_home",    icon:"home",          label:"Trang chủ"},
+    {key:"wh_export",  icon:"outbox",        label:"Phiếu xuất kho"},
+    {key:"wh_import",  icon:"move_to_inbox", label:"Nhập hàng"},
+    {key:"wh_stock",   icon:"inventory_2",   label:"Tồn kho"},
+  ] : [
+    ...(isManager?[{key:"dashboard",icon:"bar_chart",label:"Tổng quan"}]:[]),
+    ...(!isKtv?[{key:"board",icon:"assignment",label:"Bảng theo dõi"},{key:"new",icon:"add",label:"Tạo đơn mới"}]:[]),
     {key:"tasks",icon:"check_circle",label:"Danh sách đơn"},
-    ...(user.role!=="receptionist"?[{key:"kpi",icon:"emoji_events",label:"KPI Kỹ thuật"}]:[]),
-    ...(user.role!=="technician"?[{key:"customers",icon:"group",label:"Khách hàng"}]:[]),
-    ...(user.role==="admin"||user.role==="manager"?[{key:"staff",icon:"person",label:"Nhân viên"},{key:"settings",icon:"settings",label:"Cài đặt"}]:[]),
+    ...(!isReception && !isWarehouse?[{key:"kpi",icon:"emoji_events",label:"KPI Kỹ thuật"}]:[]),
+    ...(!isKtv?[{key:"customers",icon:"group",label:"Khách hàng"}]:[]),
+    ...(isManager?[{key:"staff",icon:"person",label:"Nhân viên"},{key:"settings",icon:"settings",label:"Cài đặt"}]:[]),
   ];
 
   // ── Kanban Board ─────────────────────────────────────────
@@ -1068,7 +1078,7 @@ function MainAppInner() {
             <div style={{ background:"#1e1b4b", padding:24, color:"#fff" }}>
               <div style={{ fontSize:40 }}>{user.avatar_url ? <img src={user.avatar_url} style={{width:48,height:48,borderRadius:"50%"}} alt="" /> : <span className="material-icons" style={{fontSize:48,fontFamily:"Material Icons",color:"#9ca3af"}}>person</span>}</div>
               <div style={{ fontWeight:800, fontSize:16, marginTop:8 }}>{user.name}</div>
-              <div style={{ fontSize:12, color:"#c7d2fe", marginTop:2 }}>{user.role} · KPI: {user.kpi}</div>
+              <div style={{ fontSize:12, color:"#c7d2fe", marginTop:2 }}>{user.role}{(user.role==="technician"||user.role==="manager")?" · KPI: "+user.kpi:""}</div>
             </div>
             <div style={{ flex:1, overflowY:"auto", padding:8 }}>
               {navItems.map(n => (
@@ -1187,6 +1197,10 @@ function MainAppInner() {
         {page==="dashboard" && <Dashboard />}
         {page==="staff" && <StaffManagerPage />}
         {page==="settings" && <SettingsPage user={user} />}
+        {page==="wh_home"   && <WarehouseHome   user={user} setPage={setPage} />}
+        {page==="wh_export" && <WarehouseExport user={user} />}
+        {page==="wh_import" && <WarehouseImport user={user} />}
+        {page==="wh_stock"  && <WarehouseStock  user={user} />}
       </Suspense>
 
       {/* Bottom nav */}
@@ -1237,6 +1251,604 @@ function MainAppInner() {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+
+
+// ═══════════════════════════════════════════════════════════
+// WAREHOUSE COMPONENTS
+// ═══════════════════════════════════════════════════════════
+
+function WarehouseHome({ user, setPage }) {
+  const [stats, setStats] = React.useState({ pendingExport:0, overdueBorrow:0, lowStock:0, pendingImport:0 });
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => { loadStats(); }, []);
+
+  async function loadStats() {
+    setLoading(true);
+    try {
+      const [exports, parts, imports] = await Promise.all([
+        StockExportRequest.filter({ status:"pending" }),
+        SparePart.filter({ is_active:true }),
+        StockImport.filter({ status:"draft" }),
+      ]);
+      const overdue = await StockExportRequest.filter({ export_type:"borrow", status:"ktv_confirmed" });
+      const now = Date.now();
+      const overdueCount = overdue.filter(r => r.return_due_date && new Date(r.return_due_date) < now).length;
+      const lowStockCount = parts.filter(p => (p.stock_qty||0) <= 3).length;
+      setStats({ pendingExport:exports.length, overdueBorrow:overdueCount, lowStock:lowStockCount, pendingImport:imports.length });
+    } catch(e) { console.error(e); }
+    setLoading(false);
+  }
+
+  const cards = [
+    { key:"wh_export",  icon:"outbox",         label:"Phiếu chờ xuất",  value:stats.pendingExport,  color:"#d97706", bg:"#fffbeb", border:"#fcd34d", urgent:stats.pendingExport>0 },
+    { key:"wh_export",  icon:"assignment_late", label:"Mượn quá hạn",    value:stats.overdueBorrow,  color:"#dc2626", bg:"#fff1f2", border:"#fca5a5", urgent:stats.overdueBorrow>0 },
+    { key:"wh_stock",   icon:"inventory_2",     label:"LK tồn thấp",     value:stats.lowStock,       color:"#0369a1", bg:"#e0f2fe", border:"#7dd3fc", urgent:stats.lowStock>0 },
+    { key:"wh_import",  icon:"move_to_inbox",   label:"Phiếu nhập draft",value:stats.pendingImport,  color:"#7c3aed", bg:"#f5f3ff", border:"#c4b5fd", urgent:false },
+  ];
+
+  return (
+    <div style={{ padding:"16px 14px 100px" }}>
+      <div style={{ marginBottom:20 }}>
+        <div style={{ fontSize:22, fontWeight:900, color:"#1e1b4b" }}>📦 Xin chào, {user.name}!</div>
+        <div style={{ fontSize:14, color:"#6b7280", marginTop:4 }}>Nhân viên kho · {new Date().toLocaleDateString("vi-VN",{weekday:"long",day:"2-digit",month:"2-digit"})}</div>
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign:"center", padding:40, color:"#9ca3af" }}>⏳ Đang tải...</div>
+      ) : (
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:20 }}>
+          {cards.map((c,i) => (
+            <div key={i} onClick={() => setPage(c.key)}
+              style={{ background:c.bg, borderRadius:16, padding:"16px 14px", border:`2px solid ${c.urgent?c.border:"#e5e7eb"}`, cursor:"pointer", boxShadow:c.urgent?"0 4px 12px rgba(0,0,0,.08)":"none" }}>
+              <span className="material-icons" style={{ fontSize:28, color:c.color, display:"block", marginBottom:8 }}>{c.icon}</span>
+              <div style={{ fontSize:32, fontWeight:900, color:c.urgent?c.color:"#1e1b4b", lineHeight:1 }}>{c.value}</div>
+              <div style={{ fontSize:12, color:"#6b7280", marginTop:6, fontWeight:600 }}>{c.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ fontWeight:800, fontSize:15, color:"#374151", marginBottom:12 }}>Thao tác nhanh</div>
+      <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+        {[
+          { page:"wh_export", icon:"outbox",         label:"Xử lý phiếu xuất kho", sub:"Xác nhận xuất cho KTV",        color:"#d97706", bg:"#fffbeb" },
+          { page:"wh_import", icon:"move_to_inbox",  label:"Tạo phiếu nhập hàng",  sub:"Máy móc & linh kiện",           color:"#7c3aed", bg:"#f5f3ff" },
+          { page:"wh_stock",  icon:"search",         label:"Tra cứu tồn kho",       sub:"Tìm linh kiện theo tên / SKU",  color:"#0369a1", bg:"#e0f2fe" },
+        ].map(item => (
+          <div key={item.page} onClick={() => setPage(item.page)}
+            style={{ background:item.bg, borderRadius:14, padding:"14px 16px", border:`1.5px solid ${item.bg}`, cursor:"pointer", display:"flex", alignItems:"center", gap:14, boxShadow:"0 2px 8px rgba(0,0,0,.05)" }}>
+            <span className="material-icons" style={{ fontSize:26, color:item.color, flexShrink:0 }}>{item.icon}</span>
+            <div>
+              <div style={{ fontWeight:800, fontSize:14, color:"#1e1b4b" }}>{item.label}</div>
+              <div style={{ fontSize:12, color:"#6b7280", marginTop:2 }}>{item.sub}</div>
+            </div>
+            <span className="material-icons" style={{ fontSize:20, color:"#d1d5db", marginLeft:"auto" }}>chevron_right</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Warehouse: Phiếu xuất kho ───────────────────────────
+function WarehouseExport({ user }) {
+  const [requests, setRequests]   = React.useState([]);
+  const [loading, setLoading]     = React.useState(true);
+  const [filter, setFilter]       = React.useState("pending");
+  const [viewReq, setViewReq]     = React.useState(null);
+  const [confirmNote, setConfirmNote] = React.useState("");
+  const [confirmMedia, setConfirmMedia] = React.useState([]);
+  const [confirming, setConfirming] = React.useState(false);
+  const [toast, setToast]         = React.useState("");
+  const fileRef = React.useRef(null);
+
+  React.useEffect(() => { load(); }, [filter]);
+
+  async function load() {
+    setLoading(true);
+    try {
+      let data = [];
+      if (filter === "all") {
+        data = await StockExportRequest.list({ sort:"-created_date", limit:100 });
+      } else {
+        data = await StockExportRequest.filter({ status: filter });
+      }
+      setRequests(data.sort((a,b) => new Date(a.due_datetime||0)-new Date(b.due_datetime||0)));
+    } catch(e){ console.error(e); }
+    setLoading(false);
+  }
+
+  function showToast(msg){ setToast(msg); setTimeout(()=>setToast(""),3500); }
+
+  async function doConfirmExport() {
+    if (!viewReq) return;
+    setConfirming(true);
+    try {
+      const mediaStr = confirmMedia.map(m=>m.url).join(",");
+      await StockExportRequest.update(viewReq.id, {
+        status:"warehouse_confirmed",
+        warehouse_confirmed_by: user.id,
+        warehouse_confirmed_by_name: user.name,
+        warehouse_confirmed_at: new Date().toISOString(),
+        warehouse_note: confirmNote,
+        warehouse_media: mediaStr,
+      });
+      await Notification.create({
+        user_id: viewReq.requested_by, user_name: viewReq.requested_by_name,
+        title:"📦 Kho đã xuất — Xác nhận nhận!",
+        message:`Phiếu ${viewReq.request_code}`,
+        order_id: viewReq.order_id, order_code: viewReq.order_code,
+        type:"export_ready", is_read:false,
+      });
+      setRequests(p=>p.filter(r=>r.id!==viewReq.id));
+      setViewReq(null); setConfirmNote(""); setConfirmMedia([]);
+      showToast("✅ Đã xác nhận xuất kho!");
+    } catch(e){ showToast("Lỗi: "+e.message); }
+    setConfirming(false);
+  }
+
+  async function handleMediaUpload(e) {
+    for (const file of Array.from(e.target.files)) {
+      const reader = new FileReader();
+      reader.onload = ev => setConfirmMedia(prev=>[...prev,{name:file.name,url:ev.target.result,type:file.type}]);
+      reader.readAsDataURL(file);
+    }
+  }
+
+  const ST_CFG = {
+    pending:             {label:"⏳ Chờ xuất",    color:"#d97706",bg:"#fffbeb"},
+    warehouse_confirmed: {label:"📦 Đã xuất",     color:"#2563eb",bg:"#eff6ff"},
+    ktv_confirmed:       {label:"✅ KTV nhận",    color:"#059669",bg:"#f0fdf4"},
+    returned:            {label:"↩ Đã trả",       color:"#6b7280",bg:"#f9fafb"},
+    expired:             {label:"⌛ Hết hạn",     color:"#dc2626",bg:"#fff1f2"},
+    cancelled:           {label:"✖ Hủy",          color:"#9ca3af",bg:"#f3f4f6"},
+  };
+
+  return (
+    <div style={{ paddingBottom:100 }}>
+      <div style={{ padding:"14px 14px 8px", position:"sticky", top:56, background:"#fff", zIndex:10, borderBottom:"1.5px solid #e5e7eb" }}>
+        <div style={{ fontWeight:900, fontSize:17, color:"#1e1b4b", marginBottom:10 }}>📋 Phiếu xuất kho</div>
+        <div style={{ display:"flex", gap:6, overflowX:"auto" }}>
+          {[
+            {k:"pending",label:"Chờ xuất"},
+            {k:"warehouse_confirmed",label:"Chờ KTV nhận"},
+            {k:"ktv_confirmed",label:"Đang mượn"},
+            {k:"all",label:"Tất cả"},
+          ].map(f=>(
+            <button key={f.k} onClick={()=>setFilter(f.k)}
+              style={{ padding:"7px 14px", borderRadius:20, border:"none", background:filter===f.k?"#1e1b4b":"#f3f4f6", color:filter===f.k?"#fff":"#374151", fontWeight:700, fontSize:12, cursor:"pointer", flexShrink:0 }}>
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ padding:"10px 14px" }}>
+        {loading ? (
+          <div style={{textAlign:"center",padding:40,color:"#9ca3af"}}>⏳ Đang tải...</div>
+        ) : requests.length===0 ? (
+          <div style={{textAlign:"center",padding:"40px 20px",color:"#9ca3af"}}>
+            <span className="material-icons" style={{fontSize:48,display:"block",marginBottom:8}}>check_circle</span>
+            Không có phiếu nào
+          </div>
+        ) : requests.map(req => {
+          const st = ST_CFG[req.status]||ST_CFG.pending;
+          const mins = Math.floor((new Date(req.due_datetime||0)-Date.now())/60000);
+          const urgent = mins>0 && mins<=15 && req.status==="pending";
+          const overdue = mins<=0 && req.status==="pending";
+          return (
+            <div key={req.id} onClick={()=>setViewReq(req)}
+              style={{ background:overdue?"#fff1f2":urgent?"#fff7ed":"#f9fafb", borderRadius:14, padding:"13px 14px", marginBottom:10, border:`1.5px solid ${overdue?"#fca5a5":urgent?"#fb923c":"#e5e7eb"}`, cursor:"pointer" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontWeight:800, fontSize:14 }}>{req.request_code}</div>
+                  <div style={{ fontSize:12, color:"#6b7280", marginTop:2 }}>
+                    {req.export_type==="borrow"?"🔄 Mượn":"🔧 Xuất sửa"} · {req.order_code} · {(req.items?JSON.parse(req.items):[]).length} LK
+                  </div>
+                  <div style={{ fontSize:12, color:"#374151", fontWeight:600 }}>👤 KTV: {req.requested_by_name}</div>
+                </div>
+                <div style={{ textAlign:"right", flexShrink:0, marginLeft:8 }}>
+                  <div style={{ background:st.bg, color:st.color, borderRadius:20, padding:"3px 10px", fontSize:11, fontWeight:700 }}>{st.label}</div>
+                  {req.status==="pending" && (
+                    <div style={{ fontSize:11, color:overdue?"#dc2626":urgent?"#d97706":"#6b7280", fontWeight:700, marginTop:4 }}>
+                      {overdue?"⌛ Hết hạn":urgent?`⚠️ còn ${mins}p`:`⏰ còn ${mins}p`}
+                    </div>
+                  )}
+                  {req.export_type==="borrow" && req.return_due_date && req.status==="ktv_confirmed" && (
+                    <div style={{ fontSize:11, color:"#7c3aed", fontWeight:700, marginTop:4 }}>
+                      Trả: {new Date(req.return_due_date).toLocaleDateString("vi-VN")}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Detail bottom sheet */}
+      {viewReq && (
+        <div style={{ position:"fixed", inset:0, zIndex:500, background:"rgba(0,0,0,.6)", display:"flex", alignItems:"flex-end" }}
+          onClick={e=>{if(e.target===e.currentTarget){setViewReq(null);setConfirmNote("");setConfirmMedia([]);}}}>
+          <div style={{ background:"#fff", borderRadius:"24px 24px 0 0", width:"100%", maxHeight:"85vh", display:"flex", flexDirection:"column" }}>
+            <div style={{ background:"linear-gradient(135deg,#1e1b4b,#4f46e5)", padding:"16px 18px", borderRadius:"24px 24px 0 0", flexShrink:0, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div>
+                <div style={{ color:"#fff", fontWeight:900, fontSize:16 }}>📋 {viewReq.request_code}</div>
+                <div style={{ color:"#a5b4fc", fontSize:12, marginTop:2 }}>{viewReq.export_type==="borrow"?"🔄 Mượn tạm":"🔧 Xuất sửa"} · KTV: {viewReq.requested_by_name}</div>
+              </div>
+              <button onClick={()=>{setViewReq(null);setConfirmNote("");setConfirmMedia([]);}}
+                style={{ background:"rgba(255,255,255,.2)", border:"1.5px solid rgba(255,255,255,.35)", color:"#fff", width:36, height:36, borderRadius:"50%", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <span className="material-icons" style={{fontSize:20}}>close</span>
+              </button>
+            </div>
+
+            <div style={{ flex:1, overflowY:"auto", padding:"14px 16px 24px" }}>
+              <div style={{ background:"#f9fafb", borderRadius:12, padding:12, marginBottom:12, fontSize:13 }}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{color:"#6b7280"}}>Đơn sửa</span><span style={{fontWeight:700}}>{viewReq.order_code}</span></div>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{color:"#6b7280"}}>Hạn xuất</span><span style={{fontWeight:700,color:(new Date(viewReq.due_datetime)<Date.now())?"#dc2626":"#111"}}>{new Date(viewReq.due_datetime).toLocaleString("vi-VN")}</span></div>
+                {viewReq.export_type==="borrow" && <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{color:"#6b7280"}}>Hạn trả</span><span style={{fontWeight:700,color:"#7c3aed"}}>{viewReq.return_due_date?new Date(viewReq.return_due_date).toLocaleDateString("vi-VN"):"—"}</span></div>}
+                <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#6b7280"}}>Tổng giá trị</span><span style={{fontWeight:900,color:"#4f46e5"}}>{(viewReq.total_value||0).toLocaleString("vi-VN")}đ</span></div>
+              </div>
+
+              <div style={{ fontWeight:800, fontSize:14, color:"#1e1b4b", marginBottom:8 }}>Danh sách linh kiện</div>
+              {(viewReq.items?JSON.parse(viewReq.items):[]).map((item,i) => (
+                <div key={i} style={{ background:"#f3f4f6", borderRadius:10, padding:"8px 12px", marginBottom:6, display:"flex", justifyContent:"space-between", fontSize:13 }}>
+                  <div><div style={{fontWeight:700}}>{item.part_name}</div>{item.sku&&<div style={{color:"#6b7280",fontSize:12}}>SKU: {item.sku}</div>}</div>
+                  <div style={{textAlign:"right"}}><div style={{fontWeight:800,color:"#4f46e5"}}>{(item.total_price||0).toLocaleString("vi-VN")}đ</div><div style={{color:"#6b7280",fontSize:12}}>×{item.qty}</div></div>
+                </div>
+              ))}
+
+              {viewReq.status==="pending" && (
+                <div style={{ marginTop:16 }}>
+                  <div style={{ fontWeight:800, fontSize:14, color:"#065f46", marginBottom:10 }}>📦 Xác nhận xuất kho</div>
+                  <textarea value={confirmNote} onChange={e=>setConfirmNote(e.target.value)}
+                    placeholder="Ghi chú (tuỳ chọn)..."
+                    style={{ width:"100%", minHeight:56, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"8px 12px", fontSize:13, outline:"none", resize:"vertical", boxSizing:"border-box", marginBottom:10 }}/>
+                  <div style={{ marginBottom:12 }}>
+                    <button onClick={()=>fileRef.current?.click()}
+                      style={{ height:38, padding:"0 14px", borderRadius:10, border:"1.5px solid #6ee7b7", background:"#fff", color:"#059669", fontWeight:700, fontSize:13, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
+                      <span className="material-icons" style={{fontSize:16}}>add_a_photo</span>Chụp ảnh / Quay video
+                    </button>
+                    <input ref={fileRef} type="file" accept="image/*,video/*" multiple capture="environment" style={{display:"none"}} onChange={handleMediaUpload}/>
+                    {confirmMedia.length>0 && (
+                      <div style={{ display:"flex", gap:6, marginTop:8, flexWrap:"wrap" }}>
+                        {confirmMedia.map((m,i)=>(
+                          <div key={i} style={{position:"relative"}}>
+                            {m.type?.startsWith("video")?<video src={m.url} style={{width:60,height:60,borderRadius:8,objectFit:"cover"}}/>:<img src={m.url} style={{width:60,height:60,borderRadius:8,objectFit:"cover"}} alt=""/>}
+                            <button onClick={()=>setConfirmMedia(p=>p.filter((_,j)=>j!==i))} style={{position:"absolute",top:-4,right:-4,width:18,height:18,borderRadius:"50%",background:"#ef4444",border:"none",color:"#fff",fontSize:10,cursor:"pointer"}}>✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button onClick={doConfirmExport} disabled={confirming}
+                    style={{ width:"100%", height:50, borderRadius:14, border:"none", background:"linear-gradient(135deg,#059669,#047857)", color:"#fff", fontWeight:900, fontSize:16, cursor:confirming?"not-allowed":"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                    <span className="material-icons" style={{fontSize:22}}>inventory</span>
+                    {confirming?"Đang xử lý...":"✅ Xác nhận đã xuất kho"}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && <div style={{position:"fixed",bottom:90,left:"50%",transform:"translateX(-50%)",background:"rgba(0,0,0,.85)",color:"#fff",padding:"10px 20px",borderRadius:16,fontSize:14,fontWeight:700,zIndex:9999}}>{toast}</div>}
+    </div>
+  );
+}
+
+// ─── Warehouse: Nhập hàng ────────────────────────────────
+function WarehouseImport({ user }) {
+  const [imports, setImports]   = React.useState([]);
+  const [loading, setLoading]   = React.useState(true);
+  const [showForm, setShowForm] = React.useState(false);
+  const [toast, setToast]       = React.useState("");
+
+  // Form state
+  const [importType, setImportType] = React.useState("spare_part");
+  const [supplier, setSupplier]     = React.useState("");
+  const [supplierPhone, setSupplierPhone] = React.useState("");
+  const [note, setNote]             = React.useState("");
+  const [items, setItems]           = React.useState([]);
+  const [saving, setSaving]         = React.useState(false);
+
+  React.useEffect(() => { loadImports(); }, []);
+
+  async function loadImports() {
+    setLoading(true);
+    try {
+      const data = await StockImport.list({ sort:"-created_date", limit:50 });
+      setImports(data);
+    } catch(e){ console.error(e); }
+    setLoading(false);
+  }
+
+  function showToast(msg){ setToast(msg); setTimeout(()=>setToast(""),3500); }
+
+  function addItem() {
+    setItems(prev=>[...prev, { id:Date.now(), name:"", sku:"", serial_imei:"", qty:1, unit_price:0, condition:"new", photos:[], videos:[] }]);
+  }
+
+  function updateItem(id, field, val) {
+    setItems(prev=>prev.map(it=>it.id===id?{...it,[field]:val,total_price:field==="qty"||field==="unit_price"?((field==="qty"?val:it.qty)*(field==="unit_price"?val:it.unit_price)):it.total_price}:it));
+  }
+
+  function removeItem(id) { setItems(prev=>prev.filter(it=>it.id!==id)); }
+
+  async function handleSave() {
+    if (!supplier.trim()){ showToast("Nhập tên nhà cung cấp!"); return; }
+    if (items.length===0){ showToast("Thêm ít nhất 1 mặt hàng!"); return; }
+    setSaving(true);
+    try {
+      const code = "PN"+new Date().getFullYear().toString().slice(2)+String(new Date().getMonth()+1).padStart(2,"0")+String(new Date().getDate()).padStart(2,"0")+"-"+Math.floor(Math.random()*9000+1000);
+      const totalValue = items.reduce((s,i)=>s+(i.qty*(i.unit_price||0)),0);
+      const imp = await StockImport.create({
+        import_code:code, import_type:importType,
+        supplier_name:supplier, supplier_phone:supplierPhone,
+        total_items:items.length, total_value:totalValue,
+        status:"draft", note, created_by:user.id, created_by_name:user.name,
+      });
+      for (const it of items) {
+        await StockImportItem.create({
+          import_id:imp.id, import_code:code, item_type:importType,
+          name:it.name, sku:it.sku, serial_imei:it.serial_imei,
+          qty:it.qty, unit_price:it.unit_price||0, total_price:it.qty*(it.unit_price||0),
+          condition:it.condition, photos:JSON.stringify(it.photos||[]), videos:JSON.stringify(it.videos||[]), note:it.note||"",
+        });
+      }
+      showToast("✅ Đã tạo phiếu nhập "+code);
+      setShowForm(false); setItems([]); setSupplier(""); setSupplierPhone(""); setNote("");
+      loadImports();
+    } catch(e){ showToast("Lỗi: "+e.message); }
+    setSaving(false);
+  }
+
+  const STATUS_COLOR = { draft:{bg:"#fef3c7",color:"#92400e",label:"📝 Nháp"}, confirmed:{bg:"#dbeafe",color:"#1d4ed8",label:"✅ Xác nhận"}, synced_kv:{bg:"#dcfce7",color:"#15803d",label:"🔗 KiotViet"} };
+
+  return (
+    <div style={{ paddingBottom:100 }}>
+      <div style={{ padding:"14px 14px 10px", borderBottom:"1.5px solid #e5e7eb", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        <div style={{ fontWeight:900, fontSize:17, color:"#1e1b4b" }}>📥 Nhập hàng</div>
+        <button onClick={()=>setShowForm(true)}
+          style={{ height:38, padding:"0 16px", background:"#4f46e5", color:"#fff", border:"none", borderRadius:12, fontWeight:700, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
+          <span className="material-icons" style={{fontSize:18}}>add</span>Tạo phiếu
+        </button>
+      </div>
+
+      <div style={{ padding:"10px 14px" }}>
+        {loading ? <div style={{textAlign:"center",padding:40,color:"#9ca3af"}}>⏳ Đang tải...</div>
+        : imports.length===0 ? (
+          <div style={{textAlign:"center",padding:"40px 20px",color:"#9ca3af"}}>
+            <span className="material-icons" style={{fontSize:48,display:"block",marginBottom:8}}>move_to_inbox</span>
+            Chưa có phiếu nhập nào
+          </div>
+        ) : imports.map(imp => {
+          const sc = STATUS_COLOR[imp.status]||STATUS_COLOR.draft;
+          return (
+            <div key={imp.id} style={{ background:"#f9fafb", borderRadius:14, padding:"12px 14px", marginBottom:10, border:"1.5px solid #e5e7eb" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                <div>
+                  <div style={{ fontWeight:800, fontSize:14 }}>{imp.import_code}</div>
+                  <div style={{ fontSize:12, color:"#6b7280", marginTop:2 }}>{imp.import_type==="device"?"📱 Máy móc":"🔩 Linh kiện"} · {imp.supplier_name}</div>
+                  <div style={{ fontSize:12, color:"#6b7280" }}>{imp.total_items} mặt hàng · {(imp.total_value||0).toLocaleString("vi-VN")}đ</div>
+                </div>
+                <div style={{ background:sc.bg, color:sc.color, borderRadius:20, padding:"3px 10px", fontSize:11, fontWeight:700 }}>{sc.label}</div>
+              </div>
+              <div style={{ fontSize:11, color:"#9ca3af", marginTop:6 }}>{new Date(imp.created_date).toLocaleString("vi-VN")}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Form tạo phiếu */}
+      {showForm && (
+        <div style={{ position:"fixed", inset:0, zIndex:500, background:"rgba(0,0,0,.6)", display:"flex", alignItems:"flex-end" }}>
+          <div style={{ background:"#fff", borderRadius:"24px 24px 0 0", width:"100%", maxHeight:"92vh", display:"flex", flexDirection:"column" }}>
+            <div style={{ background:"linear-gradient(135deg,#7c3aed,#6d28d9)", padding:"16px 18px", borderRadius:"24px 24px 0 0", flexShrink:0, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div style={{ color:"#fff", fontWeight:900, fontSize:16 }}>📥 Tạo phiếu nhập hàng</div>
+              <button onClick={()=>setShowForm(false)}
+                style={{ background:"rgba(255,255,255,.2)", border:"1.5px solid rgba(255,255,255,.35)", color:"#fff", width:36, height:36, borderRadius:"50%", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <span className="material-icons" style={{fontSize:20}}>close</span>
+              </button>
+            </div>
+
+            <div style={{ flex:1, overflowY:"auto", padding:"14px 16px 24px" }}>
+              <div style={{ marginBottom:14 }}>
+                <div style={{ fontSize:13, fontWeight:700, marginBottom:6 }}>Loại hàng nhập</div>
+                <div style={{ display:"flex", gap:8 }}>
+                  {[{v:"spare_part",l:"🔩 Linh kiện"},{v:"device",l:"📱 Máy móc"}].map(opt=>(
+                    <button key={opt.v} onClick={()=>setImportType(opt.v)}
+                      style={{ flex:1, padding:"10px 8px", borderRadius:12, border:`2px solid ${importType===opt.v?"#7c3aed":"#e5e7eb"}`, background:importType===opt.v?"#f5f3ff":"#fff", fontWeight:700, fontSize:13, cursor:"pointer", color:importType===opt.v?"#7c3aed":"#374151" }}>
+                      {opt.l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginBottom:12 }}>
+                <div style={{ fontSize:13, fontWeight:700, marginBottom:6 }}>Nhà cung cấp *</div>
+                <input value={supplier} onChange={e=>setSupplier(e.target.value)}
+                  placeholder="Tên nhà cung cấp..."
+                  style={{ width:"100%", height:42, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+              </div>
+              <div style={{ marginBottom:14 }}>
+                <div style={{ fontSize:13, fontWeight:700, marginBottom:6 }}>Số điện thoại</div>
+                <input value={supplierPhone} onChange={e=>setSupplierPhone(e.target.value)}
+                  placeholder="SĐT nhà cung cấp..."
+                  style={{ width:"100%", height:42, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+              </div>
+
+              <div style={{ fontWeight:800, fontSize:14, color:"#1e1b4b", marginBottom:10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <span>Danh sách mặt hàng</span>
+                <button onClick={addItem}
+                  style={{ height:32, padding:"0 12px", background:"#7c3aed", color:"#fff", border:"none", borderRadius:10, fontWeight:700, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
+                  <span className="material-icons" style={{fontSize:16}}>add</span>Thêm
+                </button>
+              </div>
+
+              {items.length===0 && (
+                <div style={{ textAlign:"center", padding:"20px", color:"#9ca3af", background:"#f9fafb", borderRadius:12, marginBottom:12 }}>
+                  Nhấn "+ Thêm" để thêm mặt hàng
+                </div>
+              )}
+
+              {items.map((it,idx) => (
+                <div key={it.id} style={{ background:"#f9fafb", borderRadius:14, padding:"12px 14px", marginBottom:10, border:"1.5px solid #e5e7eb" }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+                    <div style={{ fontWeight:800, fontSize:13, color:"#374151" }}>Mặt hàng #{idx+1}</div>
+                    <button onClick={()=>removeItem(it.id)}
+                      style={{ background:"#fff1f2", border:"none", color:"#dc2626", width:28, height:28, borderRadius:8, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                      <span className="material-icons" style={{fontSize:16}}>delete</span>
+                    </button>
+                  </div>
+                  <input value={it.name} onChange={e=>updateItem(it.id,"name",e.target.value)}
+                    placeholder="Tên hàng *"
+                    style={{ width:"100%", height:38, borderRadius:8, border:"1.5px solid #e5e7eb", padding:"0 10px", fontSize:13, outline:"none", marginBottom:8, boxSizing:"border-box" }}/>
+                  <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+                    <input value={it.sku} onChange={e=>updateItem(it.id,"sku",e.target.value)}
+                      placeholder="SKU / Mã SP"
+                      style={{ flex:1, height:38, borderRadius:8, border:"1.5px solid #e5e7eb", padding:"0 10px", fontSize:13, outline:"none", boxSizing:"border-box" }}/>
+                    {importType==="device" && (
+                      <input value={it.serial_imei} onChange={e=>updateItem(it.id,"serial_imei",e.target.value)}
+                        placeholder="IMEI / Serial"
+                        style={{ flex:1, height:38, borderRadius:8, border:"1.5px solid #e5e7eb", padding:"0 10px", fontSize:13, outline:"none", boxSizing:"border-box" }}/>
+                    )}
+                  </div>
+                  <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:11, color:"#6b7280", marginBottom:4 }}>Số lượng</div>
+                      <input type="number" min="1" value={it.qty} onChange={e=>updateItem(it.id,"qty",+e.target.value)}
+                        style={{ width:"100%", height:38, borderRadius:8, border:"1.5px solid #e5e7eb", padding:"0 10px", fontSize:13, outline:"none", boxSizing:"border-box" }}/>
+                    </div>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:11, color:"#6b7280", marginBottom:4 }}>Giá nhập (đ)</div>
+                      <input type="number" min="0" value={it.unit_price} onChange={e=>updateItem(it.id,"unit_price",+e.target.value)}
+                        style={{ width:"100%", height:38, borderRadius:8, border:"1.5px solid #e5e7eb", padding:"0 10px", fontSize:13, outline:"none", boxSizing:"border-box" }}/>
+                    </div>
+                  </div>
+                  <div style={{ marginBottom:8 }}>
+                    <div style={{ fontSize:11, color:"#6b7280", marginBottom:4 }}>Tình trạng</div>
+                    <div style={{ display:"flex", gap:6 }}>
+                      {[{v:"new",l:"Mới"},{v:"refurb",l:"Tân trang"},{v:"used",l:"Đã qua SD"}].map(c=>(
+                        <button key={c.v} onClick={()=>updateItem(it.id,"condition",c.v)}
+                          style={{ flex:1, padding:"6px 4px", borderRadius:8, border:`1.5px solid ${it.condition===c.v?"#7c3aed":"#e5e7eb"}`, background:it.condition===c.v?"#f5f3ff":"#fff", fontWeight:700, fontSize:11, cursor:"pointer", color:it.condition===c.v?"#7c3aed":"#6b7280" }}>
+                          {c.l}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {importType==="device" && (
+                    <div style={{ fontSize:12, color:"#6b7280", background:"#eff6ff", borderRadius:8, padding:"6px 10px", display:"flex", alignItems:"center", gap:6 }}>
+                      <span className="material-icons" style={{fontSize:14,color:"#2563eb"}}>videocam</span>
+                      Nhớ quay clip & chụp ảnh máy sau khi tạo phiếu
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              <textarea value={note} onChange={e=>setNote(e.target.value)}
+                placeholder="Ghi chú phiếu nhập (tuỳ chọn)..."
+                style={{ width:"100%", minHeight:60, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"8px 12px", fontSize:13, outline:"none", resize:"vertical", boxSizing:"border-box", marginTop:8 }}/>
+            </div>
+
+            <div style={{ padding:"12px 16px 24px", borderTop:"1.5px solid #e5e7eb", flexShrink:0 }}>
+              <button onClick={handleSave} disabled={saving}
+                style={{ width:"100%", height:50, borderRadius:14, border:"none", background:"linear-gradient(135deg,#7c3aed,#6d28d9)", color:"#fff", fontWeight:900, fontSize:16, cursor:saving?"not-allowed":"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                <span className="material-icons" style={{fontSize:22}}>save</span>
+                {saving?"Đang lưu...":"Lưu phiếu nhập"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && <div style={{position:"fixed",bottom:90,left:"50%",transform:"translateX(-50%)",background:"rgba(0,0,0,.85)",color:"#fff",padding:"10px 20px",borderRadius:16,fontSize:14,fontWeight:700,zIndex:9999}}>{toast}</div>}
+    </div>
+  );
+}
+
+// ─── Warehouse: Tồn kho ──────────────────────────────────
+function WarehouseStock({ user }) {
+  const [parts, setParts]   = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [search, setSearch] = React.useState("");
+  const [filter, setFilter] = React.useState("all");
+
+  React.useEffect(() => { load(); }, []);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const data = await SparePart.filter({ is_active:true });
+      setParts(data.sort((a,b)=>(a.name||"").localeCompare(b.name)));
+    } catch(e){ console.error(e); }
+    setLoading(false);
+  }
+
+  const filtered = parts.filter(p => {
+    const q = search.toLowerCase();
+    const matchSearch = !search || (p.name||"").toLowerCase().includes(q) || (p.sku||"").toLowerCase().includes(q);
+    const qty = p.stock_qty||0;
+    const matchFilter = filter==="all" || (filter==="low"&&qty>0&&qty<=3) || (filter==="out"&&qty===0) || (filter==="ok"&&qty>3);
+    return matchSearch && matchFilter;
+  });
+
+  function stockColor(qty) {
+    if (qty===0) return {color:"#dc2626",bg:"#fff1f2",label:"Hết hàng"};
+    if (qty<=3)  return {color:"#d97706",bg:"#fffbeb",label:"Tồn thấp"};
+    return {color:"#059669",bg:"#f0fdf4",label:"Còn hàng"};
+  }
+
+  return (
+    <div style={{ paddingBottom:100 }}>
+      <div style={{ padding:"14px 14px 8px", position:"sticky", top:56, background:"#fff", zIndex:10, borderBottom:"1.5px solid #e5e7eb" }}>
+        <div style={{ fontWeight:900, fontSize:17, color:"#1e1b4b", marginBottom:10 }}>🔍 Tồn kho linh kiện</div>
+        <input value={search} onChange={e=>setSearch(e.target.value)}
+          placeholder="Tìm theo tên hoặc SKU..."
+          style={{ width:"100%", height:40, borderRadius:12, border:"1.5px solid #e5e7eb", padding:"0 14px", fontSize:14, outline:"none", marginBottom:10, boxSizing:"border-box" }}/>
+        <div style={{ display:"flex", gap:6 }}>
+          {[{k:"all",l:"Tất cả"},{k:"ok",l:"🟢 Đủ"},{k:"low",l:"🟡 Thấp"},{k:"out",l:"🔴 Hết"}].map(f=>(
+            <button key={f.k} onClick={()=>setFilter(f.k)}
+              style={{ padding:"6px 12px", borderRadius:20, border:"none", background:filter===f.k?"#1e1b4b":"#f3f4f6", color:filter===f.k?"#fff":"#374151", fontWeight:700, fontSize:12, cursor:"pointer", flexShrink:0 }}>
+              {f.l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ padding:"10px 14px" }}>
+        {loading ? <div style={{textAlign:"center",padding:40,color:"#9ca3af"}}>⏳ Đang tải...</div>
+        : filtered.length===0 ? (
+          <div style={{textAlign:"center",padding:"40px 20px",color:"#9ca3af"}}>
+            <span className="material-icons" style={{fontSize:48,display:"block",marginBottom:8}}>inventory_2</span>
+            Không tìm thấy linh kiện
+          </div>
+        ) : filtered.map(p => {
+          const sc = stockColor(p.stock_qty||0);
+          return (
+            <div key={p.id} style={{ background:"#fff", borderRadius:14, padding:"12px 14px", marginBottom:8, border:"1.5px solid #e5e7eb", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontWeight:700, fontSize:14, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name}</div>
+                <div style={{ fontSize:12, color:"#6b7280", marginTop:2, display:"flex", gap:8 }}>
+                  {p.sku && <span>SKU: {p.sku}</span>}
+                  {p.category && <span>{p.category}</span>}
+                </div>
+                <div style={{ fontSize:12, fontWeight:700, color:"#4f46e5", marginTop:2 }}>{(p.price||0).toLocaleString("vi-VN")}đ/{p.unit||"cái"}</div>
+              </div>
+              <div style={{ textAlign:"right", flexShrink:0, marginLeft:10 }}>
+                <div style={{ background:sc.bg, color:sc.color, borderRadius:20, padding:"4px 12px", fontWeight:900, fontSize:16 }}>{p.stock_qty||0}</div>
+                <div style={{ fontSize:10, color:sc.color, fontWeight:700, marginTop:2 }}>{sc.label}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
