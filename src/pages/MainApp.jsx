@@ -497,16 +497,25 @@ function MainAppInner() {
       const action = evt.action || "update";
       const raw    = evt.record || evt;
       if (!raw?.id) return;
+      const pbId   = raw.id; // PocketBase internal id (luôn có)
       const mapped = mapPbOrder(raw, STATUS_DISPLAY, PRIORITY_DISPLAY);
       if (action === "create") {
         setOrders(prev => {
-          if (prev.find(o => o.id === mapped.id)) return prev;
+          // Tránh duplicate: check cả _id lẫn order_code
+          if (prev.find(o => o._id === pbId || o.id === mapped.id)) return prev;
           return [mapped, ...prev];
         });
       } else if (action === "update") {
-        setOrders(prev => prev.map(o => o.id === mapped.id ? { ...o, ...mapped } : o));
+        // So sánh bằng _id (PB internal) để chắc chắn đúng record
+        setOrders(prev => prev.map(o =>
+          (o._id === pbId || o.id === mapped.id) ? { ...o, ...mapped } : o
+        ));
       } else if (action === "delete") {
-        setOrders(prev => prev.filter(o => o.id !== mapped.id));
+        // Filter bằng _id (PB internal id) để chắc chắn xóa đúng 1 đơn
+        setOrders(prev => prev.filter(o =>
+          o._id !== pbId &&
+          o.id !== mapped.id
+        ));
       }
     });
     return () => unsub?.();
