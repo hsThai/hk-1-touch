@@ -1,3 +1,4 @@
+/* REBUILD_20260406_1408 */
 /**
  * PocketBase SDK Layer — KiosThong / HKApp2
  * Thay thế toàn bộ @/api/entities và @/api/storage
