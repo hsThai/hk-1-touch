@@ -101,6 +101,7 @@ function mapPbOrder(o, STATUS_DISPLAY, PRIORITY_DISPLAY) {
     needs_reassign:   o.needs_reassign || false,
     kpi_stage1_penalized: o.kpi_stage1_penalized || false,
     kpi_stage2_penalized: o.kpi_stage2_penalized || false,
+    kpi_manually_accepted: o.kpi_manually_accepted || false,
     // ── Dates ──
     received_date:     o.received_date || o.created_date || "",
     done_date:         o.done_date || null,
@@ -827,7 +828,7 @@ function MainAppInner() {
         "estimated_cost","final_cost","deposit","warranty_days",
         "received_date","estimated_done_date","done_date","images","videos",
         "accept_stage","stage1_at","stage2_at","estimated_done","assigned_at",
-        "checklist_done","kpi_stage1_penalized","kpi_stage2_penalized","needs_reassign",
+        "checklist_done","kpi_stage1_penalized","kpi_stage2_penalized","needs_reassign","kpi_manually_accepted",
       ];
       directFields.forEach(f => { if (patch[f] !== undefined) pbPatch[f] = patch[f]; });
       // Fields cần map enum
