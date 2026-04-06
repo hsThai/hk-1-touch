@@ -9,7 +9,7 @@ const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ defa
     </div>
   </div>
 )})));
-import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage, subscribeCollection, getPbUrl, getAuth } from "./pb.jsx";
+import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage, StockExportRequest, subscribeCollection, getPbUrl, getAuth } from "./pb.jsx";
 import { getNotifSound } from "./Settings";
 import { uploadFile } from "./pb.jsx";
 
@@ -70,6 +70,9 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
   const [mentionList, setMentionList] = useState([]);
   const [pendingMentions, setPendingMentions] = useState([]); // [{id, name}]
   const [tab, setTab] = useState("info");
+  const [exportReqs, setExportReqs] = useState([]);
+  const [exportLoading, setExportLoading] = useState(false);
+
 
   // Tự mở tab chat nếu được trigger từ notification click
   useEffect(() => {
@@ -110,6 +113,18 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
       .catch(() => { if (!cancelled) setChatLoading(false); });
     return () => { cancelled = true; };
   }, [order.id, tab]);
+
+  // Load phiếu xuất khi mở tab exports
+  useEffect(() => {
+    if (tab !== "exports") return;
+    let cancelled = false;
+    setExportLoading(true);
+    StockExportRequest.filter({ order_id: order._id || order.id })
+      .then(data => { if (!cancelled) { setExportReqs(data.sort((a,b) => new Date(b.created_date)-new Date(a.created_date))); setExportLoading(false); } })
+      .catch(() => { if (!cancelled) setExportLoading(false); });
+    return () => { cancelled = true; };
+  }, [order.id, order._id, tab]);
+
 
   // Realtime: SSE + polling fallback
   useEffect(() => {
@@ -422,6 +437,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
   const col = STATUS_COLS.find(s => s.key === order.status);
   const isKTV = currentUser.role === "technician";
   const isMyOrder = order.assigned_to === currentUser.id;
+  const isReception = currentUser.role === "receptionist";
 
   function showToast(msg, type="success") { setToast({msg,type}); setTimeout(() => setToast(null), 3000); }
 
@@ -538,7 +554,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
         </div>
         {/* Tabs */}
         <div style={{ display:"flex", borderBottom:"1px solid #e5e7eb" }}>
-          {[["info","Thông tin"],["parts","Linh kiện"],["chat","Chat"]].map(([t,lbl]) => (
+          {[["info","Thông tin"],...(!isReception?[["parts","Linh kiện"]]:[]),["exports","Phiếu xuất"],["chat","Chat"]].map(([t,lbl]) => (
             <button key={t} onClick={() => setTab(t)}
               style={{ flex:1, padding:"11px", border:"none", background:"none", fontWeight:700, fontSize:13, cursor:"pointer", borderBottom:tab===t?"3px solid #4f46e5":"3px solid transparent", color:tab===t?"#4f46e5":"#6b7280", position:"relative" }}>
               {lbl}
@@ -980,6 +996,98 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                   style={{ width:46, height:46, borderRadius:"50%", background:"#4f46e5", border:"none", color:"#fff", fontSize:20, cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center" }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",lineHeight:1}}>send</span></button>
               </div>
             </div>
+          </div>
+        )}
+
+
+        {tab === "exports" && (
+          <div style={{ flex:1, overflowY:"auto", padding:16 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+              <div style={{ fontWeight:800, fontSize:15, color:"#1e1b4b" }}>📦 Phiếu xuất linh kiện</div>
+              <button onClick={() => { setExportLoading(true); StockExportRequest.filter({ order_id: order._id || order.id }).then(d => { setExportReqs(d.sort((a,b) => new Date(b.created_date)-new Date(a.created_date))); setExportLoading(false); }).catch(() => setExportLoading(false)); }}
+                style={{ background:"#f3f4f6", border:"none", borderRadius:8, padding:"6px 12px", fontSize:12, cursor:"pointer", fontWeight:600, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
+                <span className="material-icons" style={{fontSize:14,fontFamily:"Material Icons"}}>refresh</span> Tải lại
+              </button>
+            </div>
+            {exportLoading ? (
+              <div style={{ textAlign:"center", padding:40, color:"#9ca3af" }}>⏳ Đang tải...</div>
+            ) : exportReqs.length === 0 ? (
+              <div style={{ textAlign:"center", padding:40 }}>
+                <span className="material-icons" style={{ fontSize:48, color:"#d1d5db", display:"block", marginBottom:8, fontFamily:"Material Icons" }}>inventory_2</span>
+                <div style={{ color:"#9ca3af", fontSize:14 }}>Chưa có phiếu xuất nào</div>
+              </div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                {exportReqs.map(req => {
+                  const STATUS_MAP = {
+                    pending:             { label:"Chờ kho xuất",    bg:"#fef9c3", color:"#92400e", icon:"hourglass_empty" },
+                    warehouse_confirmed: { label:"Kho đã xuất",     bg:"#dcfce7", color:"#065f46", icon:"check_circle" },
+                    ktv_confirmed:       { label:"KTV đã nhận",     bg:"#dbeafe", color:"#1d4ed8", icon:"handshake" },
+                    returned:            { label:"Đã hoàn trả",     bg:"#f3f4f6", color:"#6b7280", icon:"undo" },
+                    cancelled:           { label:"Đã hủy",          bg:"#fee2e2", color:"#991b1b", icon:"cancel" },
+                  };
+                  const st = STATUS_MAP[req.status] || { label: req.status, bg:"#f3f4f6", color:"#374151", icon:"info" };
+                  const isBorrow = req.export_type === "borrow";
+                  let items = [];
+                  try { items = typeof req.items === "string" ? JSON.parse(req.items) : (req.items || []); } catch {}
+                  const dueDate = req.due_datetime ? new Date(req.due_datetime) : null;
+                  const returnDate = req.return_due_date ? new Date(req.return_due_date) : null;
+                  const now = new Date();
+                  const isOverdue = isBorrow && returnDate && returnDate < now && req.status !== "returned" && req.status !== "cancelled";
+                  return (
+                    <div key={req.id} style={{ background:"#fff", borderRadius:14, border:`1.5px solid ${isOverdue?"#fca5a5":"#e5e7eb"}`, boxShadow:"0 1px 4px rgba(0,0,0,.06)", overflow:"hidden" }}>
+                      {/* Header phiếu */}
+                      <div style={{ padding:"12px 14px 8px", borderBottom:"1px solid #f3f4f6" }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                          <div>
+                            <div style={{ fontWeight:800, fontSize:13, color:"#1e1b4b" }}>{req.request_code}</div>
+                            <div style={{ fontSize:11, color:"#9ca3af", marginTop:2 }}>{new Date(req.created_date).toLocaleString("vi-VN",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</div>
+                          </div>
+                          <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
+                            <span style={{ background:st.bg, color:st.color, fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:10 }}>{st.label}</span>
+                            <span style={{ background:isBorrow?"#f0fdf4":"#eff6ff", color:isBorrow?"#166534":"#1d4ed8", fontSize:11, fontWeight:600, padding:"2px 8px", borderRadius:8 }}>
+                              {isBorrow?"🔄 Mượn tạm":"🔧 Xuất sửa"}
+                            </span>
+                          </div>
+                        </div>
+                        {isOverdue && (
+                          <div style={{ background:"#fee2e2", color:"#991b1b", fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:8, marginTop:8, display:"flex", alignItems:"center", gap:4 }}>
+                            <span className="material-icons" style={{fontSize:13,fontFamily:"Material Icons"}}>warning</span>
+                            QUÁ HẠN TRẢ — {returnDate.toLocaleDateString("vi-VN")}
+                          </div>
+                        )}
+                      </div>
+                      {/* Danh sách linh kiện */}
+                      <div style={{ padding:"8px 14px" }}>
+                        {items.length > 0 ? (
+                          <div>
+                            <div style={{ fontSize:11, fontWeight:700, color:"#6b7280", marginBottom:6, textTransform:"uppercase", letterSpacing:.5 }}>Linh kiện</div>
+                            {items.map((item, i) => (
+                              <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"5px 0", borderBottom: i < items.length-1 ? "1px dashed #f3f4f6" : "none" }}>
+                                <div style={{ fontSize:12, color:"#374151", fontWeight:600 }}>{item.name || item.part_name}</div>
+                                <div style={{ fontSize:12, color:"#6b7280" }}>×{item.qty || item.qty_requested || 1} · {((item.unit_price||0)*(item.qty||item.qty_requested||1)).toLocaleString()}đ</div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                        {/* Thông tin người xuất & KTV */}
+                        <div style={{ marginTop:8, display:"flex", flexWrap:"wrap", gap:"4px 14px" }}>
+                          <div style={{ fontSize:11, color:"#9ca3af" }}>📤 Yêu cầu: <b style={{color:"#374151"}}>{req.requested_by_name||"?"}</b></div>
+                          {req.warehouse_confirmed_by_name && <div style={{ fontSize:11, color:"#9ca3af" }}>🏭 Kho: <b style={{color:"#374151"}}>{req.warehouse_confirmed_by_name}</b></div>}
+                          {req.ktv_confirmed_by_name && <div style={{ fontSize:11, color:"#9ca3af" }}>🔧 KTV: <b style={{color:"#374151"}}>{req.ktv_confirmed_by_name}</b></div>}
+                          {dueDate && <div style={{ fontSize:11, color:"#9ca3af" }}>🕐 Hạn xuất: <b style={{color:"#374151"}}>{dueDate.toLocaleString("vi-VN",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</b></div>}
+                          {returnDate && <div style={{ fontSize:11, color: isOverdue?"#dc2626":"#9ca3af" }}>↩️ Hạn trả: <b style={{color:isOverdue?"#dc2626":"#374151"}}>{returnDate.toLocaleDateString("vi-VN")}</b></div>}
+                          {req.total_value > 0 && <div style={{ fontSize:11, color:"#9ca3af" }}>💰 Tổng: <b style={{color:"#059669"}}>{(req.total_value||0).toLocaleString()}đ</b></div>}
+                        </div>
+                        {/* Ghi chú kho / KTV */}
+                        {req.warehouse_note && <div style={{ marginTop:6, background:"#f9fafb", borderRadius:8, padding:"6px 10px", fontSize:11, color:"#6b7280" }}>🏭 Kho: {req.warehouse_note}</div>}
+                        {req.ktv_note && <div style={{ marginTop:4, background:"#f9fafb", borderRadius:8, padding:"6px 10px", fontSize:11, color:"#6b7280" }}>🔧 KTV: {req.ktv_note}</div>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 

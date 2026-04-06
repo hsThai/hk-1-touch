@@ -512,6 +512,77 @@ function MainAppInner() {
     return () => unsub?.();
   }, [user?.id]);
 
+
+  // ── In-app Export Deadline Reminder (thay thế Base44 automation) ─────────────
+  // Chạy mỗi 5 phút, chỉ khi user là warehouse hoặc manager
+  useEffect(() => {
+    if (!user?.id) return;
+    const isWHorMgr = ["warehouse","manager","admin"].includes(user.role);
+    if (!isWHorMgr) return;
+
+    async function checkExportDeadlines() {
+      try {
+        // Lấy tất cả phiếu pending chưa nhắc
+        const pending = await StockExportRequest.filter({ status: "pending" });
+        const now = Date.now();
+        for (const req of pending) {
+          if (!req.due_datetime || req.reminded_15min) continue;
+          const dueMs = new Date(req.due_datetime).getTime();
+          const remMs = dueMs - now;
+          if (remMs > 0 && remMs <= 15 * 60 * 1000) {
+            // Còn 15 phút → nhắc tất cả NV kho
+            const remMins = Math.floor(remMs / 60000);
+            // Lấy staff kho để gửi thông báo
+            const staffList = await Staff.filter({ role: "warehouse", is_active: true }).catch(() => []);
+            for (const ws of staffList) {
+              await Notification.create({
+                user_id: ws.id, user_name: ws.full_name,
+                title: `⏰ Sắp hết hạn xuất — ${req.request_code}`,
+                message: `Phiếu ${req.request_code} (${req.order_code}) còn ${remMins} phút! Vào Phiếu xuất kho để xử lý ngay.`,
+                order_id: req.order_id, order_code: req.order_code,
+                type: "export_deadline", is_read: false,
+              }).catch(() => {});
+            }
+            // Đánh dấu đã nhắc
+            await StockExportRequest.update(req.id, { reminded_15min: true }).catch(() => {});
+          }
+        }
+
+        // Kiểm tra phiếu mượn quá hạn trả — chỉ nhắc 1 lần/ngày (dùng localStorage làm flag)
+        const borrowing = await StockExportRequest.filter({ export_type: "borrow", status: "ktv_confirmed" }).catch(() => []);
+        const today = new Date().toLocaleDateString("vi-VN");
+        for (const req of borrowing) {
+          if (!req.return_due_date) continue;
+          const retMs = new Date(req.return_due_date).getTime();
+          if (retMs < now) {
+            // Kiểm tra đã nhắc hôm nay chưa
+            const flagKey = `overdue_notif_${req.id}_${today}`;
+            if (localStorage.getItem(flagKey)) continue;
+            // Quá hạn — nhắc NV kho
+            const staffList = await Staff.filter({ role: "warehouse", is_active: true }).catch(() => []);
+            for (const ws of staffList) {
+              await Notification.create({
+                user_id: ws.id, user_name: ws.full_name,
+                title: `🚨 Quá hạn trả linh kiện — ${req.request_code}`,
+                message: `Phiếu ${req.request_code} đã quá hạn trả (${new Date(req.return_due_date).toLocaleDateString("vi-VN")}). Liên hệ KTV ${req.requested_by_name||"?"} để thu hồi.`,
+                order_id: req.order_id, order_code: req.order_code,
+                type: "export_overdue", is_read: false,
+              }).catch(() => {});
+            }
+            // Đánh dấu đã nhắc hôm nay
+            localStorage.setItem(flagKey, "1");
+          }
+        }
+      } catch (e) {}
+    }
+
+    // Chạy ngay lần đầu sau 30 giây
+    const firstRun = setTimeout(checkExportDeadlines, 30000);
+    // Sau đó mỗi 5 phút
+    const iv = setInterval(checkExportDeadlines, 5 * 60 * 1000);
+    return () => { clearTimeout(firstRun); clearInterval(iv); };
+  }, [user?.id, user?.role]);
+
   // ── Auto KPI deduction per timeline diagram ──────────────
   useEffect(() => {
     const iv = setInterval(() => {
