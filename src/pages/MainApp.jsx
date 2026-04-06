@@ -687,45 +687,8 @@ function MainAppInner() {
             }
           }
 
-          // ── STAGE 1: KTV đã nhận, chưa bắt đầu sửa → 60 phút ─────────────
-          if (stage === 1 && stage1At) {
-            const deadline   = stage1At + 60 * 60000;
-            const remMs      = deadline - now;
-            const remMins    = Math.floor(remMs / 60000);
-
-            // Nhắc khi còn < 20 phút
-            if (remMs > 0 && remMs <= 20 * 60000) {
-              const urgentLevel = remMs < 5*60000 ? "🚨" : remMs < 10*60000 ? "⚠️" : "⏰";
-              notifPayload.push({
-                userId: o.assigned_to,
-                title: `${urgentLevel} Bắt đầu sửa đơn ${o.order_code || o.id}`,
-                message: `Còn ${remMins} phút để bắt đầu sửa! Vào đơn → Bắt Đầu Sửa.`,
-                orderId: o.id, orderCode: o.order_code || o.id, type: "kpi_reminder", role: null,
-              });
-            }
-
-            // Hết 60' → -3 KPI, ngừng giao việc, báo quản lý
-            if (remMs <= 0 && !o.kpi_stage2_penalized) {
-              patch.kpi_stage2_penalized = true;
-              patch.needs_reassign       = true;
-              kpiChanges.push({ userId: o.assigned_to, delta: -3 });
-              // Thông báo cho KTV
-              notifPayload.push({
-                userId: o.assigned_to,
-                title: `🔴 Trừ -3 KPI & Ngừng giao việc`,
-                message: `Đơn ${o.order_code||o.id}: Quá 60 phút chưa bắt đầu sửa. Ngừng nhận việc tạm thời.`,
-                orderId: o.id, orderCode: o.order_code||o.id, type: "kpi_penalty", role: null,
-              });
-              // Thông báo cho tất cả Manager
-              notifPayload.push({
-                userId: null,
-                title: `📋 Cần Giao Việc Lại — ${o.order_code||o.id}`,
-                message: `KTV ${o.assigned_to_name||"?"} quá 60 phút không sửa. Vui lòng giao KTV khác.`,
-                orderId: o.id, orderCode: o.order_code||o.id, type: "needs_reassign", role: "manager",
-              });
-              changed = true;
-            }
-          }
+          // ── STAGE 1: KTV đã nhận → KHÔNG tính KPI, chờ bấm Bắt Đầu Sửa ─
+          // (Không nhắc, không phạt — KTV tự quyết định khi nào bắt đầu)
 
           if (Object.keys(patch).length > 0) {
             changed = true;

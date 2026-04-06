@@ -53,18 +53,18 @@ function getKpiTimerInfo(order) {
     };
   }
 
-  // Stage 1: đã nhận → bắt đầu sửa trong 60 phút
-  if (stage === 1 && order.stage1_at) {
-    const acceptedAt = new Date(order.stage1_at).getTime();
+  // Stage 1: đã nhận → chờ bắt đầu sửa (không tính KPI timer)
+  if (stage === 1) {
     return {
       phase: 1,
-      label: "Bắt đầu sửa trong 60 phút",
-      deadline: acceptedAt + 60 * 60000,
-      totalMs: 60 * 60000,
-      penalized: !!order.kpi_stage2_penalized,
+      label: null,        // không hiện timer
+      deadline: null,
+      totalMs: null,
+      penalized: false,
       actionLabel: "Bắt Đầu Sửa",
-      kpiPenalty: -3,
-      penaltyNote: "-3 KPI + Ngừng giao việc",
+      kpiPenalty: 0,
+      penaltyNote: "",
+      noTimer: true,      // flag tắt đếm ngược
     };
   }
   return null;
@@ -558,6 +558,36 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
   const info = getKpiTimerInfo(order);
   if (!info) return null;
 
+  // Stage 1: đã nhận rồi → chỉ hiện nút "Bắt Đầu Sửa", không đếm ngược KPI
+  if (info.noTimer) {
+    return (
+      <div style={{ background:"#f5f3ff", border:"2px solid #ddd6fe", borderRadius:14, padding:"14px 16px", marginBottom:14 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
+          <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,color:"#7c3aed"}}>verified_user</span>
+          <div>
+            <div style={{ fontWeight:800, fontSize:14, color:"#5b21b6" }}>Đã nhận đơn</div>
+            <div style={{ fontSize:12, color:"#7c3aed" }}>Bắt đầu sửa khi sẵn sàng — không tính KPI</div>
+          </div>
+        </div>
+        {isMyOrder && !order.needs_reassign && (
+          <button onClick={handleActionStage1} disabled={acting}
+            style={{ width:"100%", height:52, borderRadius:12, border:"none",
+              background: acting ? "#d1d5db" : "#7c3aed",
+              color:"#fff", fontWeight:800, fontSize:16, cursor: acting?"not-allowed":"pointer",
+              display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+            <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20}}>build_circle</span>
+            {acting ? "Đang xử lý..." : "Bắt Đầu Sửa"}
+          </button>
+        )}
+        {isManager && (
+          <div style={{ marginTop:8, fontSize:12, color:"#6b7280", textAlign:"center" }}>
+            KTV đã nhận đơn — chờ bắt đầu sửa chữa
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const rem      = Math.max(0, info.deadline - now);
   const percent  = Math.min(100, Math.round((1 - rem / info.totalMs) * 100));
   const mins     = Math.floor(rem / 60000);
@@ -575,6 +605,18 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
     : urgent
     ? { bg:"#fffbeb", border:"#fde68a", timerC:"#d97706", btnBg: colors[info.phase].btnBg }
     : colors[info.phase];
+
+  async function handleActionStage1() {
+    if (acting) return;
+    setActing(true);
+    const ts = new Date().toISOString();
+    onUpdate(order.id, {
+      accept_stage: 2,
+      stage2_at: ts,
+      status: "Đang Sửa",
+    }, null);
+    setTimeout(() => setActing(false), 2000);
+  }
 
   async function handleAction() {
     if (acting) return;
