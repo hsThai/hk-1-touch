@@ -204,6 +204,21 @@ function MainAppInner() {
   // ── Âm thanh thông báo ─────────────────────────
   const notifAudioRef = useRef(null);
 
+  // ── Inject CSS animation vào document.head ──────────────
+  useEffect(() => {
+    const styleId = "hk-pulse-red";
+    if (!document.getElementById(styleId)) {
+      const el = document.createElement("style");
+      el.id = styleId;
+      el.textContent = `@keyframes pulseRed {
+        0%   { box-shadow: 0 0 0 0 rgba(239,68,68,0.7), 0 2px 8px rgba(0,0,0,.08); }
+        50%  { box-shadow: 0 0 0 8px rgba(239,68,68,0), 0 2px 8px rgba(0,0,0,.08); }
+        100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.7), 0 2px 8px rgba(0,0,0,.08); }
+      }`;
+      document.head.appendChild(el);
+    }
+  }, []);
+
   // Tạo AudioContext lưu toàn cục, unlock sau gesture
   useEffect(() => {
     const unlock = () => {
@@ -1178,18 +1193,7 @@ function MainAppInner() {
 
   return (
     <>
-    <style>{`
-      @keyframes pulseRed {
-        0%   { box-shadow: 0 0 0 0 rgba(239,68,68,0.6), 0 2px 8px rgba(0,0,0,.08); }
-        50%  { box-shadow: 0 0 0 7px rgba(239,68,68,0), 0 2px 8px rgba(0,0,0,.08); }
-        100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.6), 0 2px 8px rgba(0,0,0,.08); }
-      }
-      .order-pending-pulse {
-        animation: pulseRed 1.6s ease-in-out infinite;
-        border: 2px solid #ef4444 !important;
-        background: #fff5f5 !important;
-      }
-    `}</style>
+
     <div style={{ minHeight:"100vh", background:"#f8fafc", fontFamily:"system-ui,-apple-system,sans-serif" }}>
       {/* Header */}
       <div style={{ position:"sticky", top:0, zIndex:100, background:"#1e1b4b", padding:"12px 16px", display:"flex", alignItems:"center", gap:12 }}>
@@ -1345,7 +1349,14 @@ function MainAppInner() {
                 const col2 = STATUS_COLS.find(s => s.key === o.status);
                 return (
                   <div key={o.id} onClick={() => setSelectedOrder(o)}
-                    style={{ background:"#fff", borderRadius:14, padding:"12px 14px", marginBottom:8, cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,.07)", border:"1.5px solid #f3f4f6", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                    style={{
+                      background: o.status==="Chưa Nhận" ? "#fff5f5" : "#fff",
+                      borderRadius:14, padding:"12px 14px", marginBottom:8, cursor:"pointer",
+                      boxShadow:"0 1px 4px rgba(0,0,0,.07)",
+                      border: o.status==="Chưa Nhận" ? "2px solid #ef4444" : "1.5px solid #f3f4f6",
+                      animation: o.status==="Chưa Nhận" ? "pulseRed 1.6s ease-in-out infinite" : "none",
+                      display:"flex", justifyContent:"space-between", alignItems:"center"
+                    }}>
                     <div>
                       <div style={{ fontWeight:800, color:"#1e1b4b", fontSize:14 }}>{o.order_code || o.id}</div>
                       <div style={{ fontSize:12, color:"#374151", marginTop:2 }}>{o.customer_name} · {o.device_model}</div>
@@ -2202,7 +2213,6 @@ function WarehouseImport({ user }) {
 
       {toast && <div style={{position:"fixed",bottom:90,left:"50%",transform:"translateX(-50%)",background:"rgba(0,0,0,.85)",color:"#fff",padding:"10px 20px",borderRadius:16,fontSize:14,fontWeight:700,zIndex:9999,whiteSpace:"nowrap"}}>{toast}</div>}
     </div>
-    </>
   );
 }
 
