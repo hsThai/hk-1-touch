@@ -185,14 +185,15 @@ function makeCollection(collectionName) {
 }
 
 // ── Collections ───────────────────────────────────────────
-export const Staff         = makeCollection("staff");
-export const RepairOrder   = makeCollection("repair_orders");
-export const RepairChat    = makeCollection("repair_chats");
-export const Notification  = makeCollection("notifications");
-export const Customer      = makeCollection("customers");
-export const SparePart     = makeCollection("spare_parts");
-export const SparePartUsage= makeCollection("spare_part_usages");
-export const AppSettings   = makeCollection("app_settings");
+export const Staff              = makeCollection("staff");
+export const RepairOrder        = makeCollection("repair_orders");
+export const RepairChat         = makeCollection("repair_chats");
+export const Notification       = makeCollection("notifications");
+export const Customer           = makeCollection("customers");
+export const SparePart          = makeCollection("spare_parts");
+export const SparePartUsage     = makeCollection("spare_part_usages");
+export const AppSettings        = makeCollection("app_settings");
+export const StockExportRequest = makeCollection("stock_export_requests");
 
 // ── File Upload ───────────────────────────────────────────
 export async function uploadFile(file, orderId = "") {

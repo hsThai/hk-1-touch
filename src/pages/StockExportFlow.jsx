@@ -1,5 +1,7 @@
 /* Stock Export Request Flow - KTV tạo đề nghị xuất */
 import React, { useState } from "react";
+
+export default function StockExportFlow() { return null; }
 import { StockExportRequest, SparePartUsage, RepairChat } from "./pb.jsx";
 
 export async function createExportRequest({
