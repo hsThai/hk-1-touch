@@ -860,12 +860,16 @@ function MainAppInner() {
     if (p) { setHighlightId(p.id); setTimeout(() => setHighlightId(null), 3000); }
   }
 
+  const [warehouseStockModal, setWarehouseStockModal] = React.useState(null);
+
   function handleGlobalQRScan(result) {
     setShowQRScan(false);
     if (result.type === "product_history") {
       setProductHistory(result);
+    } else if (result.type === "warehouse_stock") {
+      // Máy đang trong kho, chưa bán
+      setWarehouseStockModal(result.data);
     } else if (result.type === "assign_qr") {
-      // QR chưa có → gán cho đơn vừa quét (mở form tạo đơn với product_qr điền sẵn)
       setNewOrderProductQR(result.qr);
       setShowNewOrder(true);
     } else if (result.type === "order") {
@@ -1217,6 +1221,35 @@ function MainAppInner() {
 
       {/* Modals */}
       {showNewOrder && <NewOrderModal onClose={() => { setShowNewOrder(false); setNewOrderProductQR(""); }} onCreate={createOrder} users={users} orders={orders} initialProductQR={newOrderProductQR} />}
+
+      {/* Modal: Hàng trong kho - Chưa bán */}
+      {warehouseStockModal && (
+        <div style={{ position:"fixed", inset:0, zIndex:600, background:"rgba(0,0,0,.6)", display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div style={{ background:"#fff", borderRadius:20, width:"100%", maxWidth:380, overflow:"hidden", boxShadow:"0 20px 60px rgba(0,0,0,.3)" }}>
+            <div style={{ background:"linear-gradient(135deg,#0369a1,#0284c7)", padding:"20px 20px 16px", textAlign:"center" }}>
+              <span className="material-icons" style={{fontSize:48,color:"#fff",display:"block",marginBottom:8}}>inventory_2</span>
+              <div style={{ color:"#fff", fontWeight:900, fontSize:18 }}>Hàng trong kho</div>
+              <div style={{ color:"#bae6fd", fontSize:13, marginTop:4 }}>Thiết bị này chưa được bán</div>
+            </div>
+            <div style={{ padding:"16px 20px 20px" }}>
+              <div style={{ background:"#e0f2fe", borderRadius:12, padding:"12px 14px", marginBottom:14 }}>
+                <div style={{ fontWeight:800, fontSize:16, color:"#0369a1", marginBottom:4 }}>{warehouseStockModal.name}</div>
+                {warehouseStockModal.sku && <div style={{ fontSize:13, color:"#0369a1" }}>IMEI/Serial: {warehouseStockModal.sku}</div>}
+                <div style={{ fontSize:13, color:"#0369a1", marginTop:4 }}>Tồn kho: {warehouseStockModal.stock_qty||0} cái</div>
+                {warehouseStockModal.price>0 && <div style={{ fontSize:13, color:"#0369a1" }}>Giá: {(warehouseStockModal.price||0).toLocaleString("vi-VN")}đ</div>}
+              </div>
+              <div style={{ background:"#fef9c3", borderRadius:10, padding:"10px 14px", marginBottom:16, fontSize:13, color:"#854d0e" }}>
+                <span className="material-icons" style={{fontSize:16,verticalAlign:"middle",marginRight:4}}>info</span>
+                Thiết bị này đang được lưu trong kho. Vui lòng liên hệ nhân viên kho nếu cần xuất máy.
+              </div>
+              <button onClick={()=>setWarehouseStockModal(null)}
+                style={{ width:"100%", height:46, borderRadius:12, border:"none", background:"#0369a1", color:"#fff", fontWeight:800, fontSize:15, cursor:"pointer" }}>
+                Đã hiểu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {selectedOrder && (
         <OrderDrawer
           order={selectedOrder}
@@ -1546,20 +1579,27 @@ function WarehouseExport({ user }) {
 
 // ─── Warehouse: Nhập hàng ────────────────────────────────
 function WarehouseImport({ user }) {
-  const [imports, setImports]   = React.useState([]);
-  const [loading, setLoading]   = React.useState(true);
-  const [showForm, setShowForm] = React.useState(false);
-  const [toast, setToast]       = React.useState("");
+  const [imports, setImports]         = React.useState([]);
+  const [loading, setLoading]         = React.useState(true);
+  const [showForm, setShowForm]       = React.useState(false);
+  const [toast, setToast]             = React.useState("");
+  const [scanningFor, setScanningFor] = React.useState(null); // item id đang quét QR
+  const scanVideoRef = React.useRef(null);
+  const scanStreamRef = React.useRef(null);
+  const scanIntervalRef = React.useRef(null);
 
   // Form state
-  const [importType, setImportType] = React.useState("spare_part");
-  const [supplier, setSupplier]     = React.useState("");
+  const [importType, setImportType]       = React.useState("spare_part");
+  const [supplier, setSupplier]           = React.useState("");
   const [supplierPhone, setSupplierPhone] = React.useState("");
-  const [note, setNote]             = React.useState("");
-  const [items, setItems]           = React.useState([]);
-  const [saving, setSaving]         = React.useState(false);
+  const [note, setNote]                   = React.useState("");
+  const [items, setItems]                 = React.useState([]);
+  const [saving, setSaving]               = React.useState(false);
 
   React.useEffect(() => { loadImports(); }, []);
+
+  // Dọn stream khi unmount
+  React.useEffect(() => () => stopScan(), []);
 
   async function loadImports() {
     setLoading(true);
@@ -1573,21 +1613,96 @@ function WarehouseImport({ user }) {
   function showToast(msg){ setToast(msg); setTimeout(()=>setToast(""),3500); }
 
   function addItem() {
-    setItems(prev=>[...prev, { id:Date.now(), name:"", sku:"", serial_imei:"", qty:1, unit_price:0, condition:"new", photos:[], videos:[] }]);
+    setItems(prev=>[...prev, {
+      id:Date.now(), name:"", sku:"", serial_imei:"",
+      qty:1, unit_price:0, condition:"new",
+      photos:[], videos:[], note:"",
+    }]);
   }
 
   function updateItem(id, field, val) {
-    setItems(prev=>prev.map(it=>it.id===id?{...it,[field]:val,total_price:field==="qty"||field==="unit_price"?((field==="qty"?val:it.qty)*(field==="unit_price"?val:it.unit_price)):it.total_price}:it));
+    setItems(prev=>prev.map(it=>{
+      if (it.id!==id) return it;
+      const updated = {...it, [field]:val};
+      if (field==="qty"||field==="unit_price")
+        updated.total_price = updated.qty * updated.unit_price;
+      return updated;
+    }));
   }
 
   function removeItem(id) { setItems(prev=>prev.filter(it=>it.id!==id)); }
 
+  // ── QR Scanner ────────────────────────────────
+  async function startScan(itemId) {
+    setScanningFor(itemId);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:"environment" } });
+      scanStreamRef.current = stream;
+      setTimeout(() => {
+        if (scanVideoRef.current) {
+          scanVideoRef.current.srcObject = stream;
+          scanVideoRef.current.play();
+        }
+      }, 100);
+      // Poll mỗi 500ms dùng BarcodeDetector nếu có
+      if ("BarcodeDetector" in window) {
+        const bd = new BarcodeDetector({ formats:["qr_code","code_128","ean_13","ean_8","code_39","itf","pdf417","aztec","data_matrix"] });
+        scanIntervalRef.current = setInterval(async () => {
+          if (!scanVideoRef.current || scanVideoRef.current.readyState < 2) return;
+          try {
+            const codes = await bd.detect(scanVideoRef.current);
+            if (codes.length > 0) {
+              const val = codes[0].rawValue;
+              stopScan();
+              updateItem(itemId, "serial_imei", val);
+              showToast("✅ Quét được: " + val);
+            }
+          } catch {}
+        }, 500);
+      }
+    } catch(e) {
+      showToast("Không mở được camera: " + e.message);
+      setScanningFor(null);
+    }
+  }
+
+  function stopScan() {
+    if (scanIntervalRef.current) { clearInterval(scanIntervalRef.current); scanIntervalRef.current=null; }
+    if (scanStreamRef.current) { scanStreamRef.current.getTracks().forEach(t=>t.stop()); scanStreamRef.current=null; }
+    setScanningFor(null);
+  }
+
+  // ── Media upload cho từng item ────────────────
+  function handleItemMedia(itemId, files) {
+    for (const file of Array.from(files)) {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const field = file.type.startsWith("video") ? "videos" : "photos";
+        setItems(prev=>prev.map(it=>
+          it.id===itemId ? {...it, [field]:[...it[field], { name:file.name, url:ev.target.result, type:file.type }]} : it
+        ));
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  function removeMedia(itemId, field, idx) {
+    setItems(prev=>prev.map(it=>
+      it.id===itemId ? {...it, [field]:it[field].filter((_,i)=>i!==idx)} : it
+    ));
+  }
+
+  // ── Save ──────────────────────────────────────
   async function handleSave() {
     if (!supplier.trim()){ showToast("Nhập tên nhà cung cấp!"); return; }
     if (items.length===0){ showToast("Thêm ít nhất 1 mặt hàng!"); return; }
+    if (items.some(it=>!it.name.trim())){ showToast("Mặt hàng chưa nhập tên!"); return; }
     setSaving(true);
     try {
-      const code = "PN"+new Date().getFullYear().toString().slice(2)+String(new Date().getMonth()+1).padStart(2,"0")+String(new Date().getDate()).padStart(2,"0")+"-"+Math.floor(Math.random()*9000+1000);
+      const code = "PN"+new Date().getFullYear().toString().slice(2)
+        +String(new Date().getMonth()+1).padStart(2,"0")
+        +String(new Date().getDate()).padStart(2,"0")
+        +"-"+Math.floor(Math.random()*9000+1000);
       const totalValue = items.reduce((s,i)=>s+(i.qty*(i.unit_price||0)),0);
       const imp = await StockImport.create({
         import_code:code, import_type:importType,
@@ -1598,22 +1713,47 @@ function WarehouseImport({ user }) {
       for (const it of items) {
         await StockImportItem.create({
           import_id:imp.id, import_code:code, item_type:importType,
-          name:it.name, sku:it.sku, serial_imei:it.serial_imei,
+          name:it.name, sku:it.sku||"", serial_imei:it.serial_imei||"",
           qty:it.qty, unit_price:it.unit_price||0, total_price:it.qty*(it.unit_price||0),
-          condition:it.condition, photos:JSON.stringify(it.photos||[]), videos:JSON.stringify(it.videos||[]), note:it.note||"",
+          condition:it.condition,
+          photos:JSON.stringify((it.photos||[]).map(p=>p.url)),
+          videos:JSON.stringify((it.videos||[]).map(v=>v.url)),
+          note:it.note||"",
         });
+        // Nếu máy móc có serial_imei → ghi vào SparePart để khi quét QR biết "Chưa bán"
+        if (importType==="device" && it.serial_imei) {
+          try {
+            const existing = await SparePart.filter({ sku: it.serial_imei });
+            if (!existing || existing.length===0) {
+              await SparePart.create({
+                name: it.name, sku: it.serial_imei,
+                category:"device_stock", unit:"cái",
+                price: it.unit_price||0, stock_qty:it.qty,
+                is_active:true,
+                note:"📦 Hàng trong kho - Chưa bán | Nhập: "+code,
+              });
+            }
+          } catch {}
+        }
       }
       showToast("✅ Đã tạo phiếu nhập "+code);
-      setShowForm(false); setItems([]); setSupplier(""); setSupplierPhone(""); setNote("");
+      setShowForm(false); setItems([]);
+      setSupplier(""); setSupplierPhone(""); setNote("");
+      setImportType("spare_part");
       loadImports();
     } catch(e){ showToast("Lỗi: "+e.message); }
     setSaving(false);
   }
 
-  const STATUS_COLOR = { draft:{bg:"#fef3c7",color:"#92400e",label:"📝 Nháp"}, confirmed:{bg:"#dbeafe",color:"#1d4ed8",label:"✅ Xác nhận"}, synced_kv:{bg:"#dcfce7",color:"#15803d",label:"🔗 KiotViet"} };
+  const STATUS_COLOR = {
+    draft:     {bg:"#fef3c7",color:"#92400e",label:"📝 Nháp"},
+    confirmed: {bg:"#dbeafe",color:"#1d4ed8",label:"✅ Xác nhận"},
+    synced_kv: {bg:"#dcfce7",color:"#15803d",label:"🔗 KiotViet"},
+  };
 
   return (
     <div style={{ paddingBottom:100 }}>
+      {/* Header */}
       <div style={{ padding:"14px 14px 10px", borderBottom:"1.5px solid #e5e7eb", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
         <div style={{ fontWeight:900, fontSize:17, color:"#1e1b4b" }}>📥 Nhập hàng</div>
         <button onClick={()=>setShowForm(true)}
@@ -1622,6 +1762,7 @@ function WarehouseImport({ user }) {
         </button>
       </div>
 
+      {/* List */}
       <div style={{ padding:"10px 14px" }}>
         {loading ? <div style={{textAlign:"center",padding:40,color:"#9ca3af"}}>⏳ Đang tải...</div>
         : imports.length===0 ? (
@@ -1636,8 +1777,12 @@ function WarehouseImport({ user }) {
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
                 <div>
                   <div style={{ fontWeight:800, fontSize:14 }}>{imp.import_code}</div>
-                  <div style={{ fontSize:12, color:"#6b7280", marginTop:2 }}>{imp.import_type==="device"?"📱 Máy móc":"🔩 Linh kiện"} · {imp.supplier_name}</div>
-                  <div style={{ fontSize:12, color:"#6b7280" }}>{imp.total_items} mặt hàng · {(imp.total_value||0).toLocaleString("vi-VN")}đ</div>
+                  <div style={{ fontSize:12, color:"#6b7280", marginTop:2 }}>
+                    {imp.import_type==="device"?"📱 Máy móc":"🔩 Linh kiện"} · {imp.supplier_name}
+                  </div>
+                  <div style={{ fontSize:12, color:"#6b7280" }}>
+                    {imp.total_items} mặt hàng · {(imp.total_value||0).toLocaleString("vi-VN")}đ
+                  </div>
                 </div>
                 <div style={{ background:sc.bg, color:sc.color, borderRadius:20, padding:"3px 10px", fontSize:11, fontWeight:700 }}>{sc.label}</div>
               </div>
@@ -1647,10 +1792,30 @@ function WarehouseImport({ user }) {
         })}
       </div>
 
+      {/* QR Scanner overlay */}
+      {scanningFor && (
+        <div style={{ position:"fixed", inset:0, zIndex:800, background:"#000", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
+          <div style={{ color:"#fff", fontWeight:800, fontSize:16, marginBottom:16 }}>📷 Quét mã QR / Barcode</div>
+          <div style={{ position:"relative", width:"min(90vw,380px)", height:"min(90vw,380px)" }}>
+            <video ref={scanVideoRef} style={{ width:"100%", height:"100%", objectFit:"cover", borderRadius:16 }} muted playsInline />
+            {/* Crosshair */}
+            <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none" }}>
+              <div style={{ width:200, height:200, border:"3px solid #4f46e5", borderRadius:12, boxShadow:"0 0 0 1000px rgba(0,0,0,.4)" }}/>
+            </div>
+          </div>
+          <div style={{ color:"#9ca3af", fontSize:13, marginTop:16, textAlign:"center" }}>Đưa mã vào khung để quét tự động</div>
+          <button onClick={stopScan}
+            style={{ marginTop:20, padding:"12px 32px", background:"#ef4444", color:"#fff", border:"none", borderRadius:14, fontWeight:800, fontSize:15, cursor:"pointer" }}>
+            Huỷ
+          </button>
+        </div>
+      )}
+
       {/* Form tạo phiếu */}
       {showForm && (
         <div style={{ position:"fixed", inset:0, zIndex:500, background:"rgba(0,0,0,.6)", display:"flex", alignItems:"flex-end" }}>
-          <div style={{ background:"#fff", borderRadius:"24px 24px 0 0", width:"100%", maxHeight:"92vh", display:"flex", flexDirection:"column" }}>
+          <div style={{ background:"#fff", borderRadius:"24px 24px 0 0", width:"100%", maxHeight:"94vh", display:"flex", flexDirection:"column" }}>
+            {/* Header */}
             <div style={{ background:"linear-gradient(135deg,#7c3aed,#6d28d9)", padding:"16px 18px", borderRadius:"24px 24px 0 0", flexShrink:0, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <div style={{ color:"#fff", fontWeight:900, fontSize:16 }}>📥 Tạo phiếu nhập hàng</div>
               <button onClick={()=>setShowForm(false)}
@@ -1660,6 +1825,7 @@ function WarehouseImport({ user }) {
             </div>
 
             <div style={{ flex:1, overflowY:"auto", padding:"14px 16px 24px" }}>
+              {/* Loại hàng */}
               <div style={{ marginBottom:14 }}>
                 <div style={{ fontSize:13, fontWeight:700, marginBottom:6 }}>Loại hàng nhập</div>
                 <div style={{ display:"flex", gap:8 }}>
@@ -1672,19 +1838,19 @@ function WarehouseImport({ user }) {
                 </div>
               </div>
 
+              {/* NCC */}
               <div style={{ marginBottom:12 }}>
                 <div style={{ fontSize:13, fontWeight:700, marginBottom:6 }}>Nhà cung cấp *</div>
-                <input value={supplier} onChange={e=>setSupplier(e.target.value)}
-                  placeholder="Tên nhà cung cấp..."
+                <input value={supplier} onChange={e=>setSupplier(e.target.value)} placeholder="Tên nhà cung cấp..."
                   style={{ width:"100%", height:42, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:14, outline:"none", boxSizing:"border-box" }}/>
               </div>
               <div style={{ marginBottom:14 }}>
                 <div style={{ fontSize:13, fontWeight:700, marginBottom:6 }}>Số điện thoại</div>
-                <input value={supplierPhone} onChange={e=>setSupplierPhone(e.target.value)}
-                  placeholder="SĐT nhà cung cấp..."
+                <input value={supplierPhone} onChange={e=>setSupplierPhone(e.target.value)} placeholder="SĐT nhà cung cấp..."
                   style={{ width:"100%", height:42, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:14, outline:"none", boxSizing:"border-box" }}/>
               </div>
 
+              {/* Danh sách mặt hàng */}
               <div style={{ fontWeight:800, fontSize:14, color:"#1e1b4b", marginBottom:10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                 <span>Danh sách mặt hàng</span>
                 <button onClick={addItem}
@@ -1699,68 +1865,131 @@ function WarehouseImport({ user }) {
                 </div>
               )}
 
-              {items.map((it,idx) => (
-                <div key={it.id} style={{ background:"#f9fafb", borderRadius:14, padding:"12px 14px", marginBottom:10, border:"1.5px solid #e5e7eb" }}>
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-                    <div style={{ fontWeight:800, fontSize:13, color:"#374151" }}>Mặt hàng #{idx+1}</div>
-                    <button onClick={()=>removeItem(it.id)}
-                      style={{ background:"#fff1f2", border:"none", color:"#dc2626", width:28, height:28, borderRadius:8, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                      <span className="material-icons" style={{fontSize:16}}>delete</span>
-                    </button>
-                  </div>
-                  <input value={it.name} onChange={e=>updateItem(it.id,"name",e.target.value)}
-                    placeholder="Tên hàng *"
-                    style={{ width:"100%", height:38, borderRadius:8, border:"1.5px solid #e5e7eb", padding:"0 10px", fontSize:13, outline:"none", marginBottom:8, boxSizing:"border-box" }}/>
-                  <div style={{ display:"flex", gap:8, marginBottom:8 }}>
-                    <input value={it.sku} onChange={e=>updateItem(it.id,"sku",e.target.value)}
-                      placeholder="SKU / Mã SP"
-                      style={{ flex:1, height:38, borderRadius:8, border:"1.5px solid #e5e7eb", padding:"0 10px", fontSize:13, outline:"none", boxSizing:"border-box" }}/>
-                    {importType==="device" && (
-                      <input value={it.serial_imei} onChange={e=>updateItem(it.id,"serial_imei",e.target.value)}
-                        placeholder="IMEI / Serial"
+              {items.map((it,idx) => {
+                const mediaRef = React.createRef();
+                return (
+                  <div key={it.id} style={{ background:"#f9fafb", borderRadius:14, padding:"12px 14px", marginBottom:12, border:"1.5px solid #e5e7eb" }}>
+                    {/* Header item */}
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+                      <div style={{ fontWeight:800, fontSize:13, color:"#374151" }}>Mặt hàng #{idx+1}</div>
+                      <button onClick={()=>removeItem(it.id)}
+                        style={{ background:"#fff1f2", border:"none", color:"#dc2626", width:28, height:28, borderRadius:8, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                        <span className="material-icons" style={{fontSize:16}}>delete</span>
+                      </button>
+                    </div>
+
+                    {/* Tên hàng */}
+                    <input value={it.name} onChange={e=>updateItem(it.id,"name",e.target.value)} placeholder="Tên hàng *"
+                      style={{ width:"100%", height:38, borderRadius:8, border:"1.5px solid #e5e7eb", padding:"0 10px", fontSize:13, outline:"none", marginBottom:8, boxSizing:"border-box" }}/>
+
+                    {/* SKU + Serial/IMEI với nút quét */}
+                    <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+                      <input value={it.sku} onChange={e=>updateItem(it.id,"sku",e.target.value)} placeholder="SKU / Mã SP"
                         style={{ flex:1, height:38, borderRadius:8, border:"1.5px solid #e5e7eb", padding:"0 10px", fontSize:13, outline:"none", boxSizing:"border-box" }}/>
+                    </div>
+
+                    {/* Serial / IMEI + QR scan — hiện cho cả 2 loại */}
+                    <div style={{ marginBottom:8 }}>
+                      <div style={{ fontSize:11, color:"#6b7280", marginBottom:4 }}>
+                        {importType==="device"?"IMEI / Serial *":"Mã QR / Barcode (tuỳ chọn)"}
+                      </div>
+                      <div style={{ display:"flex", gap:6 }}>
+                        <input value={it.serial_imei} onChange={e=>updateItem(it.id,"serial_imei",e.target.value)}
+                          placeholder={importType==="device"?"Nhập hoặc quét IMEI...":"Quét để gán mã..."}
+                          style={{ flex:1, height:38, borderRadius:8, border:`1.5px solid ${importType==="device"?"#c4b5fd":"#e5e7eb"}`, padding:"0 10px", fontSize:13, outline:"none", boxSizing:"border-box" }}/>
+                        <button onClick={()=>startScan(it.id)}
+                          style={{ width:42, height:38, borderRadius:8, border:"1.5px solid #7c3aed", background:"#f5f3ff", color:"#7c3aed", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                          <span className="material-icons" style={{fontSize:20}}>qr_code_scanner</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Số lượng + Giá */}
+                    <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:11, color:"#6b7280", marginBottom:4 }}>Số lượng</div>
+                        <input type="number" min="1" value={it.qty} onChange={e=>updateItem(it.id,"qty",+e.target.value)}
+                          style={{ width:"100%", height:38, borderRadius:8, border:"1.5px solid #e5e7eb", padding:"0 10px", fontSize:13, outline:"none", boxSizing:"border-box" }}/>
+                      </div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:11, color:"#6b7280", marginBottom:4 }}>Giá nhập (đ)</div>
+                        <input type="number" min="0" value={it.unit_price} onChange={e=>updateItem(it.id,"unit_price",+e.target.value)}
+                          style={{ width:"100%", height:38, borderRadius:8, border:"1.5px solid #e5e7eb", padding:"0 10px", fontSize:13, outline:"none", boxSizing:"border-box" }}/>
+                      </div>
+                    </div>
+
+                    {/* Tình trạng */}
+                    <div style={{ marginBottom:10 }}>
+                      <div style={{ fontSize:11, color:"#6b7280", marginBottom:4 }}>Tình trạng</div>
+                      <div style={{ display:"flex", gap:6 }}>
+                        {[{v:"new",l:"Mới"},{v:"refurb",l:"Tân trang"},{v:"used",l:"Đã qua SD"}].map(c=>(
+                          <button key={c.v} onClick={()=>updateItem(it.id,"condition",c.v)}
+                            style={{ flex:1, padding:"6px 4px", borderRadius:8, border:`1.5px solid ${it.condition===c.v?"#7c3aed":"#e5e7eb"}`, background:it.condition===c.v?"#f5f3ff":"#fff", fontWeight:700, fontSize:11, cursor:"pointer", color:it.condition===c.v?"#7c3aed":"#6b7280" }}>
+                            {c.l}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Ảnh / Video — cho TẤT CẢ loại hàng */}
+                    <div style={{ marginBottom:8 }}>
+                      <div style={{ fontSize:11, color:"#6b7280", marginBottom:6 }}>📸 Ảnh / Video xác nhận hàng</div>
+                      <input ref={mediaRef} type="file" accept="image/*,video/*" multiple capture="environment"
+                        style={{display:"none"}} onChange={e=>{ handleItemMedia(it.id, e.target.files); e.target.value=""; }}/>
+                      <button onClick={()=>mediaRef.current?.click()}
+                        style={{ height:36, padding:"0 12px", borderRadius:8, border:"1.5px solid #6ee7b7", background:"#fff", color:"#059669", fontWeight:700, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", gap:6, marginBottom:8 }}>
+                        <span className="material-icons" style={{fontSize:16}}>add_a_photo</span>Chụp ảnh / Quay video
+                      </button>
+                      {/* Preview media */}
+                      {(it.photos.length>0 || it.videos.length>0) && (
+                        <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                          {it.photos.map((m,i)=>(
+                            <div key={"p"+i} style={{position:"relative"}}>
+                              <img src={m.url} style={{width:56,height:56,borderRadius:8,objectFit:"cover",border:"1.5px solid #6ee7b7"}} alt=""/>
+                              <button onClick={()=>removeMedia(it.id,"photos",i)}
+                                style={{position:"absolute",top:-4,right:-4,width:18,height:18,borderRadius:"50%",background:"#ef4444",border:"none",color:"#fff",fontSize:10,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+                            </div>
+                          ))}
+                          {it.videos.map((m,i)=>(
+                            <div key={"v"+i} style={{position:"relative"}}>
+                              <video src={m.url} style={{width:56,height:56,borderRadius:8,objectFit:"cover",border:"1.5px solid #a78bfa"}}/>
+                              <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.3)",borderRadius:8}}>
+                                <span className="material-icons" style={{fontSize:20,color:"#fff"}}>play_circle</span>
+                              </div>
+                              <button onClick={()=>removeMedia(it.id,"videos",i)}
+                                style={{position:"absolute",top:-4,right:-4,width:18,height:18,borderRadius:"50%",background:"#ef4444",border:"none",color:"#fff",fontSize:10,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Ghi chú riêng từng item */}
+                    <input value={it.note||""} onChange={e=>updateItem(it.id,"note",e.target.value)}
+                      placeholder="Ghi chú mặt hàng (tuỳ chọn)..."
+                      style={{ width:"100%", height:34, borderRadius:8, border:"1.5px solid #e5e7eb", padding:"0 10px", fontSize:12, outline:"none", boxSizing:"border-box" }}/>
+
+                    {/* Hint cho máy móc */}
+                    {importType==="device" && it.serial_imei && (
+                      <div style={{ marginTop:8, fontSize:11, color:"#059669", background:"#f0fdf4", borderRadius:8, padding:"6px 10px", display:"flex", alignItems:"center", gap:6 }}>
+                        <span className="material-icons" style={{fontSize:14}}>inventory_2</span>
+                        Máy này sẽ được đánh dấu "Hàng trong kho - Chưa bán"
+                      </div>
                     )}
                   </div>
-                  <div style={{ display:"flex", gap:8, marginBottom:8 }}>
-                    <div style={{ flex:1 }}>
-                      <div style={{ fontSize:11, color:"#6b7280", marginBottom:4 }}>Số lượng</div>
-                      <input type="number" min="1" value={it.qty} onChange={e=>updateItem(it.id,"qty",+e.target.value)}
-                        style={{ width:"100%", height:38, borderRadius:8, border:"1.5px solid #e5e7eb", padding:"0 10px", fontSize:13, outline:"none", boxSizing:"border-box" }}/>
-                    </div>
-                    <div style={{ flex:1 }}>
-                      <div style={{ fontSize:11, color:"#6b7280", marginBottom:4 }}>Giá nhập (đ)</div>
-                      <input type="number" min="0" value={it.unit_price} onChange={e=>updateItem(it.id,"unit_price",+e.target.value)}
-                        style={{ width:"100%", height:38, borderRadius:8, border:"1.5px solid #e5e7eb", padding:"0 10px", fontSize:13, outline:"none", boxSizing:"border-box" }}/>
-                    </div>
-                  </div>
-                  <div style={{ marginBottom:8 }}>
-                    <div style={{ fontSize:11, color:"#6b7280", marginBottom:4 }}>Tình trạng</div>
-                    <div style={{ display:"flex", gap:6 }}>
-                      {[{v:"new",l:"Mới"},{v:"refurb",l:"Tân trang"},{v:"used",l:"Đã qua SD"}].map(c=>(
-                        <button key={c.v} onClick={()=>updateItem(it.id,"condition",c.v)}
-                          style={{ flex:1, padding:"6px 4px", borderRadius:8, border:`1.5px solid ${it.condition===c.v?"#7c3aed":"#e5e7eb"}`, background:it.condition===c.v?"#f5f3ff":"#fff", fontWeight:700, fontSize:11, cursor:"pointer", color:it.condition===c.v?"#7c3aed":"#6b7280" }}>
-                          {c.l}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  {importType==="device" && (
-                    <div style={{ fontSize:12, color:"#6b7280", background:"#eff6ff", borderRadius:8, padding:"6px 10px", display:"flex", alignItems:"center", gap:6 }}>
-                      <span className="material-icons" style={{fontSize:14,color:"#2563eb"}}>videocam</span>
-                      Nhớ quay clip & chụp ảnh máy sau khi tạo phiếu
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
 
+              {/* Ghi chú phiếu */}
               <textarea value={note} onChange={e=>setNote(e.target.value)}
                 placeholder="Ghi chú phiếu nhập (tuỳ chọn)..."
                 style={{ width:"100%", minHeight:60, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"8px 12px", fontSize:13, outline:"none", resize:"vertical", boxSizing:"border-box", marginTop:8 }}/>
             </div>
 
+            {/* Save button */}
             <div style={{ padding:"12px 16px 24px", borderTop:"1.5px solid #e5e7eb", flexShrink:0 }}>
               <button onClick={handleSave} disabled={saving}
-                style={{ width:"100%", height:50, borderRadius:14, border:"none", background:"linear-gradient(135deg,#7c3aed,#6d28d9)", color:"#fff", fontWeight:900, fontSize:16, cursor:saving?"not-allowed":"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                style={{ width:"100%", height:50, borderRadius:14, border:"none", background:saving?"#9ca3af":"linear-gradient(135deg,#7c3aed,#6d28d9)", color:"#fff", fontWeight:900, fontSize:16, cursor:saving?"not-allowed":"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
                 <span className="material-icons" style={{fontSize:22}}>save</span>
                 {saving?"Đang lưu...":"Lưu phiếu nhập"}
               </button>
@@ -1769,10 +1998,11 @@ function WarehouseImport({ user }) {
         </div>
       )}
 
-      {toast && <div style={{position:"fixed",bottom:90,left:"50%",transform:"translateX(-50%)",background:"rgba(0,0,0,.85)",color:"#fff",padding:"10px 20px",borderRadius:16,fontSize:14,fontWeight:700,zIndex:9999}}>{toast}</div>}
+      {toast && <div style={{position:"fixed",bottom:90,left:"50%",transform:"translateX(-50%)",background:"rgba(0,0,0,.85)",color:"#fff",padding:"10px 20px",borderRadius:16,fontSize:14,fontWeight:700,zIndex:9999,whiteSpace:"nowrap"}}>{toast}</div>}
     </div>
   );
 }
+
 
 // ─── Warehouse: Tồn kho ──────────────────────────────────
 function WarehouseStock({ user }) {

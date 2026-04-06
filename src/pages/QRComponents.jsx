@@ -147,8 +147,28 @@ function QRScanModal({ onClose, onFound, orders = [], mode = "search" }) {
       return;
     }
 
-    // Tìm theo mã đơn
-    const byOrderId = (orders || []).find(o => o.id === raw || o.qr_code === raw);
+    // Kiểm tra hàng trong kho (máy nhập kho chưa bán)
+    // SparePart có category="device_stock" và sku=raw → hàng trong kho
+    // Dùng async check — wrap trong async IIFE
+    (async () => {
+      try {
+        const { SparePart } = await import("./pb.jsx");
+        const stockItems = await SparePart.filter({ sku: raw, category: "device_stock" });
+        if (stockItems && stockItems.length > 0) {
+          const sp = stockItems[0];
+          onFound({ type: "warehouse_stock", data: sp, qr: raw });
+          onClose();
+          return;
+        }
+      } catch {}
+
+      // Tìm theo mã đơn
+      const byOrderId = (orders || []).find(o => o.id === raw || o.qr_code === raw);
+      if (byOrderId) { onFound({ type: "order", data: byOrderId }); onClose(); return; }
+      onFound({ type: "assign_qr", qr: raw });
+      onClose();
+    })();
+    return; // exit sync flow
     if (byOrderId) {
       onFound({ type: "order", data: byOrderId });
       onClose();
