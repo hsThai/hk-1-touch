@@ -206,17 +206,19 @@ function MainAppInner() {
 
   // ── Inject CSS animation vào document.head ──────────────
   useEffect(() => {
-    const styleId = "hk-pulse-red";
-    if (!document.getElementById(styleId)) {
-      const el = document.createElement("style");
-      el.id = styleId;
-      el.textContent = `@keyframes pulseRed {
-        0%   { box-shadow: 0 0 0 0 rgba(239,68,68,0.7), 0 2px 8px rgba(0,0,0,.08); }
-        50%  { box-shadow: 0 0 0 8px rgba(239,68,68,0), 0 2px 8px rgba(0,0,0,.08); }
-        100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.7), 0 2px 8px rgba(0,0,0,.08); }
-      }`;
-      document.head.appendChild(el);
-    }
+    // Remove old and re-inject to ensure latest version
+    const old = document.getElementById("hk-pulse-red");
+    if (old) old.remove();
+    const el = document.createElement("style");
+    el.id = "hk-pulse-red";
+    el.textContent = `
+      @keyframes pulseRed {
+        0%   { box-shadow: 0 0 0 0 rgba(239,68,68,0.8), 0 2px 8px rgba(0,0,0,.1); border-color: #ef4444; }
+        50%  { box-shadow: 0 0 0 10px rgba(239,68,68,0), 0 2px 8px rgba(0,0,0,.1); border-color: #fca5a5; }
+        100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.8), 0 2px 8px rgba(0,0,0,.1); border-color: #ef4444; }
+      }
+    `;
+    document.head.appendChild(el);
   }, []);
 
   // Tạo AudioContext lưu toàn cục, unlock sau gesture
@@ -1111,18 +1113,20 @@ function MainAppInner() {
         {list.map(o => {
           const ktv = users.find(u=>u.id===o.assigned_to);
           const timerInfo = getKpiTimerInfo(o);
+          const isChuaNhan = o.status === "Chưa Nhận";
           return (
             <div key={o.id} onClick={() => setSelectedOrder(o)}
               style={{
-                background: o.status==="Chưa Nhận" && !o.needs_reassign ? "#fff5f5" : "#fff",
+                background: isChuaNhan && !o.needs_reassign ? "#fff5f5" : "#fff",
                 borderRadius:14, padding:14, marginBottom:10, cursor:"pointer",
                 boxShadow:"0 2px 8px rgba(0,0,0,.08)",
-                border:`2px solid ${o.needs_reassign?"#ef4444":o.status==="Chưa Nhận"?"#ef4444":"#f3f4f6"}`,
-                animation: o.status==="Chưa Nhận" && !o.needs_reassign ? "pulseRed 1.6s ease-in-out infinite" : "none"
+                border:`2px solid ${o.needs_reassign?"#ef4444":isChuaNhan?"#ef4444":"#f3f4f6"}`,
+                animation: isChuaNhan && !o.needs_reassign ? "pulseRed 1.6s ease-in-out infinite" : "none",
+                transition: "none"
               }}>
               <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
                 <div style={{ fontWeight:800, color:"#1e1b4b" }}>{o.id}</div>
-                <div style={{ fontSize:12, padding:"3px 10px", borderRadius:99, background: o.status==="Chưa Nhận"?"#f3f4f6":o.status==="Hoàn Thành"?"#dcfce7":o.status==="Đang Sửa"?"#ede9fe":"#fef3c7", color:"#374151" }}>{o.status}</div>
+                <div style={{ fontSize:12, padding:"3px 10px", borderRadius:99, background: isChuaNhan?"#fee2e2":o.status==="Hoàn Thành"?"#dcfce7":o.status==="Đang Sửa"?"#ede9fe":"#fef3c7", color:isChuaNhan?"#dc2626":"#374151", fontWeight:isChuaNhan?800:600 }}>{o.status}</div>
               </div>
               <div style={{ fontSize:13, color:"#374151", marginBottom:2 }}>  {o.customer_name} ·   {o.device_model}</div>
               {ktv && <div style={{ fontSize:12, color:"#6b7280"}}>  {ktv.name}</div>}
