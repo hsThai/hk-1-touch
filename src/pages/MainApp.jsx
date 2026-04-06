@@ -1865,9 +1865,7 @@ function WarehouseImport({ user }) {
                 </div>
               )}
 
-              {items.map((it,idx) => {
-                const mediaRef = React.createRef();
-                return (
+              {items.map((it,idx) => (
                   <div key={it.id} style={{ background:"#f9fafb", borderRadius:14, padding:"12px 14px", marginBottom:12, border:"1.5px solid #e5e7eb" }}>
                     {/* Header item */}
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
@@ -1934,9 +1932,9 @@ function WarehouseImport({ user }) {
                     {/* Ảnh / Video — cho TẤT CẢ loại hàng */}
                     <div style={{ marginBottom:8 }}>
                       <div style={{ fontSize:11, color:"#6b7280", marginBottom:6 }}>📸 Ảnh / Video xác nhận hàng</div>
-                      <input ref={mediaRef} type="file" accept="image/*,video/*" multiple capture="environment"
+                      <input id={"media-"+it.id} type="file" accept="image/*,video/*" multiple capture="environment"
                         style={{display:"none"}} onChange={e=>{ handleItemMedia(it.id, e.target.files); e.target.value=""; }}/>
-                      <button onClick={()=>mediaRef.current?.click()}
+                      <button onClick={()=>document.getElementById("media-"+it.id)?.click()}
                         style={{ height:36, padding:"0 12px", borderRadius:8, border:"1.5px solid #6ee7b7", background:"#fff", color:"#059669", fontWeight:700, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", gap:6, marginBottom:8 }}>
                         <span className="material-icons" style={{fontSize:16}}>add_a_photo</span>Chụp ảnh / Quay video
                       </button>
@@ -1977,8 +1975,7 @@ function WarehouseImport({ user }) {
                       </div>
                     )}
                   </div>
-                );
-              })}
+              ))}
 
               {/* Ghi chú phiếu */}
               <textarea value={note} onChange={e=>setNote(e.target.value)}
