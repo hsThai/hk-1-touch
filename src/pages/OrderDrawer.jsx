@@ -1502,7 +1502,7 @@ export { OrderDrawer };
 // ══════════════════════════════════════════════
 //  SHARE ORDER MODAL
 // ══════════════════════════════════════════════
-const PUBLIC_URL = "https://hk-app-copy-4cefbb7c.base44.app/order-public";
+const PUBLIC_URL = "https://hk-app-copy-4cefbb7c.base44.app/OrderPublic";
 
 // Inline QR loader — không phụ thuộc module scope của QRComponents
 let _shareQrLoaded = false, _shareQrCbs = [];
