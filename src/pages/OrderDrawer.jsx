@@ -693,63 +693,97 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 </div>
               </div>
             )}
-            {/* ── Giao Việc Lại: chỉ hiện khi needs_reassign = true ─── */}
-            {order.needs_reassign && currentUser.role === "manager" && !["Hoàn Thành","Đã Giao","Hủy"].includes(order.status) && (
-              <div style={{ background:"#fef2f2", border:"2.5px solid #ef4444", borderRadius:16, padding:"16px", marginBottom:14 }}>
-                {/* Header cảnh báo */}
-                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
-                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:24,color:"#dc2626"}}>assignment_late</span>
-                  <div>
-                    <div style={{ fontWeight:900, fontSize:15, color:"#dc2626" }}>⚠️ Cần Giao Việc Lại!</div>
-                    <div style={{ fontSize:12, color:"#9ca3af" }}>KTV <b>{order.assigned_to_name||"?"}</b> quá 60 phút không bắt đầu sửa → -3 KPI & ngừng nhận việc</div>
-                  </div>
-                </div>
+            {/* ── Giao KTV / Giao Việc Lại ─────────────────────────────
+                Hiện khi:
+                1. Chưa có KTV (assigned_to rỗng)
+                2. needs_reassign = true (KTV quá hạn bị ngừng)
+                3. Đơn đã nhận nhưng hết 120 phút chưa sửa (kpi_stage2_penalized)
+            ─── */}
+            {currentUser.role === "manager" && !["Hoàn Thành","Đã Giao","Hủy"].includes(order.status) && (
+              (() => {
+                const noKTV      = !order.assigned_to;
+                const overdue    = order.needs_reassign || order.kpi_stage2_penalized;
+                if (!noKTV && !overdue) return null;
 
-                {/* Danh sách KTV khả dụng */}
-                <div style={{ fontSize:13, fontWeight:700, color:"#374151", marginBottom:8 }}>
-                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:14,verticalAlign:"middle",marginRight:4}}>engineering</span>
-                  Chọn KTV mới để giao:
-                </div>
-                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                  {users.filter(u => u.role==="technician" && u.id !== order.assigned_to && u.is_active!==false).length === 0 && (
-                    <div style={{ fontSize:13, color:"#9ca3af", fontStyle:"italic", padding:"10px 0" }}>Không có KTV khả dụng</div>
-                  )}
-                  {users.filter(u => u.role==="technician" && u.id !== order.assigned_to && u.is_active!==false).map(u => (
-                    <button key={u.id}
-                      onClick={async () => {
-                        const now = new Date().toISOString();
-                        onUpdate(order.id, {
-                          assigned_to:           u.id,
-                          assigned_to_name:      u.name || u.full_name,
-                          assigned_at:           now,
-                          accept_stage:          0,
-                          stage1_at:             null,
-                          stage2_at:             null,
-                          kpi_stage1_penalized:  false,
-                          kpi_stage2_penalized:  false,
-                          needs_reassign:        false,
-                          status:                "Chưa Nhận",
-                        }, null);
-                        showToast(`✅ Đã giao đơn cho ${u.name || u.full_name}`);
-                      }}
-                      style={{
-                        display:"flex", alignItems:"center", justifyContent:"space-between",
-                        padding:"12px 14px", borderRadius:12,
-                        border:"2px solid #4f46e5", background:"#eef2ff",
-                        fontWeight:700, fontSize:14, cursor:"pointer", textAlign:"left"
-                      }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                        <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:"#4f46e5"}}>engineering</span>
-                        <span style={{ color:"#1e1b4b" }}>{u.name || u.full_name}</span>
+                // Mode: "assign" = giao mới, "reassign" = giao lại
+                const mode = noKTV ? "assign" : "reassign";
+                const borderColor = noKTV ? "#f59e0b" : "#ef4444";
+                const bgColor     = noKTV ? "#fffbeb" : "#fef2f2";
+                const iconColor   = noKTV ? "#d97706" : "#dc2626";
+                const icon        = noKTV ? "person_add" : "assignment_late";
+                const title       = noKTV ? "Chưa phân công KTV" : "⚠️ Cần Giao Việc Lại!";
+                const subtitle    = noKTV
+                  ? "Đơn này chưa có KTV xử lý — chọn KTV để giao việc"
+                  : (order.needs_reassign
+                    ? `KTV ${order.assigned_to_name||"?"} quá hạn → -3 KPI & ngừng nhận việc`
+                    : `KTV ${order.assigned_to_name||"?"} quá 120 phút chưa bắt đầu sửa`);
+
+                // Nếu reassign: loại KTV hiện tại ra; nếu assign mới: hiện tất cả
+                const availableKTVs = users.filter(u =>
+                  u.role === "technician" &&
+                  u.is_active !== false &&
+                  (noKTV ? true : u.id !== order.assigned_to)
+                );
+
+                return (
+                  <div style={{ background:bgColor, border:`2.5px solid ${borderColor}`, borderRadius:16, padding:"16px", marginBottom:14 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
+                      <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:24,color:iconColor}}>{icon}</span>
+                      <div>
+                        <div style={{ fontWeight:900, fontSize:15, color:iconColor }}>{title}</div>
+                        <div style={{ fontSize:12, color:"#9ca3af" }}>{subtitle}</div>
                       </div>
-                      <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                        <span style={{ fontSize:12, color:"#6b7280" }}>KPI: {u.kpi??0}</span>
-                        <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:"#4f46e5"}}>arrow_forward</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
+                    </div>
+
+                    <div style={{ fontSize:13, fontWeight:700, color:"#374151", marginBottom:8 }}>
+                      <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:14,verticalAlign:"middle",marginRight:4}}>engineering</span>
+                      {mode === "assign" ? "Chọn KTV để giao đơn:" : "Chọn KTV mới để giao:"}
+                    </div>
+
+                    <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                      {availableKTVs.length === 0 && (
+                        <div style={{ fontSize:13, color:"#9ca3af", fontStyle:"italic", padding:"10px 0" }}>Không có KTV khả dụng</div>
+                      )}
+                      {availableKTVs.map(u => (
+                        <button key={u.id}
+                          onClick={async () => {
+                            const now = new Date().toISOString();
+                            onUpdate(order.id, {
+                              assigned_to:           u.id,
+                              assigned_to_name:      u.name || u.full_name,
+                              assigned_at:           now,
+                              accept_stage:          0,
+                              stage1_at:             null,
+                              stage2_at:             null,
+                              kpi_manually_accepted: false,
+                              kpi_stage1_penalized:  false,
+                              kpi_stage2_penalized:  false,
+                              needs_reassign:        false,
+                              status:                "Chưa Nhận",
+                            }, null);
+                            showToast(`✅ Đã giao đơn cho ${u.name || u.full_name}`);
+                          }}
+                          style={{
+                            display:"flex", alignItems:"center", justifyContent:"space-between",
+                            padding:"12px 14px", borderRadius:12,
+                            border:`2px solid ${mode==="assign"?"#f59e0b":"#4f46e5"}`,
+                            background: mode==="assign" ? "#fef3c7" : "#eef2ff",
+                            fontWeight:700, fontSize:14, cursor:"pointer", textAlign:"left"
+                          }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                            <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:mode==="assign"?"#d97706":"#4f46e5"}}>engineering</span>
+                            <span style={{ color: mode==="assign"?"#92400e":"#1e1b4b" }}>{u.name || u.full_name}</span>
+                          </div>
+                          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                            <span style={{ fontSize:12, color:"#6b7280" }}>KPI: {u.kpi??0}</span>
+                            <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:mode==="assign"?"#d97706":"#4f46e5"}}>arrow_forward</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()
             )}
 
             {/* Status + Actions — KTV cần bấm "Chỉnh" để edit */}

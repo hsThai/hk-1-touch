@@ -1152,15 +1152,25 @@ function MainAppInner() {
         {list.map(o => {
           const ktv = users.find(u=>u.id===o.assigned_to);
           const timerInfo = getKpiTimerInfo(o);
-          const isChuaNhan = o.status === "Chưa Nhận";
+          const isChuaNhan   = o.status === "Chưa Nhận";
+          const noKTV        = !o.assigned_to;
+          const needsAction  = o.needs_reassign || noKTV || o.kpi_stage2_penalized;
+          const cardBorder   = o.needs_reassign || o.kpi_stage2_penalized ? "#ef4444"
+                             : noKTV            ? "#f59e0b"
+                             : isChuaNhan       ? "#ef4444"
+                             : "#f3f4f6";
+          const cardBg       = o.needs_reassign || o.kpi_stage2_penalized ? "#fff5f5"
+                             : noKTV            ? "#fffbeb"
+                             : isChuaNhan       ? "#fff5f5"
+                             : "#fff";
           return (
             <div key={o.id} onClick={() => setSelectedOrder(o)}
               style={{
-                background: isChuaNhan && !o.needs_reassign ? "#fff5f5" : "#fff",
+                background: cardBg,
                 borderRadius:14, padding:14, marginBottom:10, cursor:"pointer",
                 boxShadow:"0 2px 8px rgba(0,0,0,.08)",
-                border:`2px solid ${o.needs_reassign?"#ef4444":isChuaNhan?"#ef4444":"#f3f4f6"}`,
-                animation: isChuaNhan && !o.needs_reassign ? "pulseRed 1.6s ease-in-out infinite" : "none",
+                border:`2px solid ${cardBorder}`,
+                animation: (isChuaNhan || noKTV) && !o.needs_reassign ? "pulseRed 1.6s ease-in-out infinite" : "none",
                 transition: "none"
               }}>
               <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
@@ -1168,9 +1178,11 @@ function MainAppInner() {
                 <div style={{ fontSize:12, padding:"3px 10px", borderRadius:99, background: isChuaNhan?"#fee2e2":o.status==="Hoàn Thành"?"#dcfce7":o.status==="Đang Sửa"?"#ede9fe":"#fef3c7", color:isChuaNhan?"#dc2626":"#374151", fontWeight:isChuaNhan?800:600 }}>{o.status}</div>
               </div>
               <div style={{ fontSize:13, color:"#374151", marginBottom:2 }}>  {o.customer_name} ·   {o.device_model}</div>
-              {ktv && <div style={{ fontSize:12, color:"#6b7280"}}>  {ktv.name}</div>}
+              {!noKTV && ktv && <div style={{ fontSize:12, color:"#6b7280"}}>  {ktv.name}</div>}
               {timerInfo && <div style={{ fontSize:12, color:timerInfo.urgent?"#dc2626":"#d97706", fontWeight:700, marginTop:4 }}>⏱ {timerInfo.label}: {timerInfo.timeStr}</div>}
-              {o.needs_reassign && <div style={{ fontSize:12, color:"#ef4444", fontWeight:700, marginTop:4 }}>  Cần chuyển KTV khác!</div>}
+              {noKTV && <div style={{ fontSize:12, color:"#d97706", fontWeight:700, marginTop:4 }}>👤 Chưa phân công KTV</div>}
+              {!noKTV && o.needs_reassign && <div style={{ fontSize:12, color:"#ef4444", fontWeight:700, marginTop:4 }}>⚠️ Cần chuyển KTV khác!</div>}
+              {!noKTV && !o.needs_reassign && o.kpi_stage2_penalized && <div style={{ fontSize:12, color:"#ef4444", fontWeight:700, marginTop:4 }}>⏰ Quá 120p chưa sửa!</div>}
             </div>
           );
         })}
