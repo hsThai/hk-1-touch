@@ -1056,8 +1056,11 @@ function MainAppInner() {
   function OrderCard({ order: o, highlight, onClick, users }) {
     const ktv = users.find(u => u.id===o.assigned_to);
     const timerInfo = ktv ? getKpiTimerInfo(o) : null;
+    const isPending = o.status === "Chưa Nhận";
     return (
-      <div onClick={onClick} style={{ background:"#fff", borderRadius:12, padding:12, marginBottom:8, cursor:"pointer", boxShadow:highlight?"0 0 0 3px #f59e0b":"0 1px 4px rgba(0,0,0,.08)", border:highlight?"2px solid #f59e0b":"2px solid transparent", transition:"box-shadow .2s" }}>
+      <div onClick={onClick}
+        className={isPending && !highlight ? "order-pending-pulse" : ""}
+        style={{ background:"#fff", borderRadius:12, padding:12, marginBottom:8, cursor:"pointer", boxShadow:highlight?"0 0 0 3px #f59e0b":"0 1px 4px rgba(0,0,0,.08)", border:highlight?"2px solid #f59e0b":isPending?"2px solid #ef4444":"2px solid transparent", transition:isPending?"none":"box-shadow .2s" }}>
         <div style={{ fontWeight:800, fontSize:13, color:"#1e1b4b", marginBottom:4 }}>{o.id}</div>
         <div style={{ fontSize:12, color:"#374151", marginBottom:2 }}>  {o.customer_name||"?"} · {o.customer_phone||""}</div>
         <div style={{ fontSize:12, color:"#6b7280", marginBottom:4 }}>  {o.device_model}</div>
@@ -1089,7 +1092,8 @@ function MainAppInner() {
           const timerInfo = getKpiTimerInfo(o);
           return (
             <div key={o.id} onClick={() => setSelectedOrder(o)}
-              style={{ background:"#fff", borderRadius:14, padding:14, marginBottom:10, cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,.08)", border:`2px solid ${o.needs_reassign?"#ef4444":"#f3f4f6"}` }}>
+              className={o.status==="Chưa Nhận" && !o.needs_reassign ? "order-pending-pulse" : ""}
+              style={{ background:"#fff", borderRadius:14, padding:14, marginBottom:10, cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,.08)", border:`2px solid ${o.needs_reassign?"#ef4444":o.status==="Chưa Nhận"?"#ef4444":"#f3f4f6"}` }}>
               <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
                 <div style={{ fontWeight:800, color:"#1e1b4b" }}>{o.id}</div>
                 <div style={{ fontSize:12, padding:"3px 10px", borderRadius:99, background: o.status==="Chưa Nhận"?"#f3f4f6":o.status==="Hoàn Thành"?"#dcfce7":o.status==="Đang Sửa"?"#ede9fe":"#fef3c7", color:"#374151" }}>{o.status}</div>
@@ -1162,6 +1166,19 @@ function MainAppInner() {
   }
 
   return (
+    <>
+    <style>{`
+      @keyframes pulseRed {
+        0%   { box-shadow: 0 0 0 0 rgba(239,68,68,0.6), 0 2px 8px rgba(0,0,0,.08); }
+        50%  { box-shadow: 0 0 0 7px rgba(239,68,68,0), 0 2px 8px rgba(0,0,0,.08); }
+        100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.6), 0 2px 8px rgba(0,0,0,.08); }
+      }
+      .order-pending-pulse {
+        animation: pulseRed 1.6s ease-in-out infinite;
+        border: 2px solid #ef4444 !important;
+        background: #fff5f5 !important;
+      }
+    `}</style>
     <div style={{ minHeight:"100vh", background:"#f8fafc", fontFamily:"system-ui,-apple-system,sans-serif" }}>
       {/* Header */}
       <div style={{ position:"sticky", top:0, zIndex:100, background:"#1e1b4b", padding:"12px 16px", display:"flex", alignItems:"center", gap:12 }}>
@@ -2174,6 +2191,7 @@ function WarehouseImport({ user }) {
 
       {toast && <div style={{position:"fixed",bottom:90,left:"50%",transform:"translateX(-50%)",background:"rgba(0,0,0,.85)",color:"#fff",padding:"10px 20px",borderRadius:16,fontSize:14,fontWeight:700,zIndex:9999,whiteSpace:"nowrap"}}>{toast}</div>}
     </div>
+    </>
   );
 }
 
