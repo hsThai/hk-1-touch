@@ -8,6 +8,7 @@ export const Customer = base44.entities.Customer;
 export const SparePart = base44.entities.SparePart;
 export const SparePartUsage = base44.entities.SparePartUsage;
 export const AppSettings = base44.entities.AppSettings;
+export const StockExportRequest = base44.entities.StockExportRequest;
 
 // auth sdk:
 export const User = base44.auth;

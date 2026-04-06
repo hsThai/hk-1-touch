@@ -1,430 +1,693 @@
-/* v2-kiotviet-sync */
-import React, { useState, useEffect } from "react";
-import { SparePart, SparePartUsage, RepairChat, RepairOrder } from "./pb.jsx";
+/* v3-export-request-flow */
+import React, { useState, useEffect, useRef } from "react";
+import { SparePart, SparePartUsage, RepairChat, RepairOrder, Notification, Staff } from "./pb.jsx";
 import { syncKvProducts, createKvDeliveryOrder } from "./kiotviet.jsx";
+import { StockExportRequest } from "@/api/entities";
 
-// ── Màn hình linh kiện cho KTV ──
+function genCode() {
+  const now = new Date();
+  return `PX${now.getFullYear().toString().slice(2)}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}-${Math.floor(Math.random()*9000+1000)}`;
+}
+function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
+function fmtDt(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")} ${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;
+}
+function minutesLeft(iso) {
+  if (!iso) return null;
+  return Math.floor((new Date(iso) - Date.now()) / 60000);
+}
+
+const STATUS_CFG = {
+  pending:             { label:"⏳ Chờ kho xử lý",  color:"#d97706", bg:"#fffbeb" },
+  warehouse_confirmed: { label:"📦 Kho đã xuất",    color:"#2563eb", bg:"#eff6ff" },
+  ktv_confirmed:       { label:"✅ KTV đã nhận",     color:"#059669", bg:"#f0fdf4" },
+  returned:            { label:"↩ Đã trả",           color:"#6b7280", bg:"#f9fafb" },
+  expired:             { label:"⌛ Hết hạn",         color:"#dc2626", bg:"#fff1f2" },
+  cancelled:           { label:"✖ Đã hủy",           color:"#9ca3af", bg:"#f3f4f6" },
+};
+
+function RowInfo({ l, v, bold }) {
+  return (
+    <div style={{ display:"flex",justifyContent:"space-between",marginBottom:6,gap:8 }}>
+      <span style={{ color:"#6b7280",flexShrink:0 }}>{l}</span>
+      <span style={{ fontWeight:bold?800:600,color:"#111",textAlign:"right" }}>{v}</span>
+    </div>
+  );
+}
+
+function ConfirmBlock({ title, by, at, note, media }) {
+  return (
+    <div style={{ background:"#f0fdf4",borderRadius:12,border:"1.5px solid #6ee7b7",padding:"10px 12px",marginTop:10,fontSize:13 }}>
+      <div style={{ fontWeight:800,color:"#065f46",marginBottom:6 }}>{title}</div>
+      <RowInfo l="Người XN" v={by} />
+      <RowInfo l="Thời gian" v={fmtDt(at)} />
+      {note && <RowInfo l="Ghi chú" v={note} />}
+      {media && media.split(",").filter(Boolean).length > 0 && (
+        <div style={{ display:"flex",gap:6,marginTop:6,flexWrap:"wrap" }}>
+          {media.split(",").filter(Boolean).map((url,i) => (
+            <a key={i} href={url} target="_blank" rel="noreferrer">
+              <img src={url} style={{ width:56,height:56,borderRadius:8,objectFit:"cover",border:"1.5px solid #6ee7b7" }} alt="" />
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SparePartModal({ order, currentStaff, onClose, onDone }) {
   const [parts, setParts]           = useState([]);
-  const [usages, setUsages]         = useState([]);
-  const [search, setSearch]         = useState("");
+  const [cartItems, setCartItems]   = useState([]);
+  const [requests, setRequests]     = useState([]);
   const [loading, setLoading]       = useState(true);
-  const [tab, setTab]               = useState("list"); // "list" | "used"
+  const [tab, setTab]               = useState("list");
+  const [search, setSearch]         = useState("");
   const [toast, setToast]           = useState("");
-  const [confirming, setConfirming] = useState(false);
+  const [, setTick]                 = useState(0);
+
+  // form phiếu
+  const [showForm, setShowForm]     = useState(false);
+  const [exportType, setExportType] = useState("repair");
+  const [dueMinutes, setDueMinutes] = useState(60);
+  const [returnDays, setReturnDays] = useState(3);
+  const [reqNote, setReqNote]       = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  // xem phiếu
+  const [viewReq, setViewReq]       = useState(null);
+  const [confirmMode, setConfirmMode] = useState(null);
+  const [confirmNote, setConfirmNote] = useState("");
+  const [confirmMedia, setConfirmMedia] = useState([]);
+  const [confirming, setConfirming]   = useState(false);
+  const fileRef = useRef(null);
+
+  // hoàn tất
+  const [showFinish, setShowFinish] = useState(false);
   const [finishing, setFinishing]   = useState(false);
-  // KiotViet sync
+
+  // kiotviet
   const [kvSyncing, setKvSyncing]   = useState(false);
-  const [kvSyncMsg, setKvSyncMsg]   = useState("");
-  // Xuất kho
-  const [exporting, setExporting]   = useState(false);
-  const [exportDone, setExportDone] = useState(false);
-  const [exportResult, setExportResult] = useState(null);
+  const [kvMsg, setKvMsg]           = useState("");
+
+  useEffect(() => {
+    const t = setInterval(() => setTick(v => v+1), 30000);
+    return () => clearInterval(t);
+  }, []);
 
   useEffect(() => { loadAll(); }, [order.id]);
 
   async function loadAll() {
     setLoading(true);
     try {
-      const [p, u] = await Promise.all([
+      const [p, r] = await Promise.all([
         SparePart.filter({ is_active: true }),
-        SparePartUsage.filter({ order_id: order.id }),
+        StockExportRequest.filter({ order_id: order.id }),
       ]);
       setParts(p.sort((a,b) => (a.name||"").localeCompare(b.name)));
-      setUsages(u);
-    } catch {}
+      setRequests(r.sort((a,b) => new Date(b.created_date||0) - new Date(a.created_date||0)));
+    } catch(e) { console.error(e); }
     setLoading(false);
   }
 
-  // ── Đồng bộ tồn kho từ KiotViet ──
   async function handleSyncKv() {
-    setKvSyncing(true);
-    setKvSyncMsg("⏳ Đang kết nối KiotViet...");
+    setKvSyncing(true); setKvMsg("⏳ Đang kết nối KiotViet...");
     try {
-      const result = await syncKvProducts((done, total) => {
-        setKvSyncMsg(`⏳ Đã tải ${done}/${total} sản phẩm...`);
-      });
-      setKvSyncMsg(`  Đồng bộ xong ${result.synced} sản phẩm!`);
-      // Reload danh sách
+      const result = await syncKvProducts((done, total) => setKvMsg(`⏳ ${done}/${total}...`));
+      setKvMsg(`✅ Đồng bộ ${result.synced} SP!`);
       const p = await SparePart.filter({ is_active: true });
       setParts(p.sort((a,b) => (a.name||"").localeCompare(b.name)));
-      setTimeout(() => setKvSyncMsg(""), 3000);
-    } catch (e) {
-      setKvSyncMsg(`  ${e.message ||"Lỗi đồng bộ KiotViet"}`);
-      setTimeout(() => setKvSyncMsg(""), 4000);
-    }
+      setTimeout(() => setKvMsg(""), 3000);
+    } catch(e) { setKvMsg(`❌ ${e.message}`); setTimeout(() => setKvMsg(""), 4000); }
     setKvSyncing(false);
   }
 
-  // ── Thêm linh kiện vào đơn ──
-  async function addPart(part) {
-    const exist = usages.find(u => u.part_id === part.id && u.status !== "returned");
-    if (exist) { showToast("Linh kiện này đã được thêm vào đơn!"); return; }
-    try {
-      const usage = await SparePartUsage.create({
-        order_id:      order.id,
-        order_code:    order.order_code || order.id,
-        part_id:       part.id,
-        part_name:     part.name,
-        sku:           part.sku || "",
-        qty_requested: 1,
-        qty_returned:  0,
-        qty_used:      1,
-        unit_price:    part.price || 0,
-        total_price:   part.price || 0,
-        status:        "pending",
-        is_extra:      order.status === "Đang sửa",
-      });
-      await sendWarehouseChat(part, usage.id);
-      setUsages(prev => [...prev, usage]);
-      // Không chuyển tab - ở lại để chọn tiếp
-      showToast(`✅ Đã thêm "${part.name}"`);
-    } catch {
-      showToast("Lỗi thêm linh kiện!");
-    }
+  function addToCart(part) {
+    if (cartItems.find(c => c.part_id === part.id)) { showToast("Đã có trong giỏ!"); return; }
+    setCartItems(prev => [...prev, {
+      part_id: part.id, part_name: part.name, sku: part.sku||"",
+      qty: 1, unit_price: part.price||0, total_price: part.price||0,
+      unit: part.unit||"cái",
+    }]);
+    showToast(`✅ Đã thêm "${part.name}"`);
   }
 
-  // ── Bỏ chọn linh kiện ──
-  async function removePart(usage) {
-    try {
-      // Nếu đã pending (chưa xuất kho) thì xóa hẳn
-      if (usage.status === "pending") {
-        await SparePartUsage.delete(usage.id);
-        setUsages(prev => prev.filter(u => u.id !== usage.id));
-        showToast("↩ Đã bỏ chọn linh kiện");
-      } else {
-        // Nếu đã xuất/xác nhận → chỉ đổi status về returned
-        await SparePartUsage.update(usage.id, { status: "returned" });
-        setUsages(prev => prev.map(u => u.id === usage.id ? { ...u, status: "returned" } : u));
-        showToast("↩ Đã trả linh kiện vào kho");
-      }
-    } catch {
-      showToast("Lỗi bỏ chọn linh kiện!");
-    }
+  function removeFromCart(part_id) {
+    setCartItems(prev => prev.filter(c => c.part_id !== part_id));
   }
 
-  // ── Đề nghị xuất hàng KiotViet ──
-  async function handleRequestExport() {
-    const pendingUsages = usages.filter(u => u.status === "pending");
-    if (pendingUsages.length === 0) {
-      showToast("Không có linh kiện nào cần xuất!");
-      return;
-    }
+  function updateCartQty(part_id, qty) {
+    if (qty < 1) return;
+    setCartItems(prev => prev.map(c => c.part_id===part_id
+      ? { ...c, qty, total_price: c.unit_price * qty }
+      : c
+    ));
+  }
 
-    // Gom các linh kiện có kiotviet_id
-    const toExport = [];
-    for (const u of pendingUsages) {
-      const part = parts.find(p => p.id === u.part_id);
-      if (!part) continue;
-      toExport.push({
-        kvProductId: part.kiotviet_id || "",
-        sku:         part.sku || "",
-        name:        part.name,
-        qty:         u.qty_requested || 1,
-        price:       u.unit_price || 0,
-        usageId:     u.id,
-      });
-    }
-
-    if (toExport.filter(p => p.kvProductId).length === 0) {
-      // Không có sản phẩm KiotViet nào — chỉ ghi chat thông báo
-      showToast("Các linh kiện chưa có mã KiotViet. Đã gửi yêu cầu qua chat kho.");
-      await sendBulkWarehouseChat(pendingUsages);
-      return;
-    }
-
-    setExporting(true);
+  async function handleSubmitRequest() {
+    if (cartItems.length === 0) { showToast("Giỏ trống!"); return; }
+    setSubmitting(true);
     try {
-      const result = await createKvDeliveryOrder({
-        orderCode:       order.order_code || order.id,
-        deviceModel:     order.device_model || order.device_name || "?",
-        technicianName:  currentStaff.full_name,
-        parts:           toExport.filter(p => p.kvProductId),
+      const due = new Date(Date.now() + dueMinutes * 60000).toISOString();
+      const ret = exportType==="borrow" ? new Date(Date.now() + returnDays*86400000).toISOString() : null;
+      const totalValue = cartItems.reduce((s,i) => s + i.total_price, 0);
+      const code = genCode();
+
+      const req = await StockExportRequest.create({
+        request_code: code,
+        order_id: order.id,
+        order_code: order.order_code||order.id,
+        export_type: exportType,
+        items: JSON.stringify(cartItems),
+        due_datetime: due,
+        return_due_date: ret,
+        status: "pending",
+        requested_by: currentStaff.id,
+        requested_by_name: currentStaff.full_name,
+        total_value: totalValue,
+        reminded_15min: false,
       });
 
-      // Cập nhật status usage → "issued"
-      for (const p of toExport) {
-        await SparePartUsage.update(p.usageId, { status: "issued", note: `KiotViet: ${result.transferCode || result.invoiceCode || "OK"}` });
-      }
-      setUsages(prev => prev.map(u => {
-        const found = toExport.find(p => p.usageId === u.id);
-        return found ? { ...u, status: "issued"} : u;
-      }));
-
-      setExportResult(result);
-      setExportDone(true);
-
-      // Gửi chat thông báo xuất thành công
+      // Chat + notif kho
+      const lines = cartItems.map(i => `• ${i.part_name} ×${i.qty}`).join("\n");
+      const typeLabel = exportType==="borrow" ? "MƯỢN TẠM" : "XUẤT SỬA";
       await RepairChat.create({
-        order_id:     order.id,
-        order_code:   order.order_code || order.id,
-        sender_id:    currentStaff.id,
-        sender_name:  currentStaff.full_name,
-        message:      `  [ĐÃ TẠO PHIẾU XUẤT KHO KIOTVIET]\n━━━━━━━━━━━━━━━━\n  Đơn: ${order.order_code}\n  Máy: ${order.device_model ||"?"}\n  KTV: ${currentStaff.full_name}\n  Phiếu KV: ${result.transferCode || result.invoiceCode || result.transferId ||"N/A"}\n  ${toExport.length} loại linh kiện`,
-        message_type:"system",
-      });
-
-      showToast(`  Đã tạo phiếu xuất kho KiotViet!\nMã phiếu: ${result.transferCode || result.invoiceCode ||"OK"}`);
-    } catch (e) {
-      // Nếu KiotViet lỗi, fallback gửi chat thủ công
-      showToast(`  KiotViet lỗi: ${e.message}\nĐã gửi yêu cầu qua chat kho thay thế.`);
-      await sendBulkWarehouseChat(pendingUsages);
-    }
-    setExporting(false);
-  }
-
-  async function sendBulkWarehouseChat(usageList) {
-    const lines = usageList.map(u => `  • ${u.part_name} × ${u.qty_requested || 1} ${u.sku ? `(${u.sku})` :""}`).join("\n");
-    const msg = `  [YÊU CẦU XUẤT KHO]\n━━━━━━━━━━━━━━━━\n  Đơn: ${order.order_code || order.id}\n  Máy: ${order.device_model ||"?"}\n  KTV: ${currentStaff.full_name}\n\nDanh sách linh kiện:\n${lines}\n\n⏰ Vui lòng xuất kho và xác nhận!`;
-    await RepairChat.create({
-      order_id:     order.id,
-      order_code:   order.order_code || order.id,
-      sender_id:    currentStaff.id,
-      sender_name:  currentStaff.full_name,
-      message:      msg,
-      message_type:"system",
-    });
-  }
-
-  async function sendWarehouseChat(part, usageId) {
-    const isExtra = order.status === "Đang sửa";
-    const msg = `  [TỰ ĐỘNG] Yêu cầu xuất tạm linh kiện\n━━━━━━━━━━━━━━━━\n  Đơn: ${order.order_code}\n  Máy: ${order.device_model ||"?"}\n  KTV: ${currentStaff.full_name}\n  LK: ${part.name}${part.sku?` (${part.sku})`:""}\n  SL: 1 ${part.unit||"cái"}\n  Giá: ${(part.price||0).toLocaleString()}đ${isExtra?"\n  PHÁT SINH trong quá trình sửa":""}`;
-    try {
-      await RepairChat.create({
-        order_id:     order.id,
-        order_code:   order.order_code || order.id,
-        sender_id:    currentStaff.id,
-        sender_name:  currentStaff.full_name,
-        message:      msg,
+        order_id: order.id, order_code: order.order_code||order.id,
+        sender_id: currentStaff.id, sender_name: currentStaff.full_name,
+        message: `📦 [ĐỀ NGHỊ XUẤT KHO - ${typeLabel}]\n━━━━━━━━━━━━━━━━\nPhiếu: ${code}\nĐơn: ${order.order_code} | Máy: ${order.device_model||"?"}\nKTV: ${currentStaff.full_name}\nHạn xuất: ${fmtDt(due)}\n${lines}`,
         message_type: "system",
       });
-    } catch {}
+      try {
+        const staffList = await Staff.filter({ is_active: true });
+        for (const ws of staffList.filter(s => s.role==="Nhân viên kho")) {
+          await Notification.create({
+            user_id: ws.id, user_name: ws.full_name,
+            title: `📦 Đề nghị XK - ${typeLabel}`,
+            message: `Phiếu ${code} | ${order.order_code} | Hạn: ${fmtDt(due)}`,
+            order_id: order.id, order_code: order.order_code||order.id,
+            type: "export_request", is_read: false,
+          });
+        }
+      } catch {}
+
+      setRequests(prev => [req, ...prev]);
+      setCartItems([]);
+      setShowForm(false);
+      setTab("requests");
+      showToast(`✅ Đã gửi phiếu ${code} cho kho!`);
+    } catch(e) { showToast(`Lỗi: ${e.message}`); }
+    setSubmitting(false);
   }
 
-  function showToast(msg) { setToast(msg); setTimeout(() => setToast(""), 4000); }
+  async function handleWarehouseConfirm() {
+    setConfirming(true);
+    try {
+      const mediaStr = confirmMedia.map(m=>m.url).join(",");
+      await StockExportRequest.update(viewReq.id, {
+        status: "warehouse_confirmed",
+        warehouse_confirmed_by: currentStaff.id,
+        warehouse_confirmed_by_name: currentStaff.full_name,
+        warehouse_confirmed_at: new Date().toISOString(),
+        warehouse_note: confirmNote,
+        warehouse_media: mediaStr,
+      });
 
-  // ── Hoàn tất sửa chữa ──
+      let kvCode = "";
+      try {
+        const items = JSON.parse(viewReq.items||"[]");
+        const res = await createKvDeliveryOrder({
+          orderCode: viewReq.order_code, deviceModel: order.device_model||"?",
+          technicianName: viewReq.requested_by_name,
+          parts: items.map(i=>({ kvProductId:i.part_id, sku:i.sku, name:i.part_name, qty:i.qty, price:i.unit_price })),
+        });
+        kvCode = res.transferCode||res.invoiceCode||"OK";
+        await StockExportRequest.update(viewReq.id, { kiotviet_invoice_code: kvCode });
+      } catch { kvCode = "(KV lỗi)"; }
+
+      await Notification.create({
+        user_id: viewReq.requested_by, user_name: viewReq.requested_by_name,
+        title: "📦 Kho đã xuất LK — Vui lòng xác nhận nhận!",
+        message: `Phiếu ${viewReq.request_code} | Mã KV: ${kvCode}`,
+        order_id: order.id, order_code: order.order_code||order.id,
+        type: "export_ready", is_read: false,
+      });
+
+      const updated = { ...viewReq, status:"warehouse_confirmed", warehouse_confirmed_by_name:currentStaff.full_name, warehouse_confirmed_at:new Date().toISOString(), kiotviet_invoice_code:kvCode };
+      setViewReq(updated);
+      setRequests(prev => prev.map(r => r.id===viewReq.id ? {...r, status:"warehouse_confirmed"} : r));
+      setConfirmMode(null); setConfirmNote(""); setConfirmMedia([]);
+      showToast("✅ Đã xác nhận xuất kho!");
+    } catch(e) { showToast(`Lỗi: ${e.message}`); }
+    setConfirming(false);
+  }
+
+  async function handleKtvConfirm() {
+    setConfirming(true);
+    try {
+      const mediaStr = confirmMedia.map(m=>m.url).join(",");
+      await StockExportRequest.update(viewReq.id, {
+        status: "ktv_confirmed",
+        ktv_confirmed_by: currentStaff.id,
+        ktv_confirmed_by_name: currentStaff.full_name,
+        ktv_confirmed_at: new Date().toISOString(),
+        ktv_note: confirmNote,
+        ktv_media: mediaStr,
+      });
+      const updated = { ...viewReq, status:"ktv_confirmed", ktv_confirmed_by_name:currentStaff.full_name, ktv_confirmed_at:new Date().toISOString() };
+      setViewReq(updated);
+      setRequests(prev => prev.map(r => r.id===viewReq.id ? {...r, status:"ktv_confirmed"} : r));
+      setConfirmMode(null); setConfirmNote(""); setConfirmMedia([]);
+      showToast("✅ Đã xác nhận nhận linh kiện!");
+    } catch(e) { showToast(`Lỗi: ${e.message}`); }
+    setConfirming(false);
+  }
+
+  async function handleReturn() {
+    setConfirming(true);
+    try {
+      await StockExportRequest.update(viewReq.id, {
+        status: "returned",
+        return_confirmed_by: currentStaff.id,
+        return_confirmed_by_name: currentStaff.full_name,
+        return_confirmed_at: new Date().toISOString(),
+        return_note: confirmNote,
+      });
+      const updated = { ...viewReq, status:"returned", return_confirmed_by_name:currentStaff.full_name, return_confirmed_at:new Date().toISOString() };
+      setViewReq(updated);
+      setRequests(prev => prev.map(r => r.id===viewReq.id ? {...r, status:"returned"} : r));
+      setConfirmMode(null); setConfirmNote("");
+      showToast("✅ Đã trả linh kiện cho kho!");
+    } catch(e) { showToast(`Lỗi: ${e.message}`); }
+    setConfirming(false);
+  }
+
+  async function handleMediaUpload(e) {
+    for (const file of Array.from(e.target.files)) {
+      const reader = new FileReader();
+      reader.onload = ev => setConfirmMedia(prev => [...prev, { name:file.name, url:ev.target.result, type:file.type }]);
+      reader.readAsDataURL(file);
+    }
+  }
+
   async function handleFinish() {
     setFinishing(true);
     try {
-      const activeUsages = usages.filter(u => u.status !== "returned");
-      const totalParts = activeUsages.reduce((sum,u) => sum + (u.total_price||0), 0);
+      const confirmedItems = requests.filter(r => r.status==="ktv_confirmed").flatMap(r => JSON.parse(r.items||"[]"));
+      const totalParts = confirmedItems.reduce((s,i) => s + (i.total_price||0), 0);
       const newFinal = (order.estimated_cost||0) + totalParts;
-      await RepairOrder.update(order.id, { status:"Sửa Xong", done_date: new Date().toISOString(), final_cost: newFinal });
+      await RepairOrder.update(order.id, { status:"Sửa Xong", done_date:new Date().toISOString(), final_cost:newFinal });
       await RepairChat.create({
-        order_id:    order.id,
-        order_code:  order.order_code || order.id,
-        sender_id:   currentStaff.id,
-        sender_name: currentStaff.full_name,
-        message:     `  KTV ${currentStaff.full_name} đã hoàn tất sửa chữa!\n  Tổng bill: ${newFinal.toLocaleString()}đ (LK: ${totalParts.toLocaleString()}đ + Công: ${(order.estimated_cost||0).toLocaleString()}đ)`,
+        order_id:order.id, order_code:order.order_code||order.id,
+        sender_id:currentStaff.id, sender_name:currentStaff.full_name,
+        message:`✅ KTV ${currentStaff.full_name} hoàn tất!\nTổng bill: ${fmtMoney(newFinal)} (LK: ${fmtMoney(totalParts)} + Công: ${fmtMoney(order.estimated_cost||0)})`,
         message_type:"system",
       });
       if (onDone) onDone();
     } catch { showToast("Lỗi cập nhật!"); }
-    setFinishing(false);
-    setConfirming(false);
+    setFinishing(false); setShowFinish(false);
   }
 
-  const activeUsages   = usages.filter(u => u.status !== "returned");
-  const pendingUsages  = usages.filter(u => u.status === "pending");
-  const totalPartCost  = activeUsages.reduce((sum,u) => sum+(u.total_price||0), 0);
-  const totalBill      = (order.estimated_cost||0) + totalPartCost;
+  function showToast(msg) { setToast(msg); setTimeout(() => setToast(""), 4000); }
+  function closeDetail() { setViewReq(null); setConfirmMode(null); setConfirmNote(""); setConfirmMedia([]); }
 
-  const filteredParts = parts.filter(p =>
-    !search || (p.name||"").toLowerCase().includes(search.toLowerCase()) || (p.sku||"").toLowerCase().includes(search.toLowerCase())
-  );
+  const cartTotal   = cartItems.reduce((s,c) => s+c.total_price, 0);
+  const confirmedTotal = requests.filter(r=>r.status==="ktv_confirmed").flatMap(r=>JSON.parse(r.items||"[]")).reduce((s,i)=>s+(i.total_price||0),0);
+  const totalBill   = (order.estimated_cost||0) + confirmedTotal;
+  const filteredParts = parts.filter(p => !search || (p.name||"").toLowerCase().includes(search.toLowerCase()) || (p.sku||"").toLowerCase().includes(search.toLowerCase()));
+  const isKho = currentStaff?.role === "Nhân viên kho";
+  const isMgr = currentStaff?.role === "Quản lý";
+  const pendingCount = requests.filter(r => r.status==="pending").length;
 
   return (
-    <div style={{ position:"fixed", inset:0, zIndex:3000, background:"rgba(0,0,0,.6)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-      <div style={{ background:"#fff", borderRadius:"24px 24px 0 0", width:"100%", maxWidth:600, maxHeight:"92vh", display:"flex", flexDirection:"column" }}>
+    <div style={{ position:"fixed",inset:0,zIndex:3000,background:"rgba(0,0,0,.65)",display:"flex",alignItems:"flex-end",justifyContent:"center" }}>
+      <div style={{ background:"#fff",borderRadius:"24px 24px 0 0",width:"100%",maxWidth:600,maxHeight:"94vh",display:"flex",flexDirection:"column" }}>
 
-        {/* Header */}
-        <div style={{ background:"linear-gradient(135deg,#1e1b4b,#4f46e5)", padding:"18px 20px", borderRadius:"24px 24px 0 0", flexShrink:0 }}>
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-            <div>
-              <div style={{ color:"#fff", fontWeight:900, fontSize:17 }}>  Linh Kiện — {order.order_code}</div>
-              <div style={{ color:"#a5b4fc", fontSize:13, marginTop:2 }}>{order.device_model || order.device_name || "?"} · {order.customer_name}</div>
+        {/* HEADER */}
+        <div style={{ background:"linear-gradient(135deg,#1e1b4b,#4f46e5)",padding:"16px 18px 14px",borderRadius:"24px 24px 0 0",flexShrink:0 }}>
+          <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start" }}>
+            <div style={{ flex:1,minWidth:0 }}>
+              <div style={{ color:"#fff",fontWeight:900,fontSize:17 }}>🔧 Linh Kiện — {order.order_code}</div>
+              <div style={{ color:"#a5b4fc",fontSize:13,marginTop:2 }}>{order.device_model||order.device_name||"?"} · {order.customer_name}</div>
             </div>
-            <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-              {/* Nút sync KiotViet */}
+            <div style={{ display:"flex",gap:8,alignItems:"center",flexShrink:0 }}>
               <button onClick={handleSyncKv} disabled={kvSyncing}
-                style={{ height:34, padding:"0 12px", background:"rgba(255,255,255,.2)", border:"1.5px solid rgba(255,255,255,.4)", color:"#fff", borderRadius:10, fontSize:12, fontWeight:700, cursor:kvSyncing?"not-allowed":"pointer", display:"flex", alignItems:"center", gap:4 }}>
-                {kvSyncing ? "⏳" : "refresh"} KiotViet
+                style={{ height:32,padding:"0 10px",background:"rgba(255,255,255,.2)",border:"1.5px solid rgba(255,255,255,.35)",color:"#fff",borderRadius:10,fontSize:11,fontWeight:700,cursor:kvSyncing?"not-allowed":"pointer",display:"flex",alignItems:"center",gap:4 }}>
+                <span className="material-icons" style={{ fontSize:14 }}>sync</span>{kvSyncing?"...":"KiotViet"}
               </button>
               <button onClick={onClose}
-                style={{ background:"rgba(255,255,255,.2)", border:"1.5px solid rgba(255,255,255,.35)", color:"#fff", width:36, height:36, borderRadius:"50%", fontSize:20, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                style={{ background:"rgba(255,255,255,.2)",border:"1.5px solid rgba(255,255,255,.35)",color:"#fff",width:36,height:36,borderRadius:"50%",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>
                 <span className="material-icons" style={{ fontSize:20 }}>close</span>
               </button>
             </div>
           </div>
-          {kvSyncMsg && (
-            <div style={{ marginTop:8, background:"rgba(255,255,255,.15)", borderRadius:10, padding:"8px 12px", fontSize:12, color:"#fff", fontWeight:600 }}>
-              {kvSyncMsg}
-            </div>
-          )}
+          {kvMsg && <div style={{ marginTop:8,background:"rgba(255,255,255,.15)",borderRadius:10,padding:"6px 12px",fontSize:12,color:"#fff",fontWeight:600 }}>{kvMsg}</div>}
         </div>
 
-        {/* Tabs */}
-        <div style={{ display:"flex", borderBottom:"2px solid #e5e7eb", flexShrink:0 }}>
+        {/* TABS */}
+        <div style={{ display:"flex",borderBottom:"2px solid #e5e7eb",flexShrink:0,background:"#fff" }}>
           {[
-            { key:"list", label:`  Chọn linh kiện (${filteredParts.length})` },
-            { key:"used", label:`  Đã chọn (${activeUsages.length})` },
+            { key:"list",     label:`Chọn LK`,      icon:"inventory_2",  badge:0 },
+            { key:"cart",     label:`Giỏ`,           icon:"shopping_cart", badge:cartItems.length },
+            { key:"requests", label:`Phiếu XK`,      icon:"assignment",    badge:pendingCount },
           ].map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
-              style={{ flex:1, padding:"12px 0", border:"none", background:"none", fontWeight:700, fontSize:14, cursor:"pointer", color:tab===t.key?"#4f46e5":"#6b7280", borderBottom:tab===t.key?"3px solid #4f46e5":"3px solid transparent", marginBottom:-2 }}>
+              style={{ flex:1,padding:"10px 4px",border:"none",background:"none",fontWeight:700,fontSize:12,cursor:"pointer",color:tab===t.key?"#4f46e5":"#6b7280",borderBottom:tab===t.key?"3px solid #4f46e5":"3px solid transparent",marginBottom:-2,display:"flex",alignItems:"center",justifyContent:"center",gap:4,position:"relative" }}>
+              <span className="material-icons" style={{ fontSize:16 }}>{t.icon}</span>
               {t.label}
+              {t.badge > 0 && <span style={{ background:"#ef4444",color:"#fff",borderRadius:999,padding:"1px 6px",fontSize:10,fontWeight:900,minWidth:16,textAlign:"center" }}>{t.badge}</span>}
             </button>
           ))}
         </div>
 
-        {/* Content */}
-        <div style={{ flex:1, overflowY:"auto", padding:"0 0 12px" }}>
-          {loading ? (
-            <div style={{ textAlign:"center", padding:40, color:"#9ca3af" }}>⏳ Đang tải...</div>
-          ) : tab === "list" ? (
-            <>
-              <div style={{ padding:"12px 16px 8px", position:"sticky", top:0, background:"#fff", zIndex:1 }}>
-                <input value={search} onChange={e => setSearch(e.target.value)}
-                  placeholder="Tìm tên hoặc SKU linh kiện..."
-                  style={{ width:"100%", height:42, borderRadius:12, border:"1.5px solid #e5e7eb", padding:"0 14px", fontSize:14, outline:"none", boxSizing:"border-box" }} />
-                {parts.length === 0 && (
-                  <div style={{ marginTop:8, background:"#fffbeb", borderRadius:10, padding:"10px 14px", fontSize:13, color:"#92400e", fontWeight:600 }}>
-                      Chưa có linh kiện. Nhấn"KiotViet" để đồng bộ từ kho.
-                  </div>
-                )}
-              </div>
-              {filteredParts.map(part => {
-                const inOrder = usages.find(u => u.part_id === part.id && u.status !== "returned");
-                return (
-                  <div key={part.id}
-                    style={{ margin:"0 12px 8px", background:inOrder?"#f0fdf4":"#fff", borderRadius:14, padding:"12px 14px", border:`1.5px solid ${inOrder?"#6ee7b7":"#e5e7eb"}`, display:"flex", alignItems:"center", gap:12 }}>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontWeight:700, fontSize:14, color:"#111", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{part.name}</div>
-                      <div style={{ fontSize:12, color:"#6b7280", marginTop:2, display:"flex", gap:8, flexWrap:"wrap" }}>
-                        {part.sku && <span>SKU: {part.sku}</span>}
-                        <span style={{ color: (part.stock_qty||0) > 0 ? "#059669" : "#dc2626", fontWeight:700 }}>
-                          Tồn: {part.stock_qty||0} {part.unit||"cái"}
-                        </span>
-                        {part.category && <span style={{ color:"#6b7280" }}>{part.category}</span>}
-                      </div>
-                      <div style={{ fontSize:13, fontWeight:800, color:"#4f46e5", marginTop:2 }}>{(part.price||0).toLocaleString()}đ</div>
-                    </div>
-                    {inOrder ? (
-                      <button onClick={() => removePart(inOrder)}
-                        style={{ height:38, padding:"0 12px", borderRadius:10, border:"1.5px solid #fca5a5", background:"#fff1f2", color:"#dc2626", fontWeight:800, fontSize:12, cursor:"pointer", flexShrink:0, minWidth:72, display:"flex", alignItems:"center", gap:4 }}>
-                        <span className="material-icons" style={{ fontSize:14 }}>remove_circle</span>Bỏ chọn
-                      </button>
-                    ) : (
-                      <button onClick={() => addPart(part)}
-                        style={{ height:38, padding:"0 14px", borderRadius:10, border:"none", background:"#4f46e5", color:"#fff", fontWeight:800, fontSize:13, cursor:"pointer", flexShrink:0, minWidth:70, display:"flex", alignItems:"center", gap:4 }}>
-                        <span className="material-icons" style={{ fontSize:16 }}>add</span>Thêm
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </>
-          ) : (
-            <>
-              <div style={{ padding:"12px 16px 4px" }}>
-                {activeUsages.length === 0 ? (
-                  <div style={{ textAlign:"center", padding:"30px 20px", color:"#9ca3af"}}>
-                    <div style={{ fontSize:40, marginBottom:8 }}> </div>
-                    <div>Chưa chọn linh kiện nào</div>
-                  </div>
-                ) : (
-                  <>
-                    {activeUsages.map(u => (
-                      <div key={u.id} style={{ background:"#f9fafb", borderRadius:14, padding:"12px 14px", marginBottom:8, border:"1.5px solid #e5e7eb" }}>
-                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-                          <div style={{ flex:1 }}>
-                            <div style={{ fontWeight:700, fontSize:14 }}>{u.part_name}</div>
-                            {u.sku && <div style={{ fontSize:12, color:"#6b7280" }}>SKU: {u.sku}</div>}
-                          </div>
-                          <div style={{ textAlign:"right", flexShrink:0 }}>
-                            <div style={{ fontSize:13, fontWeight:800, color:"#4f46e5" }}>{(u.total_price||0).toLocaleString()}đ</div>
-                            <div style={{ fontSize:11, color: u.status==="issued"?"#059669":u.status==="confirmed"?"#7c3aed":u.status==="returned"?"#6b7280":u.status==="pending"?"#d97706":"#6b7280", fontWeight:700, marginTop:2 }}>
-                              {u.status==="issued" ? "✅ Đã xuất" : u.status==="confirmed" ? "✔ Xác nhận" : u.status==="returned" ? "↩ Đã trả" : u.status==="pending" ? "⏳ Chờ xuất" : u.status}
-                            </div>
-                          </div>
-                        </div>
-                        <div style={{ fontSize:12, color:"#6b7280", marginTop:4 }}>SL: {u.qty_requested||1} × {(u.unit_price||0).toLocaleString()}đ</div>
-                      </div>
-                    ))}
+        {/* CONTENT */}
+        <div style={{ flex:1,overflowY:"auto",padding:"0 0 8px" }}>
+          {loading ? <div style={{ textAlign:"center",padding:40,color:"#9ca3af" }}>⏳ Đang tải...</div>
 
-                    {/* Tổng */}
-                    <div style={{ background:"#eef2ff", borderRadius:14, padding:14, marginTop:4, border:"1.5px solid #c7d2fe" }}>
-                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#374151", marginBottom:6 }}>
-                        <span>  Công sửa (dự kiến)</span>
-                        <span style={{ fontWeight:700 }}>{(order.estimated_cost||0).toLocaleString()}đ</span>
-                      </div>
-                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#374151", marginBottom:6 }}>
-                        <span>  Linh kiện ({activeUsages.length} loại)</span>
-                        <span style={{ fontWeight:700 }}>{totalPartCost.toLocaleString()}đ</span>
-                      </div>
-                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:15, color:"#1e1b4b", fontWeight:900, paddingTop:8, borderTop:"1.5px solid #c7d2fe"}}>
-                        <span>  Tổng bill dự kiến</span>
-                        <span style={{ color:"#4f46e5" }}>{totalBill.toLocaleString()}đ</span>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Footer actions */}
-        <div style={{ padding:"12px 16px 20px", borderTop:"1.5px solid #e5e7eb", flexShrink:0, display:"flex", flexDirection:"column", gap:10 }}>
-
-          {/* Nút Đề nghị xuất hàng */}
-          {tab === "used" && pendingUsages.length > 0 && (
-            <button onClick={handleRequestExport} disabled={exporting}
-              style={{ width:"100%", height:52, background: exporting ? "#9ca3af" : "linear-gradient(135deg,#f59e0b,#d97706)", border:"none", borderRadius:14, color:"#fff", fontWeight:900, fontSize:16, cursor:exporting?"not-allowed":"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8, boxShadow:"0 4px 16px rgba(245,158,11,.4)" }}>
-              {exporting ? "⏳ Đang tạo phiếu KiotViet...": `  Đề Nghị Xuất Hàng (${pendingUsages.length} LK)`}
-            </button>
-          )}
-
-          {/* Kết quả xuất kho */}
-          {exportDone && exportResult && (
-            <div style={{ background:"#f0fdf4", borderRadius:12, padding:"10px 14px", border:"1.5px solid #6ee7b7", fontSize:13, fontWeight:700, color:"#065f46", textAlign:"center"}}>
-                Phiếu KiotViet: {exportResult.transferCode || exportResult.invoiceCode ||"Đã tạo"}
+          /* TAB: CHỌN LINH KIỆN */
+          : tab==="list" ? <>
+            <div style={{ padding:"12px 14px 8px",position:"sticky",top:0,background:"#fff",zIndex:1 }}>
+              <input value={search} onChange={e=>setSearch(e.target.value)}
+                placeholder="🔍 Tìm tên hoặc SKU..."
+                style={{ width:"100%",height:40,borderRadius:12,border:"1.5px solid #e5e7eb",padding:"0 14px",fontSize:14,outline:"none",boxSizing:"border-box" }} />
+              {parts.length===0 && <div style={{ marginTop:8,background:"#fffbeb",borderRadius:10,padding:"8px 12px",fontSize:13,color:"#92400e",fontWeight:600 }}>Chưa có LK. Nhấn KiotViet để đồng bộ.</div>}
             </div>
-          )}
+            {filteredParts.map(part => {
+              const inCart = cartItems.find(c => c.part_id===part.id);
+              return (
+                <div key={part.id} style={{ margin:"0 12px 8px",background:inCart?"#f0fdf4":"#fff",borderRadius:14,padding:"10px 12px",border:`1.5px solid ${inCart?"#6ee7b7":"#e5e7eb"}`,display:"flex",alignItems:"center",gap:10 }}>
+                  <div style={{ flex:1,minWidth:0 }}>
+                    <div style={{ fontWeight:700,fontSize:14,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{part.name}</div>
+                    <div style={{ fontSize:12,color:"#6b7280",marginTop:2,display:"flex",gap:8,flexWrap:"wrap" }}>
+                      {part.sku && <span>SKU: {part.sku}</span>}
+                      <span style={{ color:(part.stock_qty||0)>0?"#059669":"#dc2626",fontWeight:700 }}>Tồn: {part.stock_qty||0} {part.unit||"cái"}</span>
+                    </div>
+                    <div style={{ fontSize:13,fontWeight:800,color:"#4f46e5",marginTop:2 }}>{fmtMoney(part.price)}</div>
+                  </div>
+                  {inCart ? (
+                    <button onClick={() => removeFromCart(part.id)}
+                      style={{ height:36,padding:"0 10px",borderRadius:10,border:"1.5px solid #fca5a5",background:"#fff1f2",color:"#dc2626",fontWeight:800,fontSize:12,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",gap:4 }}>
+                      <span className="material-icons" style={{ fontSize:14 }}>remove_circle</span>Bỏ
+                    </button>
+                  ) : (
+                    <button onClick={() => addToCart(part)}
+                      style={{ height:36,padding:"0 12px",borderRadius:10,border:"none",background:"#4f46e5",color:"#fff",fontWeight:800,fontSize:13,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",gap:4 }}>
+                      <span className="material-icons" style={{ fontSize:16 }}>add</span>Thêm
+                    </button>
+                  )}
+                </div>
+              );
+            })}
 
-          {/* Nút Sửa Xong */}
-          {tab === "used" && (
-            confirming ? (
-              <div style={{ background:"#fef2f2", borderRadius:14, padding:14, border:"1.5px solid #fca5a5" }}>
-                <div style={{ fontWeight:800, color:"#dc2626", marginBottom:10, textAlign:"center"}}>  Xác nhận hoàn tất sửa chữa?</div>
-                <div style={{ fontSize:13, color:"#374151", marginBottom:12, textAlign:"center" }}>Tổng bill: <strong style={{color:"#4f46e5"}}>{totalBill.toLocaleString()}đ</strong></div>
-                <div style={{ display:"flex", gap:8 }}>
-                  <button onClick={() => setConfirming(false)} style={{ flex:1, height:46, background:"#f3f4f6", border:"none", borderRadius:12, fontWeight:700, cursor:"pointer" }}>Huỷ</button>
-                  <button onClick={handleFinish} disabled={finishing}
-                    style={{ flex:2, height:46, background:"#059669", border:"none", borderRadius:12, color:"#fff", fontWeight:800, fontSize:15, cursor:finishing?"not-allowed":"pointer" }}>
-                    {finishing ? "⏳ Đang lưu..." : "Xác nhận Sửa Xong"}
-                  </button>
+          /* TAB: GIỎ */
+          </> : tab==="cart" ? <div style={{ padding:"12px 14px" }}>
+            {cartItems.length===0 ? (
+              <div style={{ textAlign:"center",padding:"40px 20px",color:"#9ca3af" }}>
+                <span className="material-icons" style={{ fontSize:48,display:"block",marginBottom:8 }}>shopping_cart</span>
+                Giỏ trống — chọn LK từ tab bên trái
+              </div>
+            ) : <>
+              {cartItems.map(c => (
+                <div key={c.part_id} style={{ background:"#f9fafb",borderRadius:14,padding:"10px 12px",marginBottom:8,border:"1.5px solid #e5e7eb",display:"flex",alignItems:"center",gap:8 }}>
+                  <div style={{ flex:1,minWidth:0 }}>
+                    <div style={{ fontWeight:700,fontSize:14,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{c.part_name}</div>
+                    {c.sku && <div style={{ fontSize:12,color:"#6b7280" }}>SKU: {c.sku}</div>}
+                    <div style={{ fontSize:13,fontWeight:800,color:"#4f46e5",marginTop:2 }}>{fmtMoney(c.total_price)}</div>
+                  </div>
+                  <div style={{ display:"flex",alignItems:"center",gap:6,flexShrink:0 }}>
+                    <button onClick={()=>updateCartQty(c.part_id,c.qty-1)} style={{ width:30,height:30,borderRadius:8,border:"1.5px solid #e5e7eb",background:"#fff",fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900 }}>−</button>
+                    <span style={{ fontWeight:800,fontSize:15,minWidth:22,textAlign:"center" }}>{c.qty}</span>
+                    <button onClick={()=>updateCartQty(c.part_id,c.qty+1)} style={{ width:30,height:30,borderRadius:8,border:"1.5px solid #e5e7eb",background:"#fff",fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900 }}>+</button>
+                    <button onClick={()=>removeFromCart(c.part_id)} style={{ width:30,height:30,borderRadius:8,border:"none",background:"#fff1f2",color:"#dc2626",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>
+                      <span className="material-icons" style={{ fontSize:16 }}>delete</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {/* Tổng giỏ */}
+              <div style={{ background:"#eef2ff",borderRadius:14,padding:12,marginBottom:12,border:"1.5px solid #c7d2fe" }}>
+                <div style={{ display:"flex",justifyContent:"space-between",fontSize:13,marginBottom:4 }}>
+                  <span style={{ color:"#6b7280" }}>Linh kiện ({cartItems.length} loại)</span>
+                  <span style={{ fontWeight:800 }}>{fmtMoney(cartTotal)}</span>
                 </div>
               </div>
-            ) : (
-              <button onClick={() => setConfirming(true)}
-                style={{ width:"100%", height:52, background:"linear-gradient(135deg,#059669,#047857)", border:"none", borderRadius:14, color:"#fff", fontWeight:900, fontSize:16, cursor:"pointer", boxShadow:"0 4px 16px rgba(5,150,105,.4)"}}>
-                  Sửa Xong — Tổng {totalBill.toLocaleString()}đ
-              </button>
-            )
-          )}
 
-          {tab ==="list" && activeUsages.length > 0 && (
-            <button onClick={() => setTab("used")}
-              style={{ width:"100%", height:48, background:"#4f46e5", color:"#fff", border:"none", borderRadius:14, fontWeight:800, fontSize:14, cursor:"pointer" }}>
-              Xem {activeUsages.length} LK đã chọn →
+              {!showForm ? (
+                <button onClick={() => setShowForm(true)}
+                  style={{ width:"100%",height:48,borderRadius:14,border:"none",background:"linear-gradient(135deg,#f59e0b,#d97706)",color:"#fff",fontWeight:900,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8 }}>
+                  <span className="material-icons" style={{ fontSize:20 }}>send</span>
+                  Tạo đề nghị xuất kho
+                </button>
+              ) : (
+                <div style={{ background:"#fff",borderRadius:16,border:"1.5px solid #c7d2fe",padding:16 }}>
+                  <div style={{ fontWeight:800,fontSize:15,color:"#1e1b4b",marginBottom:12 }}>📋 Tùy chọn phiếu xuất</div>
+
+                  <div style={{ marginBottom:12 }}>
+                    <div style={{ fontSize:13,fontWeight:700,color:"#374151",marginBottom:6 }}>Loại xuất</div>
+                    <div style={{ display:"flex",gap:8 }}>
+                      {[{v:"repair",l:"🔧 Xuất sửa"},{v:"borrow",l:"🔄 Xuất mượn"}].map(opt => (
+                        <button key={opt.v} onClick={()=>setExportType(opt.v)}
+                          style={{ flex:1,padding:"10px 8px",borderRadius:12,border:`2px solid ${exportType===opt.v?"#4f46e5":"#e5e7eb"}`,background:exportType===opt.v?"#eef2ff":"#fff",fontWeight:700,fontSize:13,cursor:"pointer",color:exportType===opt.v?"#4f46e5":"#374151" }}>
+                          {opt.l}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom:12 }}>
+                    <div style={{ fontSize:13,fontWeight:700,color:"#374151",marginBottom:6 }}>⏰ Hạn kho xuất</div>
+                    <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
+                      {[15,30,60,120,240].map(m => (
+                        <button key={m} onClick={()=>setDueMinutes(m)}
+                          style={{ padding:"6px 12px",borderRadius:10,border:`1.5px solid ${dueMinutes===m?"#4f46e5":"#e5e7eb"}`,background:dueMinutes===m?"#4f46e5":"#fff",color:dueMinutes===m?"#fff":"#374151",fontWeight:700,fontSize:12,cursor:"pointer" }}>
+                          {m<60?`${m}p`:`${m/60}h`}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ fontSize:12,color:"#6b7280",marginTop:6 }}>
+                      Hạn: <b>{fmtDt(new Date(Date.now()+dueMinutes*60000).toISOString())}</b> · Kho nhận nhắc khi còn 15p
+                    </div>
+                  </div>
+
+                  {exportType==="borrow" && (
+                    <div style={{ marginBottom:12 }}>
+                      <div style={{ fontSize:13,fontWeight:700,color:"#374151",marginBottom:6 }}>📅 Hạn trả</div>
+                      <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
+                        {[1,2,3,5,7].map(d => (
+                          <button key={d} onClick={()=>setReturnDays(d)}
+                            style={{ padding:"6px 12px",borderRadius:10,border:`1.5px solid ${returnDays===d?"#7c3aed":"#e5e7eb"}`,background:returnDays===d?"#7c3aed":"#fff",color:returnDays===d?"#fff":"#374151",fontWeight:700,fontSize:12,cursor:"pointer" }}>
+                            {d} ngày
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <textarea value={reqNote} onChange={e=>setReqNote(e.target.value)}
+                    placeholder="Ghi chú cho NV kho (tuỳ chọn)..."
+                    style={{ width:"100%",minHeight:56,borderRadius:10,border:"1.5px solid #e5e7eb",padding:"8px 12px",fontSize:13,outline:"none",resize:"vertical",boxSizing:"border-box",marginBottom:12 }} />
+
+                  <div style={{ display:"flex",gap:8 }}>
+                    <button onClick={()=>setShowForm(false)}
+                      style={{ flex:1,height:44,borderRadius:12,border:"1.5px solid #e5e7eb",background:"#fff",fontWeight:700,fontSize:14,cursor:"pointer",color:"#6b7280" }}>Hủy</button>
+                    <button onClick={handleSubmitRequest} disabled={submitting}
+                      style={{ flex:2,height:44,borderRadius:12,border:"none",background:"#4f46e5",color:"#fff",fontWeight:800,fontSize:14,cursor:submitting?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6 }}>
+                      <span className="material-icons" style={{ fontSize:18 }}>send</span>
+                      {submitting?"Đang gửi...":"Gửi đề nghị"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>}
+
+          /* TAB: PHIẾU XUẤT KHO */
+          </> : <div style={{ padding:"12px 14px" }}>
+            {requests.length===0 ? (
+              <div style={{ textAlign:"center",padding:"40px 20px",color:"#9ca3af" }}>
+                <span className="material-icons" style={{ fontSize:48,display:"block",marginBottom:8 }}>assignment</span>
+                Chưa có phiếu xuất nào
+              </div>
+            ) : requests.map(req => {
+              const st = STATUS_CFG[req.status]||STATUS_CFG.pending;
+              const mins = minutesLeft(req.due_datetime);
+              const urgent = mins!==null && mins>0 && mins<=15 && req.status==="pending";
+              return (
+                <div key={req.id} onClick={()=>setViewReq(req)}
+                  style={{ background:urgent?"#fff7ed":"#f9fafb",borderRadius:14,padding:"12px 14px",marginBottom:8,border:`1.5px solid ${urgent?"#fb923c":"#e5e7eb"}`,cursor:"pointer" }}>
+                  <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start" }}>
+                    <div style={{ flex:1,minWidth:0 }}>
+                      <div style={{ fontWeight:800,fontSize:14 }}>{req.request_code}</div>
+                      <div style={{ fontSize:12,color:"#6b7280",marginTop:2 }}>
+                        {req.export_type==="borrow"?"🔄 Mượn":"🔧 Xuất sửa"} · {JSON.parse(req.items||"[]").length} LK · {fmtMoney(req.total_value)}
+                      </div>
+                      <div style={{ fontSize:12,color:"#6b7280" }}>👤 {req.requested_by_name} · {fmtDt(req.created_date)}</div>
+                    </div>
+                    <div style={{ textAlign:"right",flexShrink:0,marginLeft:8 }}>
+                      <div style={{ background:st.bg,color:st.color,borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:700 }}>{st.label}</div>
+                      {req.status==="pending" && mins!==null && (
+                        <div style={{ fontSize:11,color:urgent?"#dc2626":"#6b7280",fontWeight:700,marginTop:4 }}>
+                          {mins>0?`⏰ còn ${mins}p`:"⌛ Hết hạn"}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ fontSize:11,color:"#9ca3af",marginTop:6,display:"flex",alignItems:"center",gap:4 }}>
+                    <span className="material-icons" style={{ fontSize:12 }}>touch_app</span>Tap để xem chi tiết & xác nhận
+                  </div>
+                </div>
+              );
+            })}
+          </>}
+        </div>
+
+        {/* FOOTER HOÀN TẤT */}
+        <div style={{ padding:"10px 14px 20px",borderTop:"1.5px solid #e5e7eb",flexShrink:0 }}>
+          {!showFinish ? (
+            <button onClick={()=>setShowFinish(true)}
+              style={{ width:"100%",height:50,borderRadius:14,border:"none",background:"linear-gradient(135deg,#059669,#047857)",color:"#fff",fontWeight:900,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8 }}>
+              <span className="material-icons" style={{ fontSize:22 }}>check_circle</span>
+              Sửa Xong — Tổng {fmtMoney(totalBill)}
             </button>
+          ) : (
+            <div style={{ background:"#f0fdf4",borderRadius:14,padding:14,border:"1.5px solid #6ee7b7" }}>
+              <div style={{ fontWeight:800,fontSize:14,color:"#065f46",marginBottom:8 }}>Xác nhận hoàn tất?</div>
+              <div style={{ fontSize:13,color:"#374151",marginBottom:12 }}>Tổng bill: <b style={{ color:"#059669" }}>{fmtMoney(totalBill)}</b></div>
+              <div style={{ display:"flex",gap:8 }}>
+                <button onClick={()=>setShowFinish(false)} style={{ flex:1,height:42,borderRadius:12,border:"1.5px solid #e5e7eb",background:"#fff",fontWeight:700,fontSize:14,cursor:"pointer" }}>Hủy</button>
+                <button onClick={handleFinish} disabled={finishing}
+                  style={{ flex:2,height:42,borderRadius:12,border:"none",background:"#059669",color:"#fff",fontWeight:800,fontSize:14,cursor:finishing?"not-allowed":"pointer" }}>
+                  {finishing?"Đang lưu...":"✅ Xác nhận Sửa Xong"}
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>
 
+      {/* MODAL CHI TIẾT PHIẾU */}
+      {viewReq && (
+        <div style={{ position:"fixed",inset:0,zIndex:4000,background:"rgba(0,0,0,.7)",display:"flex",alignItems:"flex-end",justifyContent:"center" }}
+          onClick={e => { if(e.target===e.currentTarget) closeDetail(); }}>
+          <div style={{ background:"#fff",borderRadius:"24px 24px 0 0",width:"100%",maxWidth:600,maxHeight:"90vh",display:"flex",flexDirection:"column" }}>
+
+            <div style={{ background:"linear-gradient(135deg,#1e1b4b,#4f46e5)",padding:"16px 18px",borderRadius:"24px 24px 0 0",flexShrink:0,display:"flex",justifyContent:"space-between",alignItems:"center" }}>
+              <div>
+                <div style={{ color:"#fff",fontWeight:900,fontSize:16 }}>📋 {viewReq.request_code}</div>
+                <div style={{ color:"#a5b4fc",fontSize:12,marginTop:2 }}>
+                  {viewReq.export_type==="borrow"?"🔄 Mượn tạm":"🔧 Xuất sửa"} · {fmtDt(viewReq.created_date)}
+                </div>
+              </div>
+              <button onClick={closeDetail}
+                style={{ background:"rgba(255,255,255,.2)",border:"1.5px solid rgba(255,255,255,.35)",color:"#fff",width:36,height:36,borderRadius:"50%",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>
+                <span className="material-icons" style={{ fontSize:20 }}>close</span>
+              </button>
+            </div>
+
+            <div style={{ overflowY:"auto",flex:1,padding:"14px 16px 24px" }}>
+              {(() => { const st=STATUS_CFG[viewReq.status]||STATUS_CFG.pending; return (
+                <div style={{ display:"inline-flex",background:st.bg,color:st.color,borderRadius:20,padding:"5px 14px",fontWeight:700,fontSize:13,marginBottom:14 }}>{st.label}</div>
+              ); })()}
+
+              <div style={{ background:"#f9fafb",borderRadius:12,padding:12,marginBottom:12,fontSize:13 }}>
+                <RowInfo l="Người đề nghị" v={viewReq.requested_by_name} />
+                <RowInfo l="Hạn xuất" v={fmtDt(viewReq.due_datetime)} />
+                {viewReq.export_type==="borrow" && <RowInfo l="Hạn trả" v={viewReq.return_due_date?fmtDt(viewReq.return_due_date):"—"} />}
+                <RowInfo l="Tổng giá trị" v={fmtMoney(viewReq.total_value)} bold />
+                {viewReq.kiotviet_invoice_code && <RowInfo l="Mã KiotViet" v={viewReq.kiotviet_invoice_code} />}
+              </div>
+
+              <div style={{ fontWeight:800,fontSize:14,color:"#1e1b4b",marginBottom:8 }}>Danh sách linh kiện</div>
+              {JSON.parse(viewReq.items||"[]").map((item,i) => (
+                <div key={i} style={{ background:"#f3f4f6",borderRadius:10,padding:"8px 12px",marginBottom:6,display:"flex",justifyContent:"space-between",fontSize:13 }}>
+                  <div>
+                    <div style={{ fontWeight:700 }}>{item.part_name}</div>
+                    {item.sku && <div style={{ color:"#6b7280",fontSize:12 }}>SKU: {item.sku}</div>}
+                  </div>
+                  <div style={{ textAlign:"right" }}>
+                    <div style={{ fontWeight:800,color:"#4f46e5" }}>{fmtMoney(item.total_price)}</div>
+                    <div style={{ color:"#6b7280",fontSize:12 }}>×{item.qty}</div>
+                  </div>
+                </div>
+              ))}
+
+              {viewReq.warehouse_confirmed_at && <ConfirmBlock title="📦 Kho đã xuất" by={viewReq.warehouse_confirmed_by_name} at={viewReq.warehouse_confirmed_at} note={viewReq.warehouse_note} media={viewReq.warehouse_media} />}
+              {viewReq.ktv_confirmed_at && <ConfirmBlock title="✅ KTV đã nhận" by={viewReq.ktv_confirmed_by_name} at={viewReq.ktv_confirmed_at} note={viewReq.ktv_note} media={viewReq.ktv_media} />}
+              {viewReq.return_confirmed_at && <ConfirmBlock title="↩ Đã trả kho" by={viewReq.return_confirmed_by_name} at={viewReq.return_confirmed_at} note={viewReq.return_note} />}
+
+              {/* Form xác nhận */}
+              {confirmMode && (
+                <div style={{ background:"#f0fdf4",borderRadius:14,border:"1.5px solid #6ee7b7",padding:14,marginTop:12 }}>
+                  <div style={{ fontWeight:800,fontSize:14,color:"#065f46",marginBottom:10 }}>
+                    {confirmMode==="warehouse"?"📦 Xác nhận đã xuất kho":confirmMode==="ktv"?"✅ Xác nhận đã nhận LK":"↩ Xác nhận trả linh kiện"}
+                  </div>
+                  <textarea value={confirmNote} onChange={e=>setConfirmNote(e.target.value)}
+                    placeholder="Ghi chú (tuỳ chọn)..."
+                    style={{ width:"100%",minHeight:56,borderRadius:10,border:"1.5px solid #bbf7d0",padding:"8px 10px",fontSize:13,outline:"none",resize:"vertical",boxSizing:"border-box",marginBottom:10 }} />
+                  {confirmMode!=="return" && (
+                    <div style={{ marginBottom:10 }}>
+                      <button onClick={()=>fileRef.current?.click()}
+                        style={{ height:36,padding:"0 14px",borderRadius:10,border:"1.5px solid #6ee7b7",background:"#fff",color:"#059669",fontWeight:700,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",gap:6 }}>
+                        <span className="material-icons" style={{ fontSize:16 }}>add_a_photo</span>Chụp ảnh / Quay video
+                      </button>
+                      <input ref={fileRef} type="file" accept="image/*,video/*" multiple capture="environment" style={{ display:"none" }} onChange={handleMediaUpload} />
+                      {confirmMedia.length>0 && (
+                        <div style={{ display:"flex",gap:6,marginTop:8,flexWrap:"wrap" }}>
+                          {confirmMedia.map((m,i) => (
+                            <div key={i} style={{ position:"relative" }}>
+                              {m.type?.startsWith("video") ? <video src={m.url} style={{ width:60,height:60,borderRadius:8,objectFit:"cover" }} /> : <img src={m.url} style={{ width:60,height:60,borderRadius:8,objectFit:"cover" }} alt="" />}
+                              <button onClick={()=>setConfirmMedia(p=>p.filter((_,j)=>j!==i))}
+                                style={{ position:"absolute",top:-4,right:-4,width:18,height:18,borderRadius:"50%",background:"#ef4444",border:"none",color:"#fff",fontSize:10,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>✕</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div style={{ display:"flex",gap:8 }}>
+                    <button onClick={()=>{setConfirmMode(null);setConfirmNote("");setConfirmMedia([]);}}
+                      style={{ flex:1,height:42,borderRadius:12,border:"1.5px solid #e5e7eb",background:"#fff",fontWeight:700,fontSize:13,cursor:"pointer" }}>Hủy</button>
+                    <button onClick={confirmMode==="warehouse"?handleWarehouseConfirm:confirmMode==="ktv"?handleKtvConfirm:handleReturn} disabled={confirming}
+                      style={{ flex:2,height:42,borderRadius:12,border:"none",background:"#059669",color:"#fff",fontWeight:800,fontSize:14,cursor:confirming?"not-allowed":"pointer" }}>
+                      {confirming?"Đang xử lý...":"✅ Xác nhận"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Nút hành động */}
+              {!confirmMode && (
+                <div style={{ display:"flex",flexDirection:"column",gap:8,marginTop:14 }}>
+                  {(isKho||isMgr) && viewReq.status==="pending" && (
+                    <button onClick={()=>setConfirmMode("warehouse")}
+                      style={{ height:48,borderRadius:14,border:"none",background:"linear-gradient(135deg,#2563eb,#1d4ed8)",color:"#fff",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8 }}>
+                      <span className="material-icons" style={{ fontSize:20 }}>inventory</span>
+                      Xác nhận đã xuất kho
+                    </button>
+                  )}
+                  {viewReq.status==="warehouse_confirmed" && (viewReq.requested_by===currentStaff?.id||isMgr) && !viewReq.ktv_confirmed_at && (
+                    <button onClick={()=>setConfirmMode("ktv")}
+                      style={{ height:48,borderRadius:14,border:"none",background:"linear-gradient(135deg,#059669,#047857)",color:"#fff",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8 }}>
+                      <span className="material-icons" style={{ fontSize:20 }}>check_circle</span>
+                      Xác nhận đã nhận linh kiện
+                    </button>
+                  )}
+                  {viewReq.export_type==="borrow" && viewReq.status==="ktv_confirmed" && (viewReq.requested_by===currentStaff?.id||isMgr) && !viewReq.return_confirmed_at && (
+                    <button onClick={()=>setConfirmMode("return")}
+                      style={{ height:48,borderRadius:14,border:"none",background:"linear-gradient(135deg,#7c3aed,#6d28d9)",color:"#fff",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8 }}>
+                      <span className="material-icons" style={{ fontSize:20 }}>assignment_return</span>
+                      Trả linh kiện cho kho
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {toast && (
-        <div style={{ position:"fixed", bottom:100, left:"50%", transform:"translateX(-50%)", background:"#1e1b4b", color:"#fff", borderRadius:14, padding:"12px 24px", fontSize:14, fontWeight:700, zIndex:5000, whiteSpace:"pre-line", maxWidth:340, textAlign:"center" }}>
+        <div style={{ position:"fixed",bottom:110,left:"50%",transform:"translateX(-50%)",background:"rgba(0,0,0,.85)",color:"#fff",padding:"10px 20px",borderRadius:16,fontSize:14,fontWeight:700,zIndex:9999,whiteSpace:"pre-line",maxWidth:"80vw",textAlign:"center" }}>
           {toast}
         </div>
       )}
