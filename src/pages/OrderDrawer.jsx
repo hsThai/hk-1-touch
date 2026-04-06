@@ -544,13 +544,39 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                   style={{ background:"rgba(134,239,172,.3)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
                   <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>share</span> Share</button>
                 {(currentUser.role === "manager" || currentUser.role === "admin") && (
-                <button onClick={() => {
-                  if (window.confirm("Xóa đơn " + order.id + "? Thao tác này không thể hoàn tác!")) {
-                    const delId = order._id || order.id;
-                    RepairOrder.delete(delId).then(() => {
-                      onClose();
-                      onUpdate && onUpdate(order.id || order.order_code, null, null, "delete");
-                    }).catch(e => alert("Lỗi xóa: " + e.message));
+                <button onClick={async () => {
+                  if (!window.confirm("Xóa đơn " + order.id + "?\nThao tác này không thể hoàn tác!")) return;
+                  const delId = order._id || order.id;
+                  const orderCode = order.id || order.order_code;
+                  try {
+                    // 1. Xóa đơn khỏi PocketBase
+                    await RepairOrder.delete(delId);
+
+                    // 2. Thông báo cho tất cả user liên quan
+                    const relatedUsers = (users||[]).filter(u => {
+                      if (!u?.id || u.id === currentUser.id) return false;
+                      // KTV được giao, manager, admin, receptionist
+                      return u.id === order.assigned_to ||
+                             ["manager","admin","receptionist"].includes(u.role);
+                    });
+                    await Promise.allSettled(relatedUsers.map(u =>
+                      Notification.create({
+                        user_id:    u.id,
+                        user_name:  u.name || u.full_name || "",
+                        title:      `🗑️ Đơn đã bị xóa: ${orderCode}`,
+                        message:    `${order.customer_name || ""} - ${order.device_model || order.device_name || ""} đã được xóa bởi ${currentUser.name || "Quản lý"}.`,
+                        order_id:   "",
+                        order_code: orderCode,
+                        type:       "deleted",
+                        is_read:    false,
+                      }).catch(()=>{})
+                    ));
+
+                    // 3. Cập nhật UI
+                    onClose();
+                    onUpdate && onUpdate(order.id || order.order_code, null, null, "delete");
+                  } catch(e) {
+                    alert("Lỗi xóa: " + e.message);
                   }
                 }} style={{ background:"rgba(220,38,38,.7)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:13, fontWeight:700, cursor:"pointer"}}>  Xóa</button>
                 )}

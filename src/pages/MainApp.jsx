@@ -1213,9 +1213,12 @@ function MainAppInner() {
               {notifications.length===0 && dbNotifications.length===0 && (
                 <div style={{ padding:24, textAlign:"center", color:"#9ca3af", fontSize:13 }}>Không có thông báo mới</div>
               )}
-              {/* Local notifications (KPI, assign) */}
-              {notifications.map(n => (
-                <div key={n.id} style={{ padding:"12px 16px", borderBottom:"1px solid #f9fafb", fontSize:13, display:"flex", gap:10, alignItems:"flex-start", background:"#fffbeb" }}>
+              {/* Merge local + DB notifications, sort mới nhất lên trên */}
+              {[
+                ...notifications.map(n => ({ _type:"local", _time: new Date(n.time||0).getTime(), ...n })),
+                ...dbNotifications.map(n => ({ _type:"db",    _time: new Date(n.created_date||n.updated_date||0).getTime(), ...n })),
+              ].sort((a,b) => b._time - a._time).map(n => n._type === "local" ? (
+                <div key={"loc_"+n.id} style={{ padding:"12px 16px", borderBottom:"1px solid #f9fafb", fontSize:13, display:"flex", gap:10, alignItems:"flex-start", background:"#fffbeb" }}>
                   <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:"#d97706",marginTop:1,flexShrink:0}}>info</span>
                   <div style={{ flex:1 }}>
                     <div>{n.msg}</div>
@@ -1226,10 +1229,8 @@ function MainAppInner() {
                     <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16}}>close</span>
                   </button>
                 </div>
-              ))}
-              {/* DB notifications (mention, status change) — swipe left to delete */}
-              {dbNotifications.map(n => (
-                <SwipeableNotif key={n.id} notif={n}
+              ) : (
+                <SwipeableNotif key={"db_"+n.id} notif={n}
                   onDelete={() => {
                     Notification.update(n.id, { is_read: true }).catch(()=>{});
                     setDbNotifications(p => p.filter(x=>x.id!==n.id));
