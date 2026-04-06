@@ -534,10 +534,11 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
             <span style={{ fontSize:11, background:col?.bg, color:col?.color, padding:"2px 10px", borderRadius:20, fontWeight:700 }}>{col?.icon} {order.status}</span>
           </div>
           <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-            {(currentUser.role === "manager" || currentUser.role === "admin") && (
+            {(currentUser.role === "manager" || currentUser.role === "admin" || currentUser.role === "receptionist") && (
               <>
                 <button onClick={() => setShowEditOrder(true)}
                   style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:13, fontWeight:700, cursor:"pointer"}}>  Sửa</button>
+                {(currentUser.role === "manager" || currentUser.role === "admin") && (
                 <button onClick={() => {
                   if (window.confirm("Xóa đơn " + order.id + "? Thao tác này không thể hoàn tác!")) {
                     const delId = order._id || order.id;
@@ -547,6 +548,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                     }).catch(e => alert("Lỗi xóa: " + e.message));
                   }
                 }} style={{ background:"rgba(220,38,38,.7)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:13, fontWeight:700, cursor:"pointer"}}>  Xóa</button>
+                )}
               </>
             )}
             <button onClick={onClose} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:34, height:34, borderRadius:"50%", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>close</span></button>
@@ -554,7 +556,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
         </div>
         {/* Tabs */}
         <div style={{ display:"flex", borderBottom:"1px solid #e5e7eb" }}>
-          {[["info","Thông tin"],...(!isReception?[["parts","Linh kiện"]]:[]),["exports","Phiếu xuất"],["chat","Chat"]].map(([t,lbl]) => (
+          {[["info","Thông tin"],...(!isReception && (currentUser.role==="manager"||currentUser.role==="admin"||isMyOrder)?[["parts","Linh kiện"]]:[]),["exports","Phiếu xuất"],["chat","Chat"]].map(([t,lbl]) => (
             <button key={t} onClick={() => setTab(t)}
               style={{ flex:1, padding:"11px", border:"none", background:"none", fontWeight:700, fontSize:13, cursor:"pointer", borderBottom:tab===t?"3px solid #4f46e5":"3px solid transparent", color:tab===t?"#4f46e5":"#6b7280", position:"relative" }}>
               {lbl}
@@ -594,6 +596,16 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
               </div>
             )}
             <AcceptTimer order={order} currentUser={currentUser} onUpdate={onUpdate} />
+            {/* Banner KTV xem đơn người khác */}
+            {isKTV && !isMyOrder && (
+              <div style={{ background:"#f1f5f9", border:"1.5px solid #cbd5e1", borderRadius:12, padding:"10px 14px", marginBottom:14, display:"flex", alignItems:"center", gap:10 }}>
+                <span className="material-icons" style={{fontSize:20,color:"#64748b",fontFamily:"Material Icons"}}>info</span>
+                <div>
+                  <div style={{ fontWeight:700, fontSize:13, color:"#475569" }}>Đơn của {order.assigned_to_name||"KTV khác"}</div>
+                  <div style={{ fontSize:11, color:"#94a3b8", marginTop:1 }}>Bạn chỉ có thể xem và nhắn tin</div>
+                </div>
+              </div>
+            )}
             {/* Customer */}
             <div style={{ background:"#eef2ff", borderRadius:14, padding:14, marginBottom:14 }}>
               <div style={{ fontWeight:800, fontSize:16, marginBottom:4 }}>  {cust?.full_name}</div>
@@ -1152,6 +1164,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
       <EditOrderModal
         order={order}
         users={users}
+        currentUser={currentUser}
         onClose={() => setShowEditOrder(false)}
         onSave={(updated) => {
           setShowEditOrder(false);
@@ -1191,7 +1204,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
 // ══════════════════════════════════════════════
 //  EDIT ORDER MODAL (Manager only)
 // ══════════════════════════════════════════════
-function EditOrderModal({ order, users, onClose, onSave }) {
+function EditOrderModal({ order, users, currentUser, onClose, onSave }) {
   const ISSUES_LIST = ["Màn hình","Pin","Sạc","Camera","Loa","Mic","Nút bấm","Wifi","Bluetooth","IC","Bo mạch","Vỏ máy","Khác"];
 
   const parseIssues = (raw) => {
@@ -1356,7 +1369,8 @@ function EditOrderModal({ order, users, onClose, onSave }) {
               style={{ ...inp, height:"auto", padding:"10px 14px", resize:"vertical" }} placeholder="Tình trạng máy, phụ kiện kèm theo..." />
           </div>
 
-          {/* ── PHÂN CÔNG & TRẠNG THÁI ── */}
+          {/* ── PHÂN CÔNG & TRẠNG THÁI — ẩn với tiếp tân ── */}
+          {(currentUser?.role !== "receptionist") && (
           <div style={{ ...sec, background:"#fdf4ff" }}>
             <div style={{ fontWeight:800, fontSize:14, color:"#7c3aed", marginBottom:10 }}>🧑‍🔧 Phân công & Trạng thái</div>
             <div style={row2}>
@@ -1388,6 +1402,7 @@ function EditOrderModal({ order, users, onClose, onSave }) {
             </select>
           </div>
 
+          )}
           {/* ── THỜI GIAN ── */}
           <div style={{ ...sec, background:"#fff7ed" }}>
             <div style={{ fontWeight:800, fontSize:14, color:"#c2410c", marginBottom:10 }}>📅 Thời Gian</div>

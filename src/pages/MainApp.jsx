@@ -28,7 +28,7 @@ const SettingsPage = lazy(() => import("./Settings").catch(() => ({ default: () 
 
 
 // Components loaded from OrderComponents
-import { QRScanModal } from"./QRComponents";
+import { QRScanModal, IMEIScanModal } from"./QRComponents";
 import { MediaViewer, AcceptChecklistModal, AcceptTimer, timeAgo, genOrderId, getKpiTimerInfo, STATUS_PB, STATUS_DISPLAY, PRIORITY_PB, PRIORITY_DISPLAY, STATUS_COLS } from "./MediaViewer";
 import { OrderDrawer } from "./OrderDrawer";
 import { NewOrderModal, KPIPage, ProductHistoryModal } from "./OrderForms";
@@ -1267,7 +1267,43 @@ function MainAppInner() {
       <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
         {page==="board" && <KanbanBoard />}
         {page==="tasks" && <TaskList />}
-        {page==="new" && <div style={{padding:16}}><button onClick={() => setShowNewOrder(true)} style={{ width:"100%", height:56, background:"#4f46e5", color:"#fff", border:"none", borderRadius:16, fontWeight:800, fontSize:16, cursor:"pointer"}}>  Tạo Đơn Mới</button></div>}
+        {page==="new" && (
+          <div style={{ padding:"0 0 80px" }}>
+            {/* Nút tạo đơn sticky top */}
+            <div style={{ padding:"12px 16px 8px", position:"sticky", top:0, zIndex:10, background:"#f8fafc", borderBottom:"1px solid #e5e7eb" }}>
+              <button onClick={() => setShowNewOrder(true)}
+                style={{ width:"100%", height:52, background:"linear-gradient(135deg,#4f46e5,#7c3aed)", color:"#fff", border:"none", borderRadius:14, fontWeight:800, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8, boxShadow:"0 4px 14px rgba(79,70,229,.35)" }}>
+                <span className="material-icons" style={{fontSize:22}}>add_circle</span>
+                Tạo Đơn Mới
+              </button>
+            </div>
+            {/* Danh sách đơn gần đây — tiếp tân tra cứu nhanh */}
+            <div style={{ padding:"10px 16px 0" }}>
+              <div style={{ fontWeight:800, fontSize:13, color:"#6b7280", marginBottom:8, textTransform:"uppercase", letterSpacing:.5 }}>
+                Đơn gần đây
+              </div>
+              {filtered.filter(o => !["Đã Giao"].includes(o.status)).slice(0,30).map(o => {
+                const col2 = STATUS_COLS.find(s => s.key === o.status);
+                return (
+                  <div key={o.id} onClick={() => setSelectedOrder(o)}
+                    style={{ background:"#fff", borderRadius:14, padding:"12px 14px", marginBottom:8, cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,.07)", border:"1.5px solid #f3f4f6", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                    <div>
+                      <div style={{ fontWeight:800, color:"#1e1b4b", fontSize:14 }}>{o.order_code || o.id}</div>
+                      <div style={{ fontSize:12, color:"#374151", marginTop:2 }}>{o.customer_name} · {o.device_model}</div>
+                      <div style={{ fontSize:11, color:"#9ca3af", marginTop:2 }}>{o.customer_phone}</div>
+                    </div>
+                    <span style={{ background:col2?.bg||"#f3f4f6", color:col2?.color||"#374151", fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:20, whiteSpace:"nowrap", flexShrink:0 }}>
+                      {col2?.icon} {o.status}
+                    </span>
+                  </div>
+                );
+              })}
+              {filtered.filter(o => !["Đã Giao"].includes(o.status)).length === 0 && (
+                <div style={{ textAlign:"center", color:"#9ca3af", padding:40, fontSize:14 }}>Chưa có đơn nào</div>
+              )}
+            </div>
+          </div>
+        )}
         {page==="kpi" && <KPIPage users={users} orders={orders} />}
         {page==="customers" && <CustomerList />}
         {page==="dashboard" && <Dashboard />}
@@ -1655,6 +1691,7 @@ function WarehouseImport({ user }) {
   const [showForm, setShowForm]       = React.useState(false);
   const [toast, setToast]             = React.useState("");
   const [scanningFor, setScanningFor] = React.useState(null); // item id đang quét QR
+  const [imeiScanFor, setImeiScanFor] = React.useState(null);  // item id đang quét IMEI (dùng IMEIScanModal)
   const scanVideoRef = React.useRef(null);
   const scanStreamRef = React.useRef(null);
   const scanIntervalRef = React.useRef(null);
@@ -1868,7 +1905,15 @@ function WarehouseImport({ user }) {
         })}
       </div>
 
-      {/* QR Scanner overlay */}
+      {/* IMEI Barcode Scanner Modal (dùng cho IMEI/Serial) */}
+      {imeiScanFor && (
+        <IMEIScanModal
+          onClose={() => setImeiScanFor(null)}
+          onFound={val => { updateItem(imeiScanFor, "serial_imei", val); setImeiScanFor(null); }}
+        />
+      )}
+
+      {/* QR Scanner overlay (chỉ dùng cho QR Code field) */}
       {scanningFor && (
         <div style={{ position:"fixed", inset:0, zIndex:800, background:"#000", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
           <div style={{ color:"#fff", fontWeight:800, fontSize:16, marginBottom:16 }}>📷 Quét mã QR / Barcode</div>
@@ -1970,7 +2015,7 @@ function WarehouseImport({ user }) {
                           <input value={it.serial_imei} onChange={e=>updateItem(it.id,"serial_imei",e.target.value)}
                             placeholder="Nhập hoặc quét IMEI..."
                             style={{ flex:1, height:38, borderRadius:8, border:"1.5px solid #c4b5fd", padding:"0 10px", fontSize:13, outline:"none", boxSizing:"border-box" }}/>
-                          <button onClick={()=>startScan(it.id, "serial_imei")}
+                          <button onClick={()=>setImeiScanFor(it.id)}
                             style={{ width:42, height:38, borderRadius:8, border:"1.5px solid #7c3aed", background:"#f5f3ff", color:"#7c3aed", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                             <span className="material-icons" style={{fontSize:20}}>qr_code_scanner</span>
                           </button>
