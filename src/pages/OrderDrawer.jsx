@@ -1358,7 +1358,6 @@ function EditOrderModal({ order, users, currentUser, onClose, onSave }) {
   const STATUS_OPTS = [
     { val:"Chưa Nhận",    label:"⏳ Chưa Nhận" },
     { val:"Mới Nhận",     label:"📥 Mới Nhận" },
-    { val:"Đang Kiểm Tra",label:"🔍 Đang Kiểm Tra" },
     { val:"Đang Sửa",     label:"🔧 Đang Sửa" },
     { val:"Chờ Linh Kiện",label:"📦 Chờ Linh Kiện" },
     { val:"Hoàn Thành",   label:"✅ Hoàn Thành" },

@@ -92,7 +92,7 @@ function mapPbOrder(o, STATUS_DISPLAY, PRIORITY_DISPLAY) {
     // Nếu PB chưa có accept_stage field, suy ra từ status
     accept_stage: o.accept_stage != null
       ? (o.accept_stage ?? 0)
-      : (["Chua Nhan",""].includes(o.status||"") ? 0 : ["Moi Nhan","Dang Kiem Tra"].includes(o.status||"") ? 1 : ["Dang Sua","Cho Linh Kien"].includes(o.status||"") ? 2 : ["Hoan Thanh","Da Giao"].includes(o.status||"") ? 3 : 0),
+      : (["Chua Nhan",""].includes(o.status||"") ? 0 : ["Moi Nhan"].includes(o.status||"") ? 1 : ["Dang Sua","Cho Linh Kien"].includes(o.status||"") ? 2 : ["Hoan Thanh","Da Giao"].includes(o.status||"") ? 3 : 0),
     stage1_at:        o.stage1_at || null,
     stage2_at:        o.stage2_at || null,
     checklist_done:   o.checklist_done || null,
@@ -641,54 +641,95 @@ function MainAppInner() {
           const stage       = o.accept_stage || 0;
           let patch = {};
 
-          // ── STAGE 0: KTV chưa nhận → 60 phút ──────────────────────────────
+          // ══════════════════════════════════════════════════════════════
+          // QUY TRÌNH KPI:
+          //   Stage 0 (chưa nhận): KTV có 60p để bấm Nhận
+          //     → Quá 60p: -1 KPI, tự chuyển stage 1 (đếm tiếp 60p)
+          //     → Quá 120p (60p stage 1): -2 KPI thêm, báo quản lý
+          //   Nếu KTV BẤM NHẬN BẤT KỲ LÚC NÀO (stage 0 hoặc 1):
+          //     → accept_stage = 2 (đếm dừng, không KPI thêm), chờ bấm Sửa
+          // ══════════════════════════════════════════════════════════════
+
+          // ── STAGE 0: KTV chưa nhận → 60 phút đầu ─────────────────────────
           if (stage === 0) {
-            const deadline   = assignedAt + 60 * 60000;
-            const remMs      = deadline - now;
+            const deadline0  = assignedAt + 60 * 60000;
+            const remMs      = deadline0 - now;
             const remMins    = Math.floor(remMs / 60000);
 
-            // Nhắc khi còn < 20 phút (mỗi 15 phút interval sẽ nhắc đúng lúc)
+            // Nhắc khi còn < 20 phút
             if (remMs > 0 && remMs <= 20 * 60000) {
               const urgentLevel = remMs < 5*60000 ? "🚨" : remMs < 10*60000 ? "⚠️" : "⏰";
               notifPayload.push({
                 userId: o.assigned_to,
                 title: `${urgentLevel} Nhận đơn ${o.order_code || o.id}`,
                 message: `Còn ${remMins} phút để nhận đơn! Bấm vào đơn để nhận ngay.`,
-                orderId: o.id,
-                orderCode: o.order_code || o.id,
-                type: "kpi_reminder",
-                role: null,
+                orderId: o.id, orderCode: o.order_code || o.id, type: "kpi_reminder", role: null,
               });
             }
 
-            // Hết 60' chưa nhận → -1 KPI + TỰ CHUYỂN stage 1
+            // Hết 60p chưa nhận → -1 KPI, tự chuyển sang giai đoạn chờ lần 2
             if (remMs <= 0 && !o.kpi_stage1_penalized) {
-              const autoStage1At = new Date(assignedAt + 60 * 60000).toISOString();
               patch.kpi_stage1_penalized = true;
               patch.accept_stage         = 1;
-              patch.stage1_at            = autoStage1At; // mốc bắt đầu tính stage 1
-              patch.status               = "Mới Nhận";   // cập nhật trạng thái
+              // stage1_at = thời điểm hết hạn 60p đầu (không phải now, để tính đúng 60p tiếp)
+              patch.stage1_at = new Date(assignedAt + 60 * 60000).toISOString();
               kpiChanges.push({ userId: o.assigned_to, delta: -1 });
-              // Thông báo KTV
               notifPayload.push({
                 userId: o.assigned_to,
-                title: `🔴 Hết hạn lần 1 — Đơn ${o.order_code || o.id}`,
-                message: `Quá 60 phút không bấm Nhận Đơn → -1 KPI. Hệ thống tự chuyển sang giai đoạn sửa chữa. Hãy bắt đầu sửa ngay!`,
+                title: `🔴 Quá 60 phút — Đơn ${o.order_code || o.id}`,
+                message: `Chưa bấm Nhận Đơn → -1 KPI. Hệ thống tự chuyển sang đếm tiếp 60 phút lần 2.`,
                 orderId: o.id, orderCode: o.order_code || o.id, type: "kpi_penalty", role: null,
               });
-              // Thông báo Manager
               notifPayload.push({
                 userId: null,
                 title: `⚠️ KTV chậm nhận — ${o.order_code || o.id}`,
-                message: `KTV ${o.assigned_to_name || "?"} quá 60' không nhận đơn → -1 KPI. Hệ thống tự chuyển stage.`,
+                message: `KTV ${o.assigned_to_name || "?"} quá 60p không nhận đơn → -1 KPI. Đang đếm tiếp 60p.`,
                 orderId: o.id, orderCode: o.order_code || o.id, type: "kpi_penalty", role: "manager",
               });
               changed = true;
             }
           }
 
-          // ── STAGE 1: KTV đã nhận → KHÔNG tính KPI, chờ bấm Bắt Đầu Sửa ─
-          // (Không nhắc, không phạt — KTV tự quyết định khi nào bắt đầu)
+          // ── STAGE 1 (tự động): 60p kế tiếp — vẫn chưa nhận ──────────────
+          // Lưu ý: stage 1 TỰ ĐỘNG do hệ thống chuyển, KHÔNG phải KTV bấm nhận
+          // Nếu KTV bấm nhận thủ công → accept_stage = 2, không vào đây nữa
+          if (stage === 1 && o.stage1_at && !o.kpi_manually_accepted) {
+            const stage1Start = new Date(o.stage1_at).getTime();
+            const deadline1   = stage1Start + 60 * 60000;
+            const remMs       = deadline1 - now;
+            const remMins     = Math.floor(remMs / 60000);
+
+            // Nhắc khi còn < 20 phút của giai đoạn 2
+            if (remMs > 0 && remMs <= 20 * 60000) {
+              const urgentLevel = remMs < 5*60000 ? "🚨" : "⚠️";
+              notifPayload.push({
+                userId: o.assigned_to,
+                title: `${urgentLevel} KHẨN: Nhận đơn ${o.order_code || o.id}`,
+                message: `Còn ${remMins} phút — nếu không nhận sẽ bị -2 KPI tiếp! Bấm Nhận ngay.`,
+                orderId: o.id, orderCode: o.order_code || o.id, type: "kpi_reminder", role: null,
+              });
+            }
+
+            // Hết 60p lần 2 → -2 KPI thêm, báo quản lý cần giao lại
+            if (remMs <= 0 && !o.kpi_stage2_penalized) {
+              patch.kpi_stage2_penalized = true;
+              patch.needs_reassign       = true;
+              kpiChanges.push({ userId: o.assigned_to, delta: -2 });
+              notifPayload.push({
+                userId: o.assigned_to,
+                title: `🔴 Quá 120 phút — Đơn ${o.order_code || o.id}`,
+                message: `Tổng 120 phút không nhận đơn → -2 KPI thêm. Ngừng nhận việc tạm thời.`,
+                orderId: o.id, orderCode: o.order_code || o.id, type: "kpi_penalty", role: null,
+              });
+              notifPayload.push({
+                userId: null,
+                title: `📋 Cần Giao Lại — ${o.order_code || o.id}`,
+                message: `KTV ${o.assigned_to_name||"?"} quá 120p không nhận → -2 KPI. Vui lòng giao KTV khác.`,
+                orderId: o.id, orderCode: o.order_code || o.id, type: "needs_reassign", role: "manager",
+              });
+              changed = true;
+            }
+          }
 
           if (Object.keys(patch).length > 0) {
             changed = true;
@@ -993,9 +1034,9 @@ function MainAppInner() {
   ];
 
   // ── Kanban Board ─────────────────────────────────────────
-  const COLUMNS = ["Chưa Nhận","Mới Nhận","Đang Kiểm Tra","Chờ Linh Kiện","Đang Sửa","Hoàn Thành","Đã Giao"];
-  const colColors = { "Chưa Nhận":"#f3f4f6","Mới Nhận":"#dbeafe","Đang Kiểm Tra":"#fef3c7","Chờ Linh Kiện":"#fce7f3","Đang Sửa":"#ede9fe","Hoàn Thành":"#dcfce7","Đã Giao":"#f1f5f9" };
-  const colBorder = { "Chưa Nhận":"#d1d5db","Mới Nhận":"#93c5fd","Đang Kiểm Tra":"#fcd34d","Chờ Linh Kiện":"#f9a8d4","Đang Sửa":"#c4b5fd","Hoàn Thành":"#86efac","Đã Giao":"#cbd5e1" };
+  const COLUMNS = ["Chưa Nhận","Mới Nhận","Chờ Linh Kiện","Đang Sửa","Hoàn Thành","Đã Giao"];
+  const colColors = { "Chưa Nhận":"#f3f4f6","Mới Nhận":"#dbeafe","Chờ Linh Kiện":"#fce7f3","Đang Sửa":"#ede9fe","Hoàn Thành":"#dcfce7","Đã Giao":"#f1f5f9" };
+  const colBorder = { "Chưa Nhận":"#d1d5db","Mới Nhận":"#93c5fd","Chờ Linh Kiện":"#f9a8d4","Đang Sửa":"#c4b5fd","Hoàn Thành":"#86efac","Đã Giao":"#cbd5e1" };
 
   function KanbanBoard() {
     // Dùng ref từ outer scope → không bị reset khi re-render

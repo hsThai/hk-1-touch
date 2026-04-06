@@ -39,7 +39,7 @@ function getKpiTimerInfo(order) {
   const assignedAt = new Date(order.assigned_at).getTime();
   const stage = order.accept_stage || 0;
 
-  // Stage 0: chưa nhận → 60 phút
+  // Stage 0: KTV chưa nhận, đếm 60p đầu
   if (stage === 0) {
     return {
       phase: 0,
@@ -49,24 +49,45 @@ function getKpiTimerInfo(order) {
       penalized: !!order.kpi_stage1_penalized,
       actionLabel: "Nhận Đơn Ngay",
       kpiPenalty: -1,
-      penaltyNote: "-1 KPI",
+      penaltyNote: "-1 KPI nếu không nhận",
+      noTimer: false,
     };
   }
 
-  // Stage 1: đã nhận → chờ bắt đầu sửa (không tính KPI timer)
-  if (stage === 1) {
+  // Stage 1 TỰ ĐỘNG (hệ thống chuyển sau 60p, KTV chưa nhận):
+  //   → Đếm tiếp 60p, nếu không nhận → -2 KPI thêm
+  //   → KTV vẫn được bấm "Nhận Đơn" để dừng đếm
+  if (stage === 1 && !order.kpi_manually_accepted) {
+    const stage1Start = order.stage1_at ? new Date(order.stage1_at).getTime() : assignedAt + 60 * 60000;
     return {
       phase: 1,
-      label: null,        // không hiện timer
+      label: "⚠️ Giai đoạn 2 — Nhận đơn ngay",
+      deadline: stage1Start + 60 * 60000,
+      totalMs: 60 * 60000,
+      penalized: !!order.kpi_stage2_penalized,
+      actionLabel: "Nhận Đơn Ngay",
+      kpiPenalty: -2,
+      penaltyNote: "-2 KPI + Ngừng giao việc",
+      noTimer: false,
+    };
+  }
+
+  // Stage 1 do KTV tự bấm nhận (kpi_manually_accepted = true):
+  //   → Không đếm nữa, chờ bấm Bắt Đầu Sửa
+  if (stage === 1 && order.kpi_manually_accepted) {
+    return {
+      phase: 1,
+      label: null,
       deadline: null,
       totalMs: null,
       penalized: false,
       actionLabel: "Bắt Đầu Sửa",
       kpiPenalty: 0,
       penaltyNote: "",
-      noTimer: true,      // flag tắt đếm ngược
+      noTimer: true,
     };
   }
+
   return null;
 }
 
@@ -622,11 +643,13 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
     if (acting) return;
     setActing(true);
     const ts = new Date().toISOString();
-    if (info.phase === 0) {
-      // KTV nhận đơn → stage 0→1, stage1_at = now
+    if (info.actionLabel === "Nhận Đơn Ngay") {
+      // KTV bấm nhận (phase 0 hoặc phase 1 tự động)
+      // → set kpi_manually_accepted=true để dừng đếm KPI, chờ bấm Sửa
       onUpdate(order.id, {
         accept_stage: 1,
-        stage1_at: ts,
+        stage1_at: order.stage1_at || ts,  // giữ stage1_at nếu đã có (phase 1)
+        kpi_manually_accepted: true,
         status: "Mới Nhận",
       }, null);
     } else {
@@ -651,7 +674,7 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
             </span>
             <span style={{ fontWeight:900, fontSize:14, color:c.timerC }}>
               {expired
-                ? (info.phase===0 ? "⚠️ Quá 60 phút chưa nhận đơn!" : "⚠️ Quá 60 phút chưa bắt đầu sửa!")
+                ? (info.phase===0 ? "⚠️ Quá 60 phút chưa nhận đơn!" : "⚠️ Quá 120 phút vẫn chưa nhận!")
                 : info.label}
             </span>
           </div>
@@ -751,7 +774,6 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
 const STATUS_PB = {
   "Chưa Nhận":     "Chua Nhan",
   "Mới Nhận":      "Moi Nhan",
-  "Đang Kiểm Tra": "Dang Kiem Tra",
   "Đang Sửa":      "Dang Sua",
   "Chờ Linh Kiện": "Cho Linh Kien",
   "Hoàn Thành":    "Hoan Thanh",
@@ -772,7 +794,6 @@ const PRIORITY_DISPLAY = Object.fromEntries(
 const STATUS_COLS = [
   { key:"Chưa Nhận",     pb:"Chua Nhan",     color:"#9ca3af", bg:"#f3f4f6",  emoji:"schedule" },
   { key:"Mới Nhận",      pb:"Moi Nhan",      color:"#2563eb", bg:"#dbeafe",  emoji:"inbox" },
-  { key:"Đang Kiểm Tra", pb:"Dang Kiem Tra", color:"#d97706", bg:"#fef3c7",  emoji:"search" },
   { key:"Đang Sửa",      pb:"Dang Sua",      color:"#7c3aed", bg:"#ede9fe",  emoji:"build" },
   { key:"Chờ Linh Kiện", pb:"Cho Linh Kien", color:"#db2777", bg:"#fce7f3",  emoji:"schedule" },
   { key:"Hoàn Thành",    pb:"Hoan Thanh",    color:"#059669", bg:"#dcfce7",  emoji:"check_circle" },
