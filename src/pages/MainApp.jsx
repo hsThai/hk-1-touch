@@ -1196,8 +1196,6 @@ function MainAppInner() {
   }
 
   return (
-    <>
-
     <div style={{ minHeight:"100vh", background:"#f8fafc", fontFamily:"system-ui,-apple-system,sans-serif" }}>
       {/* Header */}
       <div style={{ position:"sticky", top:0, zIndex:100, background:"#1e1b4b", padding:"12px 16px", display:"flex", alignItems:"center", gap:12 }}>
