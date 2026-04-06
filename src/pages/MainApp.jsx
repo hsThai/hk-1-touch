@@ -1658,6 +1658,7 @@ function WarehouseImport({ user }) {
   const scanVideoRef = React.useRef(null);
   const scanStreamRef = React.useRef(null);
   const scanIntervalRef = React.useRef(null);
+  const scanFieldRef = React.useRef("serial_imei");
 
   // Form state
   const [importType, setImportType]       = React.useState("spare_part");
@@ -1685,7 +1686,7 @@ function WarehouseImport({ user }) {
 
   function addItem() {
     setItems(prev=>[...prev, {
-      id:Date.now(), name:"", sku:"", serial_imei:"",
+      id:Date.now(), name:"", sku:"", serial_imei:"", qr_code:"",
       qty:1, unit_price:0, condition:"new",
       photos:[], videos:[], note:"",
     }]);
@@ -1703,9 +1704,12 @@ function WarehouseImport({ user }) {
 
   function removeItem(id) { setItems(prev=>prev.filter(it=>it.id!==id)); }
 
-  // ── QR Scanner ────────────────────────────────
-  async function startScan(itemId) {
+  // ── QR Scanner ──────────────────────────────── 
+  // field: "serial_imei" | "qr_code" (mặc định serial_imei)
+  async function startScan(itemId, field="serial_imei") {
     setScanningFor(itemId);
+    // Lưu field đang scan vào ref để dùng trong interval
+    scanFieldRef.current = field;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:"environment" } });
       scanStreamRef.current = stream;
@@ -1724,9 +1728,10 @@ function WarehouseImport({ user }) {
             const codes = await bd.detect(scanVideoRef.current);
             if (codes.length > 0) {
               const val = codes[0].rawValue;
+              const f = scanFieldRef.current || "serial_imei";
               stopScan();
-              updateItem(itemId, "serial_imei", val);
-              showToast("✅ Quét được: " + val);
+              updateItem(itemId, f, val);
+              showToast(`✅ Quét ${f==="qr_code"?"QR Code":"IMEI/Serial"}: ${val}`);
             }
           } catch {}
         }, 500);
@@ -1784,7 +1789,7 @@ function WarehouseImport({ user }) {
       for (const it of items) {
         await StockImportItem.create({
           import_id:imp.id, import_code:code, item_type:importType,
-          name:it.name, sku:it.sku||"", serial_imei:it.serial_imei||"",
+          name:it.name, sku:it.sku||"", serial_imei:it.serial_imei||"", qr_code:it.qr_code||"",
           qty:it.qty, unit_price:it.unit_price||0, total_price:it.qty*(it.unit_price||0),
           condition:it.condition,
           photos:JSON.stringify((it.photos||[]).map(p=>p.url)),
@@ -1957,17 +1962,42 @@ function WarehouseImport({ user }) {
                         style={{ flex:1, height:38, borderRadius:8, border:"1.5px solid #e5e7eb", padding:"0 10px", fontSize:13, outline:"none", boxSizing:"border-box" }}/>
                     </div>
 
-                    {/* Serial / IMEI + QR scan — hiện cho cả 2 loại */}
+                    {/* IMEI / Serial */}
+                    {importType==="device" && (
+                      <div style={{ marginBottom:8 }}>
+                        <div style={{ fontSize:11, color:"#6b7280", marginBottom:4 }}>IMEI / Serial *</div>
+                        <div style={{ display:"flex", gap:6 }}>
+                          <input value={it.serial_imei} onChange={e=>updateItem(it.id,"serial_imei",e.target.value)}
+                            placeholder="Nhập hoặc quét IMEI..."
+                            style={{ flex:1, height:38, borderRadius:8, border:"1.5px solid #c4b5fd", padding:"0 10px", fontSize:13, outline:"none", boxSizing:"border-box" }}/>
+                          <button onClick={()=>startScan(it.id, "serial_imei")}
+                            style={{ width:42, height:38, borderRadius:8, border:"1.5px solid #7c3aed", background:"#f5f3ff", color:"#7c3aed", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                            <span className="material-icons" style={{fontSize:20}}>qr_code_scanner</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {importType!=="device" && (
+                      <div style={{ marginBottom:8 }}>
+                        <div style={{ fontSize:11, color:"#6b7280", marginBottom:4 }}>IMEI / Serial (tuỳ chọn)</div>
+                        <input value={it.serial_imei} onChange={e=>updateItem(it.id,"serial_imei",e.target.value)}
+                          placeholder="Nhập mã serial nếu có..."
+                          style={{ width:"100%", height:38, borderRadius:8, border:"1.5px solid #e5e7eb", padding:"0 10px", fontSize:13, outline:"none", boxSizing:"border-box" }}/>
+                      </div>
+                    )}
+
+                    {/* QR Code — mục riêng, có nút scan */}
                     <div style={{ marginBottom:8 }}>
                       <div style={{ fontSize:11, color:"#6b7280", marginBottom:4 }}>
-                        {importType==="device"?"IMEI / Serial *":"Mã QR / Barcode (tuỳ chọn)"}
+                        <span className="material-icons" style={{fontSize:12,verticalAlign:"middle",marginRight:3}}>qr_code_2</span>
+                        Mã QR Code (tuỳ chọn)
                       </div>
                       <div style={{ display:"flex", gap:6 }}>
-                        <input value={it.serial_imei} onChange={e=>updateItem(it.id,"serial_imei",e.target.value)}
-                          placeholder={importType==="device"?"Nhập hoặc quét IMEI...":"Quét để gán mã..."}
-                          style={{ flex:1, height:38, borderRadius:8, border:`1.5px solid ${importType==="device"?"#c4b5fd":"#e5e7eb"}`, padding:"0 10px", fontSize:13, outline:"none", boxSizing:"border-box" }}/>
-                        <button onClick={()=>startScan(it.id)}
-                          style={{ width:42, height:38, borderRadius:8, border:"1.5px solid #7c3aed", background:"#f5f3ff", color:"#7c3aed", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                        <input value={it.qr_code} onChange={e=>updateItem(it.id,"qr_code",e.target.value)}
+                          placeholder="Nhập hoặc quét QR Code sản phẩm..."
+                          style={{ flex:1, height:38, borderRadius:8, border:"1.5px solid #a7f3d0", padding:"0 10px", fontSize:13, outline:"none", boxSizing:"border-box" }}/>
+                        <button onClick={()=>startScan(it.id, "qr_code")}
+                          style={{ width:42, height:38, borderRadius:8, border:"1.5px solid #059669", background:"#f0fdf4", color:"#059669", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                           <span className="material-icons" style={{fontSize:20}}>qr_code_scanner</span>
                         </button>
                       </div>
