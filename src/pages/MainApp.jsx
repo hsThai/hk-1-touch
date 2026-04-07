@@ -949,6 +949,10 @@ function MainAppInner() {
       technician_note:  data.notes || "",
       warranty_days:    0,
       priority:         PRIORITY_PB["Bình thường"] || "Thuong",
+      passcode:         data.passcode || "",
+      product_qr:       data.product_qr || "",
+      qt1_checklist:    data.qt1_checklist || "",
+      qt1_note:         data.qt1_note || "",
     };
     try {
       const saved = await RepairOrder.create(pbData);
