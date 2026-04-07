@@ -1203,28 +1203,35 @@ function MainAppInner() {
           const timerInfo = getKpiTimerInfo(o);
           const isChuaNhan   = o.status === "Chưa Nhận";
           const noKTV        = !o.assigned_to;
-          const needsAction  = o.needs_reassign || noKTV || o.kpi_stage2_penalized;
-          const cardBorder   = o.needs_reassign || o.kpi_stage2_penalized ? "#ef4444"
-                             : noKTV            ? "#f59e0b"
-                             : isChuaNhan       ? "#ef4444"
-                             : "#f3f4f6";
-          const cardBg       = o.needs_reassign || o.kpi_stage2_penalized ? "#fff5f5"
-                             : noKTV            ? "#fffbeb"
-                             : isChuaNhan       ? "#fff5f5"
-                             : "#fff";
+          // Màu nền theo trạng thái
+          const STATUS_CARD = {
+            "Chưa Nhận":  { bg:"#fff1f2", border:"#fca5a5", badge_bg:"#fee2e2", badge_color:"#dc2626" },
+            "Chờ Phụ Tùng":{ bg:"#fff7ed", border:"#fed7aa", badge_bg:"#ffedd5", badge_color:"#c2410c" },
+            "Đang Sửa":   { bg:"#f5f3ff", border:"#c4b5fd", badge_bg:"#ede9fe", badge_color:"#6d28d9" },
+            "Chờ Kiểm Tra":{ bg:"#ecfeff", border:"#a5f3fc", badge_bg:"#cffafe", badge_color:"#0e7490" },
+            "Hoàn Thành": { bg:"#f0fdf4", border:"#86efac", badge_bg:"#dcfce7", badge_color:"#15803d" },
+            "Đã Giao":    { bg:"#f1f5f9", border:"#cbd5e1", badge_bg:"#e2e8f0", badge_color:"#475569" },
+            "Hủy":        { bg:"#fafafa", border:"#e5e7eb", badge_bg:"#f3f4f6", badge_color:"#6b7280" },
+          };
+          const sc = STATUS_CARD[o.status] || { bg:"#f9fafb", border:"#e5e7eb", badge_bg:"#f3f4f6", badge_color:"#374151" };
+          // Override nếu có urgent
+          const urgentBg     = o.needs_reassign || o.kpi_stage2_penalized ? "#fff5f5"
+                             : noKTV ? "#fffbeb" : sc.bg;
+          const urgentBorder = o.needs_reassign || o.kpi_stage2_penalized ? "#ef4444"
+                             : noKTV ? "#f59e0b" : sc.border;
           return (
             <div key={o.id} onClick={() => setSelectedOrderSync(o)}
               style={{
-                background: cardBg,
+                background: urgentBg,
                 borderRadius:14, padding:14, marginBottom:10, cursor:"pointer",
                 boxShadow:"0 2px 8px rgba(0,0,0,.08)",
-                border:`2px solid ${cardBorder}`,
+                border:`2px solid ${urgentBorder}`,
                 animation: (isChuaNhan || noKTV) && !o.needs_reassign ? "pulseRed 1.6s ease-in-out infinite" : "none",
                 transition: "none"
               }}>
               <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
                 <div style={{ fontWeight:800, color:"#1e1b4b" }}>{o.id}</div>
-                <div style={{ fontSize:12, padding:"3px 10px", borderRadius:99, background: isChuaNhan?"#fee2e2":o.status==="Hoàn Thành"?"#dcfce7":o.status==="Đang Sửa"?"#ede9fe":"#fef3c7", color:isChuaNhan?"#dc2626":"#374151", fontWeight:isChuaNhan?800:600 }}>{o.status}</div>
+                <div style={{ fontSize:12, padding:"3px 10px", borderRadius:99, background:sc.badge_bg, color:sc.badge_color, fontWeight:700 }}>{o.status}</div>
               </div>
               <div style={{ fontSize:13, color:"#374151", marginBottom:2 }}>  {o.customer_name} ·   {o.device_model}</div>
               {!noKTV && ktv && <div style={{ fontSize:12, color:"#6b7280"}}>  {ktv.name}</div>}
