@@ -940,7 +940,7 @@ function MainAppInner() {
       passcode:          data.passcode || "",
       product_qr:        data.product_qr || "",
       issue_description: data.notes || "",
-      status:            "Quy Trinh 1",
+      status:            "Cho KTV Kiem",
       assigned_to:       data.assigned_to || null,
       assigned_to_name:  data.assigned_to_name || "",
       received_date:     new Date().toISOString(),
@@ -970,7 +970,7 @@ function MainAppInner() {
       console.error("[createOrder] pbData gửi lên:", JSON.stringify(pbData));
       // Thử lại bỏ các field có thể gây lỗi
       try {
-        const pbData2 = { ...pbData, status: "Quy Trinh 1", priority: "Thuong", warranty_days: 0 };
+        const pbData2 = { ...pbData, status: "Cho KTV Kiem", priority: "Thuong", warranty_days: 0 };
         delete pbData2.assigned_at;
         delete pbData2.accept_stage;
         const saved2 = await RepairOrder.create(pbData2);
