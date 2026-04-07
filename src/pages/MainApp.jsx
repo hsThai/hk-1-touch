@@ -985,7 +985,9 @@ function MainAppInner() {
         });
       } catch(e2) {
         console.error("[createOrder] Lần 2 thất bại:", e2?.message, e2?.data || "");
-        alert("Không lưu được đơn vào database!\n\nLỗi: " + (e2?.message || e?.message || "Kiểm tra kết nối PocketBase."));
+        const detail = JSON.stringify(e2?.data || e?.data || {}, null, 2);
+        const msg = e2?.message || e?.message || "Kiểm tra kết nối PocketBase.";
+        alert("Không lưu được đơn vào database!\n\nLỗi: " + msg + "\n\nChi tiết:\n" + detail);
         return;
       }
     }
