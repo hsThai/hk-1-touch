@@ -119,16 +119,36 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
     return () => { cancelled = true; };
   }, [order.id, tab]);
 
-  // Load phiếu xuất khi mở tab exports
+  // Load phiếu xuất khi mở tab exports (+ polling 8s)
   useEffect(() => {
     if (tab !== "exports") return;
     let cancelled = false;
-    setExportLoading(true);
-    StockExportRequest.filter({ order_id: order._id || order.id })
-      .then(data => { if (!cancelled) { setExportReqs(data.sort((a,b) => new Date(b.created_date)-new Date(a.created_date))); setExportLoading(false); } })
-      .catch(() => { if (!cancelled) setExportLoading(false); });
-    return () => { cancelled = true; };
-  }, [order.id, order._id, tab]);
+    let timer = null;
+    const orderCode = order.order_code || order.id;
+
+    async function loadExports() {
+      if (cancelled) return;
+      try {
+        setExportLoading(prev => exportReqs.length === 0 ? true : prev);
+        // filter theo order_code vì phiếu lưu order_id = order_code
+        const byCode = await StockExportRequest.filter({ order_id: orderCode });
+        // fallback: cũng thử filter theo PB id thật nếu khác
+        let data = byCode;
+        if (byCode.length === 0 && order._id && order._id !== orderCode) {
+          const byId = await StockExportRequest.filter({ order_id: order._id });
+          data = byId;
+        }
+        if (!cancelled) {
+          setExportReqs(data.sort((a,b) => new Date(b.created_date)-new Date(a.created_date)));
+          setExportLoading(false);
+        }
+      } catch { if (!cancelled) setExportLoading(false); }
+      if (!cancelled) timer = setTimeout(loadExports, 8000);
+    }
+
+    loadExports();
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [order.id, order._id, order.order_code, tab]);
 
 
   // Polling chat 3s - đơn giản, ổn định, gần realtime

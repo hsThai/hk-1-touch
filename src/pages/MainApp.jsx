@@ -1761,12 +1761,9 @@ function WarehouseExport({ user }) {
   async function load() {
     setLoading(true);
     try {
-      let data = [];
-      if (filter === "all") {
-        data = await StockExportRequest.list({ sort:"-created_date", limit:100 });
-      } else {
-        data = await StockExportRequest.filter({ status: filter });
-      }
+      // Luôn lấy all rồi filter client-side để tránh lỗi query PocketBase
+      const all = await StockExportRequest.list({ sort:"-created_date", limit:200 });
+      const data = filter === "all" ? all : all.filter(r => r.status === filter);
       setRequests(data.sort((a,b) => new Date(a.due_datetime||0)-new Date(b.due_datetime||0)));
     } catch(e){ console.error(e); }
     setLoading(false);
