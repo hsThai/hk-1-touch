@@ -97,7 +97,7 @@ export default function PreCheckModal({ order, currentUser, users, onClose, onDo
         qt1_images: images,
         assigned_to: ktv,
         assigned_to_name: selectedKtv?.name || selectedKtv?.full_name || "",
-        status: "Chờ KTV Kiểm",
+        status: "Cho KTV",
       });
     } catch(e) { setError(e.message); }
     setSaving(false);
@@ -115,7 +115,7 @@ export default function PreCheckModal({ order, currentUser, users, onClose, onDo
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
             <div style={{ color:"#fff", fontWeight:900, fontSize:17, display:"flex", alignItems:"center", gap:8 }}>
               <MI name="search" style={{ fontSize:22, color:"#fff" }} />
-              Quy Trình 1 — Kiểm Ngoại Quan
+              QT1 — Kiểm Ngoại Quan
             </div>
             <button onClick={onClose} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:32, height:32, borderRadius:"50%", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
               <MI name="close" style={{ fontSize:18, color:"#fff" }} />
@@ -264,7 +264,7 @@ export function QT2Modal({ order, currentUser, onClose, onDone }) {
       await onDone({
         qt2_checklist: JSON.stringify(qt2),
         qt2_note: note,
-        status: "Chờ Báo Giá",
+        status: "Cho Bao Gia",
       });
     } catch(e) { alert(e.message); }
     setSaving(false);

@@ -1211,8 +1211,8 @@ function MainAppInner() {
           const noKTV        = !o.assigned_to;
           // Màu nền theo trạng thái
           const STATUS_CARD = {
-            "Quy Trình 1":  { bg:"#eff6ff", border:"#93c5fd", badge_bg:"#dbeafe", badge_color:"#1d4ed8" },
-            "Chờ KTV Kiểm": { bg:"#f5f3ff", border:"#c4b5fd", badge_bg:"#ede9fe", badge_color:"#7c3aed" },
+            
+            
             "Chờ Báo Giá":  { bg:"#fffbeb", border:"#fcd34d", badge_bg:"#fef3c7", badge_color:"#d97706" },
             "Chờ Xác Nhận": { bg:"#fdf2f8", border:"#fbcfe8", badge_bg:"#fce7f3", badge_color:"#db2777" },
             "Chờ KTV":      { bg:"#fff1f2", border:"#fca5a5", badge_bg:"#fee2e2", badge_color:"#dc2626" },
@@ -1285,7 +1285,7 @@ function MainAppInner() {
   function Dashboard() {
     const stats = {
       total: orders.length,
-      active: orders.filter(o=>!["Hoàn Thành","Đã Giao","Hủy","Quy Trình 1"].includes(o.status)).length,
+      active: orders.filter(o=>!["Hoàn Thành","Đã Giao","Hủy"].includes(o.status)).length,
       done: orders.filter(o=>o.status==="Hoàn Thành"||o.status==="Đã Giao").length,
       needsReassign: orders.filter(o=>o.needs_reassign).length,
     };
@@ -1812,7 +1812,7 @@ function ReceptionHome({ user, orders, setPage }) {
   };
   const waitHandover = orders.filter(o => o.status === "Hoàn Thành").length;
   const waitBaoGia   = orders.filter(o => o.status === "Chờ Báo Giá").length;
-  const inPreCheck   = orders.filter(o => ["Quy Trình 1","Chờ KTV Kiểm","Chờ Xác Nhận"].includes(o.status)).length;
+  const inPreCheck   = orders.filter(o => ["Chờ Xác Nhận","Chờ Báo Giá"].includes(o.status)).length;
   const cards = [
     { label:"Tiếp nhận hôm nay", value:stats.newToday,       icon:"add_circle",         color:"#4f46e5", bg:"#eef2ff", border:"#c7d2fe", urgent:false,                  page:"new"   },
     { label:"Chờ phân công KTV", value:stats.waitingAssign,  icon:"person_add",          color:"#dc2626", bg:"#fff1f2", border:"#fca5a5", urgent:stats.waitingAssign>0,  page:"tasks" },

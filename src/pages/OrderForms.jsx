@@ -137,7 +137,7 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
       created: new Date().toISOString(),
       assigned_at: new Date().toISOString(),
       accept_stage: 0,
-      status: "Chờ KTV Kiểm",
+      status: "Cho KTV",
       images: imgUrls,
       customer_id: cId, customer_name: cName, customer_phone: cPhone,
       assigned_to: selectedKtv,

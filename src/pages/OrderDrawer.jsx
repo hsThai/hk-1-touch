@@ -475,7 +475,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
       estDate = new Date(Date.now() + (estMins||0) * 60000).toISOString();
     }
 
-    const newStatus = ord.status === "Cho KTV Sua" ? "Dang Sua" : "KTV Dang Kiem";
+    const newStatus = "Dang Sua"; // lần 2: khách đồng ý → bắt đầu sửa
     const now = new Date().toISOString();
     // assigned_at = thời điểm phân công (đã có) hoặc set ngay nếu chưa có
     const assignedAt = ord.assigned_at || now;
@@ -507,18 +507,19 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
     // stage1_at = thời điểm KTV confirm nhận → bắt đầu đếm 60'
     // accept_stage = 1 → timer stage 1 bắt đầu
     onUpdate(ord.id, {
-      accept_stage: 1,
-      stage1_at: now,
+      accept_stage: 2,
+      stage2_at: now,
       assigned_at: assignedAt,
-      status: newStatus,
+      status: "Dang Sua",
       estimated_done: estDate,
       estimated_done_date: estDate,
       technician_note: techNote || ord.technician_note || "",
       images: newImages,
       videos: newVideos,
     }, null);
+    logHistory({ order_id:ord.id, order_code:ord.order_code||ord.id, action_type:"accepted_repair", action_label:"KTV nhận sửa — Bắt đầu sửa chữa", changed_by_id:currentUser?.id||"", changed_by_name:currentUser?.name||"", changed_by_role:currentUser?.role||"", new_value:"Đang Sửa" });
     setShowChecklist(false);
-    showToast("✅ Đã nhận đơn!");
+    showToast("✅ Đã nhận sửa! Bắt đầu sửa chữa.");
   }
   function handleMarkDone() {
     onUpdate(order.id, { status:"Hoàn Thành", accept_stage:3 }, { userId:order.assigned_to, delta:2, note:"Sửa xong +2 KPI" });
@@ -613,20 +614,37 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
 
         {tab === "info" && (
           <div style={{ flex:1, overflowY:"auto", padding:18 }}>
-            {/* ── Nút Nhận Đơn khi status = Chờ KTV / Chờ KTV Sửa ─── */}
-            {["Chờ KTV","Chờ KTV Sửa"].includes(order.status) && isMyOrder && (
-              <div style={{ background:"linear-gradient(135deg,#4f46e5,#7c3aed)", borderRadius:16, padding:20, marginBottom:14, textAlign:"center" }}>
+            {/* ── Nút Nhận Kiểm (lần 1) khi status = Chờ KTV ─── */}
+            {order.status === "Chờ KTV" && isMyOrder && (
+              <div style={{ background:"linear-gradient(135deg,#0369a1,#0284c7)", borderRadius:16, padding:20, marginBottom:14, textAlign:"center" }}>
                 <div style={{ color:"#fff", fontWeight:800, fontSize:17, marginBottom:6 }}>
-                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22,verticalAlign:"middle",marginRight:6}}>assignment</span>
-                  Đơn chờ bạn nhận!
+                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22,verticalAlign:"middle",marginRight:6}}>manage_search</span>
+                  Đơn chờ bạn nhận kiểm!
                 </div>
                 <div style={{ color:"rgba(255,255,255,.8)", fontSize:13, marginBottom:14 }}>
                   {order.device_model} — {order.customer_name}
                 </div>
-                <button onClick={() => handleOpenChecklist(order, 1)}
+                <button onClick={() => setShowQT2(true)}
                   style={{ width:"100%", height:58, borderRadius:16, border:"2px solid rgba(255,255,255,.5)", background:"rgba(255,255,255,.15)", color:"#fff", fontWeight:900, fontSize:18, cursor:"pointer", backdropFilter:"blur(4px)" }}>
-                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22,verticalAlign:"middle",marginRight:8}}>check_circle</span>
-                  Nhận Đơn
+                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22,verticalAlign:"middle",marginRight:8}}>fact_check</span>
+                  Nhận Kiểm Tra
+                </button>
+              </div>
+            )}
+            {/* ── Nút Nhận Sửa (lần 2) khi status = Chờ KTV Sửa ─── */}
+            {order.status === "Chờ KTV Sửa" && isMyOrder && (
+              <div style={{ background:"linear-gradient(135deg,#6d28d9,#7c3aed)", borderRadius:16, padding:20, marginBottom:14, textAlign:"center" }}>
+                <div style={{ color:"#fff", fontWeight:800, fontSize:17, marginBottom:6 }}>
+                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22,verticalAlign:"middle",marginRight:6}}>build</span>
+                  Khách đã đồng ý — Bắt đầu sửa!
+                </div>
+                <div style={{ color:"rgba(255,255,255,.8)", fontSize:13, marginBottom:14 }}>
+                  {order.device_model} — {order.customer_name}
+                </div>
+                <button onClick={() => handleOpenChecklist(order, 2)}
+                  style={{ width:"100%", height:58, borderRadius:16, border:"2px solid rgba(255,255,255,.5)", background:"rgba(255,255,255,.15)", color:"#fff", fontWeight:900, fontSize:18, cursor:"pointer", backdropFilter:"blur(4px)" }}>
+                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22,verticalAlign:"middle",marginRight:8}}>construction</span>
+                  Nhận Sửa
                 </button>
               </div>
             )}
@@ -902,7 +920,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
             )}
 
             {/* ── QT1: Tiếp tân kiểm ngoại quan ── */}
-            {order.status === "Quy Trình 1" && (isReception || currentUser.role === "manager" || currentUser.role === "admin") && (
+            {order.status === "Cho KTV" && !order.qt1_checklist && (isReception || currentUser.role === "manager" || currentUser.role === "admin") && (
               <div style={{ marginTop:8 }}>
                 <button onClick={() => setShowPreCheck(true)}
                   style={{ width:"100%", height:56, borderRadius:16, background:"linear-gradient(135deg,#0369a1,#0284c7)", border:"none", color:"#fff", fontWeight:900, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10, boxShadow:"0 4px 16px rgba(3,105,161,.3)" }}>
@@ -911,7 +929,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 </button>
               </div>
             )}
-            {order.status === "Quy Trình 1" && order.qt1_checklist && (
+            {order.qt1_checklist && (
               <div style={{ marginTop:8, background:"#e0f2fe", border:"1.5px solid #7dd3fc", borderRadius:12, padding:"10px 14px", fontSize:13, color:"#0c4a6e" }}>
                 <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,verticalAlign:"middle",marginRight:6}}>info</span>
                 Đã có kết quả QT1 — chờ chuyển KTV
@@ -919,7 +937,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
             )}
 
             {/* ── QT2: KTV kiểm tra sâu ── */}
-            {order.status === "Chờ KTV Kiểm" && (order.assigned_to === currentUser.id || currentUser.role === "manager" || currentUser.role === "admin") && (
+            {order.status === "Chờ KTV" && (order.assigned_to === currentUser.id || currentUser.role === "manager" || currentUser.role === "admin") && (
               <div style={{ marginTop:8 }}>
                 <button onClick={() => setShowQT2(true)}
                   style={{ width:"100%", height:56, borderRadius:16, background:"linear-gradient(135deg,#6d28d9,#7c3aed)", border:"none", color:"#fff", fontWeight:900, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10, boxShadow:"0 4px 16px rgba(109,40,217,.3)" }}>
@@ -928,7 +946,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 </button>
               </div>
             )}
-            {order.status === "Chờ KTV Kiểm" && order.qt2_checklist && (
+            {order.qt2_checklist && order.status !== "Cho KTV" && (
               <div style={{ marginTop:8, background:"#f5f3ff", border:"1.5px solid #ddd6fe", borderRadius:12, padding:"10px 14px", fontSize:13, color:"#4c1d95" }}>
                 <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,verticalAlign:"middle",marginRight:6}}>check</span>
                 Đã có kết quả QT2 — chờ gửi về Tiếp Tân
@@ -1351,7 +1369,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
             onClose={() => setShowPreCheck(false)}
             onDone={async (data) => {
               await onUpdate(order.id, {
-                status: "Chờ KTV Kiểm",
+                status: "Cho KTV",
                 qt1_checklist: data.qt1_checklist,
                 qt1_note: data.qt1_note,
                 assigned_to: data.assigned_to,
@@ -1361,7 +1379,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
               }, null);
               logHistory({ order_id:order.id, order_code:order.order_code||order.id, action_type:"qt1_done", action_label:"Hoàn tất QT1 — Ngoại quan", changed_by_id:currentUser?.id||"", changed_by_name:currentUser?.name||"", changed_by_role:currentUser?.role||"", new_value:`KTV: ${data.assigned_to_name}` });
               const notifyUsers = users.filter(u => u.id === data.assigned_to || ["manager","admin"].includes(u.role));
-              notifyUsers.forEach(u => Notification.create({ user_id:u.id, user_name:u.name||"", title:`🔍 Đơn ${order.order_code||order.id} chờ kiểm QT2`, message:`Thiết bị: ${order.device_model} — ${order.customer_name}`, order_id:order.id, order_code:order.order_code||order.id, type:"status_change", is_read:false }).catch(()=>{}));
+              notifyUsers.forEach(u => Notification.create({ user_id:u.id, user_name:u.name||"", title:`🔍 Đơn ${order.order_code||order.id} chờ KTV nhận kiểm`, message:`Thiết bị: ${order.device_model} · ${order.customer_name} — KTV: ${data.assigned_to_name}`, order_id:order.id, order_code:order.order_code||order.id, type:"status_change", is_read:false }).catch(()=>{}));
               setShowPreCheck(false);
               showToast("✅ Đã chuyển KTV kiểm QT2!");
             }}
@@ -1375,11 +1393,13 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
             onClose={() => setShowQT2(false)}
             onDone={async (data) => {
               await onUpdate(order.id, {
-                status: "Chờ Báo Giá",
+                status: "Cho Bao Gia",
                 qt2_checklist: data.qt2_checklist,
                 qt2_note: data.qt2_note,
+                accept_stage: 1,
+                stage1_at: order.stage1_at || new Date().toISOString(),
               }, null);
-              logHistory({ order_id:order.id, order_code:order.order_code||order.id, action_type:"qt2_done", action_label:"Hoàn tất QT2 — KTV kiểm tra", changed_by_id:currentUser?.id||"", changed_by_name:currentUser?.name||"", changed_by_role:currentUser?.role||"", new_value:"Gửi về Tiếp Tân báo giá" });
+              logHistory({ order_id:order.id, order_code:order.order_code||order.id, action_type:"qt2_done", action_label:"KTV hoàn tất kiểm QT2 — Chờ báo giá", changed_by_id:currentUser?.id||"", changed_by_name:currentUser?.name||"", changed_by_role:currentUser?.role||"", new_value:"Chờ Báo Giá" });
               const notifyUsers = users.filter(u => ["receptionist","manager","admin"].includes(u.role));
               notifyUsers.forEach(u => Notification.create({ user_id:u.id, user_name:u.name||"", title:`📋 ${order.order_code||order.id} — KTV đã kiểm xong`, message:`${order.device_model} · ${order.customer_name} — Chờ báo giá KH`, order_id:order.id, order_code:order.order_code||order.id, type:"status_change", is_read:false }).catch(()=>{}));
               setShowQT2(false);
