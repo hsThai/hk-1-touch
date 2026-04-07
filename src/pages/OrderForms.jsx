@@ -6,7 +6,7 @@ import { uploadFile } from "./pb.jsx";
 import { timeAgo, genOrderId, getKpiTimerInfo } from "./MediaViewer";
 import { searchKvCustomers, createKvDeliveryOrder } from "./kiotviet.jsx";
 import { QRScanModal, IMEIScanModal } from "./QRComponents.jsx";
-// ── Checklist QT1 cho form tạo đơn ──
+// ── Checklist QT1 Ngoại quan ──────────────────────────
 const QT1_ITEMS_FORM = [
   { key:"vien_cong_mop",    label:"Viền cong / móp" },
   { key:"can_mop_goc",      label:"Cấn móp góc" },
@@ -16,17 +16,20 @@ const QT1_ITEMS_FORM = [
   { key:"cam_ung_loi",      label:"Cảm ứng lỗi" },
   { key:"cam_ung_delay",    label:"Cảm ứng đa điểm delay" },
   { key:"faceid_touch_loi", label:"FaceID / Touch lỗi" },
-  { key:"camera",           label:"Camera trước / sau",        hasNote:true, notePlaceholder:"Mô tả tình trạng..." },
-  { key:"loa_mic",          label:"Loa / Mic & thoại / video", hasNote:true, notePlaceholder:"Mô tả tình trạng..." },
-  { key:"wifi_bt",          label:"Wifi / Bluetooth",          hasNote:true, notePlaceholder:"Mô tả tình trạng..." },
+  { key:"camera",           label:"Camera trước / sau",        hasNote:true, notePlaceholder:"Mô tả tình trạng camera..." },
+  { key:"loa_mic",          label:"Loa / Mic & thoại / video", hasNote:true, notePlaceholder:"Mô tả tình trạng loa, mic..." },
+  { key:"wifi_bt",          label:"Wifi / Bluetooth",          hasNote:true, notePlaceholder:"Mô tả tình trạng wifi, BT..." },
 ];
 
 function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }) {
-  const [step, setStep] = useState(1); // 1=Thông tin máy, 2=QT1 ngoại quan + KTV
+  const [form, setForm] = useState({
+    customer_id:"", customer_name:"", customer_phone:"",
+    device_model:"", imei_serial:"", passcode:"",
+    qr_code:"", product_qr:"", notes:"",
+  });
 
-  const [form, setForm] = useState({ customer_id:"", customer_name:"", customer_phone:"", device_model:"", imei_serial:"", passcode:"", qr_code:"", product_qr:"", issues:[], notes:"", assigned_to:"" });
-  const [qt1, setQt1] = useState({});   // { key: {checked, note} }
-  const [qt1Note, setQt1Note] = useState("");
+  const [qt1, setQt1]             = useState({});
+  const [qt1Note, setQt1Note]     = useState("");
   const [qt1Images, setQt1Images] = useState([]);
   const [selectedKtv, setSelectedKtv] = useState("");
 
@@ -35,12 +38,16 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
   }, [initialProductQR]);
 
   const [custSearch, setCustSearch] = useState("");
-  const [dbCusts, setDbCusts] = useState([]);
+  const [dbCusts, setDbCusts]       = useState([]);
   const [mediaFiles, setMediaFiles] = useState([]);
-  const [showQRScan, setShowQRScan] = useState(false);
+  const [showQRScan, setShowQRScan]   = useState(false);
   const [showIMEIScan, setShowIMEIScan] = useState(false);
-  const [qrMsg, setQrMsg] = useState(null);
-  const photoRef = useRef(); const videoRef = useRef(); const fileRef = useRef();
+  const [qrMsg, setQrMsg]           = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const photoRef    = useRef();
+  const videoRef    = useRef();
+  const fileRef     = useRef();
   const qt1PhotoRef = useRef();
 
   const set = (k, v) => setForm(f => ({ ...f, [k]:v }));
@@ -56,13 +63,13 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
       } catch {}
       try {
         const q = custSearch.toLowerCase();
-        const items = await Customer.list({ limit: 200 });
+        const items = await Customer.list({ limit:200 });
         const filtered = items.filter(c => (c.full_name||"").toLowerCase().includes(q) || (c.phone||"").includes(custSearch));
         if (filtered.length > 0) { setDbCusts(filtered); setKvSearching(false); return; }
       } catch {}
       if (orders) {
         const extra = []; const q = custSearch.toLowerCase();
-        orders.forEach(o => { if (o.customer_name && o.customer_phone && !extra.find(c=>c.phone===o.customer_phone)) extra.push({ id: o.customer_id||o.customer_phone, full_name:o.customer_name, phone:o.customer_phone }); });
+        orders.forEach(o => { if (o.customer_name && o.customer_phone && !extra.find(c=>c.phone===o.customer_phone)) extra.push({ id:o.customer_id||o.customer_phone, full_name:o.customer_name, phone:o.customer_phone }); });
         setDbCusts(extra.filter(c => (c.full_name||"").toLowerCase().includes(q) || (c.phone||"").includes(custSearch)));
       }
       setKvSearching(false);
@@ -85,56 +92,50 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
   }
 
   function toggleQt1(key) {
-    setQt1(p => ({ ...p, [key]: { ...(p[key]||{}), checked: !(p[key]?.checked) } }));
+    setQt1(p => ({ ...p, [key]:{ ...(p[key]||{}), checked:!(p[key]?.checked) } }));
   }
   function setQt1ItemNote(key, val) {
-    setQt1(p => ({ ...p, [key]: { ...(p[key]||{}), note: val } }));
+    setQt1(p => ({ ...p, [key]:{ ...(p[key]||{}), note:val } }));
   }
 
   function handleQRResult(result) {
     setShowQRScan(false);
-    if (result.type === "assign_qr") { set("product_qr", result.qr); setQrMsg({ type:"new", code: result.qr }); return; }
+    if (result.type === "assign_qr") { set("product_qr", result.qr); setQrMsg({ type:"new", code:result.qr }); return; }
     if (result.type === "product_history") {
       const sorted = [...result.orders].sort((a,b) => new Date(b.created||0) - new Date(a.created||0));
-      const prevOrder = sorted[0];
+      const prev = sorted[0];
       set("product_qr", result.qr);
-      if (prevOrder) {
-        set("device_model", prevOrder.device_model || "");
-        set("imei_serial", prevOrder.imei_serial || "");
-        if (prevOrder.customer_name) { set("customer_name", prevOrder.customer_name); set("customer_phone", prevOrder.customer_phone || ""); setCustSearch(`${prevOrder.customer_name}${prevOrder.customer_phone ? " — " + prevOrder.customer_phone : ""}`); }
-        setQrMsg({ type:"found", code: result.qr, prevOrder });
+      if (prev) {
+        set("device_model", prev.device_model||"");
+        set("imei_serial", prev.imei_serial||"");
+        if (prev.customer_name) { set("customer_name", prev.customer_name); set("customer_phone", prev.customer_phone||""); setCustSearch(`${prev.customer_name}${prev.customer_phone ? " — "+prev.customer_phone : ""}`); }
+        setQrMsg({ type:"found", code:result.qr, prevOrder:prev });
       }
       return;
     }
-    if (result.type === "raw") { set("product_qr", result.code); setQrMsg({ type:"new", code: result.code }); }
+    if (result.type === "raw") { set("product_qr", result.code); setQrMsg({ type:"new", code:result.code }); }
   }
 
-  function handleStep1Next() {
-    if (!form.device_model.trim()) { alert("Vui lòng nhập tên thiết bị!"); return; }
-    let cName = form.customer_name;
-    if (!cName && custSearch.trim()) { const parts = custSearch.split(/[—\-]/); cName = parts[0].trim(); }
-    if (!cName) { alert("Vui lòng nhập tên hoặc SĐT khách hàng!"); return; }
-    setStep(2);
-  }
-
-  const [submitting, setSubmitting] = useState(false);
   async function submit() {
-    if (!selectedKtv) { alert("Vui lòng chọn KTV phụ trách!"); return; }
+    if (!form.device_model.trim()) { alert("Vui lòng nhập tên thiết bị!"); return; }
     let cName = form.customer_name;
     let cPhone = form.customer_phone;
     let cId = form.customer_id;
     if (!cId && custSearch.trim()) {
       const parts = custSearch.split(/[—\-]/);
-      cName = parts[0].trim(); cPhone = (parts[1]||"").trim(); cId = "new_" + Date.now();
+      cName = parts[0].trim(); cPhone = (parts[1]||"").trim(); cId = "new_"+Date.now();
     }
+    if (!cName) { alert("Vui lòng nhập tên hoặc SĐT khách hàng!"); return; }
+    if (!selectedKtv) { alert("Vui lòng chọn KTV phụ trách!"); return; }
+
     setSubmitting(true);
     let imgUrls = [];
     try {
       for (const m of mediaFiles) {
         if (m.file) {
-          const fileToUpload = m.type === "image" ? await compressImage(m.file) : m.file;
+          const fileToUpload = m.type==="image" ? await compressImage(m.file) : m.file;
           const url = await uploadFile(fileToUpload);
-          imgUrls.push(m.type === "video" ? `video:${url}` : url);
+          imgUrls.push(m.type==="video" ? `video:${url}` : url);
         } else if (m.url && !m.url.startsWith("blob:")) { imgUrls.push(m.url); }
       }
     } catch(e) { console.warn("Upload ảnh thất bại:", e); }
@@ -161,10 +162,9 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
     (async () => {
       try {
         await createKvDeliveryOrder({
-          orderCode: newOrder.id,
-          deviceModel: newOrder.device_model,
-          technicianName: ktvUser?.name || ktvUser?.full_name || "Chưa giao",
-          parts: [{ sku:"REPAIR_ORDER", kvProductId:null, name:`[${newOrder.id}] ${newOrder.device_model}`, qty:1, price:0 }],
+          orderCode: newOrder.id, deviceModel: newOrder.device_model,
+          technicianName: ktvUser?.name||ktvUser?.full_name||"Chưa giao",
+          parts:[{ sku:"REPAIR_ORDER", kvProductId:null, name:`[${newOrder.id}] ${newOrder.device_model}`, qty:1, price:0 }],
         });
       } catch(e) { console.warn("[KiosThong] Gửi đơn thất bại:", e.message); }
     })();
@@ -174,196 +174,171 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
 
   const inp = { width:"100%", height:48, borderRadius:12, border:"1.5px solid #e5e7eb", padding:"0 14px", fontSize:15, outline:"none", boxSizing:"border-box" };
   const lbl = { fontSize:13, fontWeight:700, color:"#374151", display:"block", marginBottom:6 };
-  const sec = { background:"#f9fafb", borderRadius:16, padding:16, marginBottom:14 };
+  const MI  = ({ name, style={} }) => <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:20, verticalAlign:"middle", lineHeight:1, userSelect:"none", ...style }}>{name}</span>;
 
-  const ktvList = users.filter(u => u.role === "technician" && u.is_active !== false);
+  const ktvList = users.filter(u => u.role==="technician" && u.is_active!==false);
   const qt1CheckedCount = QT1_ITEMS_FORM.filter(i => qt1[i.key]?.checked).length;
+  const canSubmit = !!selectedKtv && form.device_model.trim() && (form.customer_name.trim() || custSearch.trim());
 
   return (
     <div style={{ position:"fixed", inset:0, zIndex:2000, background:"rgba(0,0,0,.55)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-      <div style={{ background:"#fff", borderRadius:22, width:"100%", maxWidth:540, maxHeight:"92vh", overflowY:"auto", boxShadow:"0 24px 64px rgba(0,0,0,.25)" }}>
+      <div style={{ background:"#fff", borderRadius:22, width:"100%", maxWidth:540, maxHeight:"93vh", overflowY:"auto", boxShadow:"0 24px 64px rgba(0,0,0,.25)", display:"flex", flexDirection:"column" }}>
 
-        {/* Header với step indicator */}
-        <div style={{ position:"sticky", top:0, zIndex:10, background: step===1 ? "#3730a3" : "#0369a1", padding:"14px 20px", borderRadius:"22px 22px 0 0" }}>
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+        {/* Header */}
+        <div style={{ position:"sticky", top:0, zIndex:10, background:"#3730a3", padding:"14px 20px", borderRadius:"22px 22px 0 0", flexShrink:0 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
             <div style={{ color:"#fff", fontWeight:800, fontSize:17, display:"flex", alignItems:"center", gap:8 }}>
-              <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>
-                {step===1 ? "add_circle" : "search"}
-              </span>
-              {step===1 ? "Tạo Đơn — Thông Tin" : "Kiểm Ngoại Quan (QT1)"}
+              <MI name="add_circle" style={{ fontSize:22, color:"#fff" }} />
+              Tạo Đơn Mới
             </div>
             <button onClick={onClose} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:34, height:34, borderRadius:"50%", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
-              <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>close</span>
+              <MI name="close" style={{ fontSize:20, color:"#fff" }} />
             </button>
-          </div>
-          {/* Step bar */}
-          <div style={{ display:"flex", gap:6 }}>
-            {["Thông tin máy","Ngoại quan + KTV"].map((s,i) => (
-              <div key={i} style={{ flex:1 }}>
-                <div style={{ height:4, borderRadius:4, background: i+1<=step ? "#fff" : "rgba(255,255,255,.3)", marginBottom:3, transition:"background .3s" }} />
-                <div style={{ fontSize:10, color: i+1===step ? "#fff" : "rgba(255,255,255,.5)", fontWeight: i+1===step?800:500 }}>{s}</div>
-              </div>
-            ))}
           </div>
         </div>
 
-        <div style={{ padding:"16px 20px 8px" }}>
+        <div style={{ flex:1, overflowY:"auto", padding:"16px 20px 8px" }}>
 
-          {/* ══ STEP 1: Thông tin khách + thiết bị ══ */}
-          {step === 1 && (<>
-            <div style={{ ...sec, background:"#eef2ff", border:"1.5px solid #a5b4fc" }}>
-              <div style={{ fontWeight:800, fontSize:14, color:"#3730a3", marginBottom:10, display:"flex", justifyContent:"space-between", alignItems:"center"}}>
-                <span>Mã QR Sản Phẩm</span>
-                <button onClick={() => setShowQRScan(true)} style={{ height:36, width:36, borderRadius:10, background:"#4f46e5", color:"#fff", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>qr_code_scanner</span>
-                </button>
-              </div>
-              <input value={form.product_qr} onChange={e => { set("product_qr", e.target.value); setQrMsg(null); }}
-                placeholder="Quét hoặc nhập mã QR dán trên máy..."
-                style={{ ...inp, fontFamily:"monospace", background:form.product_qr?"#f0fdf4":"#fff", borderColor:form.product_qr?"#6ee7b7":"#e5e7eb" }} />
-              {form.product_qr && (
-                <div style={{ marginTop:8, background:"#f0fdf4", borderRadius:10, padding:"8px 12px", border:"1.5px solid #6ee7b7", fontSize:12 }}>
-                  Mã QR: <strong style={{fontFamily:"monospace"}}>{form.product_qr}</strong>
-                </div>
-              )}
-              {qrMsg?.type === "found" && (
-                <div style={{ marginTop:8, background:"#fffbeb", borderRadius:10, padding:"10px 14px", border:"1.5px solid #fcd34d", fontSize:13 }}>
-                  <div style={{ fontWeight:800, color:"#d97706", marginBottom:4 }}>Đã tìm thấy dữ liệu cũ — điền tự động!</div>
-                  <div style={{ color:"#374151" }}>Đơn gần nhất: <strong>{qrMsg.prevOrder.id}</strong> · {qrMsg.prevOrder.status}</div>
-                </div>
-              )}
-            </div>
-
-            <div style={{ ...sec, background:"#f0f9ff" }}>
-              <div style={{ fontWeight:800, fontSize:14, color:"#0369a1", marginBottom:10 }}>Khách Hàng</div>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-                <label style={{...lbl, marginBottom:0}}>Tìm theo SĐT hoặc tên *</label>
-                {kvSearching && <span style={{ fontSize:11, color:"#0369a1", fontWeight:700 }}>Đang tìm KiotViet...</span>}
-              </div>
-              <input value={custSearch} onChange={e => { setCustSearch(e.target.value); if(!e.target.value) { set("customer_id",""); set("customer_name",""); set("customer_phone",""); } }}
-                placeholder="0901234567 hoặc Nguyễn Văn A..." style={inp} />
-              {custSearch.length >= 2 && !form.customer_id && dbCusts.length === 0 && !kvSearching && (
-                <div style={{ marginTop:6, background:"#fffbeb", border:"1px solid #fcd34d", borderRadius:10, padding:"10px 14px", fontSize:13, color:"#92400e"}}>
-                  Không tìm thấy. Nhập tên/SĐT rồi bấm Tiếp theo để thêm khách mới.
-                </div>
-              )}
-              {dbCusts.length > 0 && (
-                <div style={{ marginTop:6, border:"1px solid #bae6fd", borderRadius:10, overflow:"hidden" }}>
-                  {dbCusts.map(c => (
-                    <div key={c.id} onClick={() => { set("customer_id", c.id); set("customer_name", c.full_name||""); set("customer_phone", c.phone||""); setCustSearch(`${c.full_name} — ${c.phone}`); setDbCusts([]); }}
-                      style={{ padding:"12px 14px", cursor:"pointer", background:form.customer_id===c.id?"#e0f2fe":"#fff", borderBottom:"1px solid #f3f4f6", fontSize:14 }}>
-                      <div style={{ fontWeight:700 }}>{c.full_name}</div>
-                      <div style={{ color:"#6b7280", fontSize:12 }}>{c.phone}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div style={sec}>
-              <div style={{ fontWeight:800, fontSize:14, color:"#3730a3", marginBottom:10 }}>Thiết Bị</div>
-              <div style={{ display:"flex", gap:8, marginBottom:10, alignItems:"flex-end" }}>
-                <div style={{ flex:1 }}>
-                  <label style={lbl}>Tên / Model máy *</label>
-                  <input value={form.device_model} onChange={e => set("device_model", e.target.value)} placeholder="iPhone 15 Pro Max, Samsung S24..." style={inp} />
-                </div>
-                <div style={{ width:90, flexShrink:0 }}>
-                  <label style={lbl}>Mã PIN</label>
-                  <input value={form.passcode} onChange={e => set("passcode", e.target.value)} placeholder="1234" maxLength={8} style={{ ...inp, textAlign:"center", letterSpacing:2, fontWeight:700 }} />
-                </div>
-              </div>
-              <div>
-                <label style={lbl}>IMEI / Serial</label>
-                <div style={{ display:"flex", gap:8 }}>
-                  <input value={form.imei_serial} onChange={e => set("imei_serial", e.target.value)} placeholder="358..." inputMode="numeric" style={{ ...inp, flex:1 }} />
-                  <button onClick={() => setShowIMEIScan(true)} style={{ width:46, height:46, flexShrink:0, background:"#4f46e5", border:"none", borderRadius:12, color:"#fff", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                    <svg viewBox="0 0 24 24" width="26" height="26" fill="none"><rect x="2" y="4" width="1.5" height="12" rx="0.5" fill="white"/><rect x="5" y="4" width="1" height="12" rx="0.5" fill="white"/><rect x="7.5" y="4" width="2" height="12" rx="0.5" fill="white"/><rect x="11" y="4" width="1" height="12" rx="0.5" fill="white"/><rect x="13.5" y="4" width="1.5" height="12" rx="0.5" fill="white"/><rect x="16.5" y="4" width="1" height="12" rx="0.5" fill="white"/><rect x="18.5" y="4" width="2" height="12" rx="0.5" fill="white"/><circle cx="17" cy="17" r="4" stroke="white" strokeWidth="1.8" fill="none"/><line x1="20" y1="20" x2="22.5" y2="22.5" stroke="white" strokeWidth="1.8" strokeLinecap="round"/></svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div style={sec}>
-              <div style={{ fontWeight:800, fontSize:14, color:"#3730a3", marginBottom:10, display:"flex", alignItems:"center", gap:6 }}>
-                <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>build_circle</span>Tình Trạng Lỗi Khách Báo
-              </div>
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:10 }}>
-                {ISSUE_OPTIONS.map(issue => (
-                  <button key={issue} onClick={() => set("issues", form.issues.includes(issue)?form.issues.filter(i=>i!==issue):[...form.issues,issue])}
-                    style={{ padding:"10px 10px", borderRadius:12, border:`2px solid ${form.issues.includes(issue)?"#4f46e5":"#e5e7eb"}`, background:form.issues.includes(issue)?"#eef2ff":"#fff", color:form.issues.includes(issue)?"#4f46e5":"#374151", fontSize:13, fontWeight:form.issues.includes(issue)?800:500, cursor:"pointer", textAlign:"left", minHeight:48, display:"flex", alignItems:"center", gap:6 }}>
-                    {form.issues.includes(issue) && <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,color:"#4f46e5",lineHeight:1,flexShrink:0}}>check_circle</span>}
-                    {issue}
-                  </button>
-                ))}
-              </div>
-              <textarea value={form.notes} onChange={e => set("notes", e.target.value)} placeholder="Ghi chú thêm..." rows={2} style={{ ...inp, height:"auto", padding:"12px 14px", resize:"vertical" }} />
-            </div>
-
-            <div style={{ ...sec, background:"#f0fdf4", border:"1.5px solid #6ee7b7" }}>
-              <div style={{ fontWeight:800, fontSize:14, color:"#065f46", marginBottom:10 }}>Hình Ảnh & Video Tình Trạng</div>
-              <input ref={photoRef} type="file" accept="image/*" capture="environment" multiple style={{ display:"none" }} onChange={handleFiles} />
-              <input ref={videoRef} type="file" accept="video/*" capture="environment" style={{ display:"none" }} onChange={handleFiles} />
-              <input ref={fileRef} type="file" accept="image/*,video/*" multiple style={{ display:"none" }} onChange={handleFiles} />
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom:10 }}>
-                <button onClick={() => photoRef.current.click()} style={{ padding:"14px 8px", background:"#f0fdf4", border:"2px dashed #6ee7b7", borderRadius:12, cursor:"pointer", textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:24,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>photo_camera</span><div style={{fontSize:11,color:"#065f46"}}>Chụp ảnh</div></button>
-                <button onClick={() => videoRef.current.click()} style={{ padding:"14px 8px", background:"#fdf4ff", border:"2px dashed #d8b4fe", borderRadius:12, cursor:"pointer", textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:24,verticalAlign:"middle",lineHeight:1,userSelect:"none",color:"#7e22ce"}}>videocam</span><div style={{fontSize:11,color:"#7e22ce"}}>Quay video</div></button>
-                <button onClick={() => fileRef.current.click()} style={{ padding:"14px 8px", background:"#f0f9ff", border:"2px dashed #bae6fd", borderRadius:12, cursor:"pointer", textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:24,verticalAlign:"middle",lineHeight:1,userSelect:"none",color:"#0369a1"}}>folder_open</span><div style={{fontSize:11,color:"#0369a1"}}>Chọn file</div></button>
-              </div>
-              {mediaFiles.length > 0 && (
-                <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                  {mediaFiles.map(m => (
-                    <div key={m.id} style={{ position:"relative", width:72, height:72 }}>
-                      {m.type==="video" ? <div style={{ width:72, height:72, background:"#1e1b4b", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>🎬</div>
-                        : <img src={m.url} style={{ width:72, height:72, objectFit:"cover", borderRadius:10 }} alt="" />}
-                      <button onClick={() => setMediaFiles(p=>p.filter(x=>x.id!==m.id))} style={{ position:"absolute", top:-6, right:-6, width:20, height:20, background:"#ef4444", border:"none", borderRadius:"50%", color:"#fff", fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Nút Tiếp theo */}
-            <div style={{ display:"flex", gap:10, marginBottom:20 }}>
-              <button onClick={onClose} style={{ flex:1, height:50, borderRadius:14, background:"#f3f4f6", border:"none", fontWeight:700, fontSize:15, color:"#6b7280", cursor:"pointer" }}>Hủy</button>
-              <button onClick={handleStep1Next} style={{ flex:2, height:50, borderRadius:14, background:"linear-gradient(135deg,#0369a1,#0284c7)", border:"none", color:"#fff", fontWeight:900, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
-                <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>arrow_forward</span>
-                Tiếp theo: Kiểm ngoại quan
+          {/* ── QR ── */}
+          <div style={{ background:"#eef2ff", border:"1.5px solid #a5b4fc", borderRadius:16, padding:14, marginBottom:14 }}>
+            <div style={{ fontWeight:800, fontSize:14, color:"#3730a3", marginBottom:10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <span>Mã QR Sản Phẩm</span>
+              <button onClick={() => setShowQRScan(true)} style={{ height:36, width:36, borderRadius:10, background:"#4f46e5", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <MI name="qr_code_scanner" style={{ fontSize:20, color:"#fff" }} />
               </button>
             </div>
-          </>)}
-
-          {/* ══ STEP 2: QT1 Checklist + chọn KTV ══ */}
-          {step === 2 && (<>
-            {/* Progress QT1 */}
-            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
-              <div style={{ flex:1, height:6, background:"#e5e7eb", borderRadius:6, overflow:"hidden" }}>
-                <div style={{ height:"100%", width:`${(qt1CheckedCount/QT1_ITEMS_FORM.length)*100}%`, background:"#0369a1", borderRadius:6, transition:"width .3s" }} />
+            <input value={form.product_qr} onChange={e => { set("product_qr", e.target.value); setQrMsg(null); }}
+              placeholder="Quét hoặc nhập mã QR dán trên máy..."
+              style={{ ...inp, fontFamily:"monospace", background:form.product_qr?"#f0fdf4":"#fff", borderColor:form.product_qr?"#6ee7b7":"#e5e7eb" }} />
+            {qrMsg?.type==="found" && (
+              <div style={{ marginTop:8, background:"#fffbeb", borderRadius:10, padding:"8px 12px", border:"1.5px solid #fcd34d", fontSize:12 }}>
+                <b style={{color:"#d97706"}}>Đã tìm thấy dữ liệu cũ — điền tự động!</b><br/>
+                <span style={{color:"#374151"}}>Đơn gần nhất: {qrMsg.prevOrder.id} · {qrMsg.prevOrder.status}</span>
               </div>
-              <span style={{ fontSize:12, fontWeight:700, color:"#0369a1", whiteSpace:"nowrap" }}>{qt1CheckedCount}/{QT1_ITEMS_FORM.length} mục lỗi</span>
+            )}
+          </div>
+
+          {/* ── Khách hàng ── */}
+          <div style={{ background:"#f0f9ff", border:"1.5px solid #bae6fd", borderRadius:16, padding:14, marginBottom:14 }}>
+            <div style={{ fontWeight:800, fontSize:14, color:"#0369a1", marginBottom:10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <span>Khách Hàng</span>
+              {kvSearching && <span style={{ fontSize:11, color:"#0369a1", fontWeight:700 }}>Đang tìm KiotViet...</span>}
+            </div>
+            <input value={custSearch} onChange={e => { setCustSearch(e.target.value); if(!e.target.value) { set("customer_id",""); set("customer_name",""); set("customer_phone",""); } }}
+              placeholder="0901234567 hoặc Nguyễn Văn A..." style={inp} />
+            {custSearch.length>=2 && !form.customer_id && dbCusts.length===0 && !kvSearching && (
+              <div style={{ marginTop:6, background:"#fffbeb", border:"1px solid #fcd34d", borderRadius:10, padding:"8px 12px", fontSize:12, color:"#92400e" }}>
+                Không tìm thấy. Nhập tên/SĐT để thêm khách mới.
+              </div>
+            )}
+            {dbCusts.length>0 && (
+              <div style={{ marginTop:6, border:"1px solid #bae6fd", borderRadius:10, overflow:"hidden" }}>
+                {dbCusts.map(c => (
+                  <div key={c.id} onClick={() => { set("customer_id",c.id); set("customer_name",c.full_name||""); set("customer_phone",c.phone||""); setCustSearch(`${c.full_name} — ${c.phone}`); setDbCusts([]); }}
+                    style={{ padding:"10px 14px", cursor:"pointer", background:form.customer_id===c.id?"#e0f2fe":"#fff", borderBottom:"1px solid #f3f4f6", fontSize:14 }}>
+                    <div style={{ fontWeight:700 }}>{c.full_name}</div>
+                    <div style={{ color:"#6b7280", fontSize:12 }}>{c.phone}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── Thiết bị ── */}
+          <div style={{ background:"#f9fafb", border:"1.5px solid #e5e7eb", borderRadius:16, padding:14, marginBottom:14 }}>
+            <div style={{ fontWeight:800, fontSize:14, color:"#3730a3", marginBottom:10 }}>Thiết Bị</div>
+            <div style={{ display:"flex", gap:8, marginBottom:10, alignItems:"flex-end" }}>
+              <div style={{ flex:1 }}>
+                <label style={lbl}>Tên / Model máy *</label>
+                <input value={form.device_model} onChange={e => set("device_model", e.target.value)} placeholder="iPhone 15 Pro Max, Samsung S24..." style={inp} />
+              </div>
+              <div style={{ width:86, flexShrink:0 }}>
+                <label style={lbl}>Mã PIN</label>
+                <input value={form.passcode} onChange={e => set("passcode", e.target.value)} placeholder="1234" maxLength={8} style={{ ...inp, textAlign:"center", letterSpacing:2, fontWeight:700 }} />
+              </div>
+            </div>
+            <label style={lbl}>IMEI / Serial</label>
+            <div style={{ display:"flex", gap:8 }}>
+              <input value={form.imei_serial} onChange={e => set("imei_serial", e.target.value)} placeholder="358..." inputMode="numeric" style={{ ...inp, flex:1 }} />
+              <button onClick={() => setShowIMEIScan(true)} style={{ width:46, height:46, flexShrink:0, background:"#4f46e5", border:"none", borderRadius:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <svg viewBox="0 0 24 24" width="26" height="26" fill="none"><rect x="2" y="4" width="1.5" height="12" rx="0.5" fill="white"/><rect x="5" y="4" width="1" height="12" rx="0.5" fill="white"/><rect x="7.5" y="4" width="2" height="12" rx="0.5" fill="white"/><rect x="11" y="4" width="1" height="12" rx="0.5" fill="white"/><rect x="13.5" y="4" width="1.5" height="12" rx="0.5" fill="white"/><rect x="16.5" y="4" width="1" height="12" rx="0.5" fill="white"/><rect x="18.5" y="4" width="2" height="12" rx="0.5" fill="white"/><circle cx="17" cy="17" r="4" stroke="white" strokeWidth="1.8" fill="none"/><line x1="20" y1="20" x2="22.5" y2="22.5" stroke="white" strokeWidth="1.8" strokeLinecap="round"/></svg>
+              </button>
+            </div>
+          </div>
+
+          {/* ── Ghi chú khách báo ── */}
+          <div style={{ background:"#f9fafb", border:"1.5px solid #e5e7eb", borderRadius:16, padding:14, marginBottom:14 }}>
+            <div style={{ fontWeight:800, fontSize:14, color:"#3730a3", marginBottom:10 }}>Ghi Chú Khách Báo</div>
+            <textarea value={form.notes} onChange={e => set("notes", e.target.value)}
+              placeholder="Mô tả lỗi khách phản ánh, yêu cầu đặc biệt..."
+              rows={3} style={{ ...inp, height:"auto", padding:"12px 14px", resize:"vertical" }} />
+          </div>
+
+          {/* ── Ảnh/Video tình trạng ── */}
+          <div style={{ background:"#f0fdf4", border:"1.5px solid #6ee7b7", borderRadius:16, padding:14, marginBottom:14 }}>
+            <div style={{ fontWeight:800, fontSize:14, color:"#065f46", marginBottom:10 }}>Hình Ảnh & Video Tình Trạng</div>
+            <input ref={photoRef} type="file" accept="image/*" capture="environment" multiple style={{ display:"none" }} onChange={handleFiles} />
+            <input ref={videoRef} type="file" accept="video/*" capture="environment" style={{ display:"none" }} onChange={handleFiles} />
+            <input ref={fileRef} type="file" accept="image/*,video/*" multiple style={{ display:"none" }} onChange={handleFiles} />
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom: mediaFiles.length>0?10:0 }}>
+              <button onClick={() => photoRef.current.click()} style={{ padding:"12px 8px", background:"#f0fdf4", border:"2px dashed #6ee7b7", borderRadius:12, cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
+                <MI name="photo_camera" style={{ fontSize:24 }} /><div style={{fontSize:11,color:"#065f46"}}>Chụp ảnh</div>
+              </button>
+              <button onClick={() => videoRef.current.click()} style={{ padding:"12px 8px", background:"#fdf4ff", border:"2px dashed #d8b4fe", borderRadius:12, cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
+                <MI name="videocam" style={{ fontSize:24, color:"#7e22ce" }} /><div style={{fontSize:11,color:"#7e22ce"}}>Quay video</div>
+              </button>
+              <button onClick={() => fileRef.current.click()} style={{ padding:"12px 8px", background:"#f0f9ff", border:"2px dashed #bae6fd", borderRadius:12, cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
+                <MI name="folder_open" style={{ fontSize:24, color:"#0369a1" }} /><div style={{fontSize:11,color:"#0369a1"}}>Chọn file</div>
+              </button>
+            </div>
+            {mediaFiles.length>0 && (
+              <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                {mediaFiles.map(m => (
+                  <div key={m.id} style={{ position:"relative", width:68, height:68 }}>
+                    {m.type==="video" ? <div style={{ width:68, height:68, background:"#1e1b4b", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", fontSize:24 }}>🎬</div>
+                      : <img src={m.url} style={{ width:68, height:68, objectFit:"cover", borderRadius:10 }} alt="" />}
+                    <button onClick={() => setMediaFiles(p=>p.filter(x=>x.id!==m.id))} style={{ position:"absolute", top:-5, right:-5, width:20, height:20, background:"#ef4444", border:"none", borderRadius:"50%", color:"#fff", fontSize:11, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ══ KIỂM NGOẠI QUAN QT1 ══ */}
+          <div style={{ background:"#fff7ed", border:"2px solid #fb923c", borderRadius:16, padding:14, marginBottom:14 }}>
+            <div style={{ fontWeight:900, fontSize:15, color:"#9a3412", marginBottom:6, display:"flex", alignItems:"center", gap:8 }}>
+              <MI name="search" style={{ fontSize:20, color:"#ea580c" }} />
+              Kiểm Tra Ngoại Quan
+            </div>
+            <div style={{ fontSize:12, color:"#78350f", marginBottom:12, background:"#ffedd5", borderRadius:8, padding:"6px 10px" }}>
+              Tick vào các mục <b>có lỗi / bất thường</b>. Không tick = bình thường.
             </div>
 
-            <div style={{ background:"#fff7ed", border:"1.5px solid #fed7aa", borderRadius:12, padding:"10px 14px", marginBottom:14, fontSize:12, color:"#92400e", display:"flex", gap:8 }}>
-              <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,color:"#ea580c",flexShrink:0}}>info</span>
-              Tick vào các mục <b>có lỗi / bất thường</b> quan sát được. Không tick = bình thường.
-            </div>
+            {/* Progress */}
+            {qt1CheckedCount > 0 && (
+              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
+                <div style={{ flex:1, height:5, background:"#fed7aa", borderRadius:6, overflow:"hidden" }}>
+                  <div style={{ height:"100%", width:`${(qt1CheckedCount/QT1_ITEMS_FORM.length)*100}%`, background:"#ea580c", borderRadius:6, transition:"width .3s" }} />
+                </div>
+                <span style={{ fontSize:11, fontWeight:800, color:"#ea580c", whiteSpace:"nowrap" }}>{qt1CheckedCount} mục có lỗi</span>
+              </div>
+            )}
 
-            {/* Checklist ngoại quan */}
-            <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:14 }}>
+            <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
               {QT1_ITEMS_FORM.map(item => (
-                <div key={item.key} style={{ background: qt1[item.key]?.checked ? "#fff7ed" : "#f9fafb", borderRadius:12, border:`1.5px solid ${qt1[item.key]?.checked ? "#fb923c" : "#e5e7eb"}`, overflow:"hidden", transition:"all .15s" }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 14px", cursor:"pointer" }}
-                    onClick={() => toggleQt1(item.key)}>
-                    <div style={{ width:24, height:24, borderRadius:6, border:`2px solid ${qt1[item.key]?.checked ? "#ea580c" : "#d1d5db"}`, background: qt1[item.key]?.checked ? "#ea580c" : "#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
-                      {qt1[item.key]?.checked && <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:15,color:"#fff",verticalAlign:"middle",lineHeight:1}}>check</span>}
+                <div key={item.key} style={{ background: qt1[item.key]?.checked ? "#ffedd5" : "#fff", borderRadius:11, border:`1.5px solid ${qt1[item.key]?.checked ? "#fb923c" : "#e5e7eb"}`, overflow:"hidden", transition:"all .15s" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", cursor:"pointer" }} onClick={() => toggleQt1(item.key)}>
+                    <div style={{ width:22, height:22, borderRadius:5, border:`2px solid ${qt1[item.key]?.checked ? "#ea580c" : "#d1d5db"}`, background: qt1[item.key]?.checked ? "#ea580c" : "#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
+                      {qt1[item.key]?.checked && <MI name="check" style={{ fontSize:14, color:"#fff" }} />}
                     </div>
-                    <span style={{ fontSize:14, fontWeight: qt1[item.key]?.checked ? 700 : 500, color: qt1[item.key]?.checked ? "#9a3412" : "#374151", flex:1 }}>{item.label}</span>
-                    {qt1[item.key]?.checked && <span style={{ fontSize:10, background:"#ffedd5", color:"#ea580c", padding:"2px 6px", borderRadius:6, fontWeight:700, whiteSpace:"nowrap" }}>CÓ LỖI</span>}
+                    <span style={{ fontSize:14, fontWeight: qt1[item.key]?.checked ? 700 : 400, color: qt1[item.key]?.checked ? "#9a3412" : "#374151", flex:1 }}>{item.label}</span>
+                    {qt1[item.key]?.checked && <span style={{ fontSize:10, background:"#ea580c", color:"#fff", padding:"2px 7px", borderRadius:20, fontWeight:700, whiteSpace:"nowrap" }}>CÓ LỖI</span>}
                   </div>
                   {item.hasNote && qt1[item.key]?.checked && (
-                    <div style={{ padding:"0 14px 12px" }}>
+                    <div style={{ padding:"0 12px 10px" }}>
                       <input value={qt1[item.key]?.note||""} onChange={e => setQt1ItemNote(item.key, e.target.value)}
                         placeholder={item.notePlaceholder}
-                        style={{ width:"100%", borderRadius:8, border:"1.5px solid #fed7aa", padding:"8px 10px", fontSize:13, boxSizing:"border-box", outline:"none", background:"#fff" }} />
+                        style={{ width:"100%", borderRadius:8, border:"1.5px solid #fed7aa", padding:"7px 10px", fontSize:13, boxSizing:"border-box", outline:"none", background:"#fff" }} />
                     </div>
                   )}
                 </div>
@@ -371,63 +346,57 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
             </div>
 
             {/* Ghi chú + ảnh ngoại quan */}
-            <div style={{ ...sec, marginBottom:14 }}>
-              <div style={{ fontSize:13, fontWeight:700, color:"#374151", marginBottom:6 }}>Ghi chú ngoại quan</div>
+            <div style={{ marginTop:12 }}>
               <textarea value={qt1Note} onChange={e => setQt1Note(e.target.value)} rows={2}
-                placeholder="Ghi chú thêm về tình trạng ngoại quan..."
-                style={{ ...inp, height:"auto", padding:"10px 12px", resize:"none" }} />
-              <div style={{ marginTop:10 }}>
-                <div style={{ fontSize:12, fontWeight:700, color:"#374151", marginBottom:6 }}>Ảnh ngoại quan</div>
-                <input ref={qt1PhotoRef} type="file" accept="image/*" capture="environment" multiple style={{ display:"none" }} onChange={handleQt1Photos} />
-                <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
-                  <button onClick={() => qt1PhotoRef.current.click()}
-                    style={{ width:60, height:60, borderRadius:10, border:"2px dashed #93c5fd", background:"#eff6ff", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2, cursor:"pointer", color:"#1d4ed8", fontSize:10, fontWeight:700 }}>
-                    <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22,color:"#1d4ed8",verticalAlign:"middle",lineHeight:1}}>photo_camera</span>Chụp
-                  </button>
-                  {qt1Images.map((img, i) => (
-                    <div key={i} style={{ position:"relative", width:60, height:60 }}>
-                      <img src={img} style={{ width:60, height:60, objectFit:"cover", borderRadius:10 }} alt="" />
-                      <button onClick={() => setQt1Images(p=>p.filter((_,j)=>j!==i))}
-                        style={{ position:"absolute", top:-4, right:-4, width:18, height:18, background:"#ef4444", border:"none", borderRadius:"50%", color:"#fff", fontSize:11, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Chọn KTV */}
-            <div style={{ marginBottom:20 }}>
-              <div style={{ fontSize:14, fontWeight:800, color:"#374151", marginBottom:10, display:"flex", alignItems:"center", gap:6 }}>
-                <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:"#7c3aed",verticalAlign:"middle",lineHeight:1}}>engineering</span>
-                Chọn KTV phụ trách <span style={{ color:"#dc2626" }}>*</span>
-              </div>
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
-                {ktvList.map(u => (
-                  <button key={u.id} onClick={() => setSelectedKtv(u.id)}
-                    style={{ padding:"12px 14px", borderRadius:14, border:`2px solid ${selectedKtv===u.id ? "#7c3aed" : "#e5e7eb"}`, background: selectedKtv===u.id ? "#f5f3ff" : "#fff", cursor:"pointer", display:"flex", alignItems:"center", gap:10, transition:"all .15s", textAlign:"left" }}>
-                    <span style={{ fontSize:20 }}>🔧</span>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:13, fontWeight:700, color: selectedKtv===u.id ? "#6d28d9" : "#374151", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{u.name||u.full_name}</div>
-                      <div style={{ fontSize:11, color:"#6b7280" }}>KPI: {u.kpi_score||0}</div>
-                    </div>
-                    {selectedKtv===u.id && <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:"#7c3aed",verticalAlign:"middle",lineHeight:1,flexShrink:0}}>check_circle</span>}
-                  </button>
+                placeholder="Ghi chú ngoại quan thêm..."
+                style={{ ...inp, height:"auto", padding:"10px 12px", resize:"none", marginBottom:10, background:"#fff" }} />
+              <input ref={qt1PhotoRef} type="file" accept="image/*" capture="environment" multiple style={{ display:"none" }} onChange={handleQt1Photos} />
+              <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+                <button onClick={() => qt1PhotoRef.current.click()}
+                  style={{ width:56, height:56, borderRadius:10, border:"2px dashed #fb923c", background:"#fff7ed", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2, cursor:"pointer" }}>
+                  <MI name="photo_camera" style={{ fontSize:22, color:"#ea580c" }} />
+                  <span style={{ fontSize:9, color:"#ea580c", fontWeight:700 }}>Ảnh NQ</span>
+                </button>
+                {qt1Images.map((img, i) => (
+                  <div key={i} style={{ position:"relative", width:56, height:56 }}>
+                    <img src={img} style={{ width:56, height:56, objectFit:"cover", borderRadius:10 }} alt="" />
+                    <button onClick={() => setQt1Images(p=>p.filter((_,j)=>j!==i))} style={{ position:"absolute", top:-4, right:-4, width:17, height:17, background:"#ef4444", border:"none", borderRadius:"50%", color:"#fff", fontSize:10, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                  </div>
                 ))}
               </div>
             </div>
+          </div>
 
-            {/* Footer buttons */}
-            <div style={{ display:"flex", gap:10, marginBottom:20 }}>
-              <button onClick={() => setStep(1)} style={{ width:48, height:52, borderRadius:14, background:"#f3f4f6", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22,color:"#374151",verticalAlign:"middle",lineHeight:1}}>arrow_back</span>
-              </button>
-              <button onClick={submit} disabled={submitting || !selectedKtv}
-                style={{ flex:1, height:52, borderRadius:14, background: selectedKtv ? "linear-gradient(135deg,#0369a1,#0284c7)" : "#e5e7eb", border:"none", color: selectedKtv ? "#fff" : "#9ca3af", fontWeight:900, fontSize:16, cursor: selectedKtv ? "pointer" : "not-allowed", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
-                <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22,verticalAlign:"middle",lineHeight:1,userSelect:"none",color:selectedKtv?"#fff":"#9ca3af"}}>send</span>
-                {submitting ? "Đang tạo..." : "Tạo đơn & Chuyển KTV"}
-              </button>
+          {/* ── Chọn KTV ── */}
+          <div style={{ background:"#f5f3ff", border:"2px solid #ddd6fe", borderRadius:16, padding:14, marginBottom:14 }}>
+            <div style={{ fontWeight:900, fontSize:15, color:"#4c1d95", marginBottom:12, display:"flex", alignItems:"center", gap:8 }}>
+              <MI name="engineering" style={{ fontSize:20, color:"#7c3aed" }} />
+              Chọn KTV Phụ Trách <span style={{ color:"#dc2626", fontSize:13 }}>*</span>
             </div>
-          </>)}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+              {ktvList.map(u => (
+                <button key={u.id} onClick={() => setSelectedKtv(u.id)}
+                  style={{ padding:"11px 12px", borderRadius:13, border:`2px solid ${selectedKtv===u.id ? "#7c3aed" : "#e5e7eb"}`, background: selectedKtv===u.id ? "#ede9fe" : "#fff", cursor:"pointer", display:"flex", alignItems:"center", gap:9, transition:"all .15s", textAlign:"left" }}>
+                  <span style={{ fontSize:20 }}>🔧</span>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:13, fontWeight:700, color: selectedKtv===u.id ? "#6d28d9" : "#374151", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{u.name||u.full_name}</div>
+                    <div style={{ fontSize:11, color:"#6b7280" }}>KPI: {u.kpi_score||0}</div>
+                  </div>
+                  {selectedKtv===u.id && <MI name="check_circle" style={{ fontSize:18, color:"#7c3aed", flexShrink:0 }} />}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Nút Tạo Đơn ── */}
+          <div style={{ display:"flex", gap:10, marginBottom:24 }}>
+            <button onClick={onClose} style={{ flex:1, height:52, borderRadius:14, background:"#f3f4f6", border:"none", fontWeight:700, fontSize:15, color:"#6b7280", cursor:"pointer" }}>Hủy</button>
+            <button onClick={submit} disabled={submitting || !canSubmit}
+              style={{ flex:2, height:52, borderRadius:14, background: canSubmit ? "linear-gradient(135deg,#0369a1,#0284c7)" : "#e5e7eb", border:"none", color: canSubmit ? "#fff" : "#9ca3af", fontWeight:900, fontSize:16, cursor: canSubmit ? "pointer" : "not-allowed", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+              <MI name="send" style={{ fontSize:22, color: canSubmit ? "#fff" : "#9ca3af" }} />
+              {submitting ? "Đang tạo..." : "Tạo Đơn & Chuyển KTV"}
+            </button>
+          </div>
         </div>
 
         {showQRScan && <QRScanModal orders={orders||[]} onResult={handleQRResult} onClose={() => setShowQRScan(false)} />}
@@ -436,6 +405,8 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
     </div>
   );
 }
+
+
 const ISSUE_OPTIONS = [
   "Hao pin / Phồng pin","Màn hình vỡ / nứt","Loa / micro lỗi",
   "Sạc không vào","Camera mờ / hỏng","Vào nước","Nút bấm hỏng",
