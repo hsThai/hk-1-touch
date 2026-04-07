@@ -30,7 +30,6 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
 
   const [qt1, setQt1]             = useState({});
   const [qt1Note, setQt1Note]     = useState("");
-  const [qt1Images, setQt1Images] = useState([]);
   const [selectedKtv, setSelectedKtv] = useState("");
 
   useEffect(() => {
@@ -48,7 +47,6 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
   const photoRef    = useRef();
   const videoRef    = useRef();
   const fileRef     = useRef();
-  const qt1PhotoRef = useRef();
 
   const set = (k, v) => setForm(f => ({ ...f, [k]:v }));
   const [kvSearching, setKvSearching] = React.useState(false);
@@ -80,15 +78,6 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
   function handleFiles(e) {
     const items = Array.from(e.target.files).map(f => ({ id:Math.random().toString(36), file:f, type:f.type.startsWith("video/")?"video":"image", url:URL.createObjectURL(f), name:f.name }));
     setMediaFiles(p => [...p, ...items]); e.target.value = "";
-  }
-
-  async function handleQt1Photos(e) {
-    const files = Array.from(e.target.files);
-    for (const f of files) {
-      const reader = new FileReader();
-      await new Promise(res => { reader.onload = ev => { setQt1Images(p => [...p, ev.target.result]); res(); }; reader.readAsDataURL(f); });
-    }
-    e.target.value = "";
   }
 
   function toggleQt1(key) {
@@ -155,7 +144,6 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
       assigned_to_name: ktvUser?.name || ktvUser?.full_name || "",
       qt1_checklist: JSON.stringify(qt1),
       qt1_note: qt1Note,
-      qt1_images: qt1Images,
     };
     onCreate(newOrder);
 
@@ -345,25 +333,11 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
               ))}
             </div>
 
-            {/* Ghi chú + ảnh ngoại quan */}
+            {/* Ghi chú ngoại quan */}
             <div style={{ marginTop:12 }}>
               <textarea value={qt1Note} onChange={e => setQt1Note(e.target.value)} rows={2}
                 placeholder="Ghi chú ngoại quan thêm..."
-                style={{ ...inp, height:"auto", padding:"10px 12px", resize:"none", marginBottom:10, background:"#fff" }} />
-              <input ref={qt1PhotoRef} type="file" accept="image/*" capture="environment" multiple style={{ display:"none" }} onChange={handleQt1Photos} />
-              <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
-                <button onClick={() => qt1PhotoRef.current.click()}
-                  style={{ width:56, height:56, borderRadius:10, border:"2px dashed #fb923c", background:"#fff7ed", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2, cursor:"pointer" }}>
-                  <MI name="photo_camera" style={{ fontSize:22, color:"#ea580c" }} />
-                  <span style={{ fontSize:9, color:"#ea580c", fontWeight:700 }}>Ảnh NQ</span>
-                </button>
-                {qt1Images.map((img, i) => (
-                  <div key={i} style={{ position:"relative", width:56, height:56 }}>
-                    <img src={img} style={{ width:56, height:56, objectFit:"cover", borderRadius:10 }} alt="" />
-                    <button onClick={() => setQt1Images(p=>p.filter((_,j)=>j!==i))} style={{ position:"absolute", top:-4, right:-4, width:17, height:17, background:"#ef4444", border:"none", borderRadius:"50%", color:"#fff", fontSize:10, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
-                  </div>
-                ))}
-              </div>
+                style={{ ...inp, height:"auto", padding:"10px 12px", resize:"none", background:"#fff" }} />
             </div>
           </div>
 
@@ -373,19 +347,13 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
               <MI name="engineering" style={{ fontSize:20, color:"#7c3aed" }} />
               Chọn KTV Phụ Trách <span style={{ color:"#dc2626", fontSize:13 }}>*</span>
             </div>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+            <select value={selectedKtv} onChange={e => setSelectedKtv(e.target.value)}
+              style={{ width:"100%", height:50, borderRadius:13, border:`2px solid ${selectedKtv ? "#7c3aed" : "#e5e7eb"}`, padding:"0 14px", fontSize:15, fontWeight:600, color: selectedKtv ? "#4c1d95" : "#6b7280", background: selectedKtv ? "#ede9fe" : "#fff", outline:"none", cursor:"pointer", boxSizing:"border-box" }}>
+              <option value="">-- Chọn KTV phụ trách --</option>
               {ktvList.map(u => (
-                <button key={u.id} onClick={() => setSelectedKtv(u.id)}
-                  style={{ padding:"11px 12px", borderRadius:13, border:`2px solid ${selectedKtv===u.id ? "#7c3aed" : "#e5e7eb"}`, background: selectedKtv===u.id ? "#ede9fe" : "#fff", cursor:"pointer", display:"flex", alignItems:"center", gap:9, transition:"all .15s", textAlign:"left" }}>
-                  <span style={{ fontSize:20 }}>🔧</span>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:13, fontWeight:700, color: selectedKtv===u.id ? "#6d28d9" : "#374151", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{u.name||u.full_name}</div>
-                    <div style={{ fontSize:11, color:"#6b7280" }}>KPI: {u.kpi_score||0}</div>
-                  </div>
-                  {selectedKtv===u.id && <MI name="check_circle" style={{ fontSize:18, color:"#7c3aed", flexShrink:0 }} />}
-                </button>
+                <option key={u.id} value={u.id}>🔧 {u.name||u.full_name} (KPI: {u.kpi_score||0})</option>
               ))}
-            </div>
+            </select>
           </div>
 
           {/* ── Nút Tạo Đơn ── */}
