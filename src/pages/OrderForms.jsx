@@ -351,7 +351,7 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
               style={{ width:"100%", height:50, borderRadius:13, border:`2px solid ${selectedKtv ? "#7c3aed" : "#e5e7eb"}`, padding:"0 14px", fontSize:15, fontWeight:600, color: selectedKtv ? "#4c1d95" : "#6b7280", background: selectedKtv ? "#ede9fe" : "#fff", outline:"none", cursor:"pointer", boxSizing:"border-box" }}>
               <option value="">-- Chọn KTV phụ trách --</option>
               {ktvList.map(u => (
-                <option key={u.id} value={u.id}>🔧 {u.name||u.full_name} (KPI: {u.kpi_score||0})</option>
+                <option key={u.id} value={u.id}>🔧 {u.name||u.full_name}</option>
               ))}
             </select>
           </div>
