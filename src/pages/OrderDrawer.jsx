@@ -131,16 +131,17 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
   }, [order.id, order._id, tab]);
 
 
-  // Realtime: SSE + polling fallback
+  // Polling chat 3s - đơn giản, ổn định, gần realtime
   useEffect(() => {
     if (tab !== "chat") return;
-    let lastTs = Date.now();
-    let pollTimer = null;
-    let sseActive = false;
+    let cancelled = false;
+    let timer = null;
 
-    async function pollNewChats() {
+    async function pollChats() {
+      if (cancelled) return;
       try {
-        const all = await RepairChat.list({ filter: `order_id="${order.id}"`, sort: "created", limit: 200 });
+        const all = await RepairChat.filter({ order_id: order.id }, { sort: "created", limit: 200 });
+        if (cancelled) return;
         setChats(prev => {
           const serverIds = new Set(all.map(r => r.id));
           const savedIds = new Set(prev.filter(m => !m.id?.startsWith("tmp_")).map(m => m.id));
@@ -151,42 +152,12 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
           return [...all, ...temps];
         });
       } catch {}
+      if (!cancelled) timer = setTimeout(pollChats, 3000);
     }
 
-    // SSE realtime - ưu tiên hơn polling
-    let unsub = null;
-    try {
-      unsub = subscribeCollection("repair_chats", async (event) => {
-        const rec = event.record;
-        if (!rec || rec.order_id !== order.id) return;
-        sseActive = true;
-        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } // tắt poll khi SSE ok
-        if (event.action === "create") {
-          setChats(prev => {
-            if (prev.find(m => m.id === rec.id)) return prev;
-            const temps = prev.filter(m => m.id?.startsWith("tmp_"));
-            const saved = prev.filter(m => !m.id?.startsWith("tmp_"));
-            return [...saved, rec, ...temps];
-          });
-        } else if (event.action === "update") {
-          setChats(prev => prev.map(m => m.id === rec.id ? rec : m));
-        } else if (event.action === "delete") {
-          setChats(prev => prev.filter(m => m.id !== rec.id));
-        }
-      });
-    } catch {}
-
-    // Fallback poll 5s - chỉ chạy nếu SSE chưa active sau 3s
-    setTimeout(() => {
-      if (!sseActive) {
-        pollTimer = setInterval(pollNewChats, 5000);
-      }
-    }, 3000);
-
-    return () => {
-      unsub && unsub();
-      clearInterval(pollTimer);
-    };
+    // Bắt đầu poll sau 3s (đã load lần đầu rồi)
+    timer = setTimeout(pollChats, 3000);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [tab, order.id]);
 
   // Auto-scroll

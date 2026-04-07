@@ -1646,24 +1646,42 @@ function WarehouseOrders({ user, users, setSelectedOrder }) {
 function WarehouseHome({ user, setPage }) {
   const [stats, setStats] = React.useState({ pendingExport:0, overdueBorrow:0, lowStock:0, pendingImport:0 });
   const [loading, setLoading] = React.useState(true);
+  const [refreshing, setRefreshing] = React.useState(false);
 
-  React.useEffect(() => { loadStats(); }, []);
+  React.useEffect(() => {
+    loadStats();
+    // Polling 10s để cập nhật stats tự động
+    const timer = setInterval(() => loadStats(true), 10000);
+    return () => clearInterval(timer);
+  }, []);
 
-  async function loadStats() {
-    setLoading(true);
+  async function loadStats(silent = false) {
+    if (!silent) setLoading(true);
+    else setRefreshing(true);
     try {
-      const [exports, parts, imports] = await Promise.all([
-        StockExportRequest.filter({ status:"pending" }),
-        SparePart.filter({ is_active:true }),
-        StockImport.filter({ status:"draft" }),
+      // Dùng list + lọc client-side để tránh lỗi filter trên PocketBase
+      const [allExports, parts, imports] = await Promise.all([
+        StockExportRequest.list({ limit:500, sort:"-created" }),
+        SparePart.list({ limit:500 }),
+        StockImport.list({ limit:200, sort:"-created" }),
       ]);
-      const overdue = await StockExportRequest.filter({ export_type:"borrow", status:"ktv_confirmed" });
-      const now = Date.now();
-      const overdueCount = overdue.filter(r => r.return_due_date && new Date(r.return_due_date) < now).length;
-      const lowStockCount = parts.filter(p => (p.stock_qty||0) <= 3).length;
-      setStats({ pendingExport:exports.length, overdueBorrow:overdueCount, lowStock:lowStockCount, pendingImport:imports.length });
-    } catch(e) { console.error(e); }
+      const pendingExports = allExports.filter(r => r.status === "pending");
+      const overdue = allExports.filter(r =>
+        r.export_type === "borrow" && r.status === "ktv_confirmed" &&
+        r.return_due_date && new Date(r.return_due_date) < Date.now()
+      );
+      const activeParts = parts.filter(p => p.is_active !== false);
+      const lowStockCount = activeParts.filter(p => (p.stock_qty||0) <= 3).length;
+      const draftImports = imports.filter(r => r.status === "draft");
+      setStats({
+        pendingExport: pendingExports.length,
+        overdueBorrow: overdue.length,
+        lowStock: lowStockCount,
+        pendingImport: draftImports.length
+      });
+    } catch(e) { console.error("WarehouseHome loadStats error:", e); }
     setLoading(false);
+    setRefreshing(false);
   }
 
   const cards = [
@@ -1675,9 +1693,18 @@ function WarehouseHome({ user, setPage }) {
 
   return (
     <div style={{ padding:"16px 14px 100px" }}>
-      <div style={{ marginBottom:20 }}>
-        <div style={{ fontSize:22, fontWeight:900, color:"#1e1b4b" }}>📦 Xin chào, {user.name}!</div>
-        <div style={{ fontSize:14, color:"#6b7280", marginTop:4 }}>Nhân viên kho · {new Date().toLocaleDateString("vi-VN",{weekday:"long",day:"2-digit",month:"2-digit"})}</div>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+        <div>
+          <div style={{ fontSize:22, fontWeight:900, color:"#1e1b4b" }}>📦 Xin chào, {user.name}!</div>
+          <div style={{ fontSize:14, color:"#6b7280", marginTop:4, display:"flex", alignItems:"center", gap:6 }}>
+            Nhân viên kho · {new Date().toLocaleDateString("vi-VN",{weekday:"long",day:"2-digit",month:"2-digit"})}
+            {refreshing && <span style={{fontSize:11,color:"#4f46e5",fontWeight:700}}>🔄 Đang cập nhật...</span>}
+          </div>
+        </div>
+        <button onClick={()=>loadStats()} disabled={loading}
+          style={{height:36,padding:"0 12px",background:"#eff6ff",border:"1.5px solid #bfdbfe",borderRadius:10,color:"#2563eb",fontWeight:700,fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",gap:5}}>
+          <span className="material-icons" style={{fontSize:16}}>refresh</span>Làm mới
+        </button>
       </div>
 
       {loading ? (
