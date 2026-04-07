@@ -234,7 +234,7 @@ function TabRequests({requests, setViewReq}) {
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontWeight:800,fontSize:14}}>{req.request_code}</div>
                 <div style={{fontSize:12,color:"#6b7280",marginTop:2}}>
-                  {req.export_type==="borrow"?"🔄 Mượn":"🔧 Xuất sửa"} · {JSON.parse(req.items||"[]").length} LK · {fmtMoney(req.total_value)}
+                  {req.export_type==="borrow"?"🔄 Mượn":"🔧 Xuất sửa"} · {(Array.isArray(req.items)?req.items:JSON.parse(req.items||"[]")).length} LK · {fmtMoney(req.total_value)}
                 </div>
                 <div style={{fontSize:12,color:"#6b7280"}}>👤 {req.requested_by_name} · {fmtDt(req.created_date)}</div>
               </div>
@@ -290,7 +290,7 @@ function RequestDetailModal({viewReq, setViewReq, currentStaff, order, requests,
       });
       let kvCode="";
       try {
-        const items=JSON.parse(viewReq.items||"[]");
+        const items=(Array.isArray(viewReq.items)?viewReq.items:JSON.parse(viewReq.items||"[]"));
         const res=await createKvDeliveryOrder({orderCode:viewReq.order_code,deviceModel:order.device_model||"?",technicianName:viewReq.requested_by_name,parts:items.map(i=>({kvProductId:i.part_id,sku:i.sku,name:i.part_name,qty:i.qty,price:i.unit_price}))});
         kvCode=res.transferCode||res.invoiceCode||"OK";
         await StockExportRequest.update(viewReq.id,{kiotviet_invoice_code:kvCode});
@@ -358,7 +358,7 @@ function RequestDetailModal({viewReq, setViewReq, currentStaff, order, requests,
           </div>
 
           <div style={{fontWeight:800,fontSize:14,color:"#1e1b4b",marginBottom:8}}>Danh sách linh kiện</div>
-          {JSON.parse(viewReq.items||"[]").map((item,i)=>(
+          {(Array.isArray(viewReq.items)?viewReq.items:JSON.parse(viewReq.items||"[]")).map((item,i)=>(
             <div key={i} style={{background:"#f3f4f6",borderRadius:10,padding:"8px 12px",marginBottom:6,display:"flex",justifyContent:"space-between",fontSize:13}}>
               <div>
                 <div style={{fontWeight:700}}>{item.part_name}</div>
@@ -506,7 +506,7 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
       const ret=exportType==="borrow"?new Date(Date.now()+returnDays*86400000).toISOString():null;
       const totalValue=cartItems.reduce((s,i)=>s+i.total_price,0);
       const code=genCode();
-      const req=await StockExportRequest.create({request_code:code,order_id:order.id,order_code:order.order_code||order.id,export_type:exportType,items:JSON.stringify(cartItems),due_datetime:due,return_due_date:ret,status:"pending",requested_by:currentStaff.id,requested_by_name:currentStaff.full_name,total_value:totalValue,reminded_15min:false});
+      const req=await StockExportRequest.create({request_code:code,order_id:order.id,order_code:order.order_code||order.id,export_type:exportType,items:cartItems,due_datetime:due,return_due_date:ret,status:"pending",requested_by:currentStaff.id,requested_by_name:currentStaff.full_name,total_value:totalValue,reminded_15min:false});
       const lines=cartItems.map(i=>`• ${i.part_name} ×${i.qty}`).join("\n");
       const lbl=exportType==="borrow"?"MƯỢN TẠM":"XUẤT SỬA";
       await RepairChat.create({order_id:order.id,order_code:order.order_code||order.id,sender_id:currentStaff.id,sender_name:currentStaff.full_name,message:`📦 [ĐỀ NGHỊ XUẤT KHO - ${lbl}]\n━━━━━━━━━━━━━━━━\nPhiếu: ${code}\nĐơn: ${order.order_code} | KTV: ${currentStaff.full_name}\nHạn: ${fmtDt(due)}\n${lines}`,message_type:"system"});
