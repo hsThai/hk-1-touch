@@ -15,6 +15,7 @@ import StaffManager from './pages/StaffManager';
 import StockExportFlow from './pages/StockExportFlow';
 import kiotviet from './pages/kiotviet';
 import pb from './pages/pb';
+import PreCheckModal from './pages/PreCheckModal';
 
 function App() {
   return (
@@ -37,6 +38,7 @@ function App() {
         <Route path="/StockExportFlow" element={<StockExportFlow />} />
         <Route path="/kiotviet" element={<kiotviet />} />
         <Route path="/pb" element={<pb />} />
+        <Route path="/PreCheckModal" element={<PreCheckModal />} />
       </Routes>
     </BrowserRouter>
   )

@@ -772,6 +772,10 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
 //  STATUS / PRIORITY MAPPING (PocketBase ↔ Display)
 // ══════════════════════════════════════════════
 const STATUS_PB = {
+  "Quy Trình 1":    "Quy Trinh 1",
+  "Chờ KTV Kiểm":  "Cho KTV Kiem",
+  "Chờ Báo Giá":   "Cho Bao Gia",
+  "Chờ Xác Nhận":  "Cho Xac Nhan",
   "Chưa Nhận":     "Chua Nhan",
   "Mới Nhận":      "Moi Nhan",
   "Đang Sửa":      "Dang Sua",
@@ -792,6 +796,10 @@ const PRIORITY_DISPLAY = Object.fromEntries(
   Object.entries(PRIORITY_PB).map(([display, pb]) => [pb, display])
 );
 const STATUS_COLS = [
+  { key:"Quy Trình 1",   pb:"Quy Trinh 1",   color:"#0369a1", bg:"#e0f2fe",  emoji:"search" },
+  { key:"Chờ KTV Kiểm",  pb:"Cho KTV Kiem",  color:"#7c3aed", bg:"#f5f3ff",  emoji:"manage_search" },
+  { key:"Chờ Báo Giá",   pb:"Cho Bao Gia",   color:"#d97706", bg:"#fffbeb",  emoji:"request_quote" },
+  { key:"Chờ Xác Nhận",  pb:"Cho Xac Nhan",  color:"#db2777", bg:"#fdf2f8",  emoji:"pending_actions" },
   { key:"Chưa Nhận",     pb:"Chua Nhan",     color:"#9ca3af", bg:"#f3f4f6",  emoji:"schedule" },
   { key:"Mới Nhận",      pb:"Moi Nhan",      color:"#2563eb", bg:"#dbeafe",  emoji:"inbox" },
   { key:"Đang Sửa",      pb:"Dang Sua",      color:"#7c3aed", bg:"#ede9fe",  emoji:"build" },

@@ -940,7 +940,7 @@ function MainAppInner() {
       passcode:         data.passcode || "",
       product_qr:       data.product_qr || "",
       issue_description: Array.isArray(data.issues) ? data.issues.join(", ") : (data.notes || ""),
-      status:           "Chua Nhan",
+      status:           "Quy Trinh 1",
       assigned_to:      data.assigned_to || null,
       assigned_at:      data.assigned_to ? new Date().toISOString() : null,
       accept_stage:     0,
@@ -968,7 +968,7 @@ function MainAppInner() {
       console.error("[createOrder] Lần 1 thất bại:", e?.message, e?.data || "");
       // Thử lại với status rỗng (PocketBase enum chưa có "Chua Nhan")
       try {
-        const pbData2 = { ...pbData, status: "" };
+        const pbData2 = { ...pbData, status: "Quy Trinh 1" };
         const saved2 = await RepairOrder.create(pbData2);
         data._id = saved2.id;
         data._pbSaved = true;
@@ -1056,7 +1056,7 @@ function MainAppInner() {
   const myOrders = user.role==="technician" ? orders.filter(o => o.assigned_to===user.id) : orders;
   const filtered = myOrders.filter(o => {
     // Dashboard quick filter
-    if (dashboardFilter === "active" && (["Hoàn Thành","Đã Giao"].includes(o.status))) return false;
+    if (dashboardFilter === "active" && (["Hoàn Thành","Đã Giao","Hủy"].includes(o.status))) return false;
     if (dashboardFilter === "done" && !["Hoàn Thành","Đã Giao"].includes(o.status)) return false;
     if (dashboardFilter === "needs_reassign" && !o.needs_reassign) return false;
     if (!search) return true;
@@ -1070,7 +1070,7 @@ function MainAppInner() {
     const noteMatch = (o.notes||"").toLowerCase().includes(q);
     return nameMatch || phoneMatch || deviceMatch || idMatch || qrMatch || imeiMatch || noteMatch;
   });
-  const pendingAccepts = orders.filter(o => o.assigned_to===user.id && (o.accept_stage||0)<2 && o.assigned_at && !["Hoàn Thành","Đã Giao"].includes(o.status));
+  const pendingAccepts = orders.filter(o => o.assigned_to===user.id && (o.accept_stage||0)<2 && o.assigned_at && !["Hoàn Thành","Đã Giao","Quy Trình 1","Chờ KTV Kiểm","Chờ Báo Giá","Chờ Xác Nhận","Hủy"].includes(o.status));
 
   const isWarehouse = user.role === "warehouse";
   const isManager   = user.role === "manager" || user.role === "admin";
@@ -1095,9 +1095,9 @@ function MainAppInner() {
   ];
 
   // ── Kanban Board ─────────────────────────────────────────
-  const COLUMNS = ["Chưa Nhận","Mới Nhận","Chờ Linh Kiện","Đang Sửa","Hoàn Thành","Đã Giao"];
-  const colColors = { "Chưa Nhận":"#f3f4f6","Mới Nhận":"#dbeafe","Chờ Linh Kiện":"#fce7f3","Đang Sửa":"#ede9fe","Hoàn Thành":"#dcfce7","Đã Giao":"#f1f5f9" };
-  const colBorder = { "Chưa Nhận":"#d1d5db","Mới Nhận":"#93c5fd","Chờ Linh Kiện":"#f9a8d4","Đang Sửa":"#c4b5fd","Hoàn Thành":"#86efac","Đã Giao":"#cbd5e1" };
+  const COLUMNS = ["Quy Trình 1","Chờ KTV Kiểm","Chờ Báo Giá","Chờ Xác Nhận","Chưa Nhận","Mới Nhận","Chờ Linh Kiện","Đang Sửa","Hoàn Thành","Đã Giao"];
+  const colColors = { "Quy Trình 1":"#e0f2fe","Chờ KTV Kiểm":"#f5f3ff","Chờ Báo Giá":"#fffbeb","Chờ Xác Nhận":"#fdf2f8","Chưa Nhận":"#f3f4f6","Mới Nhận":"#dbeafe","Chờ Linh Kiện":"#fce7f3","Đang Sửa":"#ede9fe","Hoàn Thành":"#dcfce7","Đã Giao":"#f1f5f9" };
+  const colBorder = { "Quy Trình 1":"#7dd3fc","Chờ KTV Kiểm":"#ddd6fe","Chờ Báo Giá":"#fcd34d","Chờ Xác Nhận":"#fbcfe8","Chưa Nhận":"#d1d5db","Mới Nhận":"#93c5fd","Chờ Linh Kiện":"#f9a8d4","Đang Sửa":"#c4b5fd","Hoàn Thành":"#86efac","Đã Giao":"#cbd5e1" };
 
   function KanbanBoard() {
     // Dùng ref từ outer scope → không bị reset khi re-render
@@ -1201,11 +1201,15 @@ function MainAppInner() {
         {list.map(o => {
           const ktv = users.find(u=>u.id===o.assigned_to);
           const timerInfo = getKpiTimerInfo(o);
-          const isChuaNhan   = o.status === "Chưa Nhận";
+          const isChuaNhan   = ["Chưa Nhận","Quy Trình 1"].includes(o.status);
           const noKTV        = !o.assigned_to;
           // Màu nền theo trạng thái
           const STATUS_CARD = {
-            "Chưa Nhận":  { bg:"#fff1f2", border:"#fca5a5", badge_bg:"#fee2e2", badge_color:"#dc2626" },
+            "Quy Trình 1":  { bg:"#eff6ff", border:"#93c5fd", badge_bg:"#dbeafe", badge_color:"#1d4ed8" },
+            "Chờ KTV Kiểm": { bg:"#f5f3ff", border:"#c4b5fd", badge_bg:"#ede9fe", badge_color:"#7c3aed" },
+            "Chờ Báo Giá":  { bg:"#fffbeb", border:"#fcd34d", badge_bg:"#fef3c7", badge_color:"#d97706" },
+            "Chờ Xác Nhận": { bg:"#fdf2f8", border:"#fbcfe8", badge_bg:"#fce7f3", badge_color:"#db2777" },
+            "Chưa Nhận":    { bg:"#fff1f2", border:"#fca5a5", badge_bg:"#fee2e2", badge_color:"#dc2626" },
             "Chờ Phụ Tùng":{ bg:"#fff7ed", border:"#fed7aa", badge_bg:"#ffedd5", badge_color:"#c2410c" },
             "Đang Sửa":   { bg:"#f5f3ff", border:"#c4b5fd", badge_bg:"#ede9fe", badge_color:"#6d28d9" },
             "Chờ Kiểm Tra":{ bg:"#ecfeff", border:"#a5f3fc", badge_bg:"#cffafe", badge_color:"#0e7490" },
@@ -1275,7 +1279,7 @@ function MainAppInner() {
   function Dashboard() {
     const stats = {
       total: orders.length,
-      active: orders.filter(o=>!["Hoàn Thành","Đã Giao"].includes(o.status)).length,
+      active: orders.filter(o=>!["Hoàn Thành","Đã Giao","Hủy","Quy Trình 1"].includes(o.status)).length,
       done: orders.filter(o=>o.status==="Hoàn Thành"||o.status==="Đã Giao").length,
       needsReassign: orders.filter(o=>o.needs_reassign).length,
     };
@@ -1801,11 +1805,13 @@ function ReceptionHome({ user, orders, setPage }) {
     doneToday:   orders.filter(o => (o.status === "Hoàn Thành"||o.status === "Đã Giao") && new Date(o.done_date||o.updated_date||0).toLocaleDateString("vi-VN") === today).length,
   };
   const waitHandover = orders.filter(o => o.status === "Hoàn Thành").length;
+  const waitBaoGia   = orders.filter(o => o.status === "Chờ Báo Giá").length;
+  const inPreCheck   = orders.filter(o => ["Quy Trình 1","Chờ KTV Kiểm","Chờ Xác Nhận"].includes(o.status)).length;
   const cards = [
     { label:"Tiếp nhận hôm nay", value:stats.newToday,       icon:"add_circle",         color:"#4f46e5", bg:"#eef2ff", border:"#c7d2fe", urgent:false,                  page:"new"   },
     { label:"Chờ phân công KTV", value:stats.waitingAssign,  icon:"person_add",          color:"#dc2626", bg:"#fff1f2", border:"#fca5a5", urgent:stats.waitingAssign>0,  page:"tasks" },
     { label:"Chờ bàn giao",      value:waitHandover,          icon:"handshake",           color:"#059669", bg:"#f0fdf4", border:"#86efac", urgent:waitHandover>0,         page:"tasks" },
-    { label:"Xong hôm nay",      value:stats.doneToday,       icon:"check_circle",        color:"#15803d", bg:"#dcfce7", border:"#4ade80", urgent:false,                  page:"tasks" },
+    { label:"Chờ báo giá KH",    value:waitBaoGia,            icon:"request_quote",       color:"#d97706", bg:"#fffbeb", border:"#fcd34d", urgent:waitBaoGia>0,            page:"tasks" },
   ];
   return (
     <div style={{ padding:"16px 14px 100px" }}>

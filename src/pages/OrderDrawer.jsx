@@ -1,6 +1,7 @@
 /* v1774860462-5727 */
 import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
 import HandoverModal from "./HandoverModal.jsx";
+import PreCheckModal, { QT2Modal, CustomerConfirmModal } from "./PreCheckModal.jsx";
 const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ default: ({ onClose }) => (
   <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}}>
     <div style={{background:"#fff",borderRadius:16,padding:32,textAlign:"center"}}>
@@ -77,6 +78,9 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
   const [ktvConfirmNote, setKtvConfirmNote]   = useState("");
   const [ktvSubmitting, setKtvSubmitting]     = useState(false);
   const [showHandover, setShowHandover]       = useState(false);
+  const [showPreCheck, setShowPreCheck]       = useState(false);
+  const [showQT2, setShowQT2]                 = useState(false);
+  const [showCustConfirm, setShowCustConfirm] = useState(false);
 
 
   // Tự mở tab chat nếu được trigger từ notification click HOẶC _openTab prop
@@ -896,6 +900,75 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 </div>
               </div>
             )}
+
+            {/* ── QT1: Tiếp tân kiểm ngoại quan ── */}
+            {order.status === "Quy Trình 1" && (isReception || currentUser.role === "manager" || currentUser.role === "admin") && (
+              <div style={{ marginTop:8 }}>
+                <button onClick={() => setShowPreCheck(true)}
+                  style={{ width:"100%", height:56, borderRadius:16, background:"linear-gradient(135deg,#0369a1,#0284c7)", border:"none", color:"#fff", fontWeight:900, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10, boxShadow:"0 4px 16px rgba(3,105,161,.3)" }}>
+                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22}}>search</span>
+                  Bắt đầu Kiểm Ngoại Quan (QT1)
+                </button>
+              </div>
+            )}
+            {order.status === "Quy Trình 1" && order.qt1_checklist && (
+              <div style={{ marginTop:8, background:"#e0f2fe", border:"1.5px solid #7dd3fc", borderRadius:12, padding:"10px 14px", fontSize:13, color:"#0c4a6e" }}>
+                <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,verticalAlign:"middle",marginRight:6}}>info</span>
+                Đã có kết quả QT1 — chờ chuyển KTV
+              </div>
+            )}
+
+            {/* ── QT2: KTV kiểm tra sâu ── */}
+            {order.status === "Chờ KTV Kiểm" && (order.assigned_to === currentUser.id || currentUser.role === "manager" || currentUser.role === "admin") && (
+              <div style={{ marginTop:8 }}>
+                <button onClick={() => setShowQT2(true)}
+                  style={{ width:"100%", height:56, borderRadius:16, background:"linear-gradient(135deg,#6d28d9,#7c3aed)", border:"none", color:"#fff", fontWeight:900, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10, boxShadow:"0 4px 16px rgba(109,40,217,.3)" }}>
+                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22}}>manage_search</span>
+                  Bắt đầu Kiểm Tra KTV (QT2)
+                </button>
+              </div>
+            )}
+            {order.status === "Chờ KTV Kiểm" && order.qt2_checklist && (
+              <div style={{ marginTop:8, background:"#f5f3ff", border:"1.5px solid #ddd6fe", borderRadius:12, padding:"10px 14px", fontSize:13, color:"#4c1d95" }}>
+                <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,verticalAlign:"middle",marginRight:6}}>check</span>
+                Đã có kết quả QT2 — chờ gửi về Tiếp Tân
+              </div>
+            )}
+
+            {/* ── Chờ Báo Giá: TT xác nhận KH ── */}
+            {order.status === "Chờ Báo Giá" && (isReception || currentUser.role === "manager" || currentUser.role === "admin") && (
+              <div style={{ marginTop:8 }}>
+                <div style={{ background:"#fffbeb", border:"2px solid #fcd34d", borderRadius:14, padding:"12px 14px", marginBottom:10 }}>
+                  <div style={{ fontWeight:800, fontSize:14, color:"#92400e", marginBottom:4 }}>
+                    <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,verticalAlign:"middle",marginRight:6}}>request_quote</span>
+                    KTV đã kiểm xong — Báo giá cho khách
+                  </div>
+                  <div style={{ fontSize:12, color:"#78350f" }}>KTV: {order.assigned_to_name} · {order.qt2_note || "Không có ghi chú"}</div>
+                </div>
+                <button onClick={() => setShowCustConfirm(true)}
+                  style={{ width:"100%", height:56, borderRadius:16, background:"linear-gradient(135deg,#db2777,#ec4899)", border:"none", color:"#fff", fontWeight:900, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10, boxShadow:"0 4px 16px rgba(219,39,119,.3)" }}>
+                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22}}>pending_actions</span>
+                  Xác Nhận Khách Hàng
+                </button>
+              </div>
+            )}
+            {order.status === "Chờ Báo Giá" && !isReception && currentUser.role === "technician" && (
+              <div style={{ marginTop:8, background:"#fdf2f8", border:"1.5px solid #fbcfe8", borderRadius:12, padding:"12px 14px", fontSize:13, color:"#9d174d" }}>
+                <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,verticalAlign:"middle",marginRight:6}}>hourglass_top</span>
+                Đang chờ Tiếp Tân báo giá và xác nhận với khách
+              </div>
+            )}
+
+            {/* ── Chờ Xác Nhận: hiển thị info ── */}
+            {order.status === "Chờ Xác Nhận" && (
+              <div style={{ marginTop:8, background:"#fdf2f8", border:"1.5px solid #fbcfe8", borderRadius:12, padding:"12px 14px" }}>
+                <div style={{ fontWeight:800, fontSize:14, color:"#9d174d", marginBottom:4 }}>
+                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,verticalAlign:"middle",marginRight:6}}>pending_actions</span>
+                  Chờ khách xác nhận
+                </div>
+                <div style={{ fontSize:12, color:"#831843" }}>Tiếp tân đang trao đổi với khách hàng</div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1268,6 +1341,74 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 Mở màn hình linh kiện
             </button>
           </div>
+        )}
+
+        {showPreCheck && (
+          <PreCheckModal
+            order={order}
+            currentUser={currentUser}
+            users={users}
+            onClose={() => setShowPreCheck(false)}
+            onDone={async (data) => {
+              await onUpdate(order.id, {
+                status: "Chờ KTV Kiểm",
+                qt1_checklist: data.qt1_checklist,
+                qt1_note: data.qt1_note,
+                assigned_to: data.assigned_to,
+                assigned_to_name: data.assigned_to_name,
+                assigned_at: new Date().toISOString(),
+                accept_stage: 0,
+              }, null);
+              logHistory({ order_id:order.id, order_code:order.order_code||order.id, action_type:"qt1_done", action_label:"Hoàn tất QT1 — Ngoại quan", changed_by_id:currentUser?.id||"", changed_by_name:currentUser?.name||"", changed_by_role:currentUser?.role||"", new_value:`KTV: ${data.assigned_to_name}` });
+              const notifyUsers = users.filter(u => u.id === data.assigned_to || ["manager","admin"].includes(u.role));
+              notifyUsers.forEach(u => Notification.create({ user_id:u.id, user_name:u.name||"", title:`🔍 Đơn ${order.order_code||order.id} chờ kiểm QT2`, message:`Thiết bị: ${order.device_model} — ${order.customer_name}`, order_id:order.id, order_code:order.order_code||order.id, type:"status_change", is_read:false }).catch(()=>{}));
+              setShowPreCheck(false);
+              showToast("✅ Đã chuyển KTV kiểm QT2!");
+            }}
+          />
+        )}
+
+        {showQT2 && (
+          <QT2Modal
+            order={order}
+            currentUser={currentUser}
+            onClose={() => setShowQT2(false)}
+            onDone={async (data) => {
+              await onUpdate(order.id, {
+                status: "Chờ Báo Giá",
+                qt2_checklist: data.qt2_checklist,
+                qt2_note: data.qt2_note,
+              }, null);
+              logHistory({ order_id:order.id, order_code:order.order_code||order.id, action_type:"qt2_done", action_label:"Hoàn tất QT2 — KTV kiểm tra", changed_by_id:currentUser?.id||"", changed_by_name:currentUser?.name||"", changed_by_role:currentUser?.role||"", new_value:"Gửi về Tiếp Tân báo giá" });
+              const notifyUsers = users.filter(u => ["receptionist","manager","admin"].includes(u.role));
+              notifyUsers.forEach(u => Notification.create({ user_id:u.id, user_name:u.name||"", title:`📋 ${order.order_code||order.id} — KTV đã kiểm xong`, message:`${order.device_model} · ${order.customer_name} — Chờ báo giá KH`, order_id:order.id, order_code:order.order_code||order.id, type:"status_change", is_read:false }).catch(()=>{}));
+              setShowQT2(false);
+              showToast("✅ Đã gửi kết quả về Tiếp Tân!");
+            }}
+          />
+        )}
+
+        {showCustConfirm && (
+          <CustomerConfirmModal
+            order={order}
+            currentUser={currentUser}
+            onClose={() => setShowCustConfirm(false)}
+            onApprove={async () => {
+              await onUpdate(order.id, { status:"Chưa Nhận", accept_stage:0 }, null);
+              logHistory({ order_id:order.id, order_code:order.order_code||order.id, action_type:"approved", action_label:"Khách đồng ý — Lên đơn", changed_by_id:currentUser?.id||"", changed_by_name:currentUser?.name||"", changed_by_role:currentUser?.role||"", new_value:"Chưa Nhận" });
+              const notifyKtv = users.filter(u => u.id === order.assigned_to);
+              notifyKtv.forEach(u => Notification.create({ user_id:u.id, user_name:u.name||"", title:`✅ Đơn ${order.order_code||order.id} đã được duyệt!`, message:`${order.device_model} · ${order.customer_name} — Bấm Nhận Đơn để bắt đầu`, order_id:order.id, order_code:order.order_code||order.id, type:"status_change", is_read:false }).catch(()=>{}));
+              setShowCustConfirm(false);
+              showToast("✅ Đã lên đơn — KTV được thông báo!");
+            }}
+            onReject={async (reason) => {
+              await onUpdate(order.id, { status:"Hủy", technician_note:(order.technician_note||"") + `
+[Hủy] ${reason}` }, null);
+              logHistory({ order_id:order.id, order_code:order.order_code||order.id, action_type:"cancelled", action_label:"Khách không đồng ý — Hủy đơn", changed_by_id:currentUser?.id||"", changed_by_name:currentUser?.name||"", changed_by_role:currentUser?.role||"", new_value:`Lý do: ${reason}` });
+              setShowCustConfirm(false);
+              showToast("Đơn đã được lưu trạng thái Hủy");
+            }}
+          />
         )}
 
         {showHandover && (
