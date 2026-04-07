@@ -8,6 +8,7 @@ import MediaViewer from './pages/MediaViewer';
 import OrderDrawer from './pages/OrderDrawer';
 import OrderForms from './pages/OrderForms';
 import OrderPublic from './pages/OrderPublic';
+import PreCheckModal from './pages/PreCheckModal';
 import QRComponents from './pages/QRComponents';
 import Settings from './pages/Settings';
 import SparePartModal from './pages/SparePartModal';
@@ -15,7 +16,6 @@ import StaffManager from './pages/StaffManager';
 import StockExportFlow from './pages/StockExportFlow';
 import kiotviet from './pages/kiotviet';
 import pb from './pages/pb';
-import PreCheckModal from './pages/PreCheckModal';
 
 function App() {
   return (
@@ -31,6 +31,7 @@ function App() {
         <Route path="/OrderDrawer" element={<OrderDrawer />} />
         <Route path="/OrderForms" element={<OrderForms />} />
         <Route path="/OrderPublic" element={<OrderPublic />} />
+        <Route path="/PreCheckModal" element={<PreCheckModal />} />
         <Route path="/QRComponents" element={<QRComponents />} />
         <Route path="/Settings" element={<Settings />} />
         <Route path="/SparePartModal" element={<SparePartModal />} />
@@ -38,7 +39,6 @@ function App() {
         <Route path="/StockExportFlow" element={<StockExportFlow />} />
         <Route path="/kiotviet" element={<kiotviet />} />
         <Route path="/pb" element={<pb />} />
-        <Route path="/PreCheckModal" element={<PreCheckModal />} />
       </Routes>
     </BrowserRouter>
   )
