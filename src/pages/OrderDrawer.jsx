@@ -74,8 +74,12 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
   const [exportLoading, setExportLoading] = useState(false);
 
 
-  // Tự mở tab chat nếu được trigger từ notification click
+  // Tự mở tab chat nếu được trigger từ notification click HOẶC _openTab prop
   useEffect(() => {
+    if (order._openTab) {
+      setTab(order._openTab);
+      return;
+    }
     if (window.__hk_open_chat) {
       const flag = window.__hk_open_chat;
       if (flag === order.id || flag === order._id || flag === order.qr_code) {
@@ -83,7 +87,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
         window.__hk_open_chat = null;
       }
     }
-  }, [order.id, order._id]);
+  }, [order.id, order._id, order._openTab]);
   const chatInputRef = useRef();
   const [toast, setToast] = useState(null);
   const [showChecklist, setShowChecklist] = useState(false);
@@ -204,9 +208,12 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
           (u.id === order.assigned_to || u.username === order.assigned_to_name))
       : [];
 
+    // 3. Nhân viên kho (để chat về linh kiện)
+    const warehouse = (users||[]).filter(u => u && u.id && !isSelf(u) && u.role === "Nhân viên kho");
+
     // Gộp và dedup theo id
     const seen = new Set();
-    const real = [...mgr, ...rec, ...assignedKTV].filter(u => {
+    const real = [...mgr, ...rec, ...assignedKTV, ...warehouse].filter(u => {
       if (seen.has(u.id)) return false;
       seen.add(u.id);
       return true;
@@ -296,10 +303,10 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
       let notifyIds = [...mentioned_ids];
       let notifyNames = [...mentioned_names];
       if (isAllMention) {
-        // Thêm manager + receptionist + assigned_to
+        // Thêm manager + receptionist + assigned_to + kho
         const allRelated = users.filter(u =>
           u.id !== currentUser.id &&
-          (["manager","admin","receptionist"].includes(u.role) || u.id === order.assigned_to)
+          (["manager","admin","receptionist","Nhân viên kho"].includes(u.role) || u.id === order.assigned_to)
         );
         allRelated.forEach(u => {
           if (!notifyIds.includes(u.id)) { notifyIds.push(u.id); notifyNames.push(u.name); }

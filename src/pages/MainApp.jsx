@@ -1074,6 +1074,7 @@ function MainAppInner() {
 
   const navItems = isWarehouse ? [
     {key:"wh_home",    icon:"home",          label:"Trang chủ"},
+    {key:"wh_orders",  icon:"chat",          label:"Chat đơn"},
     {key:"wh_export",  icon:"outbox",        label:"Phiếu xuất kho"},
     {key:"wh_import",  icon:"move_to_inbox", label:"Nhập hàng"},
     {key:"wh_stock",   icon:"inventory_2",   label:"Tồn kho"},
@@ -1451,6 +1452,7 @@ function MainAppInner() {
         {page==="staff" && <StaffManagerPage />}
         {page==="settings" && <SettingsPage user={user} />}
         {page==="wh_home"   && <WarehouseHome   user={user} setPage={setPage} />}
+        {page==="wh_orders" && <WarehouseOrders user={user} users={users} setSelectedOrder={setSelectedOrderSync} />}
         {page==="wh_export" && <WarehouseExport user={user} />}
         {page==="wh_import" && <WarehouseImport user={user} />}
         {page==="wh_stock"  && <WarehouseStock  user={user} />}
@@ -1542,6 +1544,104 @@ function MainAppInner() {
 // ═══════════════════════════════════════════════════════════
 // WAREHOUSE COMPONENTS
 // ═══════════════════════════════════════════════════════════
+
+
+// ─── Warehouse: Chat đơn hàng ────────────────────────────
+function WarehouseOrders({ user, users, setSelectedOrder }) {
+  const [orders, setOrders] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [search, setSearch] = React.useState("");
+  const [unreadMap, setUnreadMap] = React.useState({});
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        // Lấy đơn đang hoạt động (chưa giao)
+        const data = await RepairOrder.list({ sort:"-received_date", limit:100 });
+        const active = data.filter(o => !["Đã Giao","Hủy"].includes(o.status));
+        setOrders(active);
+
+        // Đếm tin nhắn chưa đọc (có mention kho hoặc hệ thống)
+        try {
+          const notifs = await Notification.filter({ user_id: user.id, is_read: false });
+          const map = {};
+          notifs.forEach(n => {
+            if (n.order_id) map[n.order_id] = (map[n.order_id]||0) + 1;
+          });
+          setUnreadMap(map);
+        } catch{}
+      } catch(e){ console.error(e); }
+      setLoading(false);
+    })();
+  }, []);
+
+  const filtered = orders.filter(o => {
+    const q = search.toLowerCase();
+    return !q || (o.order_code||"").toLowerCase().includes(q)
+      || (o.customer_name||"").toLowerCase().includes(q)
+      || (o.device_name||"").toLowerCase().includes(q)
+      || (o.assigned_to_name||"").toLowerCase().includes(q);
+  });
+
+  const STATUS_COLOR = {
+    "Chưa Nhận":"#f3f4f6","Mới Nhận":"#dbeafe","Chờ Linh Kiện":"#fce7f3",
+    "Đang Sửa":"#ede9fe","Hoàn Thành":"#dcfce7","Đã Giao":"#f1f5f9"
+  };
+  const STATUS_TEXT = {
+    "Chưa Nhận":"#6b7280","Mới Nhận":"#1d4ed8","Chờ Linh Kiện":"#be185d",
+    "Đang Sửa":"#5b21b6","Hoàn Thành":"#065f46","Đã Giao":"#475569"
+  };
+
+  return (
+    <div style={{ paddingBottom:100 }}>
+      <div style={{ padding:"14px 14px 8px", position:"sticky", top:56, background:"#fff", zIndex:10, borderBottom:"1.5px solid #e5e7eb" }}>
+        <div style={{ fontWeight:900, fontSize:17, color:"#1e1b4b", marginBottom:10 }}>💬 Chat theo đơn</div>
+        <div style={{ position:"relative" }}>
+          <span className="material-icons" style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:18, color:"#9ca3af", fontFamily:"Material Icons" }}>search</span>
+          <input value={search} onChange={e=>setSearch(e.target.value)}
+            placeholder="Tìm đơn, khách hàng, thiết bị..."
+            style={{ width:"100%", height:38, borderRadius:10, border:"1.5px solid #e5e7eb", paddingLeft:34, paddingRight:10, fontSize:14, boxSizing:"border-box", outline:"none" }} />
+        </div>
+      </div>
+
+      <div style={{ padding:"10px 14px" }}>
+        {loading ? (
+          <div style={{textAlign:"center",padding:40,color:"#9ca3af"}}>⏳ Đang tải...</div>
+        ) : filtered.length === 0 ? (
+          <div style={{textAlign:"center",padding:"40px 20px",color:"#9ca3af"}}>
+            <span className="material-icons" style={{fontSize:48,display:"block",marginBottom:8}}>chat_bubble_outline</span>
+            Không có đơn nào
+          </div>
+        ) : filtered.map(o => {
+          const unread = unreadMap[o._id||o.id] || 0;
+          const statusBg = STATUS_COLOR[o.status] || "#f3f4f6";
+          const statusTxt = STATUS_TEXT[o.status] || "#374151";
+          return (
+            <div key={o.id||o._id} onClick={() => {
+                setSelectedOrder({...o, _openTab:"chat"});
+              }}
+              style={{ background:"#fff", borderRadius:14, padding:"12px 14px", marginBottom:10, border:"1.5px solid #e5e7eb", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,.05)", display:"flex", alignItems:"center", gap:12, position:"relative" }}>
+              {/* Unread badge */}
+              {unread > 0 && (
+                <div style={{ position:"absolute", top:8, right:10, background:"#ef4444", color:"#fff", borderRadius:20, minWidth:20, height:20, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:900, padding:"0 5px" }}>{unread}</div>
+              )}
+              <span className="material-icons" style={{ fontSize:28, color:"#4f46e5", flexShrink:0, fontFamily:"Material Icons" }}>chat</span>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3 }}>
+                  <span style={{ fontWeight:800, fontSize:14, color:"#1e1b4b" }}>{o.order_code||o.id}</span>
+                  <span style={{ background:statusBg, color:statusTxt, borderRadius:8, padding:"1px 8px", fontSize:11, fontWeight:700 }}>{o.status}</span>
+                </div>
+                <div style={{ fontSize:13, color:"#374151", fontWeight:600 }}>{o.customer_name||"—"}</div>
+                <div style={{ fontSize:12, color:"#6b7280", marginTop:2 }}>{o.device_name||""}{o.assigned_to_name ? ` · KTV: ${o.assigned_to_name}` : ""}</div>
+              </div>
+              <span className="material-icons" style={{ fontSize:20, color:"#d1d5db", fontFamily:"Material Icons" }}>chevron_right</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function WarehouseHome({ user, setPage }) {
   const [stats, setStats] = React.useState({ pendingExport:0, overdueBorrow:0, lowStock:0, pendingImport:0 });
