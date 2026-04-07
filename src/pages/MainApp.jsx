@@ -1176,9 +1176,19 @@ function MainAppInner() {
 
   // ── Tasks list ───────────────────────────────────────────
   function TaskList() {
-    const list = user.role==="technician" ? filtered : filtered.filter(o => !["Đã Giao"].includes(o.status));
+    const list = user.role==="technician" ? filtered : filtered;
+    const filterLabel = dashboardFilter==="active"?"Đang xử lý":dashboardFilter==="done"?"Hoàn thành":dashboardFilter==="needs_reassign"?"Cần xử lý":null;
     return (
       <div style={{ padding:"0 16px 80px" }}>
+        {filterLabel && (
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10, padding:"2px 0" }}>
+            <div style={{ background:"#eef2ff", border:"1.5px solid #c7d2fe", borderRadius:99, padding:"5px 14px", fontSize:12, fontWeight:700, color:"#4f46e5", display:"flex", alignItems:"center", gap:6 }}>
+              <span className="material-icons" style={{fontSize:14,fontFamily:"Material Icons",verticalAlign:"middle"}}>filter_list</span>
+              Lọc: {filterLabel} · {list.length} đơn
+            </div>
+            <button onClick={()=>setDashboardFilter(null)} style={{ background:"none", border:"none", color:"#6b7280", cursor:"pointer", fontSize:12, fontWeight:700, padding:"4px 8px", borderRadius:8 }}>✕ Bỏ lọc</button>
+          </div>
+        )}
         {pendingAccepts.length > 0 && user.role==="technician" && (
           <div style={{ background:"#fef3c7", borderRadius:14, padding:14, marginBottom:12, border:"2px solid #fcd34d" }}>
             <div style={{ fontWeight:800, color:"#d97706" }}>⏰ Có {pendingAccepts.length} đơn cần xác nhận!</div>
@@ -1267,25 +1277,25 @@ function MainAppInner() {
         label:"Tổng đơn", value:stats.total,
         icon:"assignment", bg:"#eef2ff", border:"#c7d2fe", color:"#4f46e5",
         urgent: false,
-        onClick: () => { setDashboardFilter(null); setPage("board"); },
+        onClick: () => { setDashboardFilter(null); setPage("tasks"); },
       },
       {
         label:"Đang xử lý", value:stats.active,
         icon:"settings", bg:"#fffbeb", border:"#fcd34d", color:"#d97706",
         urgent: stats.active > 0,
-        onClick: () => { setDashboardFilter("active"); setPage("board"); },
+        onClick: () => { setDashboardFilter("active"); setPage("tasks"); },
       },
       {
         label:"Hoàn thành", value:stats.done,
         icon:"check_circle", bg:"#f0fdf4", border:"#86efac", color:"#059669",
         urgent: false,
-        onClick: () => { setDashboardFilter("done"); setPage("board"); },
+        onClick: () => { setDashboardFilter("done"); setPage("tasks"); },
       },
       {
         label:"Cần xử lý", value:stats.needsReassign,
         icon:"notifications_active", bg:"#fef2f2", border:"#fca5a5", color:"#dc2626",
         urgent: stats.needsReassign > 0,
-        onClick: () => { setDashboardFilter("needs_reassign"); setPage("board"); },
+        onClick: () => { setDashboardFilter("needs_reassign"); setPage("tasks"); },
       },
     ];
 
@@ -1351,7 +1361,7 @@ function MainAppInner() {
             </div>
             <div style={{ flex:1, overflowY:"auto", padding:8 }}>
               {navItems.map(n => (
-                <button key={n.key} onClick={() => { setPage(n.key); setSidebarOpen(false); if(n.key==="board"||n.key==="dashboard")setDashboardFilter(null); }}
+                <button key={n.key} onClick={() => { setPage(n.key); setSidebarOpen(false); if(n.key==="board"||n.key==="dashboard"||n.key==="tasks")setDashboardFilter(null); }}
                   style={{ width:"100%", textAlign:"left", padding:"14px 16px", borderRadius:12, border:"none", background:page===n.key?"#eef2ff":"transparent", color:page===n.key?"#4f46e5":"#374151", fontWeight:page===n.key?800:500, fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", gap:10, marginBottom:2 }}>
                   <span className="material-icons" style={{fontSize:20,fontFamily:"Material Icons",verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>{n.icon}</span> {n.label}
                 </button>
@@ -1520,7 +1530,7 @@ function MainAppInner() {
       {/* Bottom nav */}
       <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#fff", borderTop:"1px solid #e5e7eb", display:"flex", zIndex:50, paddingBottom:"env(safe-area-inset-bottom)" }}>
         {navItems.slice(0,5).map(n => (
-          <button key={n.key} onClick={() => { setPage(n.key); if(n.key==="board"||n.key==="dashboard")setDashboardFilter(null); }}
+          <button key={n.key} onClick={() => { setPage(n.key); if(n.key==="board"||n.key==="dashboard"||n.key==="tasks")setDashboardFilter(null); }}
             style={{ flex:1, padding:"10px 4px", background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
             <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",lineHeight:1}}>{n.icon}</span>
             <span style={{ fontSize:10, color:page===n.key?"#4f46e5":"#9ca3af", fontWeight:page===n.key?800:500 }}>{n.label}</span>
