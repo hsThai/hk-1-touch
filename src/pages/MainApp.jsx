@@ -1433,8 +1433,20 @@ function MainAppInner() {
                           if (raw) mapped = mapPbOrder(raw, STATUS_DISPLAY, PRIORITY_DISPLAY);
                         }
                         if (mapped) {
-                          // Xác định tab cần mở: mention -> chat, còn lại -> info
-                          const openTab = n.type === "mention" ? "chat" : "info";
+                          // Xác định tab cần mở theo loại thông báo
+                          const NOTIF_TAB_MAP = {
+                            "mention":        "chat",
+                            "export_ready":   "exports",
+                            "export_deadline":"exports",
+                            "export_overdue": "exports",
+                            "assign":         "info",
+                            "new_order":      "info",
+                            "kpi_reminder":   "info",
+                            "kpi_penalty":    "info",
+                            "needs_reassign": "info",
+                            "status_change":  "info",
+                          };
+                          const openTab = NOTIF_TAB_MAP[n.type] || "info";
                           if (user?.role === "technician") setPage("tasks");
                           else setPage("board");
                           setTimeout(() => {
