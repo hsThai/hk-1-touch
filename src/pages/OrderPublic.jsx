@@ -20,8 +20,8 @@ async function fetchPublicOrder(code) {
 // ── Status config ────────────────────────────────────────
 const STATUS_MAP = {
   // Chuẩn
-  "Chưa Nhận":     { bg:"#f3f4f6", text:"#6b7280", icon:"schedule" },
-  "Mới Nhận":      { bg:"#dbeafe", text:"#1d4ed8", icon:"inbox" },
+  "Cho KTV":       { bg:"#fef2f2", text:"#dc2626", icon:"schedule_send" },
+  "KTV Dang Kiem": { bg:"#e0f2fe", text:"#0369a1", icon:"manage_search" },
   "Đang Kiểm Tra": { bg:"#fef9c3", text:"#854d0e", icon:"manage_search" },
   "Đang Sửa":      { bg:"#fce7f3", text:"#be185d", icon:"build" },
   "Chờ Linh Kiện": { bg:"#ffedd5", text:"#c2410c", icon:"inventory_2" },
@@ -34,9 +34,11 @@ const STATUS_MAP = {
   "Huy":           { bg:"#fee2e2", text:"#dc2626", icon:"cancel" },
   "Cho Linh Kien": { bg:"#ffedd5", text:"#c2410c", icon:"inventory_2" },
   "Dang Sua":      { bg:"#fce7f3", text:"#be185d", icon:"build" },
-  "Dang Kiem Tra": { bg:"#fef9c3", text:"#854d0e", icon:"manage_search" },
-  "Moi Nhan":      { bg:"#dbeafe", text:"#1d4ed8", icon:"inbox" },
-  "Chua Nhan":     { bg:"#f3f4f6", text:"#6b7280", icon:"schedule" },
+  "Cho KTV":       { bg:"#fef2f2", text:"#dc2626", icon:"schedule_send" },
+  "KTV Dang Kiem": { bg:"#e0f2fe", text:"#0369a1", icon:"manage_search" },
+  "Cho Bao Gia":   { bg:"#fffbeb", text:"#d97706", icon:"request_quote" },
+  "Cho Xac Nhan":  { bg:"#fdf2f8", text:"#db2777", icon:"pending_actions" },
+  "Cho KTV Sua":   { bg:"#f5f3ff", text:"#7c3aed", icon:"engineering" },
   "Thuong":        { bg:"#f3f4f6", text:"#6b7280", icon:"info" },
 };
 
@@ -46,9 +48,11 @@ const STATUS_DISPLAY = {
   "Huy": "Hủy",
   "Cho Linh Kien": "Chờ Linh Kiện",
   "Dang Sua": "Đang Sửa",
-  "Dang Kiem Tra": "Đang Kiểm Tra",
-  "Moi Nhan": "Mới Nhận",
-  "Chua Nhan": "Chưa Nhận",
+  "Cho KTV": "Chờ KTV",
+  "KTV Dang Kiem": "KTV Đang Kiểm",
+  "Cho Bao Gia": "Chờ Báo Giá",
+  "Cho Xac Nhan": "Chờ Xác Nhận",
+  "Cho KTV Sua": "Chờ KTV Sửa",
 };
 
 function getStatus(raw) {
@@ -88,8 +92,10 @@ function fmtDateFull(iso) {
 
 // ── Progress steps ───────────────────────────────────────
 const STEPS = [
-  { key:"Mới Nhận",      altKey:"Moi Nhan",      icon:"inbox" },
-  { key:"Đang Kiểm Tra", altKey:"Dang Kiem Tra", icon:"manage_search" },
+  { key:"Chờ KTV",       altKey:"Cho KTV",       icon:"schedule_send" },
+  { key:"KTV Đang Kiểm", altKey:"KTV Dang Kiem", icon:"manage_search" },
+  { key:"Chờ Báo Giá",   altKey:"Cho Bao Gia",   icon:"request_quote" },
+  { key:"Chờ KTV Sửa",   altKey:"Cho KTV Sua",   icon:"engineering" },
   { key:"Đang Sửa",      altKey:"Dang Sua",      icon:"build" },
   { key:"Hoàn Thành",    altKey:"Hoan Thanh",    icon:"check_circle" },
   { key:"Đã Giao",       altKey:"Da Giao",       icon:"handshake" },
@@ -257,7 +263,7 @@ export default function OrderPublic() {
           )}
 
           {/* Progress */}
-          {!isCancelled && !["Chưa Nhận","Chua Nhan"].includes(order.status) && (
+          {!isCancelled && !["Hủy","Huy"].includes(order.status) && (
             <div style={{ background:"rgba(255,255,255,.97)", borderRadius:20, padding:"16px 16px 20px", marginBottom:14, boxShadow:"0 4px 24px rgba(0,0,0,.15)" }}>
               <ProgressBar rawStatus={order.status} />
             </div>

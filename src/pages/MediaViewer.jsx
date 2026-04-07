@@ -650,7 +650,7 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
         accept_stage: 1,
         stage1_at: order.stage1_at || ts,  // giữ stage1_at nếu đã có (phase 1)
         kpi_manually_accepted: true,
-        status: "Mới Nhận",
+        status: "KTV Dang Kiem",
       }, null);
     } else {
       // KTV bắt đầu sửa → stage 1→2
@@ -772,14 +772,16 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
 //  STATUS / PRIORITY MAPPING (PocketBase ↔ Display)
 // ══════════════════════════════════════════════
 const STATUS_PB = {
-  "Chưa Nhận":     "Chua Nhan",
-  "Mới Nhận":      "Moi Nhan",
-  "Đang Kiểm Tra": "Dang Kiem Tra",
-  "Đang Sửa":      "Dang Sua",
-  "Chờ Linh Kiện": "Cho Linh Kien",
-  "Hoàn Thành":    "Hoan Thanh",
-  "Đã Giao":       "Da Giao",
-  "Hủy":           "Huy",
+  "Chờ KTV":        "Cho KTV",
+  "KTV Đang Kiểm":  "KTV Dang Kiem",
+  "Chờ Báo Giá":    "Cho Bao Gia",
+  "Chờ Xác Nhận":   "Cho Xac Nhan",
+  "Chờ KTV Sửa":    "Cho KTV Sua",
+  "Đang Sửa":       "Dang Sua",
+  "Chờ Linh Kiện":  "Cho Linh Kien",
+  "Hoàn Thành":     "Hoan Thanh",
+  "Đã Giao":        "Da Giao",
+  "Hủy":            "Huy",
 };
 const STATUS_DISPLAY = Object.fromEntries(
   Object.entries(STATUS_PB).map(([display, pb]) => [pb, display])
@@ -793,11 +795,13 @@ const PRIORITY_DISPLAY = Object.fromEntries(
   Object.entries(PRIORITY_PB).map(([display, pb]) => [pb, display])
 );
 const STATUS_COLS = [
-  { key:"Chưa Nhận",     pb:"Chua Nhan",     color:"#9ca3af", bg:"#f3f4f6",  emoji:"schedule" },
-  { key:"Mới Nhận",      pb:"Moi Nhan",      color:"#2563eb", bg:"#dbeafe",  emoji:"inbox" },
-  { key:"Đang Kiểm Tra", pb:"Dang Kiem Tra", color:"#0369a1", bg:"#e0f2fe",  emoji:"manage_search" },
-  { key:"Đang Sửa",      pb:"Dang Sua",      color:"#7c3aed", bg:"#ede9fe",  emoji:"build" },
-  { key:"Chờ Linh Kiện", pb:"Cho Linh Kien", color:"#db2777", bg:"#fce7f3",  emoji:"schedule" },
+  { key:"Chờ KTV",       pb:"Cho KTV",       color:"#dc2626", bg:"#fef2f2",  emoji:"schedule_send" },
+  { key:"KTV Đang Kiểm", pb:"KTV Dang Kiem", color:"#0369a1", bg:"#e0f2fe",  emoji:"manage_search" },
+  { key:"Chờ Báo Giá",   pb:"Cho Bao Gia",   color:"#d97706", bg:"#fffbeb",  emoji:"request_quote" },
+  { key:"Chờ Xác Nhận",  pb:"Cho Xac Nhan",  color:"#db2777", bg:"#fdf2f8",  emoji:"pending_actions" },
+  { key:"Chờ KTV Sửa",   pb:"Cho KTV Sua",   color:"#7c3aed", bg:"#f5f3ff",  emoji:"engineering" },
+  { key:"Đang Sửa",      pb:"Dang Sua",      color:"#6d28d9", bg:"#ede9fe",  emoji:"build" },
+  { key:"Chờ Linh Kiện", pb:"Cho Linh Kien", color:"#ea580c", bg:"#fff7ed",  emoji:"inventory" },
   { key:"Hoàn Thành",    pb:"Hoan Thanh",    color:"#059669", bg:"#dcfce7",  emoji:"check_circle" },
   { key:"Đã Giao",       pb:"Da Giao",       color:"#64748b", bg:"#f1f5f9",  emoji:"inventory_2" },
 ];

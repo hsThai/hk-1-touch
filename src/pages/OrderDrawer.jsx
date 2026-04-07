@@ -475,7 +475,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
       estDate = new Date(Date.now() + (estMins||0) * 60000).toISOString();
     }
 
-    const newStatus = (ord.status === "Chưa Nhận" || stage === 1) ? "Mới Nhận" : "Đang Sửa";
+    const newStatus = ord.status === "Cho KTV Sua" ? "Dang Sua" : "KTV Dang Kiem";
     const now = new Date().toISOString();
     // assigned_at = thời điểm phân công (đã có) hoặc set ngay nếu chưa có
     const assignedAt = ord.assigned_at || now;
@@ -613,8 +613,8 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
 
         {tab === "info" && (
           <div style={{ flex:1, overflowY:"auto", padding:18 }}>
-            {/* ── Nút Nhận Đơn khi status = Chưa Nhận ─── */}
-            {order.status === "Chưa Nhận" && isMyOrder && (
+            {/* ── Nút Nhận Đơn khi status = Chờ KTV / Chờ KTV Sửa ─── */}
+            {["Chờ KTV","Chờ KTV Sửa"].includes(order.status) && isMyOrder && (
               <div style={{ background:"linear-gradient(135deg,#4f46e5,#7c3aed)", borderRadius:16, padding:20, marginBottom:14, textAlign:"center" }}>
                 <div style={{ color:"#fff", fontWeight:800, fontSize:17, marginBottom:6 }}>
                   <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22,verticalAlign:"middle",marginRight:6}}>assignment</span>
@@ -630,10 +630,10 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 </button>
               </div>
             )}
-            {/* Manager thấy trạng thái Chưa Nhận */}
-            {order.status === "Chưa Nhận" && !isMyOrder && currentUser.role === "manager" && (
+            {/* Manager thấy trạng thái Chờ KTV */}
+            {["Chờ KTV","Chờ KTV Sửa"].includes(order.status) && !isMyOrder && currentUser.role === "manager" && (
               <div style={{ background:"#fef3c7", border:"2px solid #fcd34d", borderRadius:14, padding:14, marginBottom:14 }}>
-                <div style={{ fontWeight:800, fontSize:14, color:"#92400e" }}>⏳ Đơn chờ KTV nhận</div>
+                <div style={{ fontWeight:800, fontSize:14, color:"#92400e" }}>⏳ {order.status === "Chờ KTV Sửa" ? "Đơn chờ KTV bắt đầu sửa" : "Đơn chờ KTV nhận kiểm"}</div>
                 <div style={{ fontSize:13, color:"#78350f", marginTop:4 }}>KTV: {order.assigned_to_name || "Chưa phân công"}</div>
               </div>
             )}
@@ -772,7 +772,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                               kpi_stage1_penalized:  false,
                               kpi_stage2_penalized:  false,
                               needs_reassign:        false,
-                              status:                "Chưa Nhận",
+                              status:                "Cho KTV",
                             }, null);
                             showToast(`✅ Đã giao đơn cho ${u.name || u.full_name}`);
                           }}
@@ -800,10 +800,10 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
             )}
 
             {/* Status + Actions — KTV cần bấm "Chỉnh" để edit */}
-            {!["Hoàn Thành","Đã Giao","Chưa Nhận"].includes(order.status) && (currentUser.role==="manager" || isMyOrder) && (
+            {!["Hoàn Thành","Đã Giao","Hủy"].includes(order.status) && (currentUser.role==="manager" || isMyOrder) && (
               <div style={{ marginBottom:14 }}>
                 {/* KTV chưa nhận đơn → disable toàn bộ status picker */}
-                {isKTV && isMyOrder && (order.accept_stage||0) < 1 && order.status !== "Chưa Nhận" && (
+                {isKTV && isMyOrder && (order.accept_stage||0) < 1 && !["Chờ KTV","Chờ KTV Sửa"].includes(order.status) && (
                   <div style={{ padding:"14px 16px", background:"#fef3c7", border:"2px solid #fcd34d", borderRadius:14, textAlign:"center", marginBottom:8 }}>
                     <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",marginRight:6,color:"#92400e"}}>lock</span>
                     <span style={{ fontWeight:700, color:"#92400e", fontSize:14 }}>Nhận đơn trước khi đổi trạng thái</span>
@@ -823,7 +823,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                       {isKTV && <button onClick={() => setEditMode(false)} style={{ background:"none", border:"none", color:"#9ca3af", fontSize:13, cursor:"pointer"}}>  Đóng</button>}
                     </div>
                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:10 }}>
-                      {STATUS_COLS.filter(c => !["Đã Giao","Chưa Nhận"].includes(c.key)).map(c => (
+                      {STATUS_COLS.filter(c => !["Đã Giao","Chờ KTV","Chờ KTV Sửa"].includes(c.key)).map(c => (
                         <button key={c.key} onClick={() => {
   if(c.key==="Hoàn Thành") { handleMarkDone(); }
   else {
@@ -1394,8 +1394,8 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
             currentUser={currentUser}
             onClose={() => setShowCustConfirm(false)}
             onApprove={async () => {
-              await onUpdate(order.id, { status:"Chưa Nhận", accept_stage:0 }, null);
-              logHistory({ order_id:order.id, order_code:order.order_code||order.id, action_type:"approved", action_label:"Khách đồng ý — Lên đơn", changed_by_id:currentUser?.id||"", changed_by_name:currentUser?.name||"", changed_by_role:currentUser?.role||"", new_value:"Chưa Nhận" });
+              await onUpdate(order.id, { status:"Cho KTV Sua", accept_stage:0 }, null);
+              logHistory({ order_id:order.id, order_code:order.order_code||order.id, action_type:"approved", action_label:"Khách đồng ý — Lên đơn sửa", changed_by_id:currentUser?.id||"", changed_by_name:currentUser?.name||"", changed_by_role:currentUser?.role||"", new_value:"Chờ KTV Sửa" });
               const notifyKtv = users.filter(u => u.id === order.assigned_to);
               notifyKtv.forEach(u => Notification.create({ user_id:u.id, user_name:u.name||"", title:`✅ Đơn ${order.order_code||order.id} đã được duyệt!`, message:`${order.device_model} · ${order.customer_name} — Bấm Nhận Đơn để bắt đầu`, order_id:order.id, order_code:order.order_code||order.id, type:"status_change", is_read:false }).catch(()=>{}));
               setShowCustConfirm(false);
@@ -1560,7 +1560,7 @@ function EditOrderModal({ order, users, currentUser, onClose, onSave }) {
     technician_note:     order.technician_note || "",
     assigned_to:         order.assigned_to || "",
     assigned_to_name:    order.assigned_to_name || "",
-    status:              order.status || "Chưa Nhận",
+    status:              order.status || "Cho KTV",
     priority:            order.priority || "Thuong",
     estimated_cost:      order.estimated_cost != null ? String(order.estimated_cost) : "",
     final_cost:          order.final_cost != null ? String(order.final_cost) : "",
@@ -1644,13 +1644,16 @@ function EditOrderModal({ order, users, currentUser, onClose, onSave }) {
   }
 
   const STATUS_OPTS = [
-    { val:"Chưa Nhận",    label:"⏳ Chưa Nhận" },
-    { val:"Mới Nhận",     label:"📥 Mới Nhận" },
-    { val:"Đang Sửa",     label:"🔧 Đang Sửa" },
-    { val:"Chờ Linh Kiện",label:"📦 Chờ Linh Kiện" },
-    { val:"Hoàn Thành",   label:"✅ Hoàn Thành" },
-    { val:"Đã Giao",      label:"🏠 Đã Giao" },
-    { val:"Hủy",          label:"❌ Hủy" },
+    { val:"Chờ KTV",       label:"⏳ Chờ KTV" },
+    { val:"KTV Đang Kiểm", label:"🔍 KTV Đang Kiểm" },
+    { val:"Chờ Báo Giá",   label:"💰 Chờ Báo Giá" },
+    { val:"Chờ Xác Nhận",  label:"📋 Chờ Xác Nhận" },
+    { val:"Chờ KTV Sửa",   label:"🛠️ Chờ KTV Sửa" },
+    { val:"Đang Sửa",      label:"🔧 Đang Sửa" },
+    { val:"Chờ Linh Kiện", label:"📦 Chờ Linh Kiện" },
+    { val:"Hoàn Thành",    label:"✅ Hoàn Thành" },
+    { val:"Đã Giao",       label:"🏠 Đã Giao" },
+    { val:"Hủy",           label:"❌ Hủy" },
   ];
 
   return (

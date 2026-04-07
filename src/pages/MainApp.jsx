@@ -62,7 +62,7 @@ class ErrorBoundary extends React.Component {
 
 // Helper: map raw PocketBase repair_orders record → app order object
 function mapPbOrder(o, STATUS_DISPLAY, PRIORITY_DISPLAY) {
-  const displayStatus = STATUS_DISPLAY[o.status] || o.status || "Chưa Nhận";
+  const displayStatus = STATUS_DISPLAY[o.status] || o.status || "Chờ KTV";
   return {
     // ── Identity ──
     id:              o.order_code || o.id,
@@ -92,7 +92,7 @@ function mapPbOrder(o, STATUS_DISPLAY, PRIORITY_DISPLAY) {
     // Nếu PB chưa có accept_stage field, suy ra từ status
     accept_stage: o.accept_stage != null
       ? (o.accept_stage ?? 0)
-      : (["Chua Nhan",""].includes(o.status||"") ? 0 : ["Moi Nhan"].includes(o.status||"") ? 1 : ["Dang Sua","Cho Linh Kien"].includes(o.status||"") ? 2 : ["Hoan Thanh","Da Giao"].includes(o.status||"") ? 3 : 0),
+      : (["Cho KTV","Cho KTV Sua"].includes(o.status||"") ? 0 : ["KTV Dang Kiem","Cho Bao Gia","Cho Xac Nhan"].includes(o.status||"") ? 1 : ["Dang Sua","Cho Linh Kien"].includes(o.status||"") ? 2 : ["Hoan Thanh","Da Giao"].includes(o.status||"") ? 3 : 0),
     stage1_at:        o.stage1_at || null,
     stage2_at:        o.stage2_at || null,
     checklist_done:   o.checklist_done || null,
@@ -940,7 +940,7 @@ function MainAppInner() {
       passcode:          data.passcode || "",
       product_qr:        data.product_qr || "",
       issue_description: data.notes || "",
-      status:            "Chua Nhan",
+      status:            "Cho KTV",
       assigned_to:       data.assigned_to || null,
       assigned_to_name:  data.assigned_to_name || "",
       received_date:     new Date().toISOString(),
@@ -970,7 +970,7 @@ function MainAppInner() {
       console.error("[createOrder] pbData gửi lên:", JSON.stringify(pbData));
       // Thử lại bỏ các field có thể gây lỗi
       try {
-        const pbData2 = { ...pbData, status: "Chua Nhan", priority: "Thuong", warranty_days: 0 };
+        const pbData2 = { ...pbData, status: "Cho KTV", priority: "Thuong", warranty_days: 0 };
         delete pbData2.assigned_at;
         delete pbData2.accept_stage;
         const saved2 = await RepairOrder.create(pbData2);
@@ -1076,7 +1076,7 @@ function MainAppInner() {
     const noteMatch = (o.notes||"").toLowerCase().includes(q);
     return nameMatch || phoneMatch || deviceMatch || idMatch || qrMatch || imeiMatch || noteMatch;
   });
-  const pendingAccepts = orders.filter(o => o.assigned_to===user.id && o.assigned_at && !["Hoàn Thành","Đã Giao","Hủy"].includes(o.status));
+  const pendingAccepts = orders.filter(o => o.assigned_to===user.id && ["Chờ KTV","Chờ KTV Sửa"].includes(o.status));
 
   const isWarehouse = user.role === "warehouse";
   const isManager   = user.role === "manager" || user.role === "admin";
@@ -1101,9 +1101,9 @@ function MainAppInner() {
   ];
 
   // ── Kanban Board ─────────────────────────────────────────
-  const COLUMNS = ["Chưa Nhận","Mới Nhận","Đang Kiểm Tra","Đang Sửa","Chờ Linh Kiện","Hoàn Thành","Đã Giao"];
-  const colColors = { "Chưa Nhận":"#f3f4f6","Mới Nhận":"#dbeafe","Đang Kiểm Tra":"#e0f2fe","Đang Sửa":"#ede9fe","Chờ Linh Kiện":"#fce7f3","Hoàn Thành":"#dcfce7","Đã Giao":"#f1f5f9" };
-  const colBorder = { "Chưa Nhận":"#d1d5db","Mới Nhận":"#93c5fd","Đang Kiểm Tra":"#7dd3fc","Đang Sửa":"#c4b5fd","Chờ Linh Kiện":"#f9a8d4","Hoàn Thành":"#86efac","Đã Giao":"#cbd5e1" };
+  const COLUMNS = ["Chờ KTV","KTV Đang Kiểm","Chờ Báo Giá","Chờ Xác Nhận","Chờ KTV Sửa","Đang Sửa","Chờ Linh Kiện","Hoàn Thành","Đã Giao"];
+  const colColors = { "Chờ KTV":"#fef2f2","KTV Đang Kiểm":"#e0f2fe","Chờ Báo Giá":"#fffbeb","Chờ Xác Nhận":"#fdf2f8","Chờ KTV Sửa":"#f5f3ff","Đang Sửa":"#ede9fe","Chờ Linh Kiện":"#fff7ed","Hoàn Thành":"#dcfce7","Đã Giao":"#f1f5f9" };
+  const colBorder = { "Chờ KTV":"#fca5a5","KTV Đang Kiểm":"#7dd3fc","Chờ Báo Giá":"#fcd34d","Chờ Xác Nhận":"#fbcfe8","Chờ KTV Sửa":"#ddd6fe","Đang Sửa":"#c4b5fd","Chờ Linh Kiện":"#fed7aa","Hoàn Thành":"#86efac","Đã Giao":"#cbd5e1" };
 
   function KanbanBoard() {
     // Dùng ref từ outer scope → không bị reset khi re-render
@@ -1157,7 +1157,7 @@ function MainAppInner() {
   function OrderCard({ order: o, highlight, onClick, users }) {
     const ktv = users.find(u => u.id===o.assigned_to);
     const timerInfo = ktv ? getKpiTimerInfo(o) : null;
-    const isPending = o.status === "Chưa Nhận";
+    const isPending = ["Chờ KTV","Chờ KTV Sửa"].includes(o.status);
     return (
       <div onClick={onClick}
         style={{
@@ -1207,7 +1207,7 @@ function MainAppInner() {
         {list.map(o => {
           const ktv = users.find(u=>u.id===o.assigned_to);
           const timerInfo = getKpiTimerInfo(o);
-          const isChuaNhan   = ["Chưa Nhận","Quy Trình 1"].includes(o.status);
+          const isChuaNhan   = ["Chờ KTV","Chờ KTV Sửa"].includes(o.status);
           const noKTV        = !o.assigned_to;
           // Màu nền theo trạng thái
           const STATUS_CARD = {
@@ -1215,7 +1215,7 @@ function MainAppInner() {
             "Chờ KTV Kiểm": { bg:"#f5f3ff", border:"#c4b5fd", badge_bg:"#ede9fe", badge_color:"#7c3aed" },
             "Chờ Báo Giá":  { bg:"#fffbeb", border:"#fcd34d", badge_bg:"#fef3c7", badge_color:"#d97706" },
             "Chờ Xác Nhận": { bg:"#fdf2f8", border:"#fbcfe8", badge_bg:"#fce7f3", badge_color:"#db2777" },
-            "Chưa Nhận":    { bg:"#fff1f2", border:"#fca5a5", badge_bg:"#fee2e2", badge_color:"#dc2626" },
+            "Chờ KTV":      { bg:"#fff1f2", border:"#fca5a5", badge_bg:"#fee2e2", badge_color:"#dc2626" },
             "Chờ Phụ Tùng":{ bg:"#fff7ed", border:"#fed7aa", badge_bg:"#ffedd5", badge_color:"#c2410c" },
             "Đang Sửa":   { bg:"#f5f3ff", border:"#c4b5fd", badge_bg:"#ede9fe", badge_color:"#6d28d9" },
             "Chờ Kiểm Tra":{ bg:"#ecfeff", border:"#a5f3fc", badge_bg:"#cffafe", badge_color:"#0e7490" },
@@ -1523,11 +1523,11 @@ function MainAppInner() {
                 return (
                   <div key={o.id} onClick={() => setSelectedOrderSync(o)}
                     style={{
-                      background: o.status==="Chưa Nhận" ? "#fff5f5" : "#fff",
+                      background: ["Chờ KTV","Chờ KTV Sửa"].includes(o.status) ? "#fff5f5" : "#fff",
                       borderRadius:14, padding:"12px 14px", marginBottom:8, cursor:"pointer",
                       boxShadow:"0 1px 4px rgba(0,0,0,.07)",
-                      border: o.status==="Chưa Nhận" ? "2px solid #ef4444" : "1.5px solid #f3f4f6",
-                      animation: o.status==="Chưa Nhận" ? "pulseRed 1.6s ease-in-out infinite" : "none",
+                      border: ["Chờ KTV","Chờ KTV Sửa"].includes(o.status) ? "2px solid #ef4444" : "1.5px solid #f3f4f6",
+                      animation: ["Chờ KTV","Chờ KTV Sửa"].includes(o.status) ? "pulseRed 1.6s ease-in-out infinite" : "none",
                       display:"flex", justifyContent:"space-between", alignItems:"center"
                     }}>
                     <div>
@@ -1685,11 +1685,11 @@ function WarehouseOrders({ user, users, setSelectedOrder }) {
   });
 
   const STATUS_COLOR = {
-    "Chưa Nhận":"#f3f4f6","Mới Nhận":"#dbeafe","Chờ Linh Kiện":"#fce7f3",
+    "Chờ KTV":"#fef2f2","KTV Đang Kiểm":"#e0f2fe","Chờ Báo Giá":"#fffbeb","Chờ Xác Nhận":"#fdf2f8","Chờ KTV Sửa":"#f5f3ff","Đang Sửa":"#ede9fe","Chờ Linh Kiện":"#fce7f3",
     "Đang Sửa":"#ede9fe","Hoàn Thành":"#dcfce7","Đã Giao":"#f1f5f9"
   };
   const STATUS_TEXT = {
-    "Chưa Nhận":"#6b7280","Mới Nhận":"#1d4ed8","Chờ Linh Kiện":"#be185d",
+    "Chờ KTV":"#dc2626","KTV Đang Kiểm":"#0369a1","Chờ Báo Giá":"#d97706","Chờ Xác Nhận":"#db2777","Chờ KTV Sửa":"#7c3aed","Đang Sửa":"#6d28d9","Chờ Linh Kiện":"#be185d",
     "Đang Sửa":"#5b21b6","Hoàn Thành":"#065f46","Đã Giao":"#475569"
   };
 
@@ -1750,7 +1750,7 @@ function TechnicianHome({ user, orders, setPage }) {
   const myOrders = React.useMemo(() => orders.filter(o => o.assigned_to === user.id || o.assigned_to === user._id), [orders, user]);
   const today = new Date().toLocaleDateString("vi-VN");
   const stats = {
-    pending:    myOrders.filter(o => o.status === "Chưa Nhận").length,
+    pending:    myOrders.filter(o => ["Chờ KTV","Chờ KTV Sửa"].includes(o.status)).length,
     inProgress: myOrders.filter(o => o.status === "Đang Sửa").length,
     doneToday:  myOrders.filter(o => (o.status === "Hoàn Thành" || o.status === "Đã Giao") && new Date(o.done_date||o.updated_date||0).toLocaleDateString("vi-VN") === today).length,
     total:      myOrders.filter(o => !["Hoàn Thành","Đã Giao"].includes(o.status)).length,
