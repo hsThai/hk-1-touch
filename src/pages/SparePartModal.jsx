@@ -544,10 +544,12 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
               <div style={{color:"#a5b4fc",fontSize:13,marginTop:2}}>{order.device_model||order.device_name||"?"} · {order.customer_name}</div>
             </div>
             <div style={{display:"flex",gap:8,alignItems:"center",flexShrink:0}}>
-              <button onClick={handleSyncKv} disabled={kvSyncing}
-                style={{height:32,padding:"0 10px",background:"rgba(255,255,255,.2)",border:"1.5px solid rgba(255,255,255,.35)",color:"#fff",borderRadius:10,fontSize:11,fontWeight:700,cursor:kvSyncing?"not-allowed":"pointer",display:"flex",alignItems:"center",gap:4}}>
-                <span className="material-icons" style={{fontSize:14}}>sync</span>{kvSyncing?"...":"KiotViet"}
-              </button>
+              {tab==="list" && (
+                <button onClick={handleSyncKv} disabled={kvSyncing}
+                  style={{height:34,padding:"0 12px",background:kvSyncing?"rgba(255,255,255,.1)":"rgba(99,102,241,.85)",border:"1.5px solid rgba(255,255,255,.5)",color:"#fff",borderRadius:10,fontSize:11,fontWeight:700,cursor:kvSyncing?"not-allowed":"pointer",display:"flex",alignItems:"center",gap:5}}>
+                  <span className="material-icons" style={{fontSize:15}}>sync</span>{kvSyncing?"Đang cập nhật...":"Cập nhật tồn Kho"}
+                </button>
+              )}
               <button onClick={onClose}
                 style={{background:"rgba(255,255,255,.2)",border:"1.5px solid rgba(255,255,255,.35)",color:"#fff",width:36,height:36,borderRadius:"50%",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
                 <span className="material-icons" style={{fontSize:20}}>close</span>
@@ -578,7 +580,24 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
           {loading ? (
             <div style={{textAlign:"center",padding:40,color:"#9ca3af"}}>⏳ Đang tải...</div>
           ) : tab==="list" ? (
-            <TabList parts={filteredParts} cartItems={cartItems} search={search} setSearch={setSearch} addToCart={addToCart} removeFromCart={removeFromCart}/>
+            <>
+              {parts.length === 0 && (
+                <div style={{margin:"10px 12px 0",background:"#fffbeb",border:"1.5px solid #fbbf24",borderRadius:12,padding:"10px 14px",display:"flex",gap:10,alignItems:"flex-start"}}>
+                  <span className="material-icons" style={{fontSize:20,color:"#d97706",flexShrink:0,marginTop:1}}>info</span>
+                  <div style={{fontSize:13,color:"#92400e",fontWeight:600}}>
+                    Chưa có dữ liệu tồn kho.<br/>
+                    <span style={{fontWeight:800}}>Bấm "Cập nhật tồn Kho"</span> để tải danh sách linh kiện từ KiotViet.
+                  </div>
+                </div>
+              )}
+              {parts.length > 0 && (
+                <div style={{margin:"8px 12px 0",background:"#eff6ff",border:"1.5px solid #bfdbfe",borderRadius:10,padding:"7px 12px",display:"flex",gap:8,alignItems:"center"}}>
+                  <span className="material-icons" style={{fontSize:16,color:"#3b82f6"}}>info</span>
+                  <div style={{fontSize:12,color:"#1d4ed8"}}>Tồn kho có thể chưa cập nhật — nhấn <b>"Cập nhật tồn Kho"</b> để lấy số mới nhất từ KiotViet.</div>
+                </div>
+              )}
+              <TabList parts={filteredParts} cartItems={cartItems} search={search} setSearch={setSearch} addToCart={addToCart} removeFromCart={removeFromCart}/>
+            </>
           ) : tab==="cart" ? (
             <TabCart cartItems={cartItems} updateCartQty={updateCartQty} removeFromCart={removeFromCart} order={order} showForm={showForm} setShowForm={setShowForm} exportType={exportType} setExportType={setExportType} dueMinutes={dueMinutes} setDueMinutes={setDueMinutes} returnDays={returnDays} setReturnDays={setReturnDays} reqNote={reqNote} setReqNote={setReqNote} submitting={submitting} handleSubmitRequest={handleSubmitRequest}/>
           ) : (

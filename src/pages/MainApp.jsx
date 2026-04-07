@@ -1830,7 +1830,7 @@ function WarehouseExport({ user }) {
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontWeight:800, fontSize:14 }}>{req.request_code}</div>
                   <div style={{ fontSize:12, color:"#6b7280", marginTop:2 }}>
-                    {req.export_type==="borrow"?"🔄 Mượn":"🔧 Xuất sửa"} · {req.order_code} · {(req.items?JSON.parse(req.items):[]).length} LK
+                    {req.export_type==="borrow"?"🔄 Mượn":"🔧 Xuất sửa"} · {req.order_code} · {(Array.isArray(req.items)?req.items:req.items?JSON.parse(req.items):[]).length} LK
                   </div>
                   <div style={{ fontSize:12, color:"#374151", fontWeight:600 }}>👤 KTV: {req.requested_by_name}</div>
                 </div>
@@ -1878,7 +1878,7 @@ function WarehouseExport({ user }) {
               </div>
 
               <div style={{ fontWeight:800, fontSize:14, color:"#1e1b4b", marginBottom:8 }}>Danh sách linh kiện</div>
-              {(viewReq.items?JSON.parse(viewReq.items):[]).map((item,i) => (
+              {(Array.isArray(viewReq.items)?viewReq.items:viewReq.items?JSON.parse(viewReq.items):[]).map((item,i) => (
                 <div key={i} style={{ background:"#f3f4f6", borderRadius:10, padding:"8px 12px", marginBottom:6, display:"flex", justifyContent:"space-between", fontSize:13 }}>
                   <div><div style={{fontWeight:700}}>{item.part_name}</div>{item.sku&&<div style={{color:"#6b7280",fontSize:12}}>SKU: {item.sku}</div>}</div>
                   <div style={{textAlign:"right"}}><div style={{fontWeight:800,color:"#4f46e5"}}>{(item.total_price||0).toLocaleString("vi-VN")}đ</div><div style={{color:"#6b7280",fontSize:12}}>×{item.qty}</div></div>
