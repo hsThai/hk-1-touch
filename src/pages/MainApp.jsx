@@ -282,6 +282,7 @@ function MainAppInner() {
   const [dataLoading, setDataLoading] = useState(true);
   const [page, setPage] = useState("board");
   const [search, setSearch] = useState("");
+  const [dashboardFilter, setDashboardFilter] = useState(null); // "active"|"done"|"needs_reassign"|null
   const [selectedOrder, setSelectedOrder] = useState(null);
   const selectedOrderRef = useRef(null); // track để poll có thể sync drawer
   // Helper: set cả state lẫn ref cùng lúc
@@ -1054,6 +1055,10 @@ function MainAppInner() {
 
   const myOrders = user.role==="technician" ? orders.filter(o => o.assigned_to===user.id) : orders;
   const filtered = myOrders.filter(o => {
+    // Dashboard quick filter
+    if (dashboardFilter === "active" && (["Hoàn Thành","Đã Giao"].includes(o.status))) return false;
+    if (dashboardFilter === "done" && !["Hoàn Thành","Đã Giao"].includes(o.status)) return false;
+    if (dashboardFilter === "needs_reassign" && !o.needs_reassign) return false;
     if (!search) return true;
     const q = search.toLowerCase().trim();
     const nameMatch = (o.customer_name||"").toLowerCase().includes(q);
@@ -1104,11 +1109,23 @@ function MainAppInner() {
       kanbanScrollLeft.current = e.currentTarget.scrollLeft;
     };
 
+    const filterLabel = dashboardFilter==="active"?"Đang xử lý":dashboardFilter==="done"?"Hoàn thành":dashboardFilter==="needs_reassign"?"Cần xử lý":null;
+
     return (
+      <div style={{ paddingBottom:80 }}>
+        {filterLabel && (
+          <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 16px 0" }}>
+            <div style={{ background:"#eef2ff", border:"1.5px solid #c7d2fe", borderRadius:99, padding:"4px 14px", fontSize:12, fontWeight:700, color:"#4f46e5", display:"flex", alignItems:"center", gap:6 }}>
+              <span className="material-icons" style={{fontSize:14}}>filter_list</span>
+              Lọc: {filterLabel}
+            </div>
+            <button onClick={()=>setDashboardFilter(null)} style={{ background:"none", border:"none", color:"#6b7280", cursor:"pointer", fontSize:12, fontWeight:600, padding:"4px 8px" }}>✕ Bỏ lọc</button>
+          </div>
+        )}
       <div
         ref={kanbanScrollRef}
         onScroll={handleScroll}
-        style={{ overflowX:"auto", padding:"0 16px 80px", WebkitOverflowScrolling:"touch" }}
+        style={{ overflowX:"auto", padding:"8px 16px 0", WebkitOverflowScrolling:"touch" }}
       >
         <div style={{ display:"flex", gap:12, minWidth: COLUMNS.length * 240 }}>
           {COLUMNS.map(col => {
@@ -1124,6 +1141,7 @@ function MainAppInner() {
             );
           })}
         </div>
+      </div>
       </div>
     );
   }
@@ -1242,24 +1260,65 @@ function MainAppInner() {
       done: orders.filter(o=>o.status==="Hoàn Thành"||o.status==="Đã Giao").length,
       needsReassign: orders.filter(o=>o.needs_reassign).length,
     };
+
+    // Xác định filter khi bấm card -> setFilter rồi chuyển sang orders list
     const cards = [
-      { label:"Tổng đơn", value:stats.total, icon:"assignment", bg:"#eef2ff", color:"#4f46e5" },
-      { label:"Đang xử lý", value:stats.active, icon:"settings", bg:"#fffbeb", color:"#d97706" },
-      { label:"Hoàn thành", value:stats.done, icon:"check_circle", bg:"#f0fdf4", color:"#059669" },
-      { label:"Cần xử lý", value:stats.needsReassign, icon:"notifications_active", bg:"#fef2f2", color:"#dc2626" },
+      {
+        label:"Tổng đơn", value:stats.total,
+        icon:"assignment", bg:"#eef2ff", border:"#c7d2fe", color:"#4f46e5",
+        urgent: false,
+        onClick: () => { setDashboardFilter(null); setPage("board"); },
+      },
+      {
+        label:"Đang xử lý", value:stats.active,
+        icon:"settings", bg:"#fffbeb", border:"#fcd34d", color:"#d97706",
+        urgent: stats.active > 0,
+        onClick: () => { setDashboardFilter("active"); setPage("board"); },
+      },
+      {
+        label:"Hoàn thành", value:stats.done,
+        icon:"check_circle", bg:"#f0fdf4", border:"#86efac", color:"#059669",
+        urgent: false,
+        onClick: () => { setDashboardFilter("done"); setPage("board"); },
+      },
+      {
+        label:"Cần xử lý", value:stats.needsReassign,
+        icon:"notifications_active", bg:"#fef2f2", border:"#fca5a5", color:"#dc2626",
+        urgent: stats.needsReassign > 0,
+        onClick: () => { setDashboardFilter("needs_reassign"); setPage("board"); },
+      },
     ];
+
     return (
-      <div style={{ padding:"0 16px 80px" }}>
-        <div style={{ fontWeight:900, fontSize:18, color:"#1e1b4b", marginBottom:16 }}>  Tổng quan hôm nay</div>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:20 }}>
-          {cards.map(c => (
-            <div key={c.label} style={{ background:c.bg, borderRadius:16, padding:16, textAlign:"center" }}>
-              <span className="material-icons" style={{fontSize:32,fontFamily:"Material Icons",verticalAlign:"middle",lineHeight:1,color:c.color}}>{c.icon}</span>
-              <div style={{ fontSize:32, fontWeight:900, color:c.color }}>{c.value}</div>
-              <div style={{ fontSize:12, color:"#6b7280", marginTop:2 }}>{c.label}</div>
+      <div style={{ padding:"16px 14px 100px" }}>
+        {/* Header giống WarehouseHome */}
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+          <div>
+            <div style={{ fontSize:22, fontWeight:900, color:"#1e1b4b" }}>👑 Xin chào, {user.name}!</div>
+            <div style={{ fontSize:14, color:"#6b7280", marginTop:4 }}>
+              Quản lý · {new Date().toLocaleDateString("vi-VN",{weekday:"long",day:"2-digit",month:"2-digit"})}
+            </div>
+          </div>
+        </div>
+
+        {/* Cards */}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:24 }}>
+          {cards.map((c,i) => (
+            <div key={i} onClick={c.onClick}
+              style={{
+                background:c.bg, borderRadius:16, padding:"16px 14px",
+                border:`2px solid ${c.urgent ? c.border : "#e5e7eb"}`,
+                cursor:"pointer",
+                boxShadow: c.urgent ? "0 4px 12px rgba(0,0,0,.08)" : "none",
+              }}>
+              <span className="material-icons" style={{ fontSize:28, color:c.color, display:"block", marginBottom:8 }}>{c.icon}</span>
+              <div style={{ fontSize:32, fontWeight:900, color: c.urgent ? c.color : "#1e1b4b", lineHeight:1 }}>{c.value}</div>
+              <div style={{ fontSize:12, color:"#6b7280", marginTop:6, fontWeight:600 }}>{c.label}</div>
             </div>
           ))}
         </div>
+
+        {/* KPI bảng */}
         <KPIPage users={users} orders={orders} />
       </div>
     );
@@ -1292,7 +1351,7 @@ function MainAppInner() {
             </div>
             <div style={{ flex:1, overflowY:"auto", padding:8 }}>
               {navItems.map(n => (
-                <button key={n.key} onClick={() => { setPage(n.key); setSidebarOpen(false); }}
+                <button key={n.key} onClick={() => { setPage(n.key); setSidebarOpen(false); if(n.key==="board"||n.key==="dashboard")setDashboardFilter(null); }}
                   style={{ width:"100%", textAlign:"left", padding:"14px 16px", borderRadius:12, border:"none", background:page===n.key?"#eef2ff":"transparent", color:page===n.key?"#4f46e5":"#374151", fontWeight:page===n.key?800:500, fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", gap:10, marginBottom:2 }}>
                   <span className="material-icons" style={{fontSize:20,fontFamily:"Material Icons",verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>{n.icon}</span> {n.label}
                 </button>
@@ -1461,7 +1520,7 @@ function MainAppInner() {
       {/* Bottom nav */}
       <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#fff", borderTop:"1px solid #e5e7eb", display:"flex", zIndex:50, paddingBottom:"env(safe-area-inset-bottom)" }}>
         {navItems.slice(0,5).map(n => (
-          <button key={n.key} onClick={() => setPage(n.key)}
+          <button key={n.key} onClick={() => { setPage(n.key); if(n.key==="board"||n.key==="dashboard")setDashboardFilter(null); }}
             style={{ flex:1, padding:"10px 4px", background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
             <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",lineHeight:1}}>{n.icon}</span>
             <span style={{ fontSize:10, color:page===n.key?"#4f46e5":"#9ca3af", fontWeight:page===n.key?800:500 }}>{n.label}</span>
