@@ -702,7 +702,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
             {currentUser.role === "manager" && !["Hoàn Thành","Đã Giao","Hủy"].includes(order.status) && (
               (() => {
                 const noKTV      = !order.assigned_to;
-                const overdue    = order.needs_reassign || order.kpi_stage2_penalized;
+                const overdue    = order.needs_reassign || order.kpi_stage2_penalized || order.kpi_stage1_penalized;
                 if (!noKTV && !overdue) return null;
 
                 // Mode: "assign" = giao mới, "reassign" = giao lại
@@ -714,9 +714,11 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 const title       = noKTV ? "Chưa phân công KTV" : "⚠️ Cần Giao Việc Lại!";
                 const subtitle    = noKTV
                   ? "Đơn này chưa có KTV xử lý — chọn KTV để giao việc"
-                  : (order.needs_reassign
+                  : order.needs_reassign
                     ? `KTV ${order.assigned_to_name||"?"} quá hạn → -3 KPI & ngừng nhận việc`
-                    : `KTV ${order.assigned_to_name||"?"} quá 120 phút chưa bắt đầu sửa`);
+                  : order.kpi_stage2_penalized
+                    ? `KTV ${order.assigned_to_name||"?"} quá 120 phút chưa bắt đầu sửa`
+                  : `KTV ${order.assigned_to_name||"?"} quá 60 phút chưa nhận đơn — cân nhắc giao lại`;
 
                 // Nếu reassign: loại KTV hiện tại ra; nếu assign mới: hiện tất cả
                 const availableKTVs = users.filter(u =>
