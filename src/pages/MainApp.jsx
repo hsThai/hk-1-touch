@@ -325,7 +325,7 @@ function MainAppInner() {
       if (selectedOrder) { setSelectedOrderSync(null); return; }
       if (sidebarOpen)   { setSidebarOpen(false);  return; }
       if (page !== "board" && page !== "tasks") {
-        setPage(user?.role === "technician" ? "tasks" : user?.role === "warehouse" ? "wh_home" : "board");
+        setPage(user?.role === "technician" ? "ktv_home" : user?.role === "receptionist" ? "rec_home" : user?.role === "warehouse" ? "wh_home" : "dashboard");
       }
     };
 
@@ -863,7 +863,7 @@ function MainAppInner() {
     setLoggedOut(true);
     setSidebarOpen && setSidebarOpen(false);
   };
-  if (!user) return <LoginPage onLogin={u => { setUser(u); setLoggedOut(false); setPage(u.role==="technician"?"tasks":u.role==="receptionist"?"new":u.role==="warehouse"?"wh_home":"dashboard"); }} loggedOut={loggedOut} />;
+  if (!user) return <LoginPage onLogin={u => { setUser(u); setLoggedOut(false); setPage(u.role==="technician"?"ktv_home":u.role==="receptionist"?"rec_home":u.role==="warehouse"?"wh_home":"dashboard"); }} loggedOut={loggedOut} />;
   if (user.must_change_password) return <ChangePassword user={user} forceChange={true} onSuccess={() => setUser(u => ({...u, must_change_password: false}))} />;
 
   async function updateOrder(id, patch, kpiEvent, action) {
@@ -1085,6 +1085,8 @@ function MainAppInner() {
     {key:"wh_stock",   icon:"inventory_2",   label:"Tồn kho"},
   ] : [
     ...(isManager?[{key:"dashboard",icon:"bar_chart",label:"Tổng quan"}]:[]),
+    ...(isKtv?[{key:"ktv_home",icon:"home",label:"Trang chủ"}]:[]),
+    ...(isReception?[{key:"rec_home",icon:"home",label:"Trang chủ"}]:[]),
     ...(!isKtv?[{key:"board",icon:"assignment",label:"Bảng theo dõi"},{key:"new",icon:"add",label:"Tạo đơn mới"}]:[]),
     {key:"tasks",icon:"check_circle",label:"Danh sách đơn"},
     ...(!isReception && !isWarehouse?[{key:"kpi",icon:"emoji_events",label:"KPI Kỹ thuật"}]:[]),
@@ -1361,7 +1363,7 @@ function MainAppInner() {
             </div>
             <div style={{ flex:1, overflowY:"auto", padding:8 }}>
               {navItems.map(n => (
-                <button key={n.key} onClick={() => { setPage(n.key); setSidebarOpen(false); if(n.key==="board"||n.key==="dashboard"||n.key==="tasks")setDashboardFilter(null); }}
+                <button key={n.key} onClick={() => { setPage(n.key); setSidebarOpen(false); if(n.key==="board"||n.key==="dashboard"||n.key==="tasks"||n.key==="ktv_home"||n.key==="rec_home")setDashboardFilter(null); }}
                   style={{ width:"100%", textAlign:"left", padding:"14px 16px", borderRadius:12, border:"none", background:page===n.key?"#eef2ff":"transparent", color:page===n.key?"#4f46e5":"#374151", fontWeight:page===n.key?800:500, fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", gap:10, marginBottom:2 }}>
                   <span className="material-icons" style={{fontSize:20,fontFamily:"Material Icons",verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>{n.icon}</span> {n.label}
                 </button>
@@ -1480,6 +1482,8 @@ function MainAppInner() {
 
       {/* Main content */}
       <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
+        {page==="ktv_home" && <TechnicianHome user={user} orders={orders} setPage={setPage} />}
+        {page==="rec_home" && <ReceptionHome user={user} orders={orders} setPage={setPage} />}
         {page==="board" && <KanbanBoard />}
         {page==="tasks" && <TaskList />}
         {page==="new" && (
@@ -1541,7 +1545,7 @@ function MainAppInner() {
       {/* Bottom nav */}
       <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#fff", borderTop:"1px solid #e5e7eb", display:"flex", zIndex:50, paddingBottom:"env(safe-area-inset-bottom)" }}>
         {navItems.slice(0,5).map(n => (
-          <button key={n.key} onClick={() => { setPage(n.key); if(n.key==="board"||n.key==="dashboard"||n.key==="tasks")setDashboardFilter(null); }}
+          <button key={n.key} onClick={() => { setPage(n.key); if(n.key==="board"||n.key==="dashboard"||n.key==="tasks"||n.key==="ktv_home"||n.key==="rec_home")setDashboardFilter(null); }}
             style={{ flex:1, padding:"10px 4px", background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
             <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",lineHeight:1}}>{n.icon}</span>
             <span style={{ fontSize:10, color:page===n.key?"#4f46e5":"#9ca3af", fontWeight:page===n.key?800:500 }}>{n.label}</span>
@@ -1723,6 +1727,118 @@ function WarehouseOrders({ user, users, setSelectedOrder }) {
   );
 }
 
+
+// ─── Technician Home ───────────────────────────────────────
+function TechnicianHome({ user, orders, setPage }) {
+  const myOrders = React.useMemo(() => orders.filter(o => o.assigned_to === user.id || o.assigned_to === user._id), [orders, user]);
+  const today = new Date().toLocaleDateString("vi-VN");
+  const stats = {
+    pending:    myOrders.filter(o => o.status === "Chưa Nhận").length,
+    inProgress: myOrders.filter(o => o.status === "Đang Sửa").length,
+    doneToday:  myOrders.filter(o => (o.status === "Hoàn Thành" || o.status === "Đã Giao") && new Date(o.done_date||o.updated_date||0).toLocaleDateString("vi-VN") === today).length,
+    total:      myOrders.filter(o => !["Hoàn Thành","Đã Giao"].includes(o.status)).length,
+  };
+  const cards = [
+    { label:"Chờ nhận",    value:stats.pending,    icon:"inbox",         color:"#dc2626", bg:"#fff1f2", border:"#fca5a5", urgent:stats.pending>0,    page:"tasks" },
+    { label:"Đang sửa",    value:stats.inProgress, icon:"build",         color:"#d97706", bg:"#fffbeb", border:"#fcd34d", urgent:stats.inProgress>0, page:"tasks" },
+    { label:"Xong hôm nay",value:stats.doneToday,  icon:"check_circle",  color:"#059669", bg:"#f0fdf4", border:"#86efac", urgent:false,              page:"tasks" },
+    { label:"Tổng đang xử lý", value:stats.total,  icon:"assignment",    color:"#4f46e5", bg:"#eef2ff", border:"#c7d2fe", urgent:false,              page:"tasks" },
+  ];
+  const roleLabel = { technician:"Kỹ thuật viên" }[user.role] || user.role;
+  return (
+    <div style={{ padding:"16px 14px 100px" }}>
+      <div style={{ marginBottom:20 }}>
+        <div style={{ fontSize:22, fontWeight:900, color:"#1e1b4b" }}>🔧 Xin chào, {user.name}!</div>
+        <div style={{ fontSize:14, color:"#6b7280", marginTop:4 }}>
+          {roleLabel} · KPI: <b style={{color:"#4f46e5"}}>{user.kpi ?? 0}</b> · {new Date().toLocaleDateString("vi-VN",{weekday:"long",day:"2-digit",month:"2-digit"})}
+        </div>
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:24 }}>
+        {cards.map((c,i) => (
+          <div key={i} onClick={() => setPage(c.page)}
+            style={{ background:c.bg, borderRadius:16, padding:"16px 14px", border:`2px solid ${c.urgent?c.border:"#e5e7eb"}`, cursor:"pointer", boxShadow:c.urgent?"0 4px 12px rgba(0,0,0,.08)":"none" }}>
+            <span className="material-icons" style={{ fontSize:28, color:c.color, display:"block", marginBottom:8 }}>{c.icon}</span>
+            <div style={{ fontSize:32, fontWeight:900, color:c.urgent?c.color:"#1e1b4b", lineHeight:1 }}>{c.value}</div>
+            <div style={{ fontSize:12, color:"#6b7280", marginTop:6, fontWeight:600 }}>{c.label}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ fontWeight:800, fontSize:15, color:"#374151", marginBottom:12 }}>Thao tác nhanh</div>
+      <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+        {[
+          { page:"tasks", icon:"check_circle", label:"Danh sách đơn của tôi", sub:"Xem và xử lý các đơn được phân công", color:"#4f46e5", bg:"#eef2ff" },
+          { page:"kpi",   icon:"emoji_events", label:"KPI của tôi",           sub:"Xem điểm và lịch sử KPI",              color:"#d97706", bg:"#fffbeb" },
+        ].map(item => (
+          <div key={item.page} onClick={() => setPage(item.page)}
+            style={{ background:item.bg, borderRadius:14, padding:"14px 16px", border:`1.5px solid ${item.bg}`, cursor:"pointer", display:"flex", alignItems:"center", gap:14, boxShadow:"0 2px 8px rgba(0,0,0,.05)" }}>
+            <span className="material-icons" style={{ fontSize:26, color:item.color, flexShrink:0 }}>{item.icon}</span>
+            <div>
+              <div style={{ fontWeight:800, fontSize:14, color:"#1e1b4b" }}>{item.label}</div>
+              <div style={{ fontSize:12, color:"#6b7280", marginTop:2 }}>{item.sub}</div>
+            </div>
+            <span className="material-icons" style={{ fontSize:20, color:"#d1d5db", marginLeft:"auto" }}>chevron_right</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Receptionist Home ────────────────────────────────────────
+function ReceptionHome({ user, orders, setPage }) {
+  const today = new Date().toLocaleDateString("vi-VN");
+  const stats = {
+    newToday:    orders.filter(o => new Date(o.received_date||o.created_date||0).toLocaleDateString("vi-VN") === today).length,
+    waitingAssign: orders.filter(o => !o.assigned_to && !["Hoàn Thành","Đã Giao"].includes(o.status)).length,
+    inProgress:  orders.filter(o => o.status === "Đang Sửa").length,
+    doneToday:   orders.filter(o => (o.status === "Hoàn Thành"||o.status === "Đã Giao") && new Date(o.done_date||o.updated_date||0).toLocaleDateString("vi-VN") === today).length,
+  };
+  const cards = [
+    { label:"Tiếp nhận hôm nay", value:stats.newToday,       icon:"add_circle",         color:"#4f46e5", bg:"#eef2ff", border:"#c7d2fe", urgent:false,                  page:"new"   },
+    { label:"Chờ phân công KTV", value:stats.waitingAssign,  icon:"person_add",          color:"#dc2626", bg:"#fff1f2", border:"#fca5a5", urgent:stats.waitingAssign>0,  page:"tasks" },
+    { label:"Đang sửa",          value:stats.inProgress,     icon:"build",               color:"#d97706", bg:"#fffbeb", border:"#fcd34d", urgent:false,                  page:"tasks" },
+    { label:"Xong hôm nay",      value:stats.doneToday,      icon:"check_circle",        color:"#059669", bg:"#f0fdf4", border:"#86efac", urgent:false,                  page:"tasks" },
+  ];
+  return (
+    <div style={{ padding:"16px 14px 100px" }}>
+      <div style={{ marginBottom:20 }}>
+        <div style={{ fontSize:22, fontWeight:900, color:"#1e1b4b" }}>🎧 Xin chào, {user.name}!</div>
+        <div style={{ fontSize:14, color:"#6b7280", marginTop:4 }}>
+          Tiếp tân · {new Date().toLocaleDateString("vi-VN",{weekday:"long",day:"2-digit",month:"2-digit"})}
+        </div>
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:24 }}>
+        {cards.map((c,i) => (
+          <div key={i} onClick={() => setPage(c.page)}
+            style={{ background:c.bg, borderRadius:16, padding:"16px 14px", border:`2px solid ${c.urgent?c.border:"#e5e7eb"}`, cursor:"pointer", boxShadow:c.urgent?"0 4px 12px rgba(0,0,0,.08)":"none" }}>
+            <span className="material-icons" style={{ fontSize:28, color:c.color, display:"block", marginBottom:8 }}>{c.icon}</span>
+            <div style={{ fontSize:32, fontWeight:900, color:c.urgent?c.color:"#1e1b4b", lineHeight:1 }}>{c.value}</div>
+            <div style={{ fontSize:12, color:"#6b7280", marginTop:6, fontWeight:600 }}>{c.label}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ fontWeight:800, fontSize:15, color:"#374151", marginBottom:12 }}>Thao tác nhanh</div>
+      <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+        {[
+          { page:"new",       icon:"add_circle",  label:"Tạo đơn mới",        sub:"Tiếp nhận máy từ khách hàng",       color:"#4f46e5", bg:"#eef2ff" },
+          { page:"tasks",     icon:"list_alt",    label:"Danh sách đơn",      sub:"Tra cứu và theo dõi tiến độ",       color:"#0369a1", bg:"#e0f2fe" },
+          { page:"customers", icon:"group",       label:"Khách hàng",         sub:"Tra cứu lịch sử sửa chữa",          color:"#7c3aed", bg:"#f5f3ff" },
+        ].map(item => (
+          <div key={item.page} onClick={() => setPage(item.page)}
+            style={{ background:item.bg, borderRadius:14, padding:"14px 16px", border:`1.5px solid ${item.bg}`, cursor:"pointer", display:"flex", alignItems:"center", gap:14, boxShadow:"0 2px 8px rgba(0,0,0,.05)" }}>
+            <span className="material-icons" style={{ fontSize:26, color:item.color, flexShrink:0 }}>{item.icon}</span>
+            <div>
+              <div style={{ fontWeight:800, fontSize:14, color:"#1e1b4b" }}>{item.label}</div>
+              <div style={{ fontSize:12, color:"#6b7280", marginTop:2 }}>{item.sub}</div>
+            </div>
+            <span className="material-icons" style={{ fontSize:20, color:"#d1d5db", marginLeft:"auto" }}>chevron_right</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function WarehouseHome({ user, setPage }) {
   const [stats, setStats] = React.useState({ pendingExport:0, waitingKtv:0, overdueBorrow:0, lowStock:0, pendingImport:0 });
   const [loading, setLoading] = React.useState(true);
@@ -1776,18 +1892,12 @@ function WarehouseHome({ user, setPage }) {
 
   return (
     <div style={{ padding:"16px 14px 100px" }}>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
-        <div>
-          <div style={{ fontSize:22, fontWeight:900, color:"#1e1b4b" }}>📦 Xin chào, {user.name}!</div>
-          <div style={{ fontSize:14, color:"#6b7280", marginTop:4, display:"flex", alignItems:"center", gap:6 }}>
-            Nhân viên kho · {new Date().toLocaleDateString("vi-VN",{weekday:"long",day:"2-digit",month:"2-digit"})}
-            {refreshing && <span style={{fontSize:11,color:"#4f46e5",fontWeight:700}}>🔄 Đang cập nhật...</span>}
-          </div>
+      <div style={{ marginBottom:20 }}>
+        <div style={{ fontSize:22, fontWeight:900, color:"#1e1b4b" }}>📦 Xin chào, {user.name}!</div>
+        <div style={{ fontSize:14, color:"#6b7280", marginTop:4, display:"flex", alignItems:"center", gap:6 }}>
+          Nhân viên kho · {new Date().toLocaleDateString("vi-VN",{weekday:"long",day:"2-digit",month:"2-digit"})}
+          {refreshing && <span style={{fontSize:11,color:"#4f46e5",fontWeight:700}}>🔄 Đang cập nhật...</span>}
         </div>
-        <button onClick={()=>loadStats()} disabled={loading}
-          style={{height:36,padding:"0 12px",background:"#eff6ff",border:"1.5px solid #bfdbfe",borderRadius:10,color:"#2563eb",fontWeight:700,fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",gap:5}}>
-          <span className="material-icons" style={{fontSize:16}}>refresh</span>Làm mới
-        </button>
       </div>
 
       {loading ? (
