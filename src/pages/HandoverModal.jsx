@@ -18,7 +18,7 @@ export default function HandoverModal({ order, currentUser, onClose, onDone }) {
   const [step, setStep]             = useState(1); // 1=Checklist, 2=Chữ ký, 3=Media, 4=Xác nhận
   const [checklist, setChecklist]   = useState({});
   const [note, setNote]             = useState("");
-  const [finalCost, setFinalCost]   = useState(order.final_cost ?? "");
+
   const [signature, setSignature]   = useState(null); // base64
   const [media, setMedia]           = useState([]);   // [{url,type}]
   const [uploading, setUploading]   = useState(false);
@@ -28,9 +28,7 @@ export default function HandoverModal({ order, currentUser, onClose, onDone }) {
   const drawing    = useRef(false);
   const fileRef    = useRef(null);
 
-  const deposit    = Number(order.deposit || 0);
-  const total      = Number(finalCost || order.final_cost || 0);
-  const remaining  = Math.max(0, total - deposit);
+
 
   // ── Canvas chữ ký ──
   useEffect(() => {
@@ -101,7 +99,7 @@ export default function HandoverModal({ order, currentUser, onClose, onDone }) {
         note,
         signature,
         media:        JSON.stringify(media.map(m => ({ url: m.url, type: m.type }))),
-        final_cost:   Number(finalCost) || order.final_cost || 0,
+
       });
     } catch(e) { alert("Lỗi: " + e.message); }
     setSubmitting(false);
@@ -155,22 +153,7 @@ export default function HandoverModal({ order, currentUser, onClose, onDone }) {
                   {order.order_code || order.id} · {order.customer_name}
                 </div>
                 <div style={{ fontSize:13, color:"#374151", marginBottom:4 }}>{order.device_name} {order.device_model}</div>
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginTop:10 }}>
-                  <div style={{ background:"#fff", borderRadius:10, padding:"8px 10px", textAlign:"center" }}>
-                    <div style={{ fontSize:11, color:"#6b7280", marginBottom:2 }}>Tổng tiền</div>
-                    <input value={finalCost} onChange={e => setFinalCost(e.target.value)} type="number" inputMode="numeric"
-                      style={{ width:"100%", border:"none", outline:"none", textAlign:"center", fontWeight:800, fontSize:14, color:"#059669", background:"transparent" }}
-                      placeholder={order.final_cost||"0"} />
-                  </div>
-                  <div style={{ background:"#fff", borderRadius:10, padding:"8px 10px", textAlign:"center" }}>
-                    <div style={{ fontSize:11, color:"#6b7280", marginBottom:2 }}>Đã cọc</div>
-                    <div style={{ fontWeight:800, fontSize:14, color:"#4f46e5" }}>{deposit.toLocaleString()}đ</div>
-                  </div>
-                  <div style={{ background: remaining > 0 ? "#fff1f2" : "#f0fdf4", borderRadius:10, padding:"8px 10px", textAlign:"center" }}>
-                    <div style={{ fontSize:11, color:"#6b7280", marginBottom:2 }}>Còn lại</div>
-                    <div style={{ fontWeight:900, fontSize:14, color: remaining > 0 ? "#dc2626" : "#059669" }}>{remaining.toLocaleString()}đ</div>
-                  </div>
-                </div>
+
               </div>
 
               {/* Checklist items */}
@@ -303,8 +286,7 @@ export default function HandoverModal({ order, currentUser, onClose, onDone }) {
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:10 }}>
                   <div><div style={{ fontSize:11, color:"#6b7280" }}>Khách hàng</div><div style={{ fontSize:13, fontWeight:700 }}>{order.customer_name}</div></div>
                   <div><div style={{ fontSize:11, color:"#6b7280" }}>Thiết bị</div><div style={{ fontSize:13, fontWeight:700 }}>{order.device_model}</div></div>
-                  <div><div style={{ fontSize:11, color:"#6b7280" }}>Tổng tiền</div><div style={{ fontSize:13, fontWeight:800, color:"#059669" }}>{Number(finalCost||order.final_cost||0).toLocaleString()}đ</div></div>
-                  <div><div style={{ fontSize:11, color:"#6b7280" }}>Còn thu</div><div style={{ fontSize:13, fontWeight:800, color: remaining > 0 ? "#dc2626" : "#059669" }}>{remaining.toLocaleString()}đ</div></div>
+
                 </div>
 
                 {/* Checklist summary */}

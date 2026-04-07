@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import ChangePassword from './pages/ChangePassword';
+import HandoverModal from './pages/HandoverModal';
 import Home from './pages/Home';
 import LoginV2 from './pages/LoginV2';
 import MainApp from './pages/MainApp';
@@ -14,7 +15,6 @@ import StaffManager from './pages/StaffManager';
 import StockExportFlow from './pages/StockExportFlow';
 import kiotviet from './pages/kiotviet';
 import pb from './pages/pb';
-import HandoverModal from './pages/HandoverModal';
 
 function App() {
   return (
@@ -22,6 +22,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/Home" replace />} />
         <Route path="/ChangePassword" element={<ChangePassword />} />
+        <Route path="/HandoverModal" element={<HandoverModal />} />
         <Route path="/Home" element={<Home />} />
         <Route path="/LoginV2" element={<LoginV2 />} />
         <Route path="/MainApp" element={<MainApp />} />
@@ -36,7 +37,6 @@ function App() {
         <Route path="/StockExportFlow" element={<StockExportFlow />} />
         <Route path="/kiotviet" element={<kiotviet />} />
         <Route path="/pb" element={<pb />} />
-        <Route path="/HandoverModal" element={<HandoverModal />} />
       </Routes>
     </BrowserRouter>
   )
