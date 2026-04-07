@@ -2,33 +2,48 @@ import React, { useRef, useState, useEffect } from "react";
 import { RepairOrder, OrderHistory } from "./pb.jsx";
 
 const CHECKLIST_ITEMS = [
-  { key:"device_on",      label:"Máy mở lên được" },
-  { key:"screen_ok",      label:"Màn hình không xước / vỡ" },
-  { key:"camera_ok",      label:"Camera hoạt động" },
-  { key:"charge_ok",      label:"Sạc pin bình thường" },
-  { key:"speaker_ok",     label:"Loa / micro rõ" },
-  { key:"has_charger",    label:"Có kèm sạc / cáp" },
-  { key:"has_case",       label:"Có kèm bao da / ốp lưng" },
-  { key:"has_earphone",   label:"Có kèm tai nghe" },
-  { key:"has_accessories",label:"Đủ phụ kiện khác" },
-  { key:"passcode_given", label:"Đã cung cấp mật khẩu máy" },
+  { key:"device_on",      label:"Máy mở lên được",            required:true },
+  { key:"screen_ok",      label:"Màn hình không xước / vỡ",   required:true },
+  { key:"camera_ok",      label:"Camera hoạt động",            required:true },
+  { key:"charge_ok",      label:"Sạc pin bình thường",         required:true },
+  { key:"speaker_ok",     label:"Loa / micro rõ",              required:true },
+  { key:"passcode_given", label:"Đã cung cấp mật khẩu máy",   required:false },
 ];
 
 export default function HandoverModal({ order, currentUser, onClose, onDone }) {
-  const [step, setStep]             = useState(1); // 1=Checklist, 2=Chữ ký, 3=Media, 4=Xác nhận
+  const [step, setStep]             = useState(1);
   const [checklist, setChecklist]   = useState({});
   const [note, setNote]             = useState("");
-
-  const [signature, setSignature]   = useState(null); // base64
-  const [media, setMedia]           = useState([]);   // [{url,type}]
+  const [signature, setSignature]   = useState(null);
+  const [media, setMedia]           = useState([]);
   const [uploading, setUploading]   = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [stepError, setStepError]   = useState("");
 
-  const canvasRef  = useRef(null);
-  const drawing    = useRef(false);
-  const fileRef    = useRef(null);
+  const canvasRef = useRef(null);
+  const drawing   = useRef(false);
+  const fileRef   = useRef(null);
 
+  // Kiểm tra điều kiện cho phép sang bước tiếp
+  function canProceed() {
+    if (step === 1) {
+      const required = CHECKLIST_ITEMS.filter(i => i.required);
+      const allChecked = required.every(i => checklist[i.key]);
+      return allChecked;
+    }
+    if (step === 2) return !!signature;
+    return true;
+  }
 
+  function handleNext() {
+    if (!canProceed()) {
+      if (step === 1) setStepError("⚠️ Phải tick đủ tất cả mục bắt buộc trước khi tiếp tục");
+      if (step === 2) setStepError("⚠️ Khách cần ký tên trước khi tiếp tục");
+      return;
+    }
+    setStepError("");
+    setStep(s => s + 1);
+  }
 
   // ── Canvas chữ ký ──
   useEffect(() => {
@@ -94,20 +109,23 @@ export default function HandoverModal({ order, currentUser, onClose, onDone }) {
     setSubmitting(true);
     try {
       await onDone({
-        handover_at:  new Date().toISOString(),
+        handover_at: new Date().toISOString(),
         checklist,
         note,
         signature,
-        media:        JSON.stringify(media.map(m => ({ url: m.url, type: m.type }))),
-
+        media: JSON.stringify(media.map(m => ({ url: m.url, type: m.type }))),
       });
     } catch(e) { alert("Lỗi: " + e.message); }
     setSubmitting(false);
   }
 
-  const MI = ({ name, style }) => <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:20, verticalAlign:"middle", lineHeight:1, userSelect:"none", ...style }}>{name}</span>;
+  const MI = ({ name, style }) => (
+    <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:20, verticalAlign:"middle", lineHeight:1, userSelect:"none", ...style }}>{name}</span>
+  );
 
   const STEPS = ["Kiểm tra", "Chữ ký", "Media", "Xác nhận"];
+  const requiredDone = CHECKLIST_ITEMS.filter(i => i.required && checklist[i.key]).length;
+  const requiredTotal = CHECKLIST_ITEMS.filter(i => i.required).length;
 
   return (
     <div style={{ position:"fixed", inset:0, zIndex:2000, background:"rgba(0,0,0,.65)", display:"flex", alignItems:"flex-end" }}
@@ -147,24 +165,37 @@ export default function HandoverModal({ order, currentUser, onClose, onDone }) {
                 Kiểm tra trước khi giao
               </div>
 
-              {/* Thông tin đơn + thanh toán */}
+              {/* Thông tin đơn */}
               <div style={{ background:"#f0f9ff", border:"1.5px solid #bae6fd", borderRadius:14, padding:"12px 14px", marginBottom:14 }}>
-                <div style={{ fontWeight:800, fontSize:14, color:"#0c4a6e", marginBottom:8 }}>
+                <div style={{ fontWeight:800, fontSize:14, color:"#0c4a6e", marginBottom:4 }}>
                   {order.order_code || order.id} · {order.customer_name}
                 </div>
-                <div style={{ fontSize:13, color:"#374151", marginBottom:4 }}>{order.device_name} {order.device_model}</div>
+                <div style={{ fontSize:13, color:"#374151" }}>{order.device_name} {order.device_model}</div>
+              </div>
 
+              {/* Progress */}
+              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
+                <div style={{ flex:1, height:6, background:"#e5e7eb", borderRadius:6, overflow:"hidden" }}>
+                  <div style={{ height:"100%", width:`${(requiredDone/requiredTotal)*100}%`, background: requiredDone===requiredTotal ? "#059669" : "#0369a1", borderRadius:6, transition:"width .3s" }} />
+                </div>
+                <span style={{ fontSize:12, fontWeight:700, color: requiredDone===requiredTotal ? "#059669" : "#0369a1", whiteSpace:"nowrap" }}>
+                  {requiredDone}/{requiredTotal} bắt buộc
+                </span>
               </div>
 
               {/* Checklist items */}
               <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:14 }}>
                 {CHECKLIST_ITEMS.map(item => (
-                  <label key={item.key} style={{ display:"flex", alignItems:"center", gap:12, background: checklist[item.key] ? "#f0fdf4" : "#f9fafb", borderRadius:12, padding:"12px 14px", border:`1.5px solid ${checklist[item.key] ? "#86efac" : "#e5e7eb"}`, cursor:"pointer", transition:"all .15s" }}>
-                    <div style={{ width:24, height:24, borderRadius:6, border:`2px solid ${checklist[item.key] ? "#059669" : "#d1d5db"}`, background: checklist[item.key] ? "#059669" : "#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}
-                      onClick={() => setChecklist(p => ({ ...p, [item.key]: !p[item.key] }))}>
+                  <label key={item.key}
+                    onClick={() => setChecklist(p => ({ ...p, [item.key]: !p[item.key] }))}
+                    style={{ display:"flex", alignItems:"center", gap:12, background: checklist[item.key] ? "#f0fdf4" : "#f9fafb", borderRadius:12, padding:"12px 14px", border:`1.5px solid ${checklist[item.key] ? "#86efac" : item.required ? "#e5e7eb" : "#f3f4f6"}`, cursor:"pointer", transition:"all .15s" }}>
+                    <div style={{ width:24, height:24, borderRadius:6, border:`2px solid ${checklist[item.key] ? "#059669" : "#d1d5db"}`, background: checklist[item.key] ? "#059669" : "#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
                       {checklist[item.key] && <MI name="check" style={{ fontSize:16, color:"#fff" }} />}
                     </div>
-                    <span style={{ fontSize:14, fontWeight: checklist[item.key] ? 700 : 500, color: checklist[item.key] ? "#065f46" : "#374151" }}>{item.label}</span>
+                    <span style={{ fontSize:14, fontWeight: checklist[item.key] ? 700 : 500, color: checklist[item.key] ? "#065f46" : "#374151", flex:1 }}>{item.label}</span>
+                    {item.required && !checklist[item.key] && (
+                      <span style={{ fontSize:10, color:"#dc2626", fontWeight:700, background:"#fff1f2", padding:"2px 6px", borderRadius:6 }}>Bắt buộc</span>
+                    )}
                   </label>
                 ))}
               </div>
@@ -280,21 +311,17 @@ export default function HandoverModal({ order, currentUser, onClose, onDone }) {
                 Xác nhận bàn giao
               </div>
 
-              {/* Tóm tắt */}
               <div style={{ background:"#f0f9ff", border:"1.5px solid #bae6fd", borderRadius:14, padding:"14px 16px", marginBottom:12 }}>
                 <div style={{ fontWeight:800, fontSize:14, color:"#0c4a6e", marginBottom:10 }}>📋 Tóm tắt bàn giao</div>
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:10 }}>
                   <div><div style={{ fontSize:11, color:"#6b7280" }}>Khách hàng</div><div style={{ fontSize:13, fontWeight:700 }}>{order.customer_name}</div></div>
                   <div><div style={{ fontSize:11, color:"#6b7280" }}>Thiết bị</div><div style={{ fontSize:13, fontWeight:700 }}>{order.device_model}</div></div>
-
                 </div>
 
-                {/* Checklist summary */}
-                <div style={{ fontSize:11, color:"#6b7280", marginBottom:6 }}>
+                <div style={{ fontSize:12, color:"#059669", fontWeight:700, marginBottom:6 }}>
                   ✅ {Object.values(checklist).filter(Boolean).length}/{CHECKLIST_ITEMS.length} mục đã kiểm tra
                 </div>
 
-                {/* Signature preview */}
                 {signature && (
                   <div style={{ marginBottom:8 }}>
                     <div style={{ fontSize:11, color:"#6b7280", marginBottom:4 }}>Chữ ký khách</div>
@@ -316,17 +343,24 @@ export default function HandoverModal({ order, currentUser, onClose, onDone }) {
           )}
         </div>
 
+        {/* Error message */}
+        {stepError && (
+          <div style={{ margin:"8px 16px 0", padding:"10px 14px", background:"#fff1f2", border:"1.5px solid #fca5a5", borderRadius:10, fontSize:13, color:"#dc2626", fontWeight:600 }}>
+            {stepError}
+          </div>
+        )}
+
         {/* Footer buttons */}
         <div style={{ padding:"12px 16px 20px", background:"#fff", borderTop:"1px solid #f3f4f6", flexShrink:0, display:"flex", gap:10 }}>
           {step > 1 && (
-            <button onClick={() => setStep(s => s-1)} style={{ width:48, height:52, background:"#f3f4f6", border:"none", borderRadius:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <button onClick={() => { setStep(s => s-1); setStepError(""); }} style={{ width:48, height:52, background:"#f3f4f6", border:"none", borderRadius:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
               <MI name="arrow_back" style={{ fontSize:20, color:"#374151" }} />
             </button>
           )}
           {step < 4 && (
-            <button onClick={() => setStep(s => s+1)}
-              style={{ flex:1, height:52, background:"linear-gradient(135deg,#0369a1,#0891b2)", border:"none", borderRadius:14, color:"#fff", fontWeight:800, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
-              Tiếp theo <MI name="arrow_forward" style={{ fontSize:20, color:"#fff" }} />
+            <button onClick={handleNext}
+              style={{ flex:1, height:52, background: canProceed() ? "linear-gradient(135deg,#0369a1,#0891b2)" : "#e5e7eb", border:"none", borderRadius:14, color: canProceed() ? "#fff" : "#9ca3af", fontWeight:800, fontSize:16, cursor: canProceed() ? "pointer" : "not-allowed", display:"flex", alignItems:"center", justifyContent:"center", gap:8, transition:"all .2s" }}>
+              Tiếp theo <MI name="arrow_forward" style={{ fontSize:20, color: canProceed() ? "#fff" : "#9ca3af" }} />
             </button>
           )}
           {step === 4 && (
