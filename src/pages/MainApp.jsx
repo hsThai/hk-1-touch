@@ -283,6 +283,15 @@ function MainAppInner() {
   const [page, setPage] = useState("board");
   const [search, setSearch] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const selectedOrderRef = useRef(null); // track để poll có thể sync drawer
+  // Helper: set cả state lẫn ref cùng lúc
+  const setSelectedOrderSync = (valOrFn) => {
+    setSelectedOrder(prev => {
+      const next = typeof valOrFn === 'function' ? valOrFn(prev) : valOrFn;
+      selectedOrderRef.current = next;
+      return next;
+    });
+  };
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -312,7 +321,7 @@ function MainAppInner() {
       window.history.pushState({ hkapp: true }, "");
 
       // Xử lý navigation nội bộ
-      if (selectedOrder) { setSelectedOrder(null); return; }
+      if (selectedOrder) { setSelectedOrderSync(null); return; }
       if (sidebarOpen)   { setSidebarOpen(false);  return; }
       if (page !== "board" && page !== "tasks") {
         setPage(user?.role === "technician" ? "tasks" : user?.role === "warehouse" ? "wh_home" : "board");
@@ -541,6 +550,15 @@ function MainAppInner() {
                 }
                 return next;
               });
+              // Nếu drawer đang mở và đúng đơn thay đổi → sync luôn selectedOrder
+              const current = selectedOrderRef.current;
+              if (current) {
+                const fresh = results.find(r => r && r.id === (current._id || current.id));
+                if (fresh) {
+                  const mapped = mapPbOrder(fresh, STATUS_DISPLAY, PRIORITY_DISPLAY);
+                  setSelectedOrderSync(prev => ({ ...prev, ...mapped }));
+                }
+              }
             });
           }
 
@@ -851,7 +869,7 @@ function MainAppInner() {
     // Xóa đơn khỏi state
     if (action === "delete" || patch === null) {
       setOrders(p => p.filter(o => o.id !== id && o.order_code !== id));
-      if (selectedOrder?.id === id || selectedOrder?.order_code === id) setSelectedOrder(null);
+      if (selectedOrder?.id === id || selectedOrder?.order_code === id) setSelectedOrderSync(null);
       return;
     }
     // Auto-set assigned_at khi assign/reassign KTV (nếu patch chưa có)
@@ -862,7 +880,7 @@ function MainAppInner() {
       }
     }
     setOrders(p => p.map(o => (o.id===id || o.order_code===id) ? {...o,...patch} : o));
-    if (selectedOrder?.id===id || selectedOrder?.order_code===id) setSelectedOrder(p => ({...p,...patch}));
+    if (selectedOrder?.id===id || selectedOrder?.order_code===id) setSelectedOrderSync(p => ({...p,...patch}));
     if (kpiEvent) setUsers(p => p.map(u => u.id===kpiEvent.userId ? {...u, kpi:Math.max(0,u.kpi+kpiEvent.delta)} : u));
 
     // Lưu xuống PocketBase (dùng _id thật)
@@ -895,7 +913,7 @@ function MainAppInner() {
           const fresh = mapPbOrder(saved, STATUS_DISPLAY, PRIORITY_DISPLAY);
           // Chỉ sync nếu không có thêm patch đang pending
           setOrders(p => p.map(o => (o._id === saved.id) ? { ...fresh, ...patch } : o));
-          if (selectedOrder?._id === saved.id) setSelectedOrder(p => ({ ...fresh, ...patch }));
+          if (selectedOrder?._id === saved.id) setSelectedOrderSync(p => ({ ...fresh, ...patch }));
         }
       }
       if (kpiEvent) {
@@ -1030,7 +1048,7 @@ function MainAppInner() {
       setNewOrderProductQR(result.qr);
       setShowNewOrder(true);
     } else if (result.type === "order") {
-      setSelectedOrder(result.data);
+      setSelectedOrderSync(result.data);
     }
   }
 
@@ -1100,7 +1118,7 @@ function MainAppInner() {
                   <span>{col}</span>
                   <span style={{ background:"#fff", borderRadius:99, padding:"2px 10px", fontSize:12 }}>{colOrders.length}</span>
                 </div>
-                {colOrders.map(o => <OrderCard key={o.id} order={o} highlight={highlightId===o.id} onClick={() => setSelectedOrder(o)} users={users} />)}
+                {colOrders.map(o => <OrderCard key={o.id} order={o} highlight={highlightId===o.id} onClick={() => setSelectedOrderSync(o)} users={users} />)}
               </div>
             );
           })}
@@ -1164,7 +1182,7 @@ function MainAppInner() {
                              : isChuaNhan       ? "#fff5f5"
                              : "#fff";
           return (
-            <div key={o.id} onClick={() => setSelectedOrder(o)}
+            <div key={o.id} onClick={() => setSelectedOrderSync(o)}
               style={{
                 background: cardBg,
                 borderRadius:14, padding:14, marginBottom:10, cursor:"pointer",
@@ -1348,7 +1366,7 @@ function MainAppInner() {
                           if (user?.role === "technician") setPage("tasks");
                           else setPage("board");
                           setTimeout(() => {
-                            setSelectedOrder(mapped);
+                            setSelectedOrderSync(mapped);
                             if (n.type === "mention") {
                               setTimeout(() => { window.__hk_open_chat = mapped._id || mapped.id; }, 100);
                             }
@@ -1401,7 +1419,7 @@ function MainAppInner() {
               {filtered.filter(o => !["Đã Giao"].includes(o.status)).slice(0,30).map(o => {
                 const col2 = STATUS_COLS.find(s => s.key === o.status);
                 return (
-                  <div key={o.id} onClick={() => setSelectedOrder(o)}
+                  <div key={o.id} onClick={() => setSelectedOrderSync(o)}
                     style={{
                       background: o.status==="Chưa Nhận" ? "#fff5f5" : "#fff",
                       borderRadius:14, padding:"12px 14px", marginBottom:8, cursor:"pointer",
@@ -1483,7 +1501,7 @@ function MainAppInner() {
       {selectedOrder && (
         <OrderDrawer
           order={selectedOrder}
-          onClose={() => setSelectedOrder(null)}
+          onClose={() => setSelectedOrderSync(null)}
           onUpdate={(id, patch, kpiEvent, action) => { updateOrder(id, patch, kpiEvent, action); }}
           onAcceptStage={(id, stage) => updateOrder(id, { accept_stage:stage, assigned_at: stage===1 ? new Date().toISOString() : selectedOrder.assigned_at })}
           users={users}
@@ -1498,7 +1516,7 @@ function MainAppInner() {
           qr={productHistory.qr}
           orders={productHistory.orders}
           onClose={() => setProductHistory(null)}
-          onOpenOrder={o => { setProductHistory(null); setSelectedOrder(o); }}
+          onOpenOrder={o => { setProductHistory(null); setSelectedOrderSync(o); }}
         />
       )}
 
