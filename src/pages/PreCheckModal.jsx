@@ -236,9 +236,28 @@ export default function PreCheckModal({ order, currentUser, users, onClose, onDo
 //  QT2Modal — KTV kiểm tra sâu
 // ══════════════════════════════════════════════
 export function QT2Modal({ order, currentUser, onClose, onDone }) {
-  const [qt2, setQt2]     = useState({});  // { sectionKey: { options: Set, inputs: {} } }
-  const [note, setNote]   = useState("");
+  const [qt2, setQt2]       = useState({});
+  const [note, setNote]     = useState("");
   const [saving, setSaving] = useState(false);
+  const [images, setImages] = useState([]);   // { url, file }
+  const [videos, setVideos] = useState([]);   // { url, file }
+  const imgRef = React.useRef();
+  const vidRef = React.useRef();
+
+  async function handleImg(e) {
+    const file = e.target.files?.[0]; if (!file) return;
+    if (file.size > 5*1024*1024) { alert("Ảnh tối đa 5MB"); return; }
+    const url = URL.createObjectURL(file);
+    setImages(p => [...p, { url, file }]);
+    e.target.value = "";
+  }
+  async function handleVid(e) {
+    const file = e.target.files?.[0]; if (!file) return;
+    if (file.size > 50*1024*1024) { alert("Video tối đa 50MB"); return; }
+    const url = URL.createObjectURL(file);
+    setVideos(p => [...p, { url, file }]);
+    e.target.value = "";
+  }
 
   function toggleOption(sectionKey, opt) {
     setQt2(p => {
@@ -264,6 +283,7 @@ export function QT2Modal({ order, currentUser, onClose, onDone }) {
       await onDone({
         qt2_checklist: JSON.stringify(qt2),
         qt2_note: note,
+        qt2_images: images.map(i => i.file),
         status: "Cho Bao Gia",
       });
     } catch(e) { alert(e.message); }
@@ -333,6 +353,49 @@ export function QT2Modal({ order, currentUser, onClose, onDone }) {
               </div>
             );
           })}
+
+          {/* Ảnh / Video */}
+          <div style={{ marginBottom:16 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:"#374151", marginBottom:8, display:"flex", alignItems:"center", gap:6 }}>
+              <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,color:"#7c3aed",verticalAlign:"middle"}}>photo_camera</span>
+              Ảnh / Video đính kèm
+            </div>
+            {/* Thumbs */}
+            {(images.length > 0 || videos.length > 0) && (
+              <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:8 }}>
+                {images.map((img,i) => (
+                  <div key={i} style={{ position:"relative", width:72, height:72 }}>
+                    <img src={img.url} style={{ width:72, height:72, objectFit:"cover", borderRadius:10, border:"2px solid #ddd6fe" }} />
+                    <button onClick={() => setImages(p => p.filter((_,idx)=>idx!==i))}
+                      style={{ position:"absolute", top:-6, right:-6, width:20, height:20, borderRadius:"50%", background:"#ef4444", border:"none", color:"#fff", fontSize:11, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>✕</button>
+                  </div>
+                ))}
+                {videos.map((v,i) => (
+                  <div key={i} style={{ position:"relative", width:72, height:72 }}>
+                    <video src={v.url} style={{ width:72, height:72, objectFit:"cover", borderRadius:10, border:"2px solid #ddd6fe" }} />
+                    <span style={{ position:"absolute", bottom:2, right:4, fontSize:9, background:"rgba(0,0,0,.6)", color:"#fff", borderRadius:4, padding:"1px 4px" }}>VID</span>
+                    <button onClick={() => setVideos(p => p.filter((_,idx)=>idx!==i))}
+                      style={{ position:"absolute", top:-6, right:-6, width:20, height:20, borderRadius:"50%", background:"#ef4444", border:"none", color:"#fff", fontSize:11, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* Buttons */}
+            <div style={{ display:"flex", gap:8 }}>
+              <input ref={imgRef} type="file" accept="image/*" capture="environment" style={{ display:"none" }} onChange={handleImg} />
+              <input ref={vidRef} type="file" accept="video/*" capture="environment" style={{ display:"none" }} onChange={handleVid} />
+              <button onClick={() => imgRef.current?.click()}
+                style={{ flex:1, height:44, borderRadius:12, border:"2px dashed #ddd6fe", background:"#faf5ff", color:"#7c3aed", fontWeight:700, fontSize:13, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+                <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle"}}>add_a_photo</span>
+                Chụp ảnh
+              </button>
+              <button onClick={() => vidRef.current?.click()}
+                style={{ flex:1, height:44, borderRadius:12, border:"2px dashed #ddd6fe", background:"#faf5ff", color:"#7c3aed", fontWeight:700, fontSize:13, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+                <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle"}}>videocam</span>
+                Quay video
+              </button>
+            </div>
+          </div>
 
           {/* Ghi chú */}
           <div style={{ marginBottom:20 }}>

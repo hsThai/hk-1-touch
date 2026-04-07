@@ -818,7 +818,24 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
             )}
 
             {/* Status + Actions — KTV cần bấm "Chỉnh" để edit */}
-            {!["Hoàn Thành","Đã Giao","Hủy"].includes(order.status) && (currentUser.role==="manager" || isMyOrder) && (
+            {/* Ẩn với KTV khi đang ở trạng thái chờ action từ TT/KH */}
+            {["Cho KTV","Cho Bao Gia","Cho Xac Nhan","Cho KTV Sua"].includes(order.status) && isKTV && (
+              <div style={{ background:"#f0fdf4", border:"1.5px solid #86efac", borderRadius:12, padding:"12px 14px", marginBottom:14, display:"flex", alignItems:"center", gap:10 }}>
+                <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,color:"#16a34a",verticalAlign:"middle"}}>hourglass_empty</span>
+                <div>
+                  <div style={{ fontWeight:700, fontSize:13, color:"#166534" }}>
+                    {order.status === "Cho Bao Gia" ? "Đang chờ Tiếp Tân báo giá khách" :
+                      order.status === "Cho Xac Nhan" ? "Đang chờ khách xác nhận" :
+                      order.status === "Cho KTV Sua" ? "Khách đồng ý — Bấm Nhận Sửa bên trên" :
+                      "Đang chờ bạn nhận kiểm — Bấm nút bên trên"}
+                  </div>
+                  <div style={{ fontSize:11, color:"#4ade80", marginTop:2 }}>Bước tiếp theo sẽ tự cập nhật</div>
+                </div>
+              </div>
+            )}
+            {!["Hoàn Thành","Đã Giao","Hủy",..."Cho KTV","Cho Bao Gia","Cho Xac Nhan","Cho KTV Sua"].some(s => s===order.status) || currentUser.role==="manager" ? (
+            <span style={{display:"none"}} />) : null}
+            {!["Hoàn Thành","Đã Giao","Hủy"].includes(order.status) && !(["Cho KTV","Cho Bao Gia","Cho Xac Nhan","Cho KTV Sua"].includes(order.status) && isKTV) && (currentUser.role==="manager" || isMyOrder) && (
               <div style={{ marginBottom:14 }}>
                 {/* KTV chưa nhận đơn → disable toàn bộ status picker */}
                 {isKTV && isMyOrder && (order.accept_stage||0) < 1 && !["Chờ KTV","Chờ KTV Sửa"].includes(order.status) && (
@@ -1392,6 +1409,19 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
             currentUser={currentUser}
             onClose={() => setShowQT2(false)}
             onDone={async (data) => {
+              // Upload ảnh/video QT2 lên PocketBase nếu có
+              let qt2ImgUrls = [];
+              if (data.qt2_images?.length > 0 && order._id) {
+                try {
+                  const formData = new FormData();
+                  data.qt2_images.forEach(f => formData.append("qt2_images", f));
+                  const { token: pbToken } = getAuth();
+                  const res = await fetch(`${getPbUrl()}/api/collections/repair_orders/records/${order._id}`, {
+                    method: "PATCH", headers: { Authorization: pbToken }, body: formData,
+                  });
+                  if (res.ok) { const updated = await res.json(); qt2ImgUrls = updated.qt2_images || []; }
+                } catch(e) { console.warn("Upload QT2 media thất bại:", e); }
+              }
               await onUpdate(order.id, {
                 status: "Cho Bao Gia",
                 qt2_checklist: data.qt2_checklist,
