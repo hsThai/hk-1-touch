@@ -1130,7 +1130,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
                           <div>
                             <div style={{ fontWeight:800, fontSize:13, color:"#1e1b4b" }}>{req.request_code}</div>
-                            <div style={{ fontSize:11, color:"#9ca3af", marginTop:2 }}>{new Date(req.created_date).toLocaleString("vi-VN",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</div>
+                            <div style={{ fontSize:11, color:"#9ca3af", marginTop:2 }}>{(() => { const d = req.due_datetime ? new Date(req.due_datetime) : null; return d && !isNaN(d) ? `Hạn: ${d.toLocaleString("vi-VN",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}` : req.request_code ? "" : ""; })()}</div>
                           </div>
                           <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
                             <span style={{ background:st.bg, color:st.color, fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:10 }}>{st.label}</span>

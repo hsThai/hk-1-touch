@@ -1644,7 +1644,7 @@ function WarehouseOrders({ user, users, setSelectedOrder }) {
 }
 
 function WarehouseHome({ user, setPage }) {
-  const [stats, setStats] = React.useState({ pendingExport:0, overdueBorrow:0, lowStock:0, pendingImport:0 });
+  const [stats, setStats] = React.useState({ pendingExport:0, waitingKtv:0, overdueBorrow:0, lowStock:0, pendingImport:0 });
   const [loading, setLoading] = React.useState(true);
   const [refreshing, setRefreshing] = React.useState(false);
 
@@ -1673,8 +1673,10 @@ function WarehouseHome({ user, setPage }) {
       const activeParts = parts.filter(p => p.is_active !== false);
       const lowStockCount = activeParts.filter(p => (p.stock_qty||0) <= 3).length;
       const draftImports = imports.filter(r => r.status === "draft");
+      const waitingKtv = allExports.filter(r => r.status === "warehouse_confirmed");
       setStats({
         pendingExport: pendingExports.length,
+        waitingKtv: waitingKtv.length,
         overdueBorrow: overdue.length,
         lowStock: lowStockCount,
         pendingImport: draftImports.length
@@ -1686,6 +1688,7 @@ function WarehouseHome({ user, setPage }) {
 
   const cards = [
     { key:"wh_export",  icon:"outbox",         label:"Phiếu chờ xuất",  value:stats.pendingExport,  color:"#d97706", bg:"#fffbeb", border:"#fcd34d", urgent:stats.pendingExport>0 },
+    { key:"wh_export",  icon:"pending_actions", label:"Chờ KTV nhận",    value:stats.waitingKtv,     color:"#0891b2", bg:"#ecfeff", border:"#67e8f9", urgent:stats.waitingKtv>0 },
     { key:"wh_export",  icon:"assignment_late", label:"Mượn quá hạn",    value:stats.overdueBorrow,  color:"#dc2626", bg:"#fff1f2", border:"#fca5a5", urgent:stats.overdueBorrow>0 },
     { key:"wh_stock",   icon:"inventory_2",     label:"LK tồn thấp",     value:stats.lowStock,       color:"#0369a1", bg:"#e0f2fe", border:"#7dd3fc", urgent:stats.lowStock>0 },
     { key:"wh_import",  icon:"move_to_inbox",   label:"Phiếu nhập draft",value:stats.pendingImport,  color:"#7c3aed", bg:"#f5f3ff", border:"#c4b5fd", urgent:false },
@@ -1713,7 +1716,7 @@ function WarehouseHome({ user, setPage }) {
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:20 }}>
           {cards.map((c,i) => (
             <div key={i} onClick={() => setPage(c.key)}
-              style={{ background:c.bg, borderRadius:16, padding:"16px 14px", border:`2px solid ${c.urgent?c.border:"#e5e7eb"}`, cursor:"pointer", boxShadow:c.urgent?"0 4px 12px rgba(0,0,0,.08)":"none" }}>
+              style={{ background:c.bg, borderRadius:16, padding:"16px 14px", border:`2px solid ${c.urgent?c.border:"#e5e7eb"}`, cursor:"pointer", boxShadow:c.urgent?"0 4px 12px rgba(0,0,0,.08)":"none", gridColumn: (cards.length % 2 !== 0 && i === cards.length-1) ? "1 / -1" : undefined }}>
               <span className="material-icons" style={{ fontSize:28, color:c.color, display:"block", marginBottom:8 }}>{c.icon}</span>
               <div style={{ fontSize:32, fontWeight:900, color:c.urgent?c.color:"#1e1b4b", lineHeight:1 }}>{c.value}</div>
               <div style={{ fontSize:12, color:"#6b7280", marginTop:6, fontWeight:600 }}>{c.label}</div>
@@ -2164,7 +2167,7 @@ function WarehouseImport({ user }) {
                 </div>
                 <div style={{ background:sc.bg, color:sc.color, borderRadius:20, padding:"3px 10px", fontSize:11, fontWeight:700 }}>{sc.label}</div>
               </div>
-              <div style={{ fontSize:11, color:"#9ca3af", marginTop:6 }}>{new Date(imp.created_date).toLocaleString("vi-VN")}</div>
+              <div style={{ fontSize:11, color:"#9ca3af", marginTop:6 }}>{(imp.created_date && !isNaN(new Date(imp.created_date)) ? new Date(imp.created_date).toLocaleString("vi-VN") : imp.confirmed_at ? new Date(imp.confirmed_at).toLocaleString("vi-VN") : "")}</div>
             </div>
           );
         })}

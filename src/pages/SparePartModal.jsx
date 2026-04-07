@@ -12,6 +12,7 @@ function fmtMoney(n) { return (n||0).toLocaleString("vi-VN")+"đ"; }
 function fmtDt(iso) {
   if (!iso) return "";
   const d = new Date(iso);
+  if (isNaN(d)) return "";
   return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")} ${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;
 }
 function minsLeft(iso) {
@@ -236,7 +237,7 @@ function TabRequests({requests, setViewReq}) {
                 <div style={{fontSize:12,color:"#6b7280",marginTop:2}}>
                   {req.export_type==="borrow"?"🔄 Mượn":"🔧 Xuất sửa"} · {(Array.isArray(req.items)?req.items:JSON.parse(req.items||"[]")).length} LK · {fmtMoney(req.total_value)}
                 </div>
-                <div style={{fontSize:12,color:"#6b7280"}}>👤 {req.requested_by_name} · {fmtDt(req.created_date)}</div>
+                <div style={{fontSize:12,color:"#6b7280"}}>👤 {req.requested_by_name} · {req.due_datetime ? fmtDt(req.due_datetime) : ""}</div>
               </div>
               <div style={{textAlign:"right",flexShrink:0,marginLeft:8}}>
                 <div style={{background:st.bg,color:st.color,borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:700}}>{st.label}</div>
@@ -284,7 +285,7 @@ function RequestDetailModal({viewReq, setViewReq, currentStaff, order, requests,
       await StockExportRequest.update(viewReq.id,{
         status:"warehouse_confirmed",
         warehouse_confirmed_by:currentStaff.id,
-        warehouse_confirmed_by_name:currentStaff.full_name,
+        warehouse_confirmed_by_name:(currentStaff.full_name||currentStaff.name||""),
         warehouse_confirmed_at:new Date().toISOString(),
         warehouse_note:confirmNote, warehouse_media:mediaStr,
       });
@@ -296,7 +297,7 @@ function RequestDetailModal({viewReq, setViewReq, currentStaff, order, requests,
         await StockExportRequest.update(viewReq.id,{kiotviet_invoice_code:kvCode});
       } catch { kvCode="(KV lỗi)"; }
       await Notification.create({user_id:viewReq.requested_by,user_name:viewReq.requested_by_name,title:"📦 Kho đã xuất LK — Xác nhận nhận!",message:`Phiếu ${viewReq.request_code} | KV: ${kvCode}`,order_id:order.id,order_code:order.order_code||order.id,type:"export_ready",is_read:false});
-      setViewReq(v=>({...v,status:"warehouse_confirmed",warehouse_confirmed_by_name:currentStaff.full_name,warehouse_confirmed_at:new Date().toISOString(),kiotviet_invoice_code:kvCode}));
+      setViewReq(v=>({...v,status:"warehouse_confirmed",warehouse_confirmed_by_name:(currentStaff.full_name||currentStaff.name||""),warehouse_confirmed_at:new Date().toISOString(),kiotviet_invoice_code:kvCode}));
       setRequests(p=>p.map(r=>r.id===viewReq.id?{...r,status:"warehouse_confirmed"}:r));
       setConfirmMode(null); setConfirmNote(""); setConfirmMedia([]);
       showToast("✅ Đã xác nhận xuất kho!");
@@ -308,8 +309,8 @@ function RequestDetailModal({viewReq, setViewReq, currentStaff, order, requests,
     setConfirming(true);
     try {
       const mediaStr=confirmMedia.map(m=>m.url).join(",");
-      await StockExportRequest.update(viewReq.id,{status:"ktv_confirmed",ktv_confirmed_by:currentStaff.id,ktv_confirmed_by_name:currentStaff.full_name,ktv_confirmed_at:new Date().toISOString(),ktv_note:confirmNote,ktv_media:mediaStr});
-      setViewReq(v=>({...v,status:"ktv_confirmed",ktv_confirmed_by_name:currentStaff.full_name,ktv_confirmed_at:new Date().toISOString()}));
+      await StockExportRequest.update(viewReq.id,{status:"ktv_confirmed",ktv_confirmed_by:currentStaff.id,ktv_confirmed_by_name:(currentStaff.full_name||currentStaff.name||""),ktv_confirmed_at:new Date().toISOString(),ktv_note:confirmNote,ktv_media:mediaStr});
+      setViewReq(v=>({...v,status:"ktv_confirmed",ktv_confirmed_by_name:(currentStaff.full_name||currentStaff.name||""),ktv_confirmed_at:new Date().toISOString()}));
       setRequests(p=>p.map(r=>r.id===viewReq.id?{...r,status:"ktv_confirmed"}:r));
       setConfirmMode(null); setConfirmNote(""); setConfirmMedia([]);
       showToast("✅ Đã xác nhận nhận linh kiện!");
@@ -320,8 +321,8 @@ function RequestDetailModal({viewReq, setViewReq, currentStaff, order, requests,
   async function doReturn() {
     setConfirming(true);
     try {
-      await StockExportRequest.update(viewReq.id,{status:"returned",return_confirmed_by:currentStaff.id,return_confirmed_by_name:currentStaff.full_name,return_confirmed_at:new Date().toISOString(),return_note:confirmNote});
-      setViewReq(v=>({...v,status:"returned",return_confirmed_by_name:currentStaff.full_name,return_confirmed_at:new Date().toISOString()}));
+      await StockExportRequest.update(viewReq.id,{status:"returned",return_confirmed_by:currentStaff.id,return_confirmed_by_name:(currentStaff.full_name||currentStaff.name||""),return_confirmed_at:new Date().toISOString(),return_note:confirmNote});
+      setViewReq(v=>({...v,status:"returned",return_confirmed_by_name:(currentStaff.full_name||currentStaff.name||""),return_confirmed_at:new Date().toISOString()}));
       setRequests(p=>p.map(r=>r.id===viewReq.id?{...r,status:"returned"}:r));
       setConfirmMode(null); setConfirmNote("");
       showToast("✅ Đã trả linh kiện cho kho!");
@@ -339,7 +340,7 @@ function RequestDetailModal({viewReq, setViewReq, currentStaff, order, requests,
         <div style={{background:"linear-gradient(135deg,#1e1b4b,#4f46e5)",padding:"16px 18px",borderRadius:"24px 24px 0 0",flexShrink:0,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div>
             <div style={{color:"#fff",fontWeight:900,fontSize:16}}>📋 {viewReq.request_code}</div>
-            <div style={{color:"#a5b4fc",fontSize:12,marginTop:2}}>{viewReq.export_type==="borrow"?"🔄 Mượn tạm":"🔧 Xuất sửa"} · {fmtDt(viewReq.created_date)}</div>
+            <div style={{color:"#a5b4fc",fontSize:12,marginTop:2}}>{viewReq.export_type==="borrow"?"🔄 Mượn tạm":"🔧 Xuất sửa"} · {(viewReq.due_datetime ? fmtDt(viewReq.due_datetime) : "")}</div>
           </div>
           <button onClick={close} style={{background:"rgba(255,255,255,.2)",border:"1.5px solid rgba(255,255,255,.35)",color:"#fff",width:36,height:36,borderRadius:"50%",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
             <span className="material-icons" style={{fontSize:20}}>close</span>
@@ -506,10 +507,10 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
       const ret=exportType==="borrow"?new Date(Date.now()+returnDays*86400000).toISOString():null;
       const totalValue=cartItems.reduce((s,i)=>s+i.total_price,0);
       const code=genCode();
-      const req=await StockExportRequest.create({request_code:code,order_id:order.order_code||order.id,order_code:order.order_code||order.id,export_type:exportType,items:cartItems,due_datetime:due,return_due_date:ret,status:"pending",requested_by:currentStaff.id,requested_by_name:currentStaff.full_name,total_value:totalValue,reminded_15min:false});
+      const req=await StockExportRequest.create({request_code:code,order_id:order.order_code||order.id,order_code:order.order_code||order.id,export_type:exportType,items:cartItems,due_datetime:due,return_due_date:ret,status:"pending",requested_by:currentStaff.id,requested_by_name:(currentStaff.full_name||currentStaff.name||""),total_value:totalValue,reminded_15min:false});
       const lines=cartItems.map(i=>`• ${i.part_name} ×${i.qty}`).join("\n");
       const lbl=exportType==="borrow"?"MƯỢN TẠM":"XUẤT SỬA";
-      await RepairChat.create({order_id:order.id,order_code:order.order_code||order.id,sender_id:currentStaff.id,sender_name:currentStaff.full_name,message:`📦 [ĐỀ NGHỊ XUẤT KHO - ${lbl}]\n━━━━━━━━━━━━━━━━\nPhiếu: ${code}\nĐơn: ${order.order_code} | KTV: ${currentStaff.full_name}\nHạn: ${fmtDt(due)}\n${lines}`,message_type:"system"});
+      await RepairChat.create({order_id:order.id,order_code:order.order_code||order.id,sender_id:currentStaff.id,sender_name:(currentStaff.full_name||currentStaff.name||""),message:`📦 [ĐỀ NGHỊ XUẤT KHO - ${lbl}]\n━━━━━━━━━━━━━━━━\nPhiếu: ${code}\nĐơn: ${order.order_code} | KTV: ${(currentStaff.full_name||currentStaff.name||"")}\nHạn: ${fmtDt(due)}\n${lines}`,message_type:"system"});
       try {
         const staffList=await Staff.filter({is_active:true});
         for(const ws of staffList.filter(s=>s.role==="Nhân viên kho")){
