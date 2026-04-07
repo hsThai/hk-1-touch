@@ -113,7 +113,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
     if (tab !== "chat") return;
     let cancelled = false;
     setChatLoading(true);
-    RepairChat.filter({ order_id: order.id }, { sort: "created" })
+    RepairChat.filter({ order_id: order.id }, { sort: "id" })
       .then(data => { if (!cancelled) { setChats(data); setChatLoading(false); } })
       .catch(() => { if (!cancelled) setChatLoading(false); });
     return () => { cancelled = true; };
@@ -139,7 +139,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
           data = byId;
         }
         if (!cancelled) {
-          setExportReqs(data.sort((a,b) => new Date(b.created_date)-new Date(a.created_date)));
+          setExportReqs(data.sort((a,b) => (b.id||"").localeCompare(a.id||"")));
           setExportLoading(false);
         }
       } catch { if (!cancelled) setExportLoading(false); }
@@ -160,7 +160,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
     async function pollChats() {
       if (cancelled) return;
       try {
-        const all = await RepairChat.filter({ order_id: order.id }, { sort: "created", limit: 200 });
+        const all = await RepairChat.filter({ order_id: order.id }, { sort: "id", limit: 200 });
         if (cancelled) return;
         setChats(prev => {
           const serverIds = new Set(all.map(r => r.id));
@@ -1093,7 +1093,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
           <div style={{ flex:1, overflowY:"auto", padding:16 }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
               <div style={{ fontWeight:800, fontSize:15, color:"#1e1b4b" }}>📦 Phiếu xuất linh kiện</div>
-              <button onClick={() => { setExportLoading(true); StockExportRequest.filter({ order_id: order._id || order.id }).then(d => { setExportReqs(d.sort((a,b) => new Date(b.created_date)-new Date(a.created_date))); setExportLoading(false); }).catch(() => setExportLoading(false)); }}
+              <button onClick={() => { setExportLoading(true); StockExportRequest.filter({ order_id: order.order_code || order.id }).then(d => { setExportReqs(d.sort((a,b) => new Date(b.due_datetime||0)-new Date(a.due_datetime||0))); setExportLoading(false); }).catch(() => setExportLoading(false)); }}
                 style={{ background:"#f3f4f6", border:"none", borderRadius:8, padding:"6px 12px", fontSize:12, cursor:"pointer", fontWeight:600, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
                 <span className="material-icons" style={{fontSize:14,fontFamily:"Material Icons"}}>refresh</span> Tải lại
               </button>

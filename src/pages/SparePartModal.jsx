@@ -470,7 +470,7 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
         StockExportRequest.filter({order_id:order.order_code||order.id}),
       ]);
       setParts(p.sort((a,b)=>(a.name||"").localeCompare(b.name)));
-      setRequests(r.sort((a,b)=>new Date(b.created_date||0)-new Date(a.created_date||0)));
+      setRequests(r.sort((a,b)=>(b.id||"").localeCompare(a.id||"")));
     } catch(e){console.error(e);}
     setLoading(false);
   }

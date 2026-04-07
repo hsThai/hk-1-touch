@@ -371,7 +371,7 @@ function MainAppInner() {
     // Cập nhật state
     setDbNotifications(p => {
       if (p.find(x => x.id === n.id)) return p;
-      return [n, ...p].sort((a,b) => new Date(b.created_date)-new Date(a.created_date));
+      return [n, ...p].sort((a,b) => (b.id||"").localeCompare(a.id||""));
     });
     // Sound + system notif
     const master = await getNotifSound("notif_sound_master").catch(()=>"on");
@@ -389,7 +389,7 @@ function MainAppInner() {
     const fetchAll = async () => {
       try {
         const list = await Notification.filter({ user_id: user.id, is_read: false });
-        const sorted = list.sort((a,b) => new Date(b.created_date)-new Date(a.created_date));
+        const sorted = list.sort((a,b) => (b.id||"").localeCompare(a.id||""));
         sorted.forEach(n => seenNotifIds.current.add(n.id)); // đánh dấu seen, ko phát sound
         setDbNotifications(sorted);
       } catch {}
@@ -1661,9 +1661,9 @@ function WarehouseHome({ user, setPage }) {
     try {
       // Dùng list + lọc client-side để tránh lỗi filter trên PocketBase
       const [allExports, parts, imports] = await Promise.all([
-        StockExportRequest.list({ limit:500, sort:"-created" }),
+        StockExportRequest.list({ limit:500 }),
         SparePart.list({ limit:500 }),
-        StockImport.list({ limit:200, sort:"-created" }),
+        StockImport.list({ limit:200, sort:"-id" }),
       ]);
       const pendingExports = allExports.filter(r => r.status === "pending");
       const overdue = allExports.filter(r =>
@@ -1762,7 +1762,7 @@ function WarehouseExport({ user }) {
     setLoading(true);
     try {
       // Luôn lấy all rồi filter client-side để tránh lỗi query PocketBase
-      const all = await StockExportRequest.list({ sort:"-created_date", limit:200 });
+      const all = await StockExportRequest.list({ sort:"due_datetime", limit:200 });
       const data = filter === "all" ? all : all.filter(r => r.status === filter);
       setRequests(data.sort((a,b) => new Date(a.due_datetime||0)-new Date(b.due_datetime||0)));
     } catch(e){ console.error(e); }
@@ -1978,7 +1978,7 @@ function WarehouseImport({ user }) {
   async function loadImports() {
     setLoading(true);
     try {
-      const data = await StockImport.list({ sort:"-created_date", limit:50 });
+      const data = await StockImport.list({ sort:"-id", limit:50 });
       setImports(data);
     } catch(e){ console.error(e); }
     setLoading(false);
