@@ -72,6 +72,9 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
   const [tab, setTab] = useState("info");
   const [exportReqs, setExportReqs] = useState([]);
   const [exportLoading, setExportLoading] = useState(false);
+  const [ktvConfirmingId, setKtvConfirmingId] = useState(null);
+  const [ktvConfirmNote, setKtvConfirmNote]   = useState("");
+  const [ktvSubmitting, setKtvSubmitting]     = useState(false);
 
 
   // Tự mở tab chat nếu được trigger từ notification click HOẶC _openTab prop
@@ -1175,6 +1178,55 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                         {/* Ghi chú kho / KTV */}
                         {req.warehouse_note && <div style={{ marginTop:6, background:"#f9fafb", borderRadius:8, padding:"6px 10px", fontSize:11, color:"#6b7280" }}>🏭 Kho: {req.warehouse_note}</div>}
                         {req.ktv_note && <div style={{ marginTop:4, background:"#f9fafb", borderRadius:8, padding:"6px 10px", fontSize:11, color:"#6b7280" }}>🔧 KTV: {req.ktv_note}</div>}
+                        {/* NÚT XÁC NHẬN NHẬN LINH KIỆN — chỉ hiện khi kho đã xuất + KTV là người của đơn */}
+                        {req.status === "warehouse_confirmed" && (isMyOrder || currentUser.role === "manager" || currentUser.role === "admin") && (
+                          <div style={{ marginTop:12, borderTop:"1px solid #e5e7eb", paddingTop:12 }}>
+                            {ktvConfirmingId === req.id ? (
+                              <div>
+                                <textarea
+                                  value={ktvConfirmNote}
+                                  onChange={e => setKtvConfirmNote(e.target.value)}
+                                  placeholder="Ghi chú khi nhận (không bắt buộc)..."
+                                  rows={2}
+                                  style={{ width:"100%", borderRadius:10, border:"1.5px solid #e5e7eb", padding:"8px 10px", fontSize:12, resize:"none", boxSizing:"border-box", outline:"none", marginBottom:8 }}
+                                />
+                                <div style={{ display:"flex", gap:8 }}>
+                                  <button onClick={() => { setKtvConfirmingId(null); setKtvConfirmNote(""); }}
+                                    style={{ flex:1, height:40, background:"#f3f4f6", border:"none", borderRadius:10, fontSize:13, fontWeight:700, color:"#6b7280", cursor:"pointer" }}>
+                                    Hủy
+                                  </button>
+                                  <button disabled={ktvSubmitting} onClick={async () => {
+                                    setKtvSubmitting(true);
+                                    try {
+                                      await StockExportRequest.update(req.id, {
+                                        status: "ktv_confirmed",
+                                        ktv_confirmed_by: currentUser.id,
+                                        ktv_confirmed_by_name: currentUser.name,
+                                        ktv_confirmed_at: new Date().toISOString(),
+                                        ktv_note: ktvConfirmNote,
+                                      });
+                                      // Cập nhật local list
+                                      setExportReqs(prev => prev.map(r => r.id === req.id ? {...r, status:"ktv_confirmed", ktv_confirmed_by_name:currentUser.name, ktv_note:ktvConfirmNote} : r));
+                                      setKtvConfirmingId(null);
+                                      setKtvConfirmNote("");
+                                    } catch(e) { alert("Lỗi: " + e.message); }
+                                    setKtvSubmitting(false);
+                                  }}
+                                    style={{ flex:2, height:40, background:"#059669", border:"none", borderRadius:10, fontSize:13, fontWeight:800, color:"#fff", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6, opacity:ktvSubmitting?0.6:1 }}>
+                                    <span className="material-icons" style={{fontSize:16,fontFamily:"Material Icons"}}>check_circle</span>
+                                    {ktvSubmitting ? "Đang xử lý..." : "Xác nhận đã nhận"}
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button onClick={() => { setKtvConfirmingId(req.id); setKtvConfirmNote(""); }}
+                                style={{ width:"100%", height:44, background:"linear-gradient(135deg,#059669,#047857)", border:"none", borderRadius:12, fontSize:14, fontWeight:800, color:"#fff", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8, boxShadow:"0 3px 10px rgba(5,150,105,.3)" }}>
+                                <span className="material-icons" style={{fontSize:18,fontFamily:"Material Icons"}}>check_circle</span>
+                                Xác nhận đã nhận linh kiện
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
