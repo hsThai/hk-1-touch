@@ -1433,13 +1433,12 @@ function MainAppInner() {
                           if (raw) mapped = mapPbOrder(raw, STATUS_DISPLAY, PRIORITY_DISPLAY);
                         }
                         if (mapped) {
+                          // Xác định tab cần mở: mention -> chat, còn lại -> info
+                          const openTab = n.type === "mention" ? "chat" : "info";
                           if (user?.role === "technician") setPage("tasks");
                           else setPage("board");
                           setTimeout(() => {
-                            setSelectedOrderSync(mapped);
-                            if (n.type === "mention") {
-                              setTimeout(() => { window.__hk_open_chat = mapped._id || mapped.id; }, 100);
-                            }
+                            setSelectedOrderSync({ ...mapped, _openTab: openTab });
                           }, 150);
                         }
                       } catch {}

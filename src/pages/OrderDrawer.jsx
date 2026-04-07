@@ -78,6 +78,10 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
   useEffect(() => {
     if (order._openTab) {
       setTab(order._openTab);
+      // Clear _openTab sau khi đã dùng để không bị giữ lại
+      if (onUpdate) {
+        // Không gọi onUpdate để tránh side-effect, chỉ clear qua window flag
+      }
       return;
     }
     if (window.__hk_open_chat) {
