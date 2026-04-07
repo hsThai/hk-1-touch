@@ -1243,6 +1243,21 @@ function MainAppInner() {
               </div>
               <div style={{ fontSize:13, color:"#374151", marginBottom:2 }}>  {o.customer_name} ·   {o.device_model}</div>
               {!noKTV && ktv && <div style={{ fontSize:12, color:"#6b7280"}}>  {ktv.name}</div>}
+              {/* Giá tiền */}
+              {(o.estimated_cost > 0 || o.final_cost > 0) && (
+                <div style={{ display:"flex", gap:6, marginTop:3, flexWrap:"wrap" }}>
+                  {o.estimated_cost > 0 && (
+                    <span style={{ fontSize:11, background:"#fef3c7", color:"#92400e", padding:"2px 7px", borderRadius:20, fontWeight:700 }}>
+                      💰 {Number(o.estimated_cost).toLocaleString("vi-VN")}đ
+                    </span>
+                  )}
+                  {o.deposit > 0 && (
+                    <span style={{ fontSize:11, background:"#dcfce7", color:"#166534", padding:"2px 7px", borderRadius:20, fontWeight:700 }}>
+                      🪙 cọc {Number(o.deposit).toLocaleString("vi-VN")}đ
+                    </span>
+                  )}
+                </div>
+              )}
               {timerInfo && <div style={{ fontSize:12, color:timerInfo.urgent?"#dc2626":"#d97706", fontWeight:700, marginTop:4 }}>⏱ {timerInfo.label}: {timerInfo.timeStr}</div>}
               {noKTV && <div style={{ fontSize:12, color:"#d97706", fontWeight:700, marginTop:4 }}>👤 Chưa phân công KTV</div>}
               {!noKTV && o.needs_reassign && <div style={{ fontSize:12, color:"#ef4444", fontWeight:700, marginTop:4 }}>⚠️ Cần chuyển KTV khác!</div>}

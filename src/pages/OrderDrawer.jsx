@@ -922,6 +922,36 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 )}
               </div>
             )}
+            {/* ── Giá tiền summary ── */}
+            {(order.estimated_cost > 0 || order.final_cost > 0 || order.deposit > 0) && (
+              <div style={{ background:"linear-gradient(135deg,#fef9c3,#fff7ed)", border:"2px solid #fcd34d", borderRadius:14, padding:"12px 14px", marginBottom:14 }}>
+                <div style={{ fontWeight:800, fontSize:13, color:"#92400e", marginBottom:8, display:"flex", alignItems:"center", gap:6 }}>
+                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,color:"#d97706",verticalAlign:"middle"}}>receipt_long</span>
+                  Tài Chính Đơn
+                </div>
+                <div style={{ display:"flex", gap:0, borderRadius:10, overflow:"hidden", border:"1px solid #fde68a" }}>
+                  {[
+                    { label:"Báo giá", value:order.estimated_cost, color:"#92400e", bg:"#fef3c7" },
+                    { label:"Đặt cọc", value:order.deposit,        color:"#166534", bg:"#dcfce7" },
+                    { label:"Còn lại", value:(order.estimated_cost||0)-(order.deposit||0), color:"#1e40af", bg:"#dbeafe" },
+                  ].map((item, i) => (
+                    <div key={i} style={{ flex:1, textAlign:"center", padding:"10px 6px", background:item.bg, borderRight: i<2?"1px solid rgba(0,0,0,.08)":"none" }}>
+                      <div style={{ fontSize:10, fontWeight:700, color:item.color, marginBottom:3, opacity:0.7 }}>{item.label}</div>
+                      <div style={{ fontSize:13, fontWeight:900, color:item.color }}>
+                        {item.value > 0 ? `${Number(item.value).toLocaleString("vi-VN")}đ` : "—"}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {order.final_cost > 0 && (
+                  <div style={{ marginTop:8, display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 10px", background:"#f0fdf4", borderRadius:8, border:"1px solid #86efac" }}>
+                    <span style={{ fontSize:12, fontWeight:700, color:"#065f46" }}>✅ Thanh toán thực tế:</span>
+                    <span style={{ fontSize:14, fontWeight:900, color:"#059669" }}>{Number(order.final_cost).toLocaleString("vi-VN")}đ</span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Thời gian dự kiến */}
             {order.estimated_done && (
               <div style={{ background:"#f0fdf4", borderRadius:12, padding:"10px 14px", marginBottom:14, fontSize:13 }}>
@@ -1440,6 +1470,8 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 status: "Cho Bao Gia",
                 qt2_checklist: data.qt2_checklist,
                 qt2_note: data.qt2_note,
+                qt2_de_xuat: JSON.stringify(data.qt2_de_xuat || []),
+                qt2_total: data.qt2_total || 0,
                 accept_stage: 1,
                 stage1_at: order.stage1_at || new Date().toISOString(),
               }, null);
@@ -1457,13 +1489,24 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
             order={order}
             currentUser={currentUser}
             onClose={() => setShowCustConfirm(false)}
-            onApprove={async () => {
-              await onUpdate(order.id, { status:"Cho KTV Sua", accept_stage:0 }, null);
-              logHistory({ order_id:order.id, order_code:order.order_code||order.id, action_type:"approved", action_label:"Khách đồng ý — Lên đơn sửa", changed_by_id:currentUser?.id||"", changed_by_name:currentUser?.name||"", changed_by_role:currentUser?.role||"", new_value:"Chờ KTV Sửa" });
+            onApprove={async (pricing = {}) => {
+              await onUpdate(order.id, {
+                status: "Cho KTV Sua",
+                accept_stage: 0,
+                estimated_cost: pricing.estimated_cost || order.estimated_cost || 0,
+                deposit: pricing.deposit ?? order.deposit ?? 0,
+              }, null);
+              logHistory({
+                order_id: order.id, order_code: order.order_code||order.id,
+                action_type: "approved", action_label: "Khách đồng ý — Lên đơn sửa",
+                changed_by_id: currentUser?.id||"", changed_by_name: currentUser?.name||"", changed_by_role: currentUser?.role||"",
+                new_value: `Báo giá: ${(pricing.estimated_cost||0).toLocaleString("vi-VN")}đ${pricing.deposit ? ` · Cọc: ${pricing.deposit.toLocaleString("vi-VN")}đ` : ""}`,
+              });
               const notifyKtv = users.filter(u => u.id === order.assigned_to);
-              notifyKtv.forEach(u => Notification.create({ user_id:u.id, user_name:u.name||"", title:`✅ Đơn ${order.order_code||order.id} đã được duyệt!`, message:`${order.device_model} · ${order.customer_name} — Bấm Nhận Đơn để bắt đầu`, order_id:order.id, order_code:order.order_code||order.id, type:"status_change", is_read:false }).catch(()=>{}));
+              const giaStr = pricing.estimated_cost ? ` · Báo giá: ${pricing.estimated_cost.toLocaleString("vi-VN")}đ` : "";
+              notifyKtv.forEach(u => Notification.create({ user_id:u.id, user_name:u.name||"", title:`✅ Đơn ${order.order_code||order.id} đã được duyệt!`, message:`${order.device_model} · ${order.customer_name}${giaStr} — Bấm Nhận Đơn để bắt đầu`, order_id:order.id, order_code:order.order_code||order.id, type:"status_change", is_read:false }).catch(()=>{}));
               setShowCustConfirm(false);
-              showToast("✅ Đã lên đơn — KTV được thông báo!");
+              showToast(`✅ Đã lên đơn — Báo giá ${pricing.estimated_cost ? pricing.estimated_cost.toLocaleString("vi-VN")+"đ" : "chưa có"}`);
             }}
             onReject={async (reason) => {
               await onUpdate(order.id, { status:"Hủy", technician_note:(order.technician_note||"") + `

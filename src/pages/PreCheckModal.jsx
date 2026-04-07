@@ -53,6 +53,15 @@ export const QT2_SECTIONS = [
   },
 ];
 
+// Danh mục linh kiện + công gợi ý
+export const SPARE_SUGGESTIONS = [
+  "Màn hình (LCD + cảm ứng)", "Màn hình zin", "Kính mặt trước", "Kính lưng",
+  "Pin", "Sạc không dây", "Loa trong", "Loa ngoài", "Micro", "Camera trước",
+  "Camera sau", "Nút home/Touch", "Nút nguồn", "Nút âm lượng",
+  "Jack tai nghe", "Cổng sạc", "IC nguồn", "IC sạc", "Bo mạch sửa",
+  "Công kiểm tra", "Công vệ sinh", "Công hàn", "Công thay linh kiện",
+];
+
 const MI = ({ name, style = {} }) => (
   <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:20, verticalAlign:"middle", lineHeight:1, userSelect:"none", ...style }}>{name}</span>
 );
@@ -239,10 +248,31 @@ export function QT2Modal({ order, currentUser, onClose, onDone }) {
   const [qt2, setQt2]       = useState({});
   const [note, setNote]     = useState("");
   const [saving, setSaving] = useState(false);
-  const [images, setImages] = useState([]);   // { url, file }
-  const [videos, setVideos] = useState([]);   // { url, file }
+  const [images, setImages] = useState([]);
+  const [videos, setVideos] = useState([]);
   const imgRef = useRef();
   const vidRef = useRef();
+
+  // Đề xuất linh kiện + công
+  const [deXuat, setDeXuat]         = useState([]); // [{ name, qty, price }]
+  const [showSuggest, setShowSuggest] = useState(false);
+  const [suggestFilter, setSuggestFilter] = useState("");
+
+  function addItem(name = "") {
+    setDeXuat(p => [...p, { name, qty: 1, price: "" }]);
+    setShowSuggest(false);
+    setSuggestFilter("");
+  }
+  function updateItem(i, field, val) {
+    setDeXuat(p => p.map((it, idx) => idx === i ? { ...it, [field]: val } : it));
+  }
+  function removeItem(i) {
+    setDeXuat(p => p.filter((_, idx) => idx !== i));
+  }
+  const totalDeXuat = deXuat.reduce((s, it) => s + (Number(it.price)||0) * (Number(it.qty)||1), 0);
+  const filteredSuggest = SPARE_SUGGESTIONS.filter(s =>
+    !suggestFilter || s.toLowerCase().includes(suggestFilter.toLowerCase())
+  );
 
   async function handleImg(e) {
     const file = e.target.files?.[0]; if (!file) return;
@@ -284,6 +314,8 @@ export function QT2Modal({ order, currentUser, onClose, onDone }) {
         qt2_checklist: JSON.stringify(qt2),
         qt2_note: note,
         qt2_images: images.map(i => i.file),
+        qt2_de_xuat: deXuat,          // mảng linh kiện + công đề xuất
+        qt2_total: totalDeXuat,       // tổng dự toán KTV
         status: "Cho Bao Gia",
       });
     } catch(e) { alert(e.message); }
@@ -353,6 +385,90 @@ export function QT2Modal({ order, currentUser, onClose, onDone }) {
               </div>
             );
           })}
+
+          {/* ═══ Đề xuất linh kiện + công ═══ */}
+          <div style={{ marginBottom:16 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:"#374151", marginBottom:8, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,color:"#7c3aed",verticalAlign:"middle"}}>build</span>
+                Đề xuất linh kiện + công
+                {totalDeXuat > 0 && (
+                  <span style={{ background:"#7c3aed", color:"#fff", borderRadius:20, padding:"2px 8px", fontSize:11, fontWeight:800 }}>
+                    {totalDeXuat.toLocaleString("vi-VN")}đ
+                  </span>
+                )}
+              </div>
+              <button onClick={() => setShowSuggest(p=>!p)}
+                style={{ background:"#7c3aed", border:"none", color:"#fff", borderRadius:10, padding:"6px 12px", fontSize:12, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
+                <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:14,verticalAlign:"middle"}}>add</span>
+                Thêm
+              </button>
+            </div>
+
+            {/* Dropdown gợi ý */}
+            {showSuggest && (
+              <div style={{ background:"#fff", border:"2px solid #ddd6fe", borderRadius:14, marginBottom:10, overflow:"hidden", boxShadow:"0 4px 20px rgba(124,58,237,.15)" }}>
+                <div style={{ padding:"8px 10px", borderBottom:"1px solid #ede9fe" }}>
+                  <input value={suggestFilter} onChange={e=>setSuggestFilter(e.target.value)}
+                    placeholder="Tìm linh kiện/dịch vụ..."
+                    autoFocus
+                    style={{ width:"100%", border:"1.5px solid #ddd6fe", borderRadius:8, padding:"6px 10px", fontSize:13, outline:"none", boxSizing:"border-box" }} />
+                </div>
+                <div style={{ maxHeight:200, overflowY:"auto" }}>
+                  {filteredSuggest.map(s => (
+                    <button key={s} onClick={() => addItem(s)}
+                      style={{ width:"100%", padding:"10px 14px", background:"none", border:"none", borderBottom:"1px solid #f5f3ff", textAlign:"left", fontSize:13, color:"#374151", cursor:"pointer", fontWeight:500 }}>
+                      {s}
+                    </button>
+                  ))}
+                  {suggestFilter && !filteredSuggest.some(s=>s.toLowerCase()===suggestFilter.toLowerCase()) && (
+                    <button onClick={() => addItem(suggestFilter)}
+                      style={{ width:"100%", padding:"10px 14px", background:"#faf5ff", border:"none", textAlign:"left", fontSize:13, color:"#7c3aed", cursor:"pointer", fontWeight:700 }}>
+                      + Thêm "{suggestFilter}"
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Danh sách đề xuất */}
+            {deXuat.length > 0 ? (
+              <div style={{ border:"1.5px solid #ddd6fe", borderRadius:14, overflow:"hidden" }}>
+                {/* Header */}
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 60px 90px 32px", gap:6, padding:"8px 10px", background:"#f5f3ff", borderBottom:"1px solid #ddd6fe" }}>
+                  {["Tên linh kiện / dịch vụ","SL","Đơn giá",""].map((h,i)=>(
+                    <div key={i} style={{ fontSize:11, fontWeight:700, color:"#7c3aed", textAlign: i===1?"center":i===2?"right":"left" }}>{h}</div>
+                  ))}
+                </div>
+                {deXuat.map((it, i) => (
+                  <div key={i} style={{ display:"grid", gridTemplateColumns:"1fr 60px 90px 32px", gap:6, padding:"8px 10px", borderBottom: i<deXuat.length-1?"1px solid #f3f4f6":"none", alignItems:"center" }}>
+                    <input value={it.name} onChange={e=>updateItem(i,"name",e.target.value)}
+                      placeholder="Tên..."
+                      style={{ border:"1px solid #e5e7eb", borderRadius:8, padding:"6px 8px", fontSize:13, outline:"none", width:"100%", boxSizing:"border-box" }} />
+                    <input value={it.qty} onChange={e=>updateItem(i,"qty",e.target.value)}
+                      type="number" min="1"
+                      style={{ border:"1px solid #e5e7eb", borderRadius:8, padding:"6px 4px", fontSize:13, outline:"none", textAlign:"center", width:"100%", boxSizing:"border-box" }} />
+                    <input value={it.price} onChange={e=>updateItem(i,"price",e.target.value)}
+                      type="number" min="0" placeholder="0"
+                      style={{ border:"1px solid #e5e7eb", borderRadius:8, padding:"6px 6px", fontSize:13, outline:"none", textAlign:"right", width:"100%", boxSizing:"border-box" }} />
+                    <button onClick={()=>removeItem(i)}
+                      style={{ background:"#fee2e2", border:"none", borderRadius:8, width:28, height:28, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", padding:0 }}>
+                      <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:14,color:"#dc2626"}}>close</span>
+                    </button>
+                  </div>
+                ))}
+                {/* Tổng */}
+                <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"center", gap:10, padding:"10px 12px", background:"#f5f3ff", borderTop:"2px solid #ddd6fe" }}>
+                  <span style={{ fontSize:13, fontWeight:700, color:"#4c1d95" }}>Tổng dự toán KTV:</span>
+                  <span style={{ fontSize:16, fontWeight:900, color:"#7c3aed" }}>{totalDeXuat.toLocaleString("vi-VN")}đ</span>
+                </div>
+              </div>
+            ) : (
+              <div style={{ textAlign:"center", padding:"14px", border:"1.5px dashed #ddd6fe", borderRadius:12, color:"#9ca3af", fontSize:13 }}>
+                Chưa có đề xuất — bấm Thêm để khai báo
+              </div>
+            )}
+          </div>
 
           {/* Ảnh / Video */}
           <div style={{ marginBottom:16 }}>
@@ -427,11 +543,23 @@ export function CustomerConfirmModal({ order, currentUser, onClose, onApprove, o
   const [mode, setMode]                 = useState(""); // "approve" | "reject"
   const [saving, setSaving]             = useState(false);
 
+  // Báo giá
+  const [giaKhach, setGiaKhach]   = useState(order.estimated_cost ? String(order.estimated_cost) : "");
+  const [datCoc, setDatCoc]       = useState(order.deposit ? String(order.deposit) : "");
+
   // Parse qt1 và qt2 để hiển thị tóm tắt
   let qt1 = {};
   let qt2 = {};
+  let deXuat = [];
   try { qt1 = JSON.parse(order.qt1_checklist || "{}"); } catch {}
   try { qt2 = JSON.parse(order.qt2_checklist || "{}"); } catch {}
+  // deXuat có thể là JSON string hoặc array
+  try {
+    const raw = order.qt2_de_xuat;
+    if (typeof raw === "string" && raw) deXuat = JSON.parse(raw);
+    else if (Array.isArray(raw)) deXuat = raw;
+  } catch {}
+  const totalKTV = order.qt2_total || deXuat.reduce((s,it) => s + (Number(it.price)||0)*(Number(it.qty)||1), 0);
 
   const qt1Issues = Object.entries(qt1).filter(([,v]) => v?.checked).map(([k,v]) => {
     const item = [
@@ -445,8 +573,17 @@ export function CustomerConfirmModal({ order, currentUser, onClose, onApprove, o
   });
 
   async function handleApprove() {
+    if (!giaKhach || Number(giaKhach) <= 0) {
+      alert("Vui lòng nhập giá báo khách trước khi xác nhận!");
+      return;
+    }
     setSaving(true);
-    try { await onApprove(); } catch(e) { alert(e.message); }
+    try {
+      await onApprove({
+        estimated_cost: Number(giaKhach),
+        deposit: datCoc ? Number(datCoc) : 0,
+      });
+    } catch(e) { alert(e.message); }
     setSaving(false);
   }
   async function handleReject() {
@@ -524,6 +661,79 @@ export function CustomerConfirmModal({ order, currentUser, onClose, onApprove, o
             </div>
           )}
 
+          {/* ═══ Bảng dự toán từ KTV ═══ */}
+          {deXuat.length > 0 && (
+            <div style={{ background:"#faf5ff", border:"2px solid #c4b5fd", borderRadius:14, padding:"12px 14px", marginBottom:12 }}>
+              <div style={{ fontWeight:800, fontSize:13, color:"#4c1d95", marginBottom:10, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,color:"#7c3aed",verticalAlign:"middle"}}>build</span>
+                  Dự toán KTV
+                </div>
+                <span style={{ fontWeight:900, color:"#7c3aed", fontSize:14 }}>{totalKTV.toLocaleString("vi-VN")}đ</span>
+              </div>
+              <div style={{ border:"1px solid #ddd6fe", borderRadius:10, overflow:"hidden" }}>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 40px 80px 80px", padding:"6px 10px", background:"#ede9fe", gap:6 }}>
+                  {["Hạng mục","SL","Đ.giá","T.tiền"].map((h,i)=>(
+                    <div key={i} style={{ fontSize:11, fontWeight:700, color:"#7c3aed", textAlign:i===0?"left":"right" }}>{h}</div>
+                  ))}
+                </div>
+                {deXuat.map((it, i) => {
+                  const sub = (Number(it.price)||0)*(Number(it.qty)||1);
+                  return (
+                    <div key={i} style={{ display:"grid", gridTemplateColumns:"1fr 40px 80px 80px", padding:"8px 10px", gap:6, borderTop:"1px solid #f3f4f6", alignItems:"center" }}>
+                      <span style={{ fontSize:12, color:"#374151", fontWeight:600 }}>{it.name}</span>
+                      <span style={{ fontSize:12, color:"#6b7280", textAlign:"right" }}>{it.qty}</span>
+                      <span style={{ fontSize:12, color:"#6b7280", textAlign:"right" }}>{(Number(it.price)||0).toLocaleString("vi-VN")}</span>
+                      <span style={{ fontSize:12, fontWeight:700, color:"#4c1d95", textAlign:"right" }}>{sub.toLocaleString("vi-VN")}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ═══ TT nhập giá báo khách ═══ */}
+          <div style={{ background:"#fff7ed", border:"2px solid #fed7aa", borderRadius:14, padding:"14px", marginBottom:12 }}>
+            <div style={{ fontWeight:800, fontSize:14, color:"#9a3412", marginBottom:12, display:"flex", alignItems:"center", gap:6 }}>
+              <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:"#ea580c",verticalAlign:"middle"}}>receipt_long</span>
+              Lên Báo Giá Cho Khách
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+              <div>
+                <div style={{ fontSize:11, fontWeight:700, color:"#92400e", marginBottom:4 }}>
+                  GIÁ BÁO KHÁCH <span style={{ color:"#dc2626" }}>*</span>
+                </div>
+                <input
+                  value={giaKhach}
+                  onChange={e => setGiaKhach(e.target.value)}
+                  type="number" inputMode="numeric" min="0"
+                  placeholder="Nhập giá..."
+                  style={{ width:"100%", borderRadius:10, border: !giaKhach ? "2px solid #fca5a5" : "2px solid #fb923c", padding:"10px 12px", fontSize:15, fontWeight:700, boxSizing:"border-box", outline:"none", textAlign:"right", color:"#9a3412" }}
+                />
+                {giaKhach > 0 && <div style={{ fontSize:11, color:"#ea580c", marginTop:3, textAlign:"right" }}>{Number(giaKhach).toLocaleString("vi-VN")}đ</div>}
+              </div>
+              <div>
+                <div style={{ fontSize:11, fontWeight:700, color:"#92400e", marginBottom:4 }}>ĐẶT CỌC (nếu có)</div>
+                <input
+                  value={datCoc}
+                  onChange={e => setDatCoc(e.target.value)}
+                  type="number" inputMode="numeric" min="0"
+                  placeholder="0"
+                  style={{ width:"100%", borderRadius:10, border:"2px solid #fde68a", padding:"10px 12px", fontSize:15, fontWeight:700, boxSizing:"border-box", outline:"none", textAlign:"right", color:"#92400e" }}
+                />
+                {datCoc > 0 && <div style={{ fontSize:11, color:"#ea580c", marginTop:3, textAlign:"right" }}>{Number(datCoc).toLocaleString("vi-VN")}đ</div>}
+              </div>
+            </div>
+            {giaKhach > 0 && datCoc > 0 && (
+              <div style={{ marginTop:10, padding:"8px 12px", background:"#fef3c7", borderRadius:10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <span style={{ fontSize:12, fontWeight:700, color:"#92400e" }}>Còn lại khi nhận máy:</span>
+                <span style={{ fontSize:14, fontWeight:900, color:"#d97706" }}>
+                  {(Number(giaKhach) - Number(datCoc)).toLocaleString("vi-VN")}đ
+                </span>
+              </div>
+            )}
+          </div>
+
           {/* Chọn đồng ý / hủy */}
           {!mode && (
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16 }}>
@@ -546,6 +756,13 @@ export function CustomerConfirmModal({ order, currentUser, onClose, onApprove, o
               <div style={{ fontWeight:800, fontSize:15, color:"#065f46", marginBottom:8, display:"flex", alignItems:"center", gap:6 }}>
                 <MI name="check_circle" style={{ fontSize:20, color:"#059669" }} /> Khách đồng ý sửa chữa
               </div>
+              {giaKhach > 0 && (
+                <div style={{ background:"#dcfce7", border:"1px solid #86efac", borderRadius:10, padding:"10px 12px", marginBottom:10 }}>
+                  <div style={{ fontSize:12, color:"#166534" }}>💰 Giá báo: <b style={{ fontSize:14 }}>{Number(giaKhach).toLocaleString("vi-VN")}đ</b>
+                    {datCoc > 0 && <span> · Cọc: <b>{Number(datCoc).toLocaleString("vi-VN")}đ</b></span>}
+                  </div>
+                </div>
+              )}
               <div style={{ fontSize:13, color:"#374151", marginBottom:14 }}>
                 KTV <b>{order.assigned_to_name}</b> sẽ được thông báo nhận đơn ngay.
               </div>
