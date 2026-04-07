@@ -940,7 +940,7 @@ function MainAppInner() {
       passcode:          data.passcode || "",
       product_qr:        data.product_qr || "",
       issue_description: data.notes || "",
-      status:            "Cho KTV Kiem",
+      status:            "Chua Nhan",
       assigned_to:       data.assigned_to || null,
       assigned_to_name:  data.assigned_to_name || "",
       received_date:     new Date().toISOString(),
@@ -970,7 +970,7 @@ function MainAppInner() {
       console.error("[createOrder] pbData gửi lên:", JSON.stringify(pbData));
       // Thử lại bỏ các field có thể gây lỗi
       try {
-        const pbData2 = { ...pbData, status: "Cho KTV Kiem", priority: "Thuong", warranty_days: 0 };
+        const pbData2 = { ...pbData, status: "Chua Nhan", priority: "Thuong", warranty_days: 0 };
         delete pbData2.assigned_at;
         delete pbData2.accept_stage;
         const saved2 = await RepairOrder.create(pbData2);
@@ -1076,7 +1076,7 @@ function MainAppInner() {
     const noteMatch = (o.notes||"").toLowerCase().includes(q);
     return nameMatch || phoneMatch || deviceMatch || idMatch || qrMatch || imeiMatch || noteMatch;
   });
-  const pendingAccepts = orders.filter(o => o.assigned_to===user.id && (o.accept_stage||0)<2 && o.assigned_at && !["Hoàn Thành","Đã Giao","Quy Trình 1","Chờ KTV Kiểm","Chờ Báo Giá","Chờ Xác Nhận","Hủy"].includes(o.status));
+  const pendingAccepts = orders.filter(o => o.assigned_to===user.id && o.assigned_at && !["Hoàn Thành","Đã Giao","Hủy"].includes(o.status));
 
   const isWarehouse = user.role === "warehouse";
   const isManager   = user.role === "manager" || user.role === "admin";
@@ -1101,9 +1101,9 @@ function MainAppInner() {
   ];
 
   // ── Kanban Board ─────────────────────────────────────────
-  const COLUMNS = ["Quy Trình 1","Chờ KTV Kiểm","Chờ Báo Giá","Chờ Xác Nhận","Chưa Nhận","Mới Nhận","Chờ Linh Kiện","Đang Sửa","Hoàn Thành","Đã Giao"];
-  const colColors = { "Quy Trình 1":"#e0f2fe","Chờ KTV Kiểm":"#f5f3ff","Chờ Báo Giá":"#fffbeb","Chờ Xác Nhận":"#fdf2f8","Chưa Nhận":"#f3f4f6","Mới Nhận":"#dbeafe","Chờ Linh Kiện":"#fce7f3","Đang Sửa":"#ede9fe","Hoàn Thành":"#dcfce7","Đã Giao":"#f1f5f9" };
-  const colBorder = { "Quy Trình 1":"#7dd3fc","Chờ KTV Kiểm":"#ddd6fe","Chờ Báo Giá":"#fcd34d","Chờ Xác Nhận":"#fbcfe8","Chưa Nhận":"#d1d5db","Mới Nhận":"#93c5fd","Chờ Linh Kiện":"#f9a8d4","Đang Sửa":"#c4b5fd","Hoàn Thành":"#86efac","Đã Giao":"#cbd5e1" };
+  const COLUMNS = ["Chưa Nhận","Mới Nhận","Đang Kiểm Tra","Đang Sửa","Chờ Linh Kiện","Hoàn Thành","Đã Giao"];
+  const colColors = { "Chưa Nhận":"#f3f4f6","Mới Nhận":"#dbeafe","Đang Kiểm Tra":"#e0f2fe","Đang Sửa":"#ede9fe","Chờ Linh Kiện":"#fce7f3","Hoàn Thành":"#dcfce7","Đã Giao":"#f1f5f9" };
+  const colBorder = { "Chưa Nhận":"#d1d5db","Mới Nhận":"#93c5fd","Đang Kiểm Tra":"#7dd3fc","Đang Sửa":"#c4b5fd","Chờ Linh Kiện":"#f9a8d4","Hoàn Thành":"#86efac","Đã Giao":"#cbd5e1" };
 
   function KanbanBoard() {
     // Dùng ref từ outer scope → không bị reset khi re-render
