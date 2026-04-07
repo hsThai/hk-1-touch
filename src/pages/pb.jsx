@@ -60,8 +60,11 @@ async function pbFetch(path, options = {}) {
   const res = await fetch(url, { ...options, headers });
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
-    try { const d = await res.json(); msg = d.message || msg; } catch {}
-    throw new Error(msg);
+    let errData = {};
+    try { const d = await res.json(); msg = d.message || msg; errData = d.data || d; } catch {}
+    const err = new Error(msg);
+    err.data = errData;
+    throw err;
   }
   if (res.status === 204) return null;
   return res.json();

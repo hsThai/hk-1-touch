@@ -966,10 +966,13 @@ function MainAppInner() {
         new_value:       `${data.device_model || ""} — ${data.customer_name || ""}`,
       });
     } catch(e) {
-      console.error("[createOrder] Lần 1 thất bại:", e?.message, e?.data || "");
-      // Thử lại với status rỗng (PocketBase enum chưa có "Chua Nhan")
+      console.error("[createOrder] Lần 1 thất bại:", e?.message, JSON.stringify(e?.data || {}));
+      console.error("[createOrder] pbData gửi lên:", JSON.stringify(pbData));
+      // Thử lại bỏ các field có thể gây lỗi
       try {
-        const pbData2 = { ...pbData, status: "Quy Trinh 1" };
+        const pbData2 = { ...pbData, status: "Quy Trinh 1", priority: "Thuong", warranty_days: 0 };
+        delete pbData2.assigned_at;
+        delete pbData2.accept_stage;
         const saved2 = await RepairOrder.create(pbData2);
         data._id = saved2.id;
         data._pbSaved = true;
