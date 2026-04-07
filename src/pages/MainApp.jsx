@@ -155,9 +155,9 @@ function SwipeableNotif({ notif: n, onDelete, onClick }) {
     startXRef.current = null;
   };
 
-  const bg = n.type === "mention" ? "#eef2ff" : "#fff";
-  const iconName = n.type==="mention"?"chat":n.type==="status_change"?"update":"notifications";
-  const iconColor = n.type==="mention"?"#4f46e5":"#059669";
+  const bg = ["mention","chat"].includes(n.type) ? "#eef2ff" : "#fff";
+  const iconName = ["mention","chat"].includes(n.type)?"chat":n.type==="status_change"?"update":"notifications";
+  const iconColor = ["mention","chat"].includes(n.type)?"#4f46e5":"#059669";
   const deleteVisible = offsetX < -20;
 
   return (
@@ -406,12 +406,10 @@ function MainAppInner() {
         const fresh = await Notification.filter({
           user_id: user.id,
           is_read: false,
-          created_gt: lastNotifCheck,
         }).catch(() => null);
         if (fresh && fresh.length > 0) {
-          lastNotifCheck = fresh[0].created || fresh[0].created_date || new Date().toISOString();
           for (const n of fresh) {
-            await handleNewNotif(n);
+            await handleNewNotif(n);  // handleNewNotif tự dedup qua seenNotifIds
           }
         }
       } catch {}
@@ -1455,6 +1453,7 @@ function MainAppInner() {
                           // Xác định tab cần mở theo loại thông báo
                           const NOTIF_TAB_MAP = {
                             "mention":        "chat",
+                            "chat":           "chat",
                             "export_ready":   "exports",
                             "export_deadline":"exports",
                             "export_overdue": "exports",
@@ -1465,7 +1464,7 @@ function MainAppInner() {
                             "needs_reassign": "info",
                             "status_change":  "info",
                           };
-                          const openTab = NOTIF_TAB_MAP[n.type] || "info";
+                          const openTab = NOTIF_TAB_MAP[n.type] || (["mention","chat"].includes(n.type) ? "chat" : "info");
                           if (user?.role === "technician") setPage("tasks");
                           else setPage("board");
                           setTimeout(() => {

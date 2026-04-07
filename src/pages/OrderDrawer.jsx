@@ -316,16 +316,30 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
           if (!notifyIds.includes(u.id)) { notifyIds.push(u.id); notifyNames.push(u.name); }
         });
       }
+      // Nếu không có mention cụ thể → notify tất cả người liên quan đơn (trừ người gửi)
+      if (!isAllMention && notifyIds.length === 0) {
+        const autoNotify = users.filter(u =>
+          u.id !== currentUser.id &&
+          (["manager","admin","receptionist"].includes(u.role) || u.id === order.assigned_to)
+        );
+        autoNotify.forEach(u => {
+          if (!notifyIds.includes(u.id)) { notifyIds.push(u.id); notifyNames.push(u.name || u.full_name || ""); }
+        });
+      }
       if (notifyIds.length > 0) {
+        const notifType = mentioned_ids.length > 0 ? "mention" : "chat";
+        const notifTitle = mentioned_ids.length > 0
+          ? `💬 ${order.order_code || order.id} — Được nhắc`
+          : `💬 ${order.order_code || order.id} — Tin nhắn mới`;
         notifyIds.forEach((uid, i) => {
           Notification.create({
             user_id: uid,
             user_name: notifyNames[i] || "",
-            title: `💬 Được nhắc trong ${order.id}`,
-            message: `${currentUser.name}: ${msgPreview}`,
+            title: notifTitle,
+            message: `${currentUser.name || currentUser.full_name}: ${msgPreview}`,
             order_id: order._id || order.id,
-            order_code: order.id,
-            type:"mention",
+            order_code: order.order_code || order.id,
+            type: notifType,
             is_read: false,
             created_at: new Date().toISOString(),
           }).catch(() => {});

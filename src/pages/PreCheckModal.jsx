@@ -241,8 +241,8 @@ export function QT2Modal({ order, currentUser, onClose, onDone }) {
   const [saving, setSaving] = useState(false);
   const [images, setImages] = useState([]);   // { url, file }
   const [videos, setVideos] = useState([]);   // { url, file }
-  const imgRef = React.useRef();
-  const vidRef = React.useRef();
+  const imgRef = useRef();
+  const vidRef = useRef();
 
   async function handleImg(e) {
     const file = e.target.files?.[0]; if (!file) return;
