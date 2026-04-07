@@ -457,8 +457,6 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
   const [returnDays, setReturnDays] = useState(3);
   const [reqNote, setReqNote]     = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [showFinish, setShowFinish] = useState(false);
-  const [finishing, setFinishing]   = useState(false);
   const [kvSyncing, setKvSyncing]   = useState(false);
   const [kvMsg, setKvMsg]           = useState("");
 
@@ -527,23 +525,10 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
     setSubmitting(false);
   }
 
-  async function handleFinish() {
-    setFinishing(true);
-    try {
-      const confirmed=requests.filter(r=>r.status==="ktv_confirmed").flatMap(r=>JSON.parse(r.items||"[]"));
-      const totalParts=confirmed.reduce((s,i)=>s+(i.total_price||0),0);
-      const newFinal=(order.estimated_cost||0)+totalParts;
-      await RepairOrder.update(order.id,{status:"Sửa Xong",done_date:new Date().toISOString(),final_cost:newFinal});
-      await RepairChat.create({order_id:order.id,order_code:order.order_code||order.id,sender_id:currentStaff.id,sender_name:currentStaff.full_name,message:`✅ KTV ${currentStaff.full_name} hoàn tất!\nTổng: ${fmtMoney(newFinal)}`,message_type:"system"});
-      if(onDone)onDone();
-    } catch{showToast("Lỗi!");}
-    setFinishing(false); setShowFinish(false);
-  }
+
 
   function showToast(msg){setToast(msg);setTimeout(()=>setToast(""),4000);}
 
-  const confirmedTotal=requests.filter(r=>r.status==="ktv_confirmed").flatMap(r=>JSON.parse(r.items||"[]")).reduce((s,i)=>s+(i.total_price||0),0);
-  const totalBill=(order.estimated_cost||0)+confirmedTotal;
   const filteredParts=parts.filter(p=>!search||(p.name||"").toLowerCase().includes(search.toLowerCase())||(p.sku||"").toLowerCase().includes(search.toLowerCase()));
   const pendingCount=requests.filter(r=>r.status==="pending").length;
 
@@ -601,28 +586,7 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
           )}
         </div>
 
-        {/* FOOTER */}
-        <div style={{padding:"10px 14px 20px",borderTop:"1.5px solid #e5e7eb",flexShrink:0}}>
-          {!showFinish ? (
-            <button onClick={()=>setShowFinish(true)}
-              style={{width:"100%",height:50,borderRadius:14,border:"none",background:"linear-gradient(135deg,#059669,#047857)",color:"#fff",fontWeight:900,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-              <span className="material-icons" style={{fontSize:22}}>check_circle</span>
-              Sửa Xong — Tổng {fmtMoney(totalBill)}
-            </button>
-          ) : (
-            <div style={{background:"#f0fdf4",borderRadius:14,padding:14,border:"1.5px solid #6ee7b7"}}>
-              <div style={{fontWeight:800,fontSize:14,color:"#065f46",marginBottom:8}}>Xác nhận hoàn tất?</div>
-              <div style={{fontSize:13,color:"#374151",marginBottom:12}}>Tổng bill: <b style={{color:"#059669"}}>{fmtMoney(totalBill)}</b></div>
-              <div style={{display:"flex",gap:8}}>
-                <button onClick={()=>setShowFinish(false)} style={{flex:1,height:42,borderRadius:12,border:"1.5px solid #e5e7eb",background:"#fff",fontWeight:700,fontSize:14,cursor:"pointer"}}>Hủy</button>
-                <button onClick={handleFinish} disabled={finishing}
-                  style={{flex:2,height:42,borderRadius:12,border:"none",background:"#059669",color:"#fff",fontWeight:800,fontSize:14,cursor:finishing?"not-allowed":"pointer"}}>
-                  {finishing?"Đang lưu...":"✅ Xác nhận Sửa Xong"}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+
       </div>
 
       {viewReq && (
