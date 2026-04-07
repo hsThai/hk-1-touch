@@ -1661,9 +1661,9 @@ function WarehouseHome({ user, setPage }) {
     try {
       // Dùng list + lọc client-side để tránh lỗi filter trên PocketBase
       const [allExports, parts, imports] = await Promise.all([
-        StockExportRequest.list({ limit:500 }),
-        SparePart.list({ limit:500 }),
-        StockImport.list({ limit:200, sort:"-id" }),
+        StockExportRequest.list({ limit:500 }).catch(() => []),
+        SparePart.list({ limit:500 }).catch(() => []),
+        StockImport.list({ limit:200, sort:"-id" }).catch(() => []),
       ]);
       const pendingExports = allExports.filter(r => r.status === "pending");
       const overdue = allExports.filter(r =>
