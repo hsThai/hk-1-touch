@@ -1800,11 +1800,12 @@ function ReceptionHome({ user, orders, setPage }) {
     inProgress:  orders.filter(o => o.status === "Đang Sửa").length,
     doneToday:   orders.filter(o => (o.status === "Hoàn Thành"||o.status === "Đã Giao") && new Date(o.done_date||o.updated_date||0).toLocaleDateString("vi-VN") === today).length,
   };
+  const waitHandover = orders.filter(o => o.status === "Hoàn Thành").length;
   const cards = [
     { label:"Tiếp nhận hôm nay", value:stats.newToday,       icon:"add_circle",         color:"#4f46e5", bg:"#eef2ff", border:"#c7d2fe", urgent:false,                  page:"new"   },
     { label:"Chờ phân công KTV", value:stats.waitingAssign,  icon:"person_add",          color:"#dc2626", bg:"#fff1f2", border:"#fca5a5", urgent:stats.waitingAssign>0,  page:"tasks" },
-    { label:"Đang sửa",          value:stats.inProgress,     icon:"build",               color:"#d97706", bg:"#fffbeb", border:"#fcd34d", urgent:false,                  page:"tasks" },
-    { label:"Xong hôm nay",      value:stats.doneToday,      icon:"check_circle",        color:"#059669", bg:"#f0fdf4", border:"#86efac", urgent:false,                  page:"tasks" },
+    { label:"Chờ bàn giao",      value:waitHandover,          icon:"handshake",           color:"#059669", bg:"#f0fdf4", border:"#86efac", urgent:waitHandover>0,         page:"tasks" },
+    { label:"Xong hôm nay",      value:stats.doneToday,       icon:"check_circle",        color:"#15803d", bg:"#dcfce7", border:"#4ade80", urgent:false,                  page:"tasks" },
   ];
   return (
     <div style={{ padding:"16px 14px 100px" }}>
@@ -1829,6 +1830,8 @@ function ReceptionHome({ user, orders, setPage }) {
         {[
           { page:"new",       icon:"add_circle",  label:"Tạo đơn mới",        sub:"Tiếp nhận máy từ khách hàng",       color:"#4f46e5", bg:"#eef2ff" },
           { page:"tasks",     icon:"list_alt",    label:"Danh sách đơn",      sub:"Tra cứu và theo dõi tiến độ",       color:"#0369a1", bg:"#e0f2fe" },
+          { page:"tasks",     icon:"handshake",   label:"Chờ bàn giao",       sub:"Đơn Hoàn Thành chờ trả máy",        color:"#059669", bg:"#f0fdf4",
+            highlight: orders.filter(o => o.status === "Hoàn Thành").length },
           { page:"customers", icon:"group",       label:"Khách hàng",         sub:"Tra cứu lịch sử sửa chữa",          color:"#7c3aed", bg:"#f5f3ff" },
         ].map(item => (
           <div key={item.page} onClick={() => setPage(item.page)}
@@ -1929,14 +1932,15 @@ function WarehouseHome({ user, setPage }) {
           { page:"wh_import", icon:"move_to_inbox",  label:"Tạo phiếu nhập hàng",  sub:"Máy móc & linh kiện",           color:"#7c3aed", bg:"#f5f3ff" },
           { page:"wh_stock",  icon:"search",         label:"Tra cứu tồn kho",       sub:"Tìm linh kiện theo tên / SKU",  color:"#0369a1", bg:"#e0f2fe" },
         ].map(item => (
-          <div key={item.page} onClick={() => setPage(item.page)}
-            style={{ background:item.bg, borderRadius:14, padding:"14px 16px", border:`1.5px solid ${item.bg}`, cursor:"pointer", display:"flex", alignItems:"center", gap:14, boxShadow:"0 2px 8px rgba(0,0,0,.05)" }}>
+          <div key={item.page+item.label} onClick={() => setPage(item.page)}
+            style={{ background:item.bg, borderRadius:14, padding:"14px 16px", border:`1.5px solid ${item.highlight > 0 ? item.color : item.bg}`, cursor:"pointer", display:"flex", alignItems:"center", gap:14, boxShadow:"0 2px 8px rgba(0,0,0,.05)" }}>
             <span className="material-icons" style={{ fontSize:26, color:item.color, flexShrink:0 }}>{item.icon}</span>
-            <div>
+            <div style={{ flex:1 }}>
               <div style={{ fontWeight:800, fontSize:14, color:"#1e1b4b" }}>{item.label}</div>
               <div style={{ fontSize:12, color:"#6b7280", marginTop:2 }}>{item.sub}</div>
             </div>
-            <span className="material-icons" style={{ fontSize:20, color:"#d1d5db", marginLeft:"auto" }}>chevron_right</span>
+            {item.highlight > 0 && <span style={{ background:item.color, color:"#fff", borderRadius:20, minWidth:22, height:22, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:900, padding:"0 6px" }}>{item.highlight}</span>}
+            <span className="material-icons" style={{ fontSize:20, color:"#d1d5db" }}>chevron_right</span>
           </div>
         ))}
       </div>

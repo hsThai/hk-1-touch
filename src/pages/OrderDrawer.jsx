@@ -1,5 +1,6 @@
 /* v1774860462-5727 */
 import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
+import HandoverModal from "./HandoverModal.jsx";
 const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ default: ({ onClose }) => (
   <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}}>
     <div style={{background:"#fff",borderRadius:16,padding:32,textAlign:"center"}}>
@@ -75,6 +76,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
   const [ktvConfirmingId, setKtvConfirmingId] = useState(null);
   const [ktvConfirmNote, setKtvConfirmNote]   = useState("");
   const [ktvSubmitting, setKtvSubmitting]     = useState(false);
+  const [showHandover, setShowHandover]       = useState(false);
 
 
   // Tự mở tab chat nếu được trigger từ notification click HOẶC _openTab prop
@@ -874,6 +876,26 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 <span style={{ fontWeight:600 }}>{new Date(order.estimated_done).toLocaleString("vi-VN",{dateStyle:"short",timeStyle:"short"})}</span>
               </div>
             )}
+
+            {/* ── NÚT BÀN GIAO MÁY — chỉ Tiếp tân và Manager, khi đơn Hoàn Thành ── */}
+            {order.status === "Hoàn Thành" && (isReception || currentUser.role === "manager" || currentUser.role === "admin") && (
+              <div style={{ marginTop:8, marginBottom:4 }}>
+                <button onClick={() => setShowHandover(true)}
+                  style={{ width:"100%", height:58, borderRadius:16, background:"linear-gradient(135deg,#0369a1,#0891b2)", color:"#fff", border:"none", fontWeight:900, fontSize:17, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10, boxShadow:"0 4px 16px rgba(3,105,161,.35)" }}>
+                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:24}}>handshake</span>
+                  Bàn Giao Máy
+                </button>
+              </div>
+            )}
+            {order.status === "Đã Giao" && (
+              <div style={{ background:"#f0fdf4", border:"2px solid #86efac", borderRadius:14, padding:"12px 16px", marginTop:8, display:"flex", alignItems:"center", gap:10 }}>
+                <span className="material-icons" style={{fontSize:22,color:"#059669",fontFamily:"Material Icons"}}>check_circle</span>
+                <div>
+                  <div style={{ fontWeight:800, fontSize:14, color:"#065f46" }}>Đã bàn giao máy</div>
+                  {order.handover_at && <div style={{ fontSize:12, color:"#059669", marginTop:2 }}>{new Date(order.handover_at).toLocaleString("vi-VN",{dateStyle:"short",timeStyle:"short"})} · {order.handover_by_name||""}</div>}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1246,6 +1268,41 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 Mở màn hình linh kiện
             </button>
           </div>
+        )}
+
+        {showHandover && (
+          <HandoverModal
+            order={order}
+            currentUser={currentUser}
+            onClose={() => setShowHandover(false)}
+            onDone={(handoverData) => {
+              onUpdate(order.id, {
+                status: "Đã Giao",
+                handover_at: handoverData.handover_at,
+                handover_by: currentUser.id,
+                handover_by_name: currentUser.name,
+                handover_checklist: JSON.stringify(handoverData.checklist),
+                handover_note: handoverData.note,
+                handover_signature: handoverData.signature,
+                handover_media: handoverData.media,
+                final_cost: handoverData.final_cost,
+              }, null);
+              logHistory({
+                order_id: order._id||order.id,
+                order_code: order.order_code||order.id,
+                action_type: "delivered",
+                action_label: "Bàn giao máy",
+                changed_by_id: currentUser?.id||"",
+                changed_by_name: currentUser?.name||"",
+                changed_by_role: currentUser?.role||"",
+                old_value: "Hoàn Thành",
+                new_value: "Đã Giao",
+                note: handoverData.note,
+              });
+              setShowHandover(false);
+              showToast("✅ Bàn giao thành công!");
+            }}
+          />
         )}
 
         {showSparePart && (
