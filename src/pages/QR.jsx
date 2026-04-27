@@ -4,6 +4,8 @@ import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, Spar
 import { uploadFile } from "./pb.js";
 
 
+let _qrLibLoaded = false;
+let _qrLibCallbacks = [];
 function loadQRLib(cb) {
   if (_qrLibLoaded) { cb(); return; }
   _qrLibCallbacks.push(cb);
@@ -224,5 +226,17 @@ function QRScanModal({ onClose, onFound, orders = [], mode = "search" }) {
 // ══════════════════════════════════════════════
 //  QR PRINT MODAL
 // ══════════════════════════════════════════════
+
+function QRPrintModal({ order, onClose }) {
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:3000, background:"rgba(0,0,0,.6)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+      <div style={{ background:"#fff", borderRadius:24, padding:28, width:"100%", maxWidth:340 }}>
+        <div style={{ fontWeight:800, fontSize:18, marginBottom:16 }}>🖨️ In Mã QR</div>
+        <QRCanvas key={order?.id} text={order?.id||""} size={170} />
+        <button onClick={onClose} style={{ width:"100%", height:48, borderRadius:14, background:"#1e1b4b", color:"#fff", border:"none", fontWeight:800, cursor:"pointer", marginTop:16 }}>Đóng</button>
+      </div>
+    </div>
+  );
+}
 
 export { loadQRLib, loadJsQR, QRCanvas, getQRDataUrl, QRScanModal, QRPrintModal };

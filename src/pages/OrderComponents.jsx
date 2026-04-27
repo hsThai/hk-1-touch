@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, SparePartUsage } from "@/api/entities";
 import { uploadFile } from "@/api/storage";
+import SparePartModal from "./SparePartModal";
 
+let _qrLibLoaded = false;
+let _qrLibCallbacks = [];
 function loadQRLib(cb) {
   if (_qrLibLoaded) { cb(); return; }
   _qrLibCallbacks.push(cb);
@@ -1219,14 +1222,12 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
         )}
 
         {showSparePart && (
-          <Suspense fallback={<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{color:"#fff",fontSize:18}}>⏳ Đang tải...</div></div>}>
-            <SparePartModal
-              order={order}
-              currentStaff={currentUser}
-              onClose={() => setShowSparePart(false)}
-              onDone={() => { setShowSparePart(false); onUpdate(order.id, { status:"Hoàn Thành" }, { userId:order.assigned_to, delta:2, note:"Sửa xong +2 KPI" }); onClose(); }}
-            />
-          </Suspense>
+          <SparePartModal
+            order={order}
+            currentStaff={currentUser}
+            onClose={() => setShowSparePart(false)}
+            onDone={() => { setShowSparePart(false); onUpdate(order.id, { status:"Hoàn Thành" }, { userId:order.assigned_to, delta:2, note:"Sửa xong +2 KPI" }); onClose(); }}
+          />
         )}
 
         {tab === "qr" && (

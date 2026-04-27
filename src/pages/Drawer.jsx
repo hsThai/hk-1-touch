@@ -4,7 +4,9 @@ import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage
 import { uploadFile } from "./pb.js";
 
 import { QRScanModal, QRPrintModal, QRCanvas, getQRDataUrl, loadQRLib } from "./QRComponents";
-import { timeAgo, genOrderId, getKpiTimerInfo, MediaViewer, AcceptChecklistModal, AcceptTimer } from "./MediaViewer";
+import { timeAgo, genOrderId, getKpiTimerInfo, MediaViewer, AcceptChecklistModal, AcceptTimer, STATUS_COLS } from "./MediaViewer";
+import { Suspense, lazy } from "react";
+const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ default: ({ onClose }) => <div onClick={onClose} /> })));
 
 function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR }) {
   const [chatInput, setChatInput] = useState("");
