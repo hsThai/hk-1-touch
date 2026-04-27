@@ -25,6 +25,13 @@ const SettingsPage = lazy(() => import("./Settings").catch(() => ({ default: () 
     <div style={{fontWeight:700,marginTop:8}}>Module không tải được</div>
   </div>
 )})));
+const WarehouseManager = lazy(() => import("./WarehouseManager").catch(() => ({ default: ({ onBack }) => (
+  <div style={{padding:32,textAlign:"center"}}>
+    <div style={{fontSize:32}}>⚠️</div>
+    <div style={{fontWeight:700,marginTop:8}}>Module không tải được</div>
+    <button onClick={onBack} style={{marginTop:16,padding:"10px 24px",background:"#4f46e5",color:"#fff",border:"none",borderRadius:8,cursor:"pointer"}}>Quay lại</button>
+  </div>
+)})));
 
 
 // Components loaded from OrderComponents
@@ -1087,6 +1094,7 @@ function MainAppInner() {
     {key:"wh_export",  icon:"outbox",        label:"Phiếu xuất kho"},
     {key:"wh_import",  icon:"move_to_inbox", label:"Nhập hàng"},
     {key:"wh_stock",   icon:"inventory_2",   label:"Tồn kho"},
+    {key:"wh_manager", icon:"warehouse",      label:"Quản lý kho"},
   ] : [
     ...(isManager?[{key:"dashboard",icon:"bar_chart",label:"Tổng quan"}]:[]),
     ...(isKtv?[{key:"ktv_home",icon:"home",label:"Trang chủ"}]:[]),
@@ -1095,7 +1103,7 @@ function MainAppInner() {
     {key:"tasks",icon:"check_circle",label:"Danh sách đơn"},
     ...(!isReception && !isWarehouse?[{key:"kpi",icon:"emoji_events",label:"KPI Kỹ thuật"}]:[]),
     ...(!isKtv?[{key:"customers",icon:"group",label:"Khách hàng"}]:[]),
-    ...(isManager?[{key:"staff",icon:"person",label:"Nhân viên"},{key:"settings",icon:"settings",label:"Cài đặt"}]:[]),
+    ...(isManager?[{key:"staff",icon:"person",label:"Nhân viên"},{key:"wh_manager",icon:"warehouse",label:"Quản lý kho"},{key:"settings",icon:"settings",label:"Cài đặt"}]:[]),
   ];
 
   // ── Kanban Board ─────────────────────────────────────────
@@ -1571,6 +1579,7 @@ function MainAppInner() {
         {page==="wh_export" && <WarehouseExport user={user} />}
         {page==="wh_import" && <WarehouseImport user={user} />}
         {page==="wh_stock"  && <WarehouseStock  user={user} />}
+        {page==="wh_manager" && <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":"dashboard")} />}
       </Suspense>
 
       {/* Bottom nav */}

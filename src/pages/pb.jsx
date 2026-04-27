@@ -216,6 +216,14 @@ export const StockExportRequest = makeCollection("stock_export_requests");
 export const StockImport        = makeCollection("stock_imports");
 export const StockImportItem    = makeCollection("stock_import_items");
 export const OrderHistory       = makeCollection("order_history");
+export const Warehouse          = makeCollection("warehouses");
+export const WarehouseZone      = makeCollection("warehouse_zones");
+export const WarehouseLocation  = makeCollection("warehouse_locations");
+export const StockLedger        = makeCollection("stock_ledgers");
+export const StockMovement      = makeCollection("stock_movements");
+export const StockTransfer      = makeCollection("stock_transfers");
+export const StockCount         = makeCollection("stock_counts");
+export const StockCountItem     = makeCollection("stock_count_items");
 
 // ── Helper: ghi log lịch sử đơn ──────────────────────────
 export async function logHistory({ order_id, order_code, action_type, action_label, changed_by_id, changed_by_name, changed_by_role, old_value, new_value, note }) {
