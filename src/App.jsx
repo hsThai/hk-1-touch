@@ -16,6 +16,7 @@ import StaffManager from './pages/StaffManager';
 import StockExportFlow from './pages/StockExportFlow';
 import kiotviet from './pages/kiotviet';
 import pb from './pages/pb';
+import ExportDocs from './pages/ExportDocs';
 
 function App() {
   return (
@@ -39,6 +40,7 @@ function App() {
         <Route path="/StockExportFlow" element={<StockExportFlow />} />
         <Route path="/kiotviet" element={<kiotviet />} />
         <Route path="/pb" element={<pb />} />
+        <Route path="/ExportDocs" element={<ExportDocs />} />
       </Routes>
     </BrowserRouter>
   )
