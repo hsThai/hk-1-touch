@@ -18,7 +18,7 @@ function makeWHCol(colName) {
     return res.json();
   }
   return {
-    list:   (p={})   => pbFetch(`collections/${colName}/records?perPage=500&sort=-created&${new URLSearchParams(p)}`).then(r=>r.items||[]),
+    list:   (p={})   => pbFetch(`collections/${colName}/records?perPage=500&${new URLSearchParams(p)}`).then(r=>r.items||[]),
     filter: (f,p={}) => pbFetch(`collections/${colName}/records?perPage=500&filter=${encodeURIComponent(f)}&${new URLSearchParams(p)}`).then(r=>r.items||[]),
     create: (d)      => pbFetch(`collections/${colName}/records`, { method:"POST", body:JSON.stringify(d) }),
     update: (id,d)   => pbFetch(`collections/${colName}/records/${id}`, { method:"PATCH", body:JSON.stringify(d) }),
