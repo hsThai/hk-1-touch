@@ -1577,7 +1577,11 @@ function MainAppInner() {
         )}
         {page==="kpi" && <KPIPage users={users} orders={orders} />}
         {page==="customers" && <CustomerList />}
-        {page==="dashboard" && <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><ManagerDashboard currentUser={user} orders={orders} users={users} /></Suspense>}
+        {page==="dashboard" && (
+          user.role==="manager" || user.role==="admin"
+            ? <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><ManagerDashboard currentUser={user} orders={orders} users={users} /></Suspense>
+            : <Dashboard />
+        )}
         {page==="staff" && <StaffManagerPage />}
         {page==="settings" && <SettingsPage user={user} />}
         {page==="wh_home"   && <WarehouseHome   user={user} setPage={setPage} />}
