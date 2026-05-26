@@ -391,3 +391,11 @@ export default function Settings({ user }) {
         </button>
       </div>
 
+      {toast && (
+        <div style={{ position:"fixed", bottom:24, left:"50%", transform:"translateX(-50%)", background:"#1e1b4b", color:"#fff", borderRadius:14, padding:"12px 24px", fontSize:14, fontWeight:700, zIndex:5000, boxShadow:"0 8px 24px rgba(0,0,0,.3)" }}>
+          {toast}
+        </div>
+      )}
+    </div>
+  );
+}
