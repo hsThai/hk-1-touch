@@ -2,11 +2,6 @@
 import { useState, useEffect, useRef } from "react";
 import { AppSettings } from "./pb.js";
 
-const KV_KEYS = [
-  { key:"kv_client_id",     label:"Client ID",       placeholder:"83a5bcbe-3c39-458c-bdd9-...",  type:"text" },
-  { key:"kv_client_secret", label:"Client Secret",   placeholder:"3B52F3A9DDE194966DAE2CE0A...", type:"password" },
-  { key:"kv_retailer",      label:"Tên gian hàng",   placeholder:"tengianhang (không dấu)",      type:"text" },
-];
 
 const SHOP_KEYS = [
   { key:"shop_name",     label:"Tên cửa hàng",   placeholder:"Sửa Chữa Điện Thoại ABC" },
@@ -102,10 +97,7 @@ export async function getNotifSound(type) {
 export default function Settings() {
   const [settings, setSettings] = useState({});
   const [saving, setSaving]     = useState(false);
-  const [testing, setTesting]   = useState(false);
-  const [kvStatus, setKvStatus] = useState(null);
   const [toast, setToast]       = useState("");
-  const [showSecret, setShowSecret] = useState(false);
   const [customSoundFile, setCustomSoundFile] = useState(null);
   const customAudioRef = useRef();
 
@@ -127,7 +119,7 @@ export default function Settings() {
     try {
       const list = await AppSettings.filter({ key });
       if (list.length > 0) await AppSettings.update(list[0].id, { value });
-      else await AppSettings.create({ key, value, label: key, group: key.startsWith("kv_") ? "kiotviet" : key.startsWith("notif_") ? "notification" : "shop" });
+      else await AppSettings.create({ key, value, label: key, group: key.startsWith("notif_") ? "notification" : "shop" });
     } catch {}
   }
 
@@ -170,34 +162,13 @@ export default function Settings() {
     playSound(soundKey);
   }
 
-  async function testKiotViet() {
-    setTesting(true); setKvStatus(null);
-    const clientId     = settings["kv_client_id"]     || "";
-    const clientSecret = settings["kv_client_secret"] || "";
-    if (!clientId || !clientSecret) {
-      setKvStatus("error");
-      showToast("⚠️ Vui lòng nhập đầy đủ Client ID và Secret!");
-      setTesting(false); return;
-    }
-    try {
-      const res = await fetch("https://id.kiotviet.vn/connect/token", {
-        method:"POST",
-        headers:{"Content-Type":"application/x-www-form-urlencoded"},
-        body: new URLSearchParams({ scopes:"PublicApi.Access", grant_type:"client_credentials", client_id:clientId, client_secret:clientSecret }),
-      });
-      const data = await res.json();
-      if (data.access_token) { setKvStatus("ok"); showToast("🎉 Kết nối KiotViet thành công!"); }
-      else { setKvStatus("error"); showToast("❌ Sai Client ID hoặc Secret!"); }
-    } catch { setKvStatus("error"); showToast("❌ Không kết nối được!"); }
-    setTesting(false);
-  }
 
   function showToast(msg) { setToast(msg); setTimeout(()=>setToast(""),3000); }
 
   return (
     <div style={{ padding:16, maxWidth:640, margin:"0 auto", paddingBottom:40 }}>
       <div style={{ fontSize:20, fontWeight:900, color:"#1e1b4b", marginBottom:4 }}>⚙️ Cài đặt hệ thống</div>
-      <div style={{ fontSize:13, color:"#6b7280", marginBottom:24 }}>Thông tin cửa hàng · Âm thanh thông báo · KiotViet</div>
+      <div style={{ fontSize:13, color:"#6b7280", marginBottom:24 }}>Thông tin cửa hàng · Âm thanh thông báo</div>
 
       {/* ── Thông tin cửa hàng ── */}
       <div style={{ background:"#fff", borderRadius:20, padding:24, marginBottom:20, boxShadow:"0 2px 12px rgba(0,0,0,.07)" }}>
@@ -300,55 +271,6 @@ export default function Settings() {
           style={{ marginTop:16, height:44, padding:"0 24px", background:"#4f46e5", color:"#fff", border:"none", borderRadius:12, fontWeight:800, fontSize:14, cursor:"pointer" }}>
           {saving ? "Đang lưu..." : "💾 Lưu cài đặt âm thanh"}
         </button>
-      </div>
-
-      {/* ── KiotViet API ── */}
-      <div style={{ background:"#fff", borderRadius:20, padding:24, boxShadow:"0 2px 12px rgba(0,0,0,.07)" }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-          <div style={{ fontSize:16, fontWeight:800, color:"#1e1b4b" }}>🔗 Kết nối KiotViet</div>
-          {kvStatus==="ok"    && <span style={{ background:"#ecfdf5", color:"#059669", fontSize:12, fontWeight:700, padding:"4px 12px", borderRadius:20 }}>✅ Đã kết nối</span>}
-          {kvStatus==="error" && <span style={{ background:"#fef2f2", color:"#dc2626", fontSize:12, fontWeight:700, padding:"4px 12px", borderRadius:20 }}>❌ Lỗi kết nối</span>}
-        </div>
-        <div style={{ fontSize:13, color:"#6b7280", marginBottom:16 }}>Đồng bộ khách hàng, linh kiện và xuất hóa đơn tự động.</div>
-
-        <div style={{ background:"#fffbeb", border:"1px solid #fde68a", borderRadius:12, padding:"12px 14px", marginBottom:18, fontSize:13, color:"#92400e" }}>
-          📌 <b>Cách lấy API:</b> Đăng nhập KiotViet (Admin) → Thiết lập → Thiết lập cửa hàng → <b>Thiết lập kết nối API</b>
-        </div>
-
-        {KV_KEYS.map(f => (
-          <div key={f.key} style={{ marginBottom:14 }}>
-            <label style={{ fontSize:13, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>{f.label}</label>
-            <div style={{ position:"relative" }}>
-              <input value={settings[f.key]||""} onChange={e=>setSettings(p=>({...p,[f.key]:e.target.value}))}
-                type={f.type==="password" && !showSecret ? "password" : "text"}
-                placeholder={f.placeholder}
-                style={{ width:"100%", height:44, borderRadius:10, border:"1.5px solid #e5e7eb", padding:`0 ${f.type==="password"?"44px":"12px"} 0 12px`, fontSize:13, outline:"none", boxSizing:"border-box", fontFamily:"monospace" }} />
-              {f.type==="password" && (
-                <button onClick={()=>setShowSecret(v=>!v)}
-                  style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:16 }}>
-                  {showSecret ? "🙈" : "👁️"}
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
-
-        <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
-          <button onClick={() => saveAll(KV_KEYS.map(f=>f.key))} disabled={saving}
-            style={{ flex:1, height:46, borderRadius:12, border:"none", background:"#4f46e5", color:"#fff", fontWeight:800, fontSize:14, cursor:"pointer", minWidth:120 }}>
-            {saving ? "Đang lưu..." : "💾 Lưu API"}
-          </button>
-          <button onClick={testKiotViet} disabled={testing}
-            style={{ flex:1, height:46, borderRadius:12, border:"2px solid #4f46e5", background:"#eef2ff", color:"#4f46e5", fontWeight:800, fontSize:14, cursor:"pointer", minWidth:120 }}>
-            {testing ? "Đang test..." : "🔌 Test kết nối"}
-          </button>
-        </div>
-
-        {kvStatus==="ok" && (
-          <div style={{ marginTop:16, background:"#ecfdf5", border:"1px solid #6ee7b7", borderRadius:12, padding:"12px 16px", fontSize:13, color:"#065f46", fontWeight:600 }}>
-            🎉 KiotViet đã kết nối!
-          </div>
-        )}
       </div>
 
       {toast && (

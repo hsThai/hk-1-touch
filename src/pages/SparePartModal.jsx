@@ -2,7 +2,6 @@
 /* v3-export-request-flow — fixed JSX */
 import React, { useState, useEffect, useRef } from "react";
 import { SparePart, SparePartUsage, RepairChat, RepairOrder, Notification, Staff, StockExportRequest } from "./pb.jsx";
-import { syncKvProducts, createKvDeliveryOrder } from "./kiotviet.jsx";
 
 function genCode() {
   const n = new Date();
@@ -68,7 +67,7 @@ function TabList({parts, cartItems, search, setSearch, addToCart, removeFromCart
           style={{width:"100%",height:40,borderRadius:12,border:"1.5px solid #e5e7eb",padding:"0 14px",fontSize:14,outline:"none",boxSizing:"border-box"}}/>
         {parts.length===0 && (
           <div style={{marginTop:8,background:"#fffbeb",borderRadius:10,padding:"8px 12px",fontSize:13,color:"#92400e",fontWeight:600}}>
-            Chưa có LK. Nhấn KiotViet để đồng bộ.
+            Chưa có LK.
           </div>
         )}
       </div>
@@ -289,15 +288,8 @@ function RequestDetailModal({viewReq, setViewReq, currentStaff, order, requests,
         warehouse_confirmed_at:new Date().toISOString(),
         warehouse_note:confirmNote, warehouse_media:mediaStr,
       });
-      let kvCode="";
-      try {
-        const items=(Array.isArray(viewReq.items)?viewReq.items:JSON.parse(viewReq.items||"[]"));
-        const res=await createKvDeliveryOrder({orderCode:viewReq.order_code,deviceModel:order.device_model||"?",technicianName:viewReq.requested_by_name,parts:items.map(i=>({kvProductId:i.part_id,sku:i.sku,name:i.part_name,qty:i.qty,price:i.unit_price}))});
-        kvCode=res.transferCode||res.invoiceCode||"OK";
-        await StockExportRequest.update(viewReq.id,{kiotviet_invoice_code:kvCode});
-      } catch { kvCode="(KV lỗi)"; }
-      await Notification.create({user_id:viewReq.requested_by,user_name:viewReq.requested_by_name,title:"📦 Kho đã xuất LK — Xác nhận nhận!",message:`Phiếu ${viewReq.request_code} | KV: ${kvCode}`,order_id:order.id,order_code:order.order_code||order.id,type:"export_ready",is_read:false});
-      setViewReq(v=>({...v,status:"warehouse_confirmed",warehouse_confirmed_by_name:(currentStaff.full_name||currentStaff.name||""),warehouse_confirmed_at:new Date().toISOString(),kiotviet_invoice_code:kvCode}));
+      await Notification.create({user_id:viewReq.requested_by,user_name:viewReq.requested_by_name,title:"📦 Kho đã xuất LK — Xác nhận nhận!",message:`Phiếu ${viewReq.request_code} đã xuất xong`,order_id:order.id,order_code:order.order_code||order.id,type:"export_ready",is_read:false});
+      setViewReq(v=>({...v,status:"warehouse_confirmed",warehouse_confirmed_by_name:(currentStaff.full_name||currentStaff.name||""),warehouse_confirmed_at:new Date().toISOString()}));
       setRequests(p=>p.map(r=>r.id===viewReq.id?{...r,status:"warehouse_confirmed"}:r));
       setConfirmMode(null); setConfirmNote(""); setConfirmMedia([]);
       showToast("✅ Đã xác nhận xuất kho!");
@@ -355,7 +347,6 @@ function RequestDetailModal({viewReq, setViewReq, currentStaff, order, requests,
             <RI l="Hạn xuất" v={fmtDt(viewReq.due_datetime)}/>
             {viewReq.export_type==="borrow" && <RI l="Hạn trả" v={viewReq.return_due_date?fmtDt(viewReq.return_due_date):"—"}/>}
             <RI l="Tổng giá trị" v={fmtMoney(viewReq.total_value)} bold/>
-            {viewReq.kiotviet_invoice_code && <RI l="Mã KiotViet" v={viewReq.kiotviet_invoice_code}/>}
           </div>
 
           <div style={{fontWeight:800,fontSize:14,color:"#1e1b4b",marginBottom:8}}>Danh sách linh kiện</div>
@@ -458,8 +449,6 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
   const [returnDays, setReturnDays] = useState(3);
   const [reqNote, setReqNote]     = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [kvSyncing, setKvSyncing]   = useState(false);
-  const [kvMsg, setKvMsg]           = useState("");
 
   useEffect(()=>{ if (order?.id) loadAll(); },[order?.id]);
 
@@ -476,17 +465,6 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
     setLoading(false);
   }
 
-  async function handleSyncKv() {
-    setKvSyncing(true); setKvMsg("⏳ KiotViet...");
-    try {
-      const res = await syncKvProducts((d,t)=>setKvMsg(`⏳ ${d}/${t}...`));
-      setKvMsg(`✅ ${res.synced} SP!`);
-      const p = await SparePart.filter({is_active:true});
-      setParts(p.sort((a,b)=>(a.name||"").localeCompare(b.name)));
-      setTimeout(()=>setKvMsg(""),3000);
-    } catch(e){setKvMsg(`❌ ${e.message}`);setTimeout(()=>setKvMsg(""),4000);}
-    setKvSyncing(false);
-  }
 
   function addToCart(part) {
     if (cartItems.find(c=>c.part_id===part.id)){showToast("Đã có trong giỏ!");return;}
@@ -547,19 +525,13 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
               <div style={{color:"#a5b4fc",fontSize:13,marginTop:2}}>{order.device_model||order.device_name||"?"} · {order.customer_name}</div>
             </div>
             <div style={{display:"flex",gap:8,alignItems:"center",flexShrink:0}}>
-              {tab==="list" && (
-                <button onClick={handleSyncKv} disabled={kvSyncing}
-                  style={{height:34,padding:"0 12px",background:kvSyncing?"rgba(255,255,255,.1)":"rgba(99,102,241,.85)",border:"1.5px solid rgba(255,255,255,.5)",color:"#fff",borderRadius:10,fontSize:11,fontWeight:700,cursor:kvSyncing?"not-allowed":"pointer",display:"flex",alignItems:"center",gap:5}}>
-                  <span className="material-icons" style={{fontSize:15}}>sync</span>{kvSyncing?"Đang cập nhật...":"Cập nhật tồn Kho"}
-                </button>
-              )}
+
               <button onClick={onClose}
                 style={{background:"rgba(255,255,255,.2)",border:"1.5px solid rgba(255,255,255,.35)",color:"#fff",width:36,height:36,borderRadius:"50%",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
                 <span className="material-icons" style={{fontSize:20}}>close</span>
               </button>
             </div>
           </div>
-          {kvMsg && <div style={{marginTop:8,background:"rgba(255,255,255,.15)",borderRadius:10,padding:"6px 12px",fontSize:12,color:"#fff",fontWeight:600}}>{kvMsg}</div>}
         </div>
 
         {/* TABS */}
@@ -587,18 +559,10 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
               {parts.length === 0 && (
                 <div style={{margin:"10px 12px 0",background:"#fffbeb",border:"1.5px solid #fbbf24",borderRadius:12,padding:"10px 14px",display:"flex",gap:10,alignItems:"flex-start"}}>
                   <span className="material-icons" style={{fontSize:20,color:"#d97706",flexShrink:0,marginTop:1}}>info</span>
-                  <div style={{fontSize:13,color:"#92400e",fontWeight:600}}>
-                    Chưa có dữ liệu tồn kho.<br/>
-                    <span style={{fontWeight:800}}>Bấm "Cập nhật tồn Kho"</span> để tải danh sách linh kiện từ KiotViet.
-                  </div>
+                  <div style={{fontSize:13,color:"#92400e",fontWeight:600}}>Chưa có dữ liệu tồn kho.</div>
                 </div>
               )}
-              {parts.length > 0 && (
-                <div style={{margin:"8px 12px 0",background:"#eff6ff",border:"1.5px solid #bfdbfe",borderRadius:10,padding:"7px 12px",display:"flex",gap:8,alignItems:"center"}}>
-                  <span className="material-icons" style={{fontSize:16,color:"#3b82f6"}}>info</span>
-                  <div style={{fontSize:12,color:"#1d4ed8"}}>Tồn kho có thể chưa cập nhật — nhấn <b>"Cập nhật tồn Kho"</b> để lấy số mới nhất từ KiotViet.</div>
-                </div>
-              )}
+
               <TabList parts={filteredParts} cartItems={cartItems} search={search} setSearch={setSearch} addToCart={addToCart} removeFromCart={removeFromCart}/>
             </>
           ) : tab==="cart" ? (

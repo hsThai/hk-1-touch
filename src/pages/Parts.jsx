@@ -183,7 +183,7 @@ export default function SparePartModal({ order, currentStaff, onClose, onDone })
         order_code:  order.order_code,
         sender_id:   currentStaff.id,
         sender_name: `🔧 ${currentStaff.full_name}`,
-        message:     `✅ SỬA XONG!\nLinh kiện đã dùng: ${activeUsages.length} loại\nTổng LK: ${partCost.toLocaleString()}đ\nCông sửa: ${(order.estimated_cost||0).toLocaleString()}đ\nTổng bill dự kiến: ${finalCost.toLocaleString()}đ\n\n📡 KiotViet sẽ tự trừ kho khi đồng bộ.`,
+        message:     `✅ SỬA XONG!\nLinh kiện đã dùng: ${activeUsages.length} loại\nTổng LK: ${partCost.toLocaleString()}đ\nCông sửa: ${(order.estimated_cost||0).toLocaleString()}đ\nTổng bill dự kiến: ${finalCost.toLocaleString()}đ`,
         message_type:"system",
       });
 
