@@ -101,7 +101,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
         window.__hk_open_chat = null;
       }
     }
-  }, [order.id, order._id, order._openTab]);
+  }, [order?.id, order?._id, order?._openTab]);
   const chatInputRef = useRef();
   const [toast, setToast] = useState(null);
   const [showChecklist, setShowChecklist] = useState(false);
@@ -115,27 +115,28 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
 
   // Load count ngay khi mở đơn (để hiện số trên tab)
   useEffect(() => {
+    if (!order?.id) return;
     let cancelled = false;
     RepairChat.filter({ order_id: order.id })
       .then(data => { if (!cancelled) setChats(data); })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [order.id]);
+  }, [order?.id]);
 
   // Load full chats + set loading khi vào tab chat
   useEffect(() => {
-    if (tab !== "chat") return;
+    if (tab !== "chat" || !order?.id) return;
     let cancelled = false;
     setChatLoading(true);
     RepairChat.filter({ order_id: order.id }, { sort: "id" })
       .then(data => { if (!cancelled) { setChats(data); setChatLoading(false); } })
       .catch(() => { if (!cancelled) setChatLoading(false); });
     return () => { cancelled = true; };
-  }, [order.id, tab]);
+  }, [order?.id, tab]);
 
   // Load phiếu xuất khi mở tab exports (+ polling 8s)
   useEffect(() => {
-    if (tab !== "exports") return;
+    if (tab !== "exports" || !order?.id) return;
     let cancelled = false;
     let timer = null;
     const orderCode = order.order_code || order.id;
@@ -162,12 +163,12 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
 
     loadExports();
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [order.id, order._id, order.order_code, tab]);
+  }, [order?.id, order?._id, order?.order_code, tab]);
 
 
   // Polling chat 3s - đơn giản, ổn định, gần realtime
   useEffect(() => {
-    if (tab !== "chat") return;
+    if (tab !== "chat" || !order?.id) return;
     let cancelled = false;
     let timer = null;
 
@@ -192,7 +193,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
     // Bắt đầu poll sau 3s (đã load lần đầu rồi)
     timer = setTimeout(pollChats, 3000);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [tab, order.id]);
+  }, [tab, order?.id]);
 
   // Auto-scroll
   useEffect(() => { setTimeout(() => chatRef.current?.scrollIntoView({ behavior:"smooth" }), 80); }, [chats, tab]);
