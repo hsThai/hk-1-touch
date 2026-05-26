@@ -95,6 +95,7 @@ function getKpiTimerInfo(order) {
 //  MEDIA VIEWER — fullscreen lightbox with pinch-zoom + draw + share
 // ══════════════════════════════════════════════
 function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
+  const safeItems = items || [];
   const [idx, setIdx]         = useState(startIndex || 0);
   const [shareStatus, setShareStatus] = useState("");
   const [drawMode, setDrawMode]   = useState(false);
@@ -116,7 +117,8 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
   const lastTapRef  = useRef(0);
   const dragStartRef= useRef(null);
 
-  const item    = items[idx];
+  if (!safeItems.length) return null;
+  const item    = safeItems[idx];
   const isVideo = item?.startsWith("video:");
   const videoSrc= isVideo ? item.replace("video:","") : null;
   const imgSrc  = !isVideo ? item : null;
@@ -175,12 +177,12 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
   useEffect(()=>{
     const h=e=>{
       if(e.key==="Escape") onClose();
-      if(!drawMode){if(e.key==="ArrowLeft")setIdx(i=>Math.max(0,i-1));if(e.key==="ArrowRight")setIdx(i=>Math.min(items.length-1,i+1));}
+      if(!drawMode){if(e.key==="ArrowLeft")setIdx(i=>Math.max(0,i-1));if(e.key==="ArrowRight")setIdx(i=>Math.min(safeItems.length-1,i+1));}
       if(drawMode&&(e.ctrlKey||e.metaKey)&&e.key==="z") handleUndo();
     };
     window.addEventListener("keydown",h);
     return()=>window.removeEventListener("keydown",h);
-  },[items.length,drawMode]);
+  },[safeItems.length,drawMode]);
 
   useEffect(()=>{
     if(!drawMode||!canvasRef.current||!imgSrc) return;
@@ -276,7 +278,7 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
 
       <div style={{position:"absolute",top:0,left:0,right:0,padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",background:"linear-gradient(rgba(0,0,0,.8),transparent)",zIndex:10}}
         onClick={e=>e.stopPropagation()}>
-        <div style={{color:"#fff",fontSize:13,fontWeight:600}}>{idx+1} / {items.length}</div>
+        <div style={{color:"#fff",fontSize:13,fontWeight:600}}>{idx+1} / {safeItems.length}</div>
         <div style={{display:"flex",gap:6}}>
           {!isVideo&&<button onClick={()=>setDrawMode(d=>!d)} style={{background:drawMode?"#f59e0b":"rgba(255,255,255,.2)",border:"none",color:"#fff",height:34,padding:"0 12px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer"}}>{drawMode ? <><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:14,verticalAlign:"middle",lineHeight:1}}>edit</span> Đang vẽ</> : <><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:14,verticalAlign:"middle",lineHeight:1}}>edit</span> Vẽ</>}</button>}
           <button onClick={handleShare} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",height:34,width:36,borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20}}>share</span></button>
@@ -286,7 +288,7 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
       </div>
 
       {drawMode&&!isVideo&&(
-        <div onClick={e=>e.stopPropagation()} style={{position:"absolute",bottom:items.length>1?96:16,left:"50%",transform:"translateX(-50%)",display:"flex",flexDirection:"column",gap:8,alignItems:"center",background:"rgba(0,0,0,.9)",padding:"12px 16px",borderRadius:20,zIndex:20,backdropFilter:"blur(10px)",minWidth:320}}>
+        <div onClick={e=>e.stopPropagation()} style={{position:"absolute",bottom:safeItems.length>1?96:16,left:"50%",transform:"translateX(-50%)",display:"flex",flexDirection:"column",gap:8,alignItems:"center",background:"rgba(0,0,0,.9)",padding:"12px 16px",borderRadius:20,zIndex:20,backdropFilter:"blur(10px)",minWidth:320}}>
           {/* Dòng 1: Tools + Undo + Gửi */}
           <div style={{display:"flex",gap:6,alignItems:"center"}}>
             {TOOLS.map(t=>(
@@ -351,16 +353,16 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
         )}
       </div>
 
-      {items.length>1&&!drawMode&&(
+      {safeItems.length>1&&!drawMode&&(
         <>
           {idx>0&&<button onClick={e=>{e.stopPropagation();setIdx(i=>Math.max(0,i-1));}} style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",background:"rgba(255,255,255,.2)",border:"none",color:"#fff",width:46,height:46,borderRadius:"50%",fontSize:22,cursor:"pointer",zIndex:5}}>‹</button>}
-          {idx<items.length-1&&<button onClick={e=>{e.stopPropagation();setIdx(i=>Math.min(items.length-1,i+1));}} style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"rgba(255,255,255,.2)",border:"none",color:"#fff",width:46,height:46,borderRadius:"50%",fontSize:22,cursor:"pointer",zIndex:5}}>›</button>}
+          {idx<safeItems.length-1&&<button onClick={e=>{e.stopPropagation();setIdx(i=>Math.min(safeItems.length-1,i+1));}} style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"rgba(255,255,255,.2)",border:"none",color:"#fff",width:46,height:46,borderRadius:"50%",fontSize:22,cursor:"pointer",zIndex:5}}>›</button>}
         </>
       )}
 
-      {items.length>1&&(
+      {safeItems.length>1&&(
         <div onClick={e=>e.stopPropagation()} style={{position:"absolute",bottom:16,left:0,right:0,display:"flex",justifyContent:"center",gap:8,padding:"0 16px",flexWrap:"wrap",zIndex:5}}>
-          {items.map((it,i)=>(
+          {safeItems.map((it,i)=>(
             <div key={i} onClick={()=>setIdx(i)} style={{width:50,height:50,borderRadius:10,overflow:"hidden",border:`2px solid ${i===idx?"#a5b4fc":"transparent"}`,cursor:"pointer",background:"#1f2937",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
               {it.startsWith("video:")?<span style={{fontSize:20}}> </span>:<img src={it} style={{width:"100%",height:"100%",objectFit:"cover"}} alt=""/>}
             </div>
@@ -369,7 +371,7 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
       )}
 
       {!isVideo&&!drawMode&&(
-        <div style={{position:"absolute",bottom:items.length>1?96:20,left:"50%",transform:"translateX(-50%)",color:"rgba(255,255,255,.28)",fontSize:11,pointerEvents:"none",whiteSpace:"nowrap",zIndex:2}}>
+        <div style={{position:"absolute",bottom:safeItems.length>1?96:20,left:"50%",transform:"translateX(-50%)",color:"rgba(255,255,255,.28)",fontSize:11,pointerEvents:"none",whiteSpace:"nowrap",zIndex:2}}>
           Chụm 2 ngón phóng to · 2x chạm reset
         </div>
       )}

@@ -123,6 +123,8 @@ export default function HandoverModal({ order, currentUser, onClose, onDone }) {
     <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:20, verticalAlign:"middle", lineHeight:1, userSelect:"none", ...style }}>{name}</span>
   );
 
+  if (!order) return null;
+
   const STEPS = ["Kiểm tra", "Chữ ký", "Media", "Xác nhận"];
   const requiredDone = CHECKLIST_ITEMS.filter(i => i.required && checklist[i.key]).length;
   const requiredTotal = CHECKLIST_ITEMS.filter(i => i.required).length;

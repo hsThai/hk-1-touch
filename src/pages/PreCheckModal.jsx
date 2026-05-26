@@ -78,6 +78,7 @@ export default function PreCheckModal({ order, currentUser, users, onClose, onDo
   const [error, setError]    = useState("");
   const fileRef = useRef();
 
+  if (!order || !users) return null;
   const ktvList = users.filter(u => u.role === "technician" && u.is_active !== false);
 
   function toggleItem(key) {
