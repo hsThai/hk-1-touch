@@ -86,7 +86,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
 
   // Tự mở tab chat nếu được trigger từ notification click HOẶC _openTab prop
   useEffect(() => {
-    if (order._openTab) {
+    if (order?._openTab) {
       setTab(order._openTab);
       // Clear _openTab sau khi đã dùng để không bị giữ lại
       if (onUpdate) {
