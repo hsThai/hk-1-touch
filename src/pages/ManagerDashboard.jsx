@@ -1,5 +1,16 @@
 /* ManagerDashboard.jsx — KPI Dashboard cho Manager */
 import React, { useState, useEffect, useMemo } from "react";
+
+// ── Responsive hook ─────────────────────────────────────────
+function useWidth() {
+  const [w, setW] = useState(typeof window !== "undefined" ? window.innerWidth : 1024);
+  useEffect(() => {
+    const fn = () => setW(window.innerWidth);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
+  return w;
+}
 import { SparePartUsage } from "./pb.jsx";
 
 // ── Helpers ────────────────────────────────────────────────
@@ -49,6 +60,10 @@ const ACTIVE_STATUSES = ["Mới Nhận", "Đang Kiểm Tra", "Chờ Linh Kiện"
 // ── Main Component ──────────────────────────────────────────
 export function ManagerDashboard({ currentUser, orders = [], users = [] }) {
   const [period, setPeriod]     = useState("today");
+  const width    = useWidth();
+  const isMobile = width < 768;
+  const isTablet = width >= 768 && width < 1200;
+  const isPC     = width >= 1200;
   const [usages, setUsages]     = useState([]);
   const [loadingUsage, setLoadingUsage] = useState(true);
 
@@ -150,7 +165,11 @@ export function ManagerDashboard({ currentUser, orders = [], users = [] }) {
 
   // ── Render ──────────────────────────────────────────────
   return (
-    <div style={{ padding: "16px 14px 100px", maxWidth: 640, margin: "0 auto" }}>
+    <div style={{
+      padding: isPC ? "32px 48px 100px" : isTablet ? "24px 24px 100px" : "16px 14px 100px",
+      maxWidth: isPC ? 1400 : isTablet ? 900 : "100%",
+      margin: "0 auto",
+    }}>
 
       {/* ── Header ── */}
       <div style={{ marginBottom: 20 }}>
@@ -178,10 +197,16 @@ export function ManagerDashboard({ currentUser, orders = [], users = [] }) {
         ))}
       </div>
 
+      {/* ── PC 2 cột wrapper ── */}
+      <div style={isPC ? { display:"flex", gap:32, alignItems:"flex-start" } : {}}>
+
+      {/* Cột trái */}
+      <div style={isPC ? { flex:"1.4", minWidth:0 } : {}}>
+
       {/* ── Doanh thu lớn ── */}
       <div style={{ background: "linear-gradient(135deg,#4f46e5,#7c3aed)", borderRadius: 20, padding: "20px 24px", marginBottom: 20, color: "#fff" }}>
         <div style={{ fontSize: 13, opacity: 0.85, marginBottom: 6 }}>💰 Doanh thu kỳ này</div>
-        <div style={{ fontSize: 36, fontWeight: 900, letterSpacing: -1 }}>
+        <div style={{ fontSize: isPC || isTablet ? 44 : 36, fontWeight: 900, letterSpacing: -1 }}>
           {fmtFull(stats.revenue)}
         </div>
         <div style={{ fontSize: 12, opacity: 0.75, marginTop: 6 }}>
@@ -190,7 +215,7 @@ export function ManagerDashboard({ currentUser, orders = [], users = [] }) {
       </div>
 
       {/* ── Cards 2 cột ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: 12, marginBottom: 24 }}>
         {[
           { icon:"📋", label:"Tổng đơn",      value: stats.total,    bg:"#eef2ff", color:"#4f46e5", border:"#c7d2fe" },
           { icon:"✅", label:"Hoàn thành",     value: stats.done,     bg:"#f0fdf4", color:"#059669", border:"#86efac" },
@@ -213,7 +238,7 @@ export function ManagerDashboard({ currentUser, orders = [], users = [] }) {
         <div style={{ fontWeight: 800, fontSize: 15, color: "#1e1b4b", marginBottom: 16 }}>
           📈 Đơn hàng 7 ngày gần nhất
         </div>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 120 }}>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: isPC ? 200 : isTablet ? 160 : 120 }}>
           {chartData.map((d, i) => {
             const heightDone   = d.done   > 0 ? Math.max(8,  (d.done   / maxBar) * 96) : 0;
             const heightActive = d.active > 0 ? Math.max(8,  (d.active / maxBar) * 96) : 0;
@@ -252,7 +277,11 @@ export function ManagerDashboard({ currentUser, orders = [], users = [] }) {
         </div>
       </div>
 
-      {/* ── KTV Table ── */}
+      </div>{/* /cột trái */}
+
+      {/* Cột phải */}
+      <div style={isPC ? { flex:"1", minWidth:0 } : {}}>      {/* ── KTV Table ── */}
+
       <div style={{ background: "#fff", borderRadius: 20, padding: "20px 16px", marginBottom: 20, boxShadow: "0 2px 12px rgba(0,0,0,.07)" }}>
         <div style={{ fontWeight: 800, fontSize: 15, color: "#1e1b4b", marginBottom: 16 }}>
           🔧 KPI Kỹ thuật viên
@@ -293,6 +322,14 @@ export function ManagerDashboard({ currentUser, orders = [], users = [] }) {
                   {ktv.myDone}/{ktv.myTotal} đơn · {fmtMoney(ktv.myRevenue)}
                 </div>
               </div>
+
+              {/* Doanh thu — chỉ hiện trên PC */}
+              {isPC && (
+                <div style={{ textAlign: "right", flexShrink: 0, marginRight: 12 }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: "#059669" }}>{fmtMoney(ktv.myRevenue)}</div>
+                  <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 2 }}>Doanh thu</div>
+                </div>
+              )}
 
               {/* KPI Score + badge */}
               <div style={{ textAlign: "center", flexShrink: 0 }}>
@@ -346,6 +383,10 @@ export function ManagerDashboard({ currentUser, orders = [], users = [] }) {
           </div>
         ))}
       </div>
+
+      </div>{/* /cột phải */}
+
+      </div>{/* /2-col wrapper */}
 
     </div>
   );
