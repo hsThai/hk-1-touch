@@ -1718,11 +1718,11 @@ function WarehouseOrders({ user, users, setSelectedOrder }) {
   });
 
   const STATUS_COLOR = {
-    "Chờ KTV":"#fef2f2","KTV Đang Kiểm":"#e0f2fe","Chờ Báo Giá":"#fffbeb","Chờ Xác Nhận":"#fdf2f8","Chờ KTV Sửa":"#f5f3ff","Đang Sửa":"#ede9fe","Chờ Linh Kiện":"#fce7f3",
+    "Chờ KTV":"#fef2f2","KTV Đang Kiểm":"#e0f2fe","Chờ Báo Giá":"#fffbeb","Chờ Xác Nhận":"#fdf2f8","Chờ KTV Sửa":"#f5f3ff","Chờ Linh Kiện":"#fce7f3",
     "Đang Sửa":"#ede9fe","Hoàn Thành":"#dcfce7","Đã Giao":"#f1f5f9"
   };
   const STATUS_TEXT = {
-    "Chờ KTV":"#dc2626","KTV Đang Kiểm":"#0369a1","Chờ Báo Giá":"#d97706","Chờ Xác Nhận":"#db2777","Chờ KTV Sửa":"#7c3aed","Đang Sửa":"#6d28d9","Chờ Linh Kiện":"#be185d",
+    "Chờ KTV":"#dc2626","KTV Đang Kiểm":"#0369a1","Chờ Báo Giá":"#d97706","Chờ Xác Nhận":"#db2777","Chờ KTV Sửa":"#7c3aed","Chờ Linh Kiện":"#be185d",
     "Đang Sửa":"#5b21b6","Hoàn Thành":"#065f46","Đã Giao":"#475569"
   };
 
