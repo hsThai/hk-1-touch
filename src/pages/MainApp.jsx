@@ -38,6 +38,9 @@ const WarehouseManager = lazy(() => import("./WarehouseManager").catch(() => ({ 
     <button onClick={onBack} style={{marginTop:16,padding:"10px 24px",background:"#4f46e5",color:"#fff",border:"none",borderRadius:8,cursor:"pointer"}}>Quay lại</button>
   </div>
 )})));
+const CashierApp = lazy(() => import("./CashierApp").catch(() => ({ default: () => (
+  <div style={{padding:32,textAlign:"center",color:"#ef4444"}}>❌ Lỗi tải App Kế toán</div>
+)})));
 
 
 // Components loaded from OrderComponents
@@ -1606,13 +1609,7 @@ function MainAppInner() {
         {page==="wh_import" && <WarehouseImport user={user} />}
         {page==="wh_stock"  && <WarehouseStock  user={user} />}
         {page==="wh_manager" && <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":"dashboard")} />}
-        {page==="cashier_home" && (
-          <div style={{padding:32, textAlign:"center", color:"#6b7280"}}>
-            <div style={{fontSize:48, marginBottom:12}}>🏗️</div>
-            <div style={{fontSize:18, fontWeight:700}}>App 3 — Kế toán & Bán hàng</div>
-            <div style={{fontSize:14, marginTop:8}}>Đang phát triển — GĐ2</div>
-          </div>
-        )}
+        {page==="cashier_home" && <CashierApp user={user} />}
         {page==="manager_app" && (
           <div style={{padding:32, textAlign:"center", color:"#6b7280"}}>
             <div style={{fontSize:48, marginBottom:12}}>🏗️</div>
