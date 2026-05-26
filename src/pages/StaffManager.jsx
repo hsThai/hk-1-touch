@@ -1,18 +1,18 @@
 /* v1774860462-5573 */
 import { useState, useEffect } from "react";
-import { Staff } from "./pb.jsx";
+import { Staff, Warehouse } from "./pb.js";
 
 const ROLES = [
-  { value:"manager",      label:"Quản lý",        color:"#7c3aed", bg:"#f5f3ff", icon:"workspace_premium",  emoji:"👑" },
-  { value:"receptionist", label:"Tiếp tân",        color:"#1d4ed8", bg:"#dbeafe", icon:"support_agent",      emoji:"🎧" },
-  { value:"technician",   label:"Kỹ thuật viên",   color:"#065f46", bg:"#dcfce7", icon:"build",              emoji:"🔧" },
-  { value:"warehouse",    label:"Nhân viên kho",   color:"#0369a1", bg:"#e0f2fe", icon:"inventory_2",        emoji:"📦" },
+  { value:"manager",      label:"Quản lý",        color:"#7c3aed", bg:"#f5f3ff", icon:"👑" },
+  { value:"receptionist", label:"Tiếp tân",        color:"#1d4ed8", bg:"#dbeafe", icon:"💁" },
+  { value:"technician",   label:"Kỹ thuật viên",   color:"#065f46", bg:"#dcfce7", icon:"🔧" },
+  { value:"warehouse",    label:"Nhân viên kho",   color:"#0369a1", bg:"#e0f2fe", icon:"📦" },
 ];
 
 function simpleHash(str) { return btoa(unescape(encodeURIComponent(str))); }
 function roleInfo(role) { return ROLES.find(r=>r.value===role) || ROLES[0]; }
 
-const EMPTY = { full_name:"", phone:"", username:"", role:"technician", password:"", note:"", is_active:true };
+const EMPTY = { full_name:"", phone:"", username:"", role:"technician", password:"", note:"", is_active:true, warehouse_ids:[] };
 
 export default function StaffManager({ currentStaff }) {
   const [list, setList]     = useState([]);
@@ -24,8 +24,16 @@ export default function StaffManager({ currentStaff }) {
   const [search, setSearch] = useState("");
   const [filterRole, setFilterRole] = useState("all");
   const [toast, setToast]   = useState("");
+  const [warehouses, setWarehouses] = useState([]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); loadWarehouses(); }, []);
+
+  async function loadWarehouses() {
+    try {
+      const whs = await Warehouse.list({ limit: 50, filter: "is_active=true" });
+      setWarehouses(whs);
+    } catch {}
+  }
 
   async function load() {
     setLoading(true);
@@ -34,7 +42,13 @@ export default function StaffManager({ currentStaff }) {
   }
 
   function openAdd() { setForm(EMPTY); setErr(""); setModal({ mode:"add" }); }
-  function openEdit(s) { setForm({ ...s, password:"" }); setErr(""); setModal({ mode:"edit", id:s.id }); }
+  function openEdit(s) {
+    let wids = s.warehouse_ids || [];
+    if (typeof wids === "string") { try { wids = JSON.parse(wids); } catch { wids = []; } }
+    setForm({ ...s, password:"", warehouse_ids: Array.isArray(wids) ? wids : [] });
+    setErr("");
+    setModal({ mode:"edit", id:s.id });
+  }
 
   async function save() {
     setErr("");
@@ -58,8 +72,9 @@ export default function StaffManager({ currentStaff }) {
           is_active: true,
           kpi_score: 100,
           note: form.note,
+          warehouse_ids: form.warehouse_ids || [],
         });
-        showToast("Đã tạo tài khoản" + form.full_name);
+        showToast("✅ Đã tạo tài khoản " + form.full_name);
       } else {
         const patch = {
           full_name: form.full_name.trim(),
@@ -68,10 +83,11 @@ export default function StaffManager({ currentStaff }) {
           role: form.role,
           is_active: form.is_active,
           note: form.note,
+          warehouse_ids: form.warehouse_ids || [],
         };
         if (form.password) { patch.password_hash = simpleHash(form.password); patch.must_change_password = true; }
         await Staff.update(modal.id, patch);
-        showToast("Đã cập nhật" + form.full_name);
+        showToast("✅ Đã cập nhật " + form.full_name);
       }
       setModal(null);
       load();
@@ -81,13 +97,13 @@ export default function StaffManager({ currentStaff }) {
 
   async function toggleActive(s) {
     await Staff.update(s.id, { is_active: !s.is_active });
-    showToast(s.is_active ? `  Đã khóa ${s.full_name}` : `  Đã mở khóa ${s.full_name}`);
+    showToast(s.is_active ? `🔒 Đã khóa ${s.full_name}` : `🔓 Đã mở khóa ${s.full_name}`);
     load();
   }
 
   async function resetKpi(s) {
     await Staff.update(s.id, { kpi_score: 100 });
-    showToast(`  Reset KPI ${s.full_name} → 100`);
+    showToast(`🔄 Reset KPI ${s.full_name} → 100`);
     load();
   }
 
@@ -104,7 +120,10 @@ export default function StaffManager({ currentStaff }) {
     <div style={{ padding:16, maxWidth:900, margin:"0 auto" }}>
       {/* Header */}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20, flexWrap:"wrap", gap:10 }}>
-        <div></div>
+        <div>
+          <div style={{ fontSize:20, fontWeight:900, color:"#1e1b4b" }}>👥 Quản lý nhân viên</div>
+          <div style={{ fontSize:13, color:"#6b7280" }}>{list.filter(s=>s.is_active).length} đang hoạt động / {list.length} tổng</div>
+        </div>
         <button onClick={openAdd}
           style={{ height:44, padding:"0 20px", background:"#4f46e5", color:"#fff", border:"none", borderRadius:12, fontWeight:800, fontSize:14, cursor:"pointer" }}>
           ＋ Thêm nhân viên
@@ -114,12 +133,12 @@ export default function StaffManager({ currentStaff }) {
       {/* Filter */}
       <div style={{ display:"flex", gap:10, marginBottom:16, flexWrap:"wrap" }}>
         <input value={search} onChange={e=>setSearch(e.target.value)}
-          placeholder="Tìm tên, username, SĐT..."
+          placeholder="🔍 Tìm tên, username, SĐT..."
           style={{ flex:1, minWidth:200, height:40, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:14, outline:"none" }} />
         <select value={filterRole} onChange={e=>setFilterRole(e.target.value)}
           style={{ height:40, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:13, background:"#fff", cursor:"pointer" }}>
           <option value="all">Tất cả vai trò</option>
-          {ROLES.map(r=><option key={r.value} value={r.value}>{r.emoji} {r.label}</option>)}
+          {ROLES.map(r=><option key={r.value} value={r.value}>{r.icon} {r.label}</option>)}
         </select>
       </div>
 
@@ -127,8 +146,8 @@ export default function StaffManager({ currentStaff }) {
       {loading ? (
         <div style={{ textAlign:"center", padding:40, color:"#9ca3af" }}>Đang tải...</div>
       ) : filtered.length === 0 ? (
-        <div style={{ textAlign:"center", padding:40, color:"#9ca3af"}}>
-          <div style={{ fontSize:40 }}> </div>
+        <div style={{ textAlign:"center", padding:40, color:"#9ca3af" }}>
+          <div style={{ fontSize:40 }}>👤</div>
           <div style={{ marginTop:8 }}>Chưa có nhân viên nào</div>
         </div>
       ) : (
@@ -138,19 +157,19 @@ export default function StaffManager({ currentStaff }) {
             return (
               <div key={s.id} style={{ background:"#fff", borderRadius:16, padding:16, boxShadow:"0 2px 12px rgba(0,0,0,.07)", border:"1.5px solid #f3f4f6", display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }}>
                 {/* Avatar */}
-                <div style={{ width:50, height:50, borderRadius:"50%", background: ri.bg, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, border:`2px solid ${ri.color}22` }}>
-                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:24,color:ri.color,lineHeight:1}}>{ri.icon}</span>
+                <div style={{ width:50, height:50, borderRadius:"50%", background: ri.bg, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0, border:`2px solid ${ri.color}22` }}>
+                  {ri.icon}
                 </div>
                 {/* Info */}
                 <div style={{ flex:1, minWidth:160 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
                     <span style={{ fontWeight:800, fontSize:15, color:"#1e1b4b" }}>{s.full_name}</span>
-                    <span style={{ background:ri.bg, color:ri.color, fontSize:11, fontWeight:700, padding:"2px 9px", borderRadius:20, display:"inline-flex", alignItems:"center", gap:3 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:13,lineHeight:1}}>{ri.icon}</span>{ri.label}</span>
-                    {!s.is_active && <span style={{ background:"#fef2f2", color:"#dc2626", fontSize:11, fontWeight:700, padding:"2px 9px", borderRadius:20 }}>  Đã khóa</span>}
-                    {s.must_change_password && <span style={{ background:"#fffbeb", color:"#d97706", fontSize:11, fontWeight:700, padding:"2px 9px", borderRadius:20 }}>  Chưa đổi pass</span>}
+                    <span style={{ background:ri.bg, color:ri.color, fontSize:11, fontWeight:700, padding:"2px 9px", borderRadius:20 }}>{ri.icon} {ri.label}</span>
+                    {!s.is_active && <span style={{ background:"#fef2f2", color:"#dc2626", fontSize:11, fontWeight:700, padding:"2px 9px", borderRadius:20 }}>🔒 Đã khóa</span>}
+                    {s.must_change_password && <span style={{ background:"#fffbeb", color:"#d97706", fontSize:11, fontWeight:700, padding:"2px 9px", borderRadius:20 }}>⚠️ Chưa đổi pass</span>}
                   </div>
                   <div style={{ fontSize:13, color:"#6b7280", marginTop:3 }}>
-                    @{s.username} {s.phone ? `·   ${s.phone}` :""}
+                    @{s.username} {s.phone ? `· 📞 ${s.phone}` : ""}
                   </div>
                 </div>
                 {/* KPI */}
@@ -161,18 +180,18 @@ export default function StaffManager({ currentStaff }) {
                 {/* Actions */}
                 <div style={{ display:"flex", gap:8, flexShrink:0 }}>
                   <button onClick={() => openEdit(s)}
-                    style={{ height:36, padding:"0 14px", borderRadius:10, border:"1.5px solid #e5e7eb", background:"#f9fafb", fontWeight:700, fontSize:13, cursor:"pointer"}}>
-                      Sửa
+                    style={{ height:36, padding:"0 14px", borderRadius:10, border:"1.5px solid #e5e7eb", background:"#f9fafb", fontWeight:700, fontSize:13, cursor:"pointer" }}>
+                    ✏️ Sửa
                   </button>
                   {s.id !== currentStaff?.id && (
                     <button onClick={() => toggleActive(s)}
                       style={{ height:36, padding:"0 14px", borderRadius:10, border:"none", background: s.is_active?"#fef2f2":"#ecfdf5", color: s.is_active?"#dc2626":"#059669", fontWeight:700, fontSize:13, cursor:"pointer" }}>
-                      {s.is_active ? "Khóa" : "Mở"}
+                      {s.is_active ? "🔒 Khóa" : "🔓 Mở"}
                     </button>
                   )}
                   <button onClick={() => resetKpi(s)}
-                    style={{ height:36, padding:"0 14px", borderRadius:10, border:"none", background:"#eff6ff", color:"#2563eb", fontWeight:700, fontSize:13, cursor:"pointer"}}>
-                      KPI
+                    style={{ height:36, padding:"0 14px", borderRadius:10, border:"none", background:"#eff6ff", color:"#2563eb", fontWeight:700, fontSize:13, cursor:"pointer" }}>
+                    🔄 KPI
                   </button>
                 </div>
               </div>
@@ -187,7 +206,7 @@ export default function StaffManager({ currentStaff }) {
           onClick={e => { if(e.target===e.currentTarget) setModal(null); }}>
           <div style={{ background:"#fff", borderRadius:20, padding:28, width:"100%", maxWidth:460, maxHeight:"90vh", overflowY:"auto" }}>
             <div style={{ fontSize:18, fontWeight:900, color:"#1e1b4b", marginBottom:20 }}>
-              {modal.mode==="add" ? "Thêm nhân viên mới" : "Chỉnh sửa nhân viên"}
+              {modal.mode==="add" ? "➕ Thêm nhân viên mới" : "✏️ Chỉnh sửa nhân viên"}
             </div>
             {[
               { label:"Họ tên *", key:"full_name", placeholder:"Nguyễn Văn A" },
@@ -205,7 +224,7 @@ export default function StaffManager({ currentStaff }) {
               <label style={{ fontSize:13, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>Vai trò *</label>
               <select value={form.role} onChange={e=>setForm(p=>({...p,role:e.target.value}))}
                 style={{ width:"100%", height:44, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:14, background:"#fff", boxSizing:"border-box" }}>
-                {ROLES.map(r=><option key={r.value} value={r.value}>{r.emoji} {r.label}</option>)}
+                {ROLES.map(r=><option key={r.value} value={r.value}>{r.icon} {r.label}</option>)}
               </select>
             </div>
             <div style={{ marginBottom:14 }}>
@@ -215,8 +234,50 @@ export default function StaffManager({ currentStaff }) {
               <input value={form.password||""} onChange={e=>setForm(p=>({...p,password:e.target.value}))}
                 type="password" placeholder="Tối thiểu 6 ký tự..."
                 style={{ width:"100%", height:44, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:14, outline:"none", boxSizing:"border-box" }} />
-              {modal.mode==="add" && <div style={{ fontSize:11, color:"#6b7280", marginTop:4 }}>  Nhân viên sẽ bị yêu cầu đổi mật khẩu khi đăng nhập lần đầu.</div>}
+              {modal.mode==="add" && <div style={{ fontSize:11, color:"#6b7280", marginTop:4 }}>⚠️ Nhân viên sẽ bị yêu cầu đổi mật khẩu khi đăng nhập lần đầu.</div>}
             </div>
+            {/* ── Phân quyền kho ── */}
+            {(form.role === "warehouse" || form.role === "technician") && (
+              <div style={{ marginBottom:20, background:"#f8fafc", borderRadius:14, padding:"14px 16px", border:"1.5px solid #e5e7eb" }}>
+                <div style={{ fontSize:13, fontWeight:700, color:"#374151", marginBottom:4 }}>🏭 Kho được phép truy cập</div>
+                <div style={{ fontSize:12, color:"#9ca3af", marginBottom:10 }}>Để trống = thấy tất cả kho</div>
+                {warehouses.length === 0 ? (
+                  <div style={{ fontSize:13, color:"#9ca3af" }}>Chưa có kho nào</div>
+                ) : (
+                  <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                    {warehouses.map(wh => {
+                      const checked = (form.warehouse_ids || []).includes(wh.id);
+                      return (
+                        <label key={wh.id} style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer", padding:"8px 10px", borderRadius:10, background: checked ? "#ede9fe" : "#fff", border:`1.5px solid ${checked ? "#7c3aed" : "#e5e7eb"}`, transition:"all .15s" }}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={e => {
+                              const ids = form.warehouse_ids || [];
+                              setForm(p => ({
+                                ...p,
+                                warehouse_ids: e.target.checked
+                                  ? [...ids, wh.id]
+                                  : ids.filter(id => id !== wh.id)
+                              }));
+                            }}
+                            style={{ width:16, height:16, accentColor:"#7c3aed", cursor:"pointer" }}
+                          />
+                          <span style={{ flex:1, fontWeight:600, fontSize:14, color: checked ? "#5b21b6" : "#374151" }}>
+                            🏭 {wh.name}
+                          </span>
+                          {wh.code && <span style={{ fontSize:11, color:"#9ca3af", fontFamily:"monospace" }}>{wh.code}</span>}
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                {(form.warehouse_ids || []).length === 0 && (
+                  <div style={{ marginTop:8, fontSize:12, color:"#059669", fontWeight:600 }}>✅ Không giới hạn — thấy tất cả kho</div>
+                )}
+              </div>
+            )}
+
             <div style={{ marginBottom:20 }}>
               <label style={{ fontSize:13, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>Ghi chú</label>
               <textarea value={form.note||""} onChange={e=>setForm(p=>({...p,note:e.target.value}))}
@@ -229,7 +290,7 @@ export default function StaffManager({ currentStaff }) {
                 <label htmlFor="activeChk" style={{ fontSize:13, fontWeight:700, color:"#374151", cursor:"pointer" }}>Tài khoản đang hoạt động</label>
               </div>
             )}
-            {err && <div style={{ background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:10, padding:"10px 14px", fontSize:13, color:"#dc2626", marginBottom:16, fontWeight:600 }}>  {err}</div>}
+            {err && <div style={{ background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:10, padding:"10px 14px", fontSize:13, color:"#dc2626", marginBottom:16, fontWeight:600 }}>⚠️ {err}</div>}
             <div style={{ display:"flex", gap:10 }}>
               <button onClick={() => setModal(null)}
                 style={{ flex:1, height:46, borderRadius:12, border:"1.5px solid #e5e7eb", background:"#f9fafb", fontWeight:700, fontSize:14, cursor:"pointer" }}>
