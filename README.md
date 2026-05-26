@@ -1,39 +1,40 @@
-**Welcome to your Base44 project** 
+# HKApp LAN - Quản Lý Sửa Chữa
 
-**About**
+## Cài đặt & Chạy
 
-View and Edit  your app on [Base44.com](http://Base44.com) 
+### Yêu cầu
+- Windows 10/11
+- Node.js 18+ (https://nodejs.org - bản LTS)
+- PocketBase đang chạy trên cùng máy
 
-This project contains everything you need to run your app locally.
+### Bước 1: Cài Node.js
+Vào https://nodejs.org → tải bản LTS → cài bình thường (Next → Next → Finish)
 
-**Edit the code in your local development environment**
+### Bước 2: Giải nén và cài đặt
+1. Giải nén file hkapp-lan.zip vào C:\hkapp\
+2. Mở PowerShell hoặc CMD trong thư mục C:\hkapp\
+3. Chạy: npm install
+4. Chờ ~3-5 phút
 
-Any change pushed to the repo will also be reflected in the Base44 Builder.
-
-**Prerequisites:** 
-
-1. Clone the repository using the project's Git URL 
-2. Navigate to the project directory
-3. Install dependencies: `npm install`
-4. Create an `.env.local` file and set the right environment variables
-
+### Bước 3: Build
 ```
-VITE_BASE44_APP_ID=your_app_id
-VITE_BASE44_APP_BASE_URL=your_backend_url
-
-e.g.
-VITE_BASE44_APP_ID=cbef744a8545c389ef439ea6
-VITE_BASE44_APP_BASE_URL=https://my-to-do-list-81bfaad7.base44.app
+npm run build
 ```
 
-Run the app: `npm run dev`
+### Bước 4: Chạy server
+```
+npm run preview
+```
+→ App chạy tại http://localhost:3000
 
-**Publish your changes**
+### Truy cập từ điện thoại (LAN)
+Nhân viên dùng điện thoại vào: http://192.168.1.XXX:3000
+(Thay XXX bằng IP thực của máy server)
 
-Open [Base44.com](http://Base44.com) and click on Publish.
-
-**Docs & Support**
-
-Documentation: [https://docs.base44.com/Integrations/Using-GitHub](https://docs.base44.com/Integrations/Using-GitHub)
-
-Support: [https://app.base44.com/support](https://app.base44.com/support)
+## Tự động khởi động cùng Windows
+Tạo file `start_hkapp.bat`:
+```
+cd C:\hkapp
+npm run preview
+```
+Bỏ shortcut vào: Shell:startup (Win+R → gõ shell:startup)
