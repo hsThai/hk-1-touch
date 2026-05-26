@@ -338,7 +338,15 @@ function MainAppInner() {
       if (selectedOrder) { setSelectedOrderSync(null); return; }
       if (sidebarOpen)   { setSidebarOpen(false);  return; }
       if (page !== "board" && page !== "tasks") {
-        setPage(user?.role === "technician" ? "ktv_home" : user?.role === "receptionist" ? "rec_home" : user?.role === "warehouse" ? "wh_home" : "dashboard");
+        setPage(
+          user?.role === "technician"   ? "ktv_home"    :
+          user?.role === "receptionist" ? "rec_home"    :
+          user?.role === "warehouse"    ? "wh_home"     :
+          user?.role === "accountant"   ? "cashier_home":
+          user?.role === "cashier"      ? "cashier_home":
+          user?.role === "owner"        ? "manager_app" :
+          "dashboard"
+        );
       }
     };
 
@@ -874,7 +882,15 @@ function MainAppInner() {
     setLoggedOut(true);
     setSidebarOpen && setSidebarOpen(false);
   };
-  if (!user) return <LoginPage onLogin={u => { setUser(u); setLoggedOut(false); setPage(u.role==="technician"?"ktv_home":u.role==="receptionist"?"rec_home":u.role==="warehouse"?"wh_home":"dashboard"); }} loggedOut={loggedOut} />;
+  if (!user) return <LoginPage onLogin={u => { setUser(u); setLoggedOut(false); setPage(
+        u.role==="technician"    ? "ktv_home"    :
+        u.role==="receptionist"  ? "rec_home"    :
+        u.role==="warehouse"     ? "wh_home"     :
+        u.role==="accountant"    ? "cashier_home":
+        u.role==="cashier"       ? "cashier_home":
+        u.role==="owner"         ? "manager_app" :
+        "dashboard"
+      ); }} loggedOut={loggedOut} />;
   if (user.must_change_password) return <ChangePassword user={user} forceChange={true} onSuccess={() => setUser(u => ({...u, must_change_password: false}))} />;
 
   async function updateOrder(id, patch, kpiEvent, action) {
@@ -1109,7 +1125,7 @@ function MainAppInner() {
     {key:"tasks",icon:"check_circle",label:"Danh sách đơn"},
     ...(!isReception && !isWarehouse?[{key:"kpi",icon:"emoji_events",label:"KPI Kỹ thuật"}]:[]),
     ...(!isKtv?[{key:"customers",icon:"group",label:"Khách hàng"}]:[]),
-    ...(isManager?[{key:"staff",icon:"person",label:"Nhân viên"},{key:"wh_manager",icon:"warehouse",label:"Quản lý kho"},{key:"settings",icon:"settings",label:"Cài đặt"}]:[]),
+    ...(isManager?[{key:"staff",icon:"person",label:"Nhân viên"},{key:"wh_manager",icon:"warehouse",label:"Quản lý kho"},{key:"settings",icon:"settings",label:"Cài đặt"},{key:"cashier_home",icon:"point_of_sale",label:"Kế toán"},{key:"manager_app",icon:"analytics",label:"Manager App"}]:[]),
   ];
 
   // ── Kanban Board ─────────────────────────────────────────
@@ -1590,6 +1606,20 @@ function MainAppInner() {
         {page==="wh_import" && <WarehouseImport user={user} />}
         {page==="wh_stock"  && <WarehouseStock  user={user} />}
         {page==="wh_manager" && <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":"dashboard")} />}
+        {page==="cashier_home" && (
+          <div style={{padding:32, textAlign:"center", color:"#6b7280"}}>
+            <div style={{fontSize:48, marginBottom:12}}>🏗️</div>
+            <div style={{fontSize:18, fontWeight:700}}>App 3 — Kế toán & Bán hàng</div>
+            <div style={{fontSize:14, marginTop:8}}>Đang phát triển — GĐ2</div>
+          </div>
+        )}
+        {page==="manager_app" && (
+          <div style={{padding:32, textAlign:"center", color:"#6b7280"}}>
+            <div style={{fontSize:48, marginBottom:12}}>🏗️</div>
+            <div style={{fontSize:18, fontWeight:700}}>App 4 — Manager Dashboard</div>
+            <div style={{fontSize:14, marginTop:8}}>Đang phát triển — GĐ2</div>
+          </div>
+        )}
       </Suspense>
 
       {/* Bottom nav */}
