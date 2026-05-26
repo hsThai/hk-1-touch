@@ -19,6 +19,12 @@ const StaffManagerPage = lazy(() => import("./StaffManager").catch(() => ({ defa
     <div style={{fontWeight:700,marginTop:8}}>Module không tải được</div>
   </div>
 )})));
+const ManagerDashboard = lazy(() => import("./ManagerDashboard").catch(() => ({ default: () => (
+  <div style={{padding:32,textAlign:"center"}}>
+    <div style={{fontSize:32}}>⚠️</div>
+    <div style={{fontWeight:700,marginTop:8}}>Dashboard không tải được</div>
+  </div>
+)})));
 const SettingsPage = lazy(() => import("./Settings").catch(() => ({ default: () => (
   <div style={{padding:32,textAlign:"center"}}>
     <div style={{fontSize:32}}> </div>
@@ -1571,7 +1577,7 @@ function MainAppInner() {
         )}
         {page==="kpi" && <KPIPage users={users} orders={orders} />}
         {page==="customers" && <CustomerList />}
-        {page==="dashboard" && <Dashboard />}
+        {page==="dashboard" && <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><ManagerDashboard currentUser={user} orders={orders} users={users} /></Suspense>}
         {page==="staff" && <StaffManagerPage />}
         {page==="settings" && <SettingsPage user={user} />}
         {page==="wh_home"   && <WarehouseHome   user={user} setPage={setPage} />}
