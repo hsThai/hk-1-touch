@@ -461,7 +461,7 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
   const [kvSyncing, setKvSyncing]   = useState(false);
   const [kvMsg, setKvMsg]           = useState("");
 
-  useEffect(()=>{loadAll();},[order.id]);
+  useEffect(()=>{ if (order?.id) loadAll(); },[order?.id]);
 
   async function loadAll() {
     setLoading(true);
@@ -529,6 +529,8 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
 
 
   function showToast(msg){setToast(msg);setTimeout(()=>setToast(""),4000);}
+
+  if (!order || !currentStaff) return null;
 
   const filteredParts=parts.filter(p=>!search||(p.name||"").toLowerCase().includes(search.toLowerCase())||(p.sku||"").toLowerCase().includes(search.toLowerCase()));
   const pendingCount=requests.filter(r=>r.status==="pending").length;

@@ -96,7 +96,7 @@ function getKpiTimerInfo(order) {
 // ══════════════════════════════════════════════
 function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
   const safeItems = items || [];
-  const [idx, setIdx]         = useState(startIndex || 0);
+  const [idx, setIdx]         = useState(Math.min(startIndex || 0, Math.max(0, (items||[]).length - 1)));
   const [shareStatus, setShareStatus] = useState("");
   const [drawMode, setDrawMode]   = useState(false);
   const [drawColor, setDrawColor] = useState("#ff3b30");
