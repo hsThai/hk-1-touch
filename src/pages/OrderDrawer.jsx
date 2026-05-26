@@ -200,8 +200,8 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
   // Build mention list from users related to this order
   const getMentionCandidates = useCallback(() => {
     const isSelf = (u) =>
-      u.id === currentUser.id ||
-      (u.username && currentUser.username && u.username === currentUser.username);
+      u.id === currentUser?.id ||
+      (u.username && currentUser?.username && u.username === currentUser?.username);
 
     // 1. Manager/Admin + Receptionist (trừ bản thân)
     const mgr = (users||[]).filter(u => u && u.id && !isSelf(u) && ["manager","admin"].includes(u.role));
@@ -225,7 +225,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
     });
 
     return [{ id:"__all__", name:"all", role:"__all__" }, ...real];
-  }, [users, currentUser.id, currentUser.username, order?.assigned_to, order?.assigned_to_name]);
+  }, [users, currentUser?.id, currentUser?.username, order?.assigned_to, order?.assigned_to_name]);
 
   function handleChatInputChange(e) {
     const val = e.target.value;

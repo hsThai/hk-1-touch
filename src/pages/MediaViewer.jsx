@@ -117,9 +117,8 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
   const lastTapRef  = useRef(0);
   const dragStartRef= useRef(null);
 
-  if (!safeItems.length) return null;
-  const item    = safeItems[idx];
-  const isVideo = item?.startsWith("video:");
+  const item    = safeItems[idx] || null;
+  const isVideo = item?.startsWith("video:") || false;
   const videoSrc= isVideo ? item.replace("video:","") : null;
   const imgSrc  = !isVideo ? item : null;
 
@@ -271,6 +270,8 @@ function MediaViewer({ items, startIndex, onClose, onSendAnnotated }) {
 
   const COLORS=["#ff3b30","#ff9500","#ffcc00","#34c759","#007aff","#af52de","#fff","#000"];
   const TOOLS=[{id:"pen",icon:"edit"},{id:"rect",icon:"crop_square"},{id:"oval",icon:"radio_button_unchecked"}];
+
+  if (!safeItems.length) return null;
 
   return(
     <div style={{position:"fixed",inset:0,zIndex:6000,background:"rgba(0,0,0,.97)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}
