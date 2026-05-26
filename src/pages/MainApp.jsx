@@ -2375,7 +2375,6 @@ function WarehouseImport({ user }) {
   const STATUS_COLOR = {
     draft:     {bg:"#fef3c7",color:"#92400e",label:"📝 Nháp"},
     confirmed: {bg:"#dbeafe",color:"#1d4ed8",label:"✅ Xác nhận"},
-    synced_kv: {bg:"#dcfce7",color:"#15803d",label:"🔗 KiotViet"},
   };
 
   return (

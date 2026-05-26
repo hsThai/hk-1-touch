@@ -50,7 +50,7 @@ export default function ExportDocs() {
     { icon: "⚙️", title: "5. Tính năng", desc: "47 tính năng phân theo nhóm: Đơn, KPI, Chat, Kho, QR, Thông báo..." },
     { icon: "🏆", title: "6. KPI", desc: "Quy tắc KPI: stages, hạn giờ, trừ điểm, nhắc tự động" },
     { icon: "🔔", title: "7. Thông báo", desc: "14 loại thông báo, cơ chế polling, push notification, âm thanh" },
-    { icon: "📦", title: "8. Phiếu Xuất Kho", desc: "Workflow xuất sửa vs mượn, trạng thái, tích hợp KiotViet" },
+    { icon: "📦", title: "8. Phiếu Xuất Kho", desc: "Workflow xuất sửa vs mượn, trạng thái" },
     { icon: "🎨", title: "9. Trạng thái", desc: "Mapping Display ↔ DB ↔ màu sắc cho 9 trạng thái đơn" },
   ];
 

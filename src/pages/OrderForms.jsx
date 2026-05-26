@@ -4,7 +4,6 @@ import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, Spar
 import { uploadFile } from "./pb.jsx";
 
 import { timeAgo, genOrderId, getKpiTimerInfo } from "./MediaViewer";
-import { searchKvCustomers, createKvDeliveryOrder } from "./kiotviet.jsx";
 import { QRScanModal, IMEIScanModal } from "./QRComponents.jsx";
 // ── Checklist QT1 Ngoại quan ──────────────────────────
 const QT1_ITEMS_FORM = [
@@ -49,28 +48,21 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
   const fileRef     = useRef();
 
   const set = (k, v) => setForm(f => ({ ...f, [k]:v }));
-  const [kvSearching, setKvSearching] = React.useState(false);
 
   useEffect(() => {
     if (custSearch.length < 2) { setDbCusts([]); return; }
     const timer = setTimeout(async () => {
-      setKvSearching(true);
-      try {
-        const kvResults = await searchKvCustomers(custSearch);
-        if (kvResults.length > 0) { setDbCusts(kvResults); setKvSearching(false); return; }
-      } catch {}
       try {
         const q = custSearch.toLowerCase();
         const items = await Customer.list({ limit:200 });
         const filtered = items.filter(c => (c.full_name||"").toLowerCase().includes(q) || (c.phone||"").includes(custSearch));
-        if (filtered.length > 0) { setDbCusts(filtered); setKvSearching(false); return; }
+        if (filtered.length > 0) { setDbCusts(filtered); return; }
       } catch {}
       if (orders) {
         const extra = []; const q = custSearch.toLowerCase();
         orders.forEach(o => { if (o.customer_name && o.customer_phone && !extra.find(c=>c.phone===o.customer_phone)) extra.push({ id:o.customer_id||o.customer_phone, full_name:o.customer_name, phone:o.customer_phone }); });
         setDbCusts(extra.filter(c => (c.full_name||"").toLowerCase().includes(q) || (c.phone||"").includes(custSearch)));
       }
-      setKvSearching(false);
     }, 400);
     return () => clearTimeout(timer);
   }, [custSearch]);
@@ -147,15 +139,6 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
     };
     onCreate(newOrder);
 
-    (async () => {
-      try {
-        await createKvDeliveryOrder({
-          orderCode: newOrder.id, deviceModel: newOrder.device_model,
-          technicianName: ktvUser?.name||ktvUser?.full_name||"Chưa giao",
-          parts:[{ sku:"REPAIR_ORDER", kvProductId:null, name:`[${newOrder.id}] ${newOrder.device_model}`, qty:1, price:0 }],
-        });
-      } catch(e) { console.warn("[KiosThong] Gửi đơn thất bại:", e.message); }
-    })();
 
     onClose();
   }
@@ -210,11 +193,10 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
           <div style={{ background:"#f0f9ff", border:"1.5px solid #bae6fd", borderRadius:16, padding:14, marginBottom:14 }}>
             <div style={{ fontWeight:800, fontSize:14, color:"#0369a1", marginBottom:10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <span>Khách Hàng</span>
-              {kvSearching && <span style={{ fontSize:11, color:"#0369a1", fontWeight:700 }}>Đang tìm KiotViet...</span>}
             </div>
             <input value={custSearch} onChange={e => { setCustSearch(e.target.value); if(!e.target.value) { set("customer_id",""); set("customer_name",""); set("customer_phone",""); } }}
               placeholder="0901234567 hoặc Nguyễn Văn A..." style={inp} />
-            {custSearch.length>=2 && !form.customer_id && dbCusts.length===0 && !kvSearching && (
+            {custSearch.length>=2 && !form.customer_id && dbCusts.length===0 && (
               <div style={{ marginTop:6, background:"#fffbeb", border:"1px solid #fcd34d", borderRadius:10, padding:"8px 12px", fontSize:12, color:"#92400e" }}>
                 Không tìm thấy. Nhập tên/SĐT để thêm khách mới.
               </div>
