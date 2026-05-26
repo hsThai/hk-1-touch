@@ -4,11 +4,11 @@
  * Config IP tại: localStorage key "pb_url" hoặc default bên dưới
  */
 
-const DEFAULT_PB_URL = "http://127.0.0.1:8090";
+const DEFAULT_PB_URL = "https://digiera.cameraddns.net";
 
 export function getPbUrl() {
   try {
-    return localStorage.getItem("pb_url") || DEFAULT_PB_URL;
+    return import.meta.env.VITE_PB_URL || localStorage.getItem("pb_url") || DEFAULT_PB_URL;
   } catch {
     return DEFAULT_PB_URL;
   }
