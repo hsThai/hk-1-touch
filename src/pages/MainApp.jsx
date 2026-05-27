@@ -217,7 +217,7 @@ const RoleHomePlaceholder  = lazy(() => import("./RoleHomePlaceholder").catch(()
   <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang chủ</div>
 ) })));
 
-function MainAppInner() {
+function MainAppContent({ onUserChange }) {
   const { can } = usePermission();
   const [user, setUser] = useState(null);
   const ordersRef = useRef([]); // luôn giữ latest orders snapshot
@@ -888,11 +888,13 @@ function MainAppInner() {
   );
   const doLogout = () => {
     setUser(null);
+    onUserChange?.(null);
     setLoggedOut(true);
     setSidebarOpen && setSidebarOpen(false);
   };
   if (!user) return <LoginPage onLogin={u => {
     setUser(u);
+    onUserChange?.(u);
     setLoggedOut(false);
     // Ưu tiên default_page từ DB role (nếu có), fallback hardcode
     const DEFAULT_PAGE_MAP = {
@@ -1448,7 +1450,6 @@ function MainAppInner() {
   }
 
   return (
-    <PermissionProvider user={user}>
     <div style={{ minHeight:"100vh", background:"#f8fafc", fontFamily:"system-ui,-apple-system,sans-serif" }}>
       {/* Header */}
       <div style={{ position:"sticky", top:0, zIndex:100, background:"#1e1b4b", padding:"12px 16px", display:"flex", alignItems:"center", gap:12 }}>
@@ -1741,7 +1742,6 @@ function MainAppInner() {
         </div>
       )}
     </div>
-    </PermissionProvider>
   );
 }
 
@@ -2809,6 +2809,15 @@ function WarehouseStock({ user }) {
         })}
       </div>
     </div>
+  );
+}
+
+function MainAppInner() {
+  const [user, setUser] = useState(null);
+  return (
+    <PermissionProvider user={user}>
+      <MainAppContent onUserChange={setUser} />
+    </PermissionProvider>
   );
 }
 
