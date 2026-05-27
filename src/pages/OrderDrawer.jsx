@@ -205,7 +205,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
       (u.username && currentUser?.username && u.username === currentUser?.username);
 
     // 1. Manager/Admin + Receptionist (trừ bản thân)
-    const mgr = (users||[]).filter(u => u && u.id && !isSelf(u) && ["manager","admin"].includes(u.role));
+    const mgr = (users||[]).filter(u => u && u.id && !isSelf(u) && ["manager","admin","owner","supervisor"].includes(u.role));
     const rec = (users||[]).filter(u => u && u.id && !isSelf(u) && u.role === "receptionist");
 
     // 2. KTV được giao đơn này (nếu không phải bản thân)
@@ -322,7 +322,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
       if (!isAllMention && notifyIds.length === 0) {
         const autoNotify = users.filter(u =>
           u.id !== currentUser.id &&
-          (["manager","admin","receptionist"].includes(u.role) || u.id === order.assigned_to)
+          (["manager","admin","owner","supervisor","receptionist"].includes(u.role) || u.id === order.assigned_to)
         );
         autoNotify.forEach(u => {
           if (!notifyIds.includes(u.id)) { notifyIds.push(u.id); notifyNames.push(u.name || u.full_name || ""); }
@@ -558,14 +558,14 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
             <span style={{ fontSize:11, background:col?.bg, color:col?.color, padding:"2px 10px", borderRadius:20, fontWeight:700 }}>{col?.icon} {order.status}</span>
           </div>
           <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-            {(currentUser.role === "manager" || currentUser.role === "admin" || currentUser.role === "receptionist") && (
+            {(["manager","admin","owner","supervisor"].includes(currentUser.role) || currentUser.role === "receptionist") && (
               <>
                 <button onClick={() => setShowEditOrder(true)}
                   style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:13, fontWeight:700, cursor:"pointer"}}>  Sửa</button>
                 <button onClick={() => setShowShareModal(true)}
                   style={{ background:"rgba(134,239,172,.3)", border:"none", color:"#fff", height:34, padding:"0 12px", borderRadius:20, fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
                   <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>share</span> Share</button>
-                {(currentUser.role === "manager" || currentUser.role === "admin") && (
+                {(["manager","admin","owner","supervisor"].includes(currentUser.role)) && (
                 <button onClick={async () => {
                   if (!window.confirm("Xóa đơn " + order.id + "?\nThao tác này không thể hoàn tác!")) return;
                   const delId = order._id || order.id;
@@ -579,7 +579,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                       if (!u?.id || u.id === currentUser.id) return false;
                       // KTV được giao, manager, admin, receptionist
                       return u.id === order.assigned_to ||
-                             ["manager","admin","receptionist"].includes(u.role);
+                             ["manager","admin","owner","supervisor","receptionist"].includes(u.role);
                     });
                     await Promise.allSettled(relatedUsers.map(u =>
                       Notification.create({
@@ -609,7 +609,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
         </div>
         {/* Tabs */}
         <div style={{ display:"flex", borderBottom:"1px solid #e5e7eb" }}>
-          {[["info","Thông tin"],...(!isReception && (currentUser.role==="manager"||currentUser.role==="admin"||isMyOrder)?[["parts","Linh kiện"]]:[]),["exports","Phiếu xuất"],["chat","Chat"]].map(([t,lbl]) => (
+          {[["info","Thông tin"],...(!isReception && (["manager","admin","owner","supervisor"].includes(currentUser.role)||isMyOrder)?[["parts","Linh kiện"]]:[]),["exports","Phiếu xuất"],["chat","Chat"]].map(([t,lbl]) => (
             <button key={t} onClick={() => setTab(t)}
               style={{ flex:1, padding:"11px", border:"none", background:"none", fontWeight:700, fontSize:13, cursor:"pointer", borderBottom:tab===t?"3px solid #4f46e5":"3px solid transparent", color:tab===t?"#4f46e5":"#6b7280", position:"relative" }}>
               {lbl}
@@ -659,7 +659,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
               </div>
             )}
             {/* Manager thấy trạng thái Chờ KTV */}
-            {["Chờ KTV","Chờ KTV Sửa"].includes(order.status) && !isMyOrder && currentUser.role === "manager" && (
+            {["Chờ KTV","Chờ KTV Sửa"].includes(order.status) && !isMyOrder && ["manager","admin","owner","supervisor"].includes(currentUser.role) && (
               <div style={{ background:"#fef3c7", border:"2px solid #fcd34d", borderRadius:14, padding:14, marginBottom:14 }}>
                 <div style={{ fontWeight:800, fontSize:14, color:"#92400e" }}>⏳ {order.status === "Chờ KTV Sửa" ? "Đơn chờ KTV bắt đầu sửa" : "Đơn chờ KTV nhận kiểm"}</div>
                 <div style={{ fontSize:13, color:"#78350f", marginTop:4 }}>KTV: {order.assigned_to_name || "Chưa phân công"}</div>
@@ -738,7 +738,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 2. needs_reassign = true (KTV quá hạn bị ngừng)
                 3. Đơn đã nhận nhưng hết 120 phút chưa sửa (kpi_stage2_penalized)
             ─── */}
-            {currentUser.role === "manager" && !["Hoàn Thành","Đã Giao","Hủy"].includes(order.status) && (
+            {["manager","admin","owner"].includes(currentUser.role) && !["Hoàn Thành","Đã Giao","Hủy"].includes(order.status) && (
               (() => {
                 const noKTV      = !order.assigned_to;
                 const overdue    = order.needs_reassign || order.kpi_stage2_penalized || order.kpi_stage1_penalized;
@@ -843,9 +843,9 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 </div>
               </div>
             )}
-            {!["Hoàn Thành","Đã Giao","Hủy",..."Cho KTV","Cho Bao Gia","Cho Xac Nhan","Cho KTV Sua"].some(s => s===order.status) || currentUser.role==="manager" ? (
+            {!["Hoàn Thành","Đã Giao","Hủy",..."Cho KTV","Cho Bao Gia","Cho Xac Nhan","Cho KTV Sua"].some(s => s===order.status) || ["manager","admin","owner","supervisor"].includes(currentUser.role) ? (
             <span style={{display:"none"}} />) : null}
-            {!["Hoàn Thành","Đã Giao","Hủy"].includes(order.status) && !(["Cho KTV","Cho Bao Gia","Cho Xac Nhan","Cho KTV Sua"].includes(order.status) && isKTV) && (currentUser.role==="manager" || isMyOrder) && (
+            {!["Hoàn Thành","Đã Giao","Hủy"].includes(order.status) && !(["Cho KTV","Cho Bao Gia","Cho Xac Nhan","Cho KTV Sua"].includes(order.status) && isKTV) && (["manager","admin","owner","supervisor"].includes(currentUser.role) || isMyOrder) && (
               <div style={{ marginBottom:14 }}>
                 {/* KTV chưa nhận đơn → disable toàn bộ status picker */}
                 {isKTV && isMyOrder && (order.accept_stage||0) < 1 && !["Chờ KTV","Chờ KTV Sửa"].includes(order.status) && (
@@ -887,7 +887,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
     });
     setEditMode(false);
     // Notify manager/admin + receptionist khi KTV đổi trạng thái
-    const notifyUsers = users.filter(u => ["manager","admin","receptionist"].includes(u.role));
+    const notifyUsers = users.filter(u => ["manager","admin","owner","supervisor","receptionist"].includes(u.role));
     notifyUsers.forEach(u => {
       Notification.create({
         user_id: u.id,
@@ -957,7 +957,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
             )}
 
             {/* ── NÚT BÀN GIAO MÁY — chỉ Tiếp tân và Manager, khi đơn Hoàn Thành ── */}
-            {order.status === "Hoàn Thành" && (isReception || currentUser.role === "manager" || currentUser.role === "admin") && (
+            {order.status === "Hoàn Thành" && (isReception || ["manager","admin","owner","supervisor"].includes(currentUser.role)) && (
               <div style={{ marginTop:8, marginBottom:4 }}>
                 <button onClick={() => setShowHandover(true)}
                   style={{ width:"100%", height:58, borderRadius:16, background:"linear-gradient(135deg,#0369a1,#0891b2)", color:"#fff", border:"none", fontWeight:900, fontSize:17, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10, boxShadow:"0 4px 16px rgba(3,105,161,.35)" }}>
@@ -977,7 +977,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
             )}
 
             {/* ── QT1: Tiếp tân kiểm ngoại quan ── */}
-            {order.status === "Cho KTV" && !order.qt1_checklist && (isReception || currentUser.role === "manager" || currentUser.role === "admin") && (
+            {order.status === "Cho KTV" && !order.qt1_checklist && (isReception || ["manager","admin","owner","supervisor"].includes(currentUser.role)) && (
               <div style={{ marginTop:8 }}>
                 <button onClick={() => setShowPreCheck(true)}
                   style={{ width:"100%", height:56, borderRadius:16, background:"linear-gradient(135deg,#0369a1,#0284c7)", border:"none", color:"#fff", fontWeight:900, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10, boxShadow:"0 4px 16px rgba(3,105,161,.3)" }}>
@@ -994,7 +994,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
             )}
 
             {/* ── QT2: KTV kiểm tra sâu ── */}
-            {order.status === "Chờ KTV" && (order.assigned_to === currentUser.id || currentUser.role === "manager" || currentUser.role === "admin") && (
+            {order.status === "Chờ KTV" && (order.assigned_to === currentUser.id || ["manager","admin","owner","supervisor"].includes(currentUser.role)) && (
               <div style={{ marginTop:8 }}>
                 <button onClick={() => setShowQT2(true)}
                   style={{ width:"100%", height:56, borderRadius:16, background:"linear-gradient(135deg,#6d28d9,#7c3aed)", border:"none", color:"#fff", fontWeight:900, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10, boxShadow:"0 4px 16px rgba(109,40,217,.3)" }}>
@@ -1011,7 +1011,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
             )}
 
             {/* ── Chờ Báo Giá: TT xác nhận KH ── */}
-            {order.status === "Chờ Báo Giá" && (isReception || currentUser.role === "manager" || currentUser.role === "admin") && (
+            {order.status === "Chờ Báo Giá" && (isReception || ["manager","admin","owner","supervisor"].includes(currentUser.role)) && (
               <div style={{ marginTop:8 }}>
                 <div style={{ background:"#fffbeb", border:"2px solid #fcd34d", borderRadius:14, padding:"12px 14px", marginBottom:10 }}>
                   <div style={{ fontWeight:800, fontSize:14, color:"#92400e", marginBottom:4 }}>
@@ -1075,7 +1075,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 return chats.map(msg => {
                   const isMe = msg.sender_id === currentUser.id;
                   const isSystem = msg.message_type === "system";
-                  const isManager = currentUser.role === "manager" || currentUser.role === "admin";
+                  const isManager = ["manager","admin","owner","supervisor"].includes(currentUser.role);
                   const msgTs = msg.created || msg.created_date;
                   const msgDateStr = msgTs ? fmtDate(msgTs) : null;
                   const showDateSep = msgDateStr && msgDateStr !== lastDateStr;
@@ -1185,16 +1185,20 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                     style={{ padding:"12px 14px", cursor:"pointer", background:idx===mentionCursor?"#eef2ff":"#fff", borderBottom:"1px solid #f9fafb", display:"flex", gap:10, alignItems:"center" }}>
                     {u.id==="__all__"
                       ? <div style={{ width:32, height:32, borderRadius:"50%", background:"#f59e0b", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18}}>groups</span></div>
-                      : <div style={{ width:32, height:32, borderRadius:"50%", background:["manager","admin"].includes(u.role)?"#7c3aed":u.role==="receptionist"?"#0369a1":u.role==="technician"?"#2563eb":"#059669", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, fontSize:13 }}>{(u.name||"?")[0]}</div>
+                      : <div style={{ width:32, height:32, borderRadius:"50%", background:["manager","admin","owner","supervisor"].includes(u.role)?"#7c3aed":u.role==="receptionist"?"#0369a1":u.role==="technician"?"#2563eb":"#059669", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, fontSize:13 }}>{(u.name||"?")[0]}</div>
                     }
                     <div>
                       <div style={{ fontWeight:700, fontSize:14 }}>{u.id==="__all__"?"@all — Tất cả":u.name}</div>
                       <div style={{ fontSize:12, color:"#9ca3af" }}>
                         {u.id==="__all__"?"Thông báo mọi người"
+                          :u.role==="owner"?"Chủ cơ sở"
                           :u.role==="manager"?"Quản lý"
+                          :u.role==="admin"?"Admin"
+                          :u.role==="supervisor"?"Giám sát"
                           :u.role==="technician"?"Kỹ thuật"
                           :u.role==="receptionist"?"Tiếp tân"
-                          :u.role==="admin"?"Quản lý (Admin)"
+                          :u.role==="cashier"?"Thu ngân"
+                          :u.role==="warehouse"?"Thủ kho"
                           :u.role==="warehouse"?"Kho"
                           :"Nhân viên"}
                       </div>
@@ -1349,7 +1353,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                         {req.warehouse_note && <div style={{ marginTop:6, background:"#f9fafb", borderRadius:8, padding:"6px 10px", fontSize:11, color:"#6b7280" }}>🏭 Kho: {req.warehouse_note}</div>}
                         {req.ktv_note && <div style={{ marginTop:4, background:"#f9fafb", borderRadius:8, padding:"6px 10px", fontSize:11, color:"#6b7280" }}>🔧 KTV: {req.ktv_note}</div>}
                         {/* NÚT XÁC NHẬN NHẬN LINH KIỆN — chỉ hiện khi kho đã xuất + KTV là người của đơn */}
-                        {req.status === "warehouse_confirmed" && (isMyOrder || currentUser.role === "manager" || currentUser.role === "admin") && (
+                        {req.status === "warehouse_confirmed" && (isMyOrder || ["manager","admin","owner","supervisor"].includes(currentUser.role)) && (
                           <div style={{ marginTop:12, borderTop:"1px solid #e5e7eb", paddingTop:12 }}>
                             {ktvConfirmingId === req.id ? (
                               <div>
@@ -1435,7 +1439,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 accept_stage: 0,
               }, null);
               logHistory({ order_id:order.id, order_code:order.order_code||order.id, action_type:"qt1_done", action_label:"Hoàn tất QT1 — Ngoại quan", changed_by_id:currentUser?.id||"", changed_by_name:currentUser?.name||"", changed_by_role:currentUser?.role||"", new_value:`KTV: ${data.assigned_to_name}` });
-              const notifyUsers = users.filter(u => u.id === data.assigned_to || ["manager","admin"].includes(u.role));
+              const notifyUsers = users.filter(u => u.id === data.assigned_to || ["manager","admin","owner","supervisor"].includes(u.role));
               notifyUsers.forEach(u => Notification.create({ user_id:u.id, user_name:u.name||"", title:`🔍 Đơn ${order.order_code||order.id} chờ KTV nhận kiểm`, message:`Thiết bị: ${order.device_model} · ${order.customer_name} — KTV: ${data.assigned_to_name}`, order_id:order.id, order_code:order.order_code||order.id, type:"status_change", is_read:false }).catch(()=>{}));
               setShowPreCheck(false);
               showToast("✅ Đã chuyển KTV kiểm QT2!");

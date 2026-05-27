@@ -46,7 +46,7 @@ import { MediaViewer, AcceptChecklistModal, AcceptTimer, timeAgo, genOrderId, ge
 import { OrderDrawer } from "./OrderDrawer";
 import { NewOrderModal, KPIPage, ProductHistoryModal } from "./OrderForms";
 import LoginPage, { showSystemNotif, requestNotifPermission } from "./LoginV2";
-import { PermissionProvider } from "./PermissionContext.jsx";
+import { PermissionProvider, usePermission } from "./PermissionContext.jsx";
 import ChangePassword from "./ChangePassword";
 
 const _BUILD_V4 = "loginv2-real-db";
@@ -210,7 +210,15 @@ function SwipeableNotif({ notif: n, onDelete, onClick }) {
   );
 }
 
+const SettingsHub          = lazy(() => import("./SettingsHub").catch(() => ({ default: () => (
+  <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải SettingsHub</div>
+) })));
+const RoleHomePlaceholder  = lazy(() => import("./RoleHomePlaceholder").catch(() => ({ default: () => (
+  <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang chủ</div>
+) })));
+
 function MainAppInner() {
+  const { can } = usePermission();
   const [user, setUser] = useState(null);
   const ordersRef = useRef([]); // luôn giữ latest orders snapshot
   const usersRef  = useRef([]); // luôn giữ latest users snapshot
@@ -883,15 +891,30 @@ function MainAppInner() {
     setLoggedOut(true);
     setSidebarOpen && setSidebarOpen(false);
   };
-  if (!user) return <LoginPage onLogin={u => { setUser(u); setLoggedOut(false); setPage(
-        u.role==="technician"    ? "ktv_home"    :
-        u.role==="receptionist"  ? "rec_home"    :
-        u.role==="warehouse"     ? "wh_home"     :
-        u.role==="accountant"    ? "cashier_home":
-        u.role==="cashier"       ? "cashier_home":
-        u.role==="owner"         ? "manager_app" :
-        "dashboard"
-      ); }} loggedOut={loggedOut} />;
+  if (!user) return <LoginPage onLogin={u => {
+    setUser(u);
+    setLoggedOut(false);
+    // Ưu tiên default_page từ DB role (nếu có), fallback hardcode
+    const DEFAULT_PAGE_MAP = {
+      technician:   "ktv_home",
+      receptionist: "rec_home",
+      warehouse:    "wh_home",
+      accountant:   "role_home",
+      cashier:      "role_home",
+      owner:        "dashboard",
+      admin:        "dashboard",
+      manager:      "dashboard",
+      supervisor:   "role_home",
+      hr:           "role_home",
+      marketing:    "role_home",
+      qa:           "role_home",
+      support:      "role_home",
+      delivery:     "role_home",
+      it:           "role_home",
+      viewer:       "role_home",
+    };
+    setPage(DEFAULT_PAGE_MAP[u.role] || "board");
+  }} loggedOut={loggedOut} />;
   if (user.must_change_password) return <ChangePassword user={user} forceChange={true} onSuccess={() => setUser(u => ({...u, must_change_password: false}))} />;
 
   async function updateOrder(id, patch, kpiEvent, action) {
@@ -1106,27 +1129,54 @@ function MainAppInner() {
   });
   const pendingAccepts = orders.filter(o => o.assigned_to===user.id && ["Chờ KTV","Chờ KTV Sửa"].includes(o.status));
 
-  const isWarehouse = user.role === "warehouse";
-  const isManager   = user.role === "manager" || user.role === "admin";
-  const isKtv       = user.role === "technician";
-  const isReception = user.role === "receptionist";
+  const isWarehouse  = user.role === "warehouse";
+  const isManager    = ["manager","admin","owner","supervisor"].includes(user.role);
+  const isKtv        = user.role === "technician";
+  const isReception  = user.role === "receptionist";
+  const isRoleHome   = ["cashier","accountant","hr","marketing","qa","support","delivery","it","viewer","supervisor"].includes(user.role);
 
+  // navItems dùng can() để lọc quyền
   const navItems = isWarehouse ? [
     {key:"wh_home",    icon:"home",          label:"Trang chủ"},
     {key:"wh_orders",  icon:"chat",          label:"Chat đơn"},
     {key:"wh_export",  icon:"outbox",        label:"Phiếu xuất kho"},
     {key:"wh_import",  icon:"move_to_inbox", label:"Nhập hàng"},
     {key:"wh_stock",   icon:"inventory_2",   label:"Tồn kho"},
-    {key:"wh_manager", icon:"warehouse",      label:"Quản lý kho"},
+    {key:"wh_manager", icon:"warehouse",     label:"Quản lý kho"},
   ] : [
-    ...(isManager?[{key:"dashboard",icon:"bar_chart",label:"Tổng quan"}]:[]),
-    ...(isKtv?[{key:"ktv_home",icon:"home",label:"Trang chủ"}]:[]),
-    ...(isReception?[{key:"rec_home",icon:"home",label:"Trang chủ"}]:[]),
-    ...(!isKtv?[{key:"board",icon:"assignment",label:"Bảng theo dõi"},{key:"new",icon:"add",label:"Tạo đơn mới"}]:[]),
-    {key:"tasks",icon:"check_circle",label:"Danh sách đơn"},
-    ...(!isReception && !isWarehouse?[{key:"kpi",icon:"emoji_events",label:"KPI Kỹ thuật"}]:[]),
-    ...(!isKtv?[{key:"customers",icon:"group",label:"Khách hàng"}]:[]),
-    ...(isManager?[{key:"staff",icon:"person",label:"Nhân viên"},{key:"wh_manager",icon:"warehouse",label:"Quản lý kho"},{key:"settings",icon:"settings",label:"Cài đặt"},{key:"cashier_home",icon:"point_of_sale",label:"Kế toán"},{key:"manager_app",icon:"analytics",label:"Manager App"}]:[]),
+    // Trang chủ theo role
+    ...(isManager   ? [{key:"dashboard", icon:"bar_chart",   label:"Tổng quan"}]   : []),
+    ...(isKtv       ? [{key:"ktv_home",  icon:"home",        label:"Trang chủ"}]   : []),
+    ...(isReception ? [{key:"rec_home",  icon:"home",        label:"Trang chủ"}]   : []),
+    ...(isRoleHome  ? [{key:"role_home", icon:"home",        label:"Trang chủ"}]   : []),
+
+    // Đơn sửa chữa
+    ...(can("repair_order","view") && !isKtv
+        ? [{key:"board",  icon:"assignment",   label:"Bảng theo dõi"},
+           {key:"new",    icon:"add",          label:"Tạo đơn"}]
+        : []),
+    {key:"tasks", icon:"check_circle", label:"Danh sách đơn"},
+
+    // Kho
+    ...(can("stock_ledger","view") ? [{key:"wh_stock", icon:"inventory_2", label:"Tồn kho"}] : []),
+
+    // Bán hàng
+    ...(can("sale_order","view")   ? [{key:"cashier_home", icon:"point_of_sale", label:"Bán hàng"}] : []),
+
+    // Khách hàng
+    ...(can("customer","view") && !isKtv
+        ? [{key:"customers", icon:"group", label:"Khách hàng"}]
+        : []),
+
+    // KPI
+    ...(can("kpi","view") && !isReception
+        ? [{key:"kpi", icon:"emoji_events", label:"KPI"}]
+        : []),
+
+    // Admin/manager extras
+    ...(can("staff","view")         ? [{key:"staff",       icon:"person",     label:"Nhân viên"}]    : []),
+    ...(can("warehouse_mgr","view") ? [{key:"wh_manager",  icon:"warehouse",  label:"Quản lý kho"}]  : []),
+    ...(can("settings","view")      ? [{key:"settings",    icon:"settings",   label:"Cài đặt"}]      : []),
   ];
 
   // ── Kanban Board ─────────────────────────────────────────
@@ -1600,14 +1650,15 @@ function MainAppInner() {
             ? <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><ManagerDashboard user={user} /></Suspense>
             : <Dashboard />
         )}
-        {page==="staff" && <StaffManagerPage />}
-        {page==="settings" && <SettingsPage user={user} />}
+        {page==="staff"      && <StaffManagerPage />}
+        {page==="settings"   && <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}><SettingsHub user={user} /></Suspense>}
+        {page==="role_home"  && <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}><RoleHomePlaceholder user={user} setPage={setPage} orders={orders} /></Suspense>}
         {page==="wh_home"   && <WarehouseHome   user={user} setPage={setPage} />}
         {page==="wh_orders" && <WarehouseOrders user={user} users={users} setSelectedOrder={setSelectedOrderSync} />}
         {page==="wh_export" && <WarehouseExport user={user} />}
         {page==="wh_import" && <WarehouseImport user={user} />}
         {page==="wh_stock"  && <WarehouseStock  user={user} />}
-        {page==="wh_manager" && <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":"dashboard")} />}
+        {page==="wh_manager" && <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"dashboard")} />}
         {page==="cashier_home" && <CashierApp user={user} />}
         {page==="manager_app" && <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><ManagerDashboard user={user} /></Suspense>}
       </Suspense>
