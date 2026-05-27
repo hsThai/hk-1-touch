@@ -20,10 +20,7 @@ const StaffManagerPage = lazy(() => import("./StaffManager").catch(() => ({ defa
   </div>
 )})));
 const ManagerDashboard = lazy(() => import("./ManagerDashboard").catch(() => ({ default: () => (
-  <div style={{padding:32,textAlign:"center"}}>
-    <div style={{fontSize:32}}>⚠️</div>
-    <div style={{fontWeight:700,marginTop:8}}>Dashboard không tải được</div>
-  </div>
+  <div style={{padding:32,textAlign:"center",color:"#ef4444"}}>❌ Lỗi tải Manager Dashboard</div>
 )})));
 const SettingsPage = lazy(() => import("./Settings").catch(() => ({ default: () => (
   <div style={{padding:32,textAlign:"center"}}>
@@ -1610,13 +1607,7 @@ function MainAppInner() {
         {page==="wh_stock"  && <WarehouseStock  user={user} />}
         {page==="wh_manager" && <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":"dashboard")} />}
         {page==="cashier_home" && <CashierApp user={user} />}
-        {page==="manager_app" && (
-          <div style={{padding:32, textAlign:"center", color:"#6b7280"}}>
-            <div style={{fontSize:48, marginBottom:12}}>🏗️</div>
-            <div style={{fontSize:18, fontWeight:700}}>App 4 — Manager Dashboard</div>
-            <div style={{fontSize:14, marginTop:8}}>Đang phát triển — GĐ2</div>
-          </div>
-        )}
+        {page==="manager_app" && <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><ManagerDashboard user={user} /></Suspense>}
       </Suspense>
 
       {/* Bottom nav */}
