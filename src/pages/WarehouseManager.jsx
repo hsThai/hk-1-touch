@@ -4,6 +4,7 @@
  */
 import React, { useState, useEffect, useCallback } from "react";
 import { getPbUrl, getAuth } from "./pb.jsx";
+import StockCountPage from "./StockCountPage.jsx";
 
 // ─── PocketBase helpers ───────────────────────────────────
 function makeWHCol(colName) {
@@ -783,186 +784,6 @@ function TransferTab({ user, toast }) {
 // ═══════════════════════════════════════════════════════════
 // TAB 5 — KIỂM KHO (Stock Count)
 // ═══════════════════════════════════════════════════════════
-function StockCountTab({ user, toast }) {
-  const [warehouses, setWarehouses] = useState([]);
-  const [counts, setCounts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({ warehouse_id:"", scope:"full", note:"" });
-  const [activeCount, setActiveCount] = useState(null);
-  const [countItems, setCountItems] = useState([]);
-  const [newItem, setNewItem] = useState({ part_name:"", sku:"", qty_system:0, qty_actual:"" });
-
-  useEffect(() => { WH.list().then(setWarehouses); load(); }, []);
-
-  async function load() {
-    setLoading(true);
-    try { setCounts(await Count.list()); } finally { setLoading(false); }
-  }
-
-  async function createCount() {
-    if (!form.warehouse_id) return toast.show("Chọn kho cần kiểm","error");
-    const wh = warehouses.find(w=>w.id===form.warehouse_id);
-    try {
-      const c = await Count.create({
-        count_code: genCode("CK"), warehouse_id: form.warehouse_id, warehouse_name: wh?.name||"",
-        scope: form.scope, status:"in_progress", note:form.note||"",
-        total_locations:0, counted_locations:0, total_discrepancy_qty:0, total_discrepancy_value:0,
-        started_by_id:user?.id||"", started_by_name:user?.name||"",
-      });
-      toast.show("Đã tạo phiên kiểm kho"); setModal(false); setActiveCount(c); setCountItems([]); load();
-    } catch(e) { toast.show(e.message,"error"); }
-  }
-
-  async function addCountItem() {
-    if (!newItem.part_name || newItem.qty_actual==="") return toast.show("Điền đủ thông tin","error");
-    const diff = Number(newItem.qty_actual) - Number(newItem.qty_system||0);
-    try {
-      await CountItem.create({
-        count_id: activeCount.id, count_code: activeCount.count_code,
-        part_name: newItem.part_name, sku: newItem.sku||"",
-        qty_system: Number(newItem.qty_system||0), qty_actual: Number(newItem.qty_actual),
-        qty_diff: diff, status:"counted",
-        counted_by_id: user?.id||"", counted_by_name: user?.name||"",
-        counted_at: new Date().toISOString(),
-      });
-      toast.show("Đã ghi nhận");
-      setNewItem({ part_name:"", sku:"", qty_system:0, qty_actual:"" });
-      CountItem.filter(`count_id='${activeCount.id}'`).then(setCountItems);
-    } catch(e) { toast.show(e.message,"error"); }
-  }
-
-  async function approveCount() {
-    if (!confirm("Xác nhận hoàn tất kiểm kho và điều chỉnh tồn kho theo kết quả?")) return;
-    try {
-      const totalDiffQty = countItems.reduce((s,i)=>s+Math.abs(i.qty_diff||0),0);
-      await Count.update(activeCount.id, {
-        status:"approved", counted_locations:countItems.length, total_discrepancy_qty:totalDiffQty,
-        approved_by_id:user?.id||"", approved_by_name:user?.name||"", approved_at:new Date().toISOString(),
-      });
-      toast.show("Đã phê duyệt kiểm kho"); setActiveCount(null); load();
-    } catch(e) { toast.show(e.message,"error"); }
-  }
-
-  const statusColor2 = { draft:"#6b7280", in_progress:"#2563eb", pending_approval:"#d97706", approved:"#059669", cancelled:"#dc2626" };
-  const statusLabel2 = { draft:"📝 Nháp", in_progress:"🔍 Đang kiểm", pending_approval:"⏳ Chờ duyệt", approved:"✅ Đã duyệt", cancelled:"❌ Hủy" };
-
-  return (
-    <div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-        <div style={{fontWeight:700,fontSize:16,color:"#1e1b4b"}}>📋 Kiểm kho</div>
-        <button style={S.btn()} onClick={()=>setModal(true)}>+ Tạo phiên kiểm kho</button>
-      </div>
-
-      {/* Active count session */}
-      {activeCount && (
-        <div style={{...S.card,border:"2px solid #4f46e5",marginBottom:16}}>
-          <div style={{...S.cardHdr,background:"#ede9fe"}}>
-            <div style={{fontWeight:800,color:"#4f46e5"}}>🔍 Đang kiểm: {activeCount.count_code} — {activeCount.warehouse_name}</div>
-            <div style={{display:"flex",gap:8}}>
-              <button style={S.btnSm("#059669")} onClick={approveCount}>✅ Hoàn tất & Duyệt</button>
-              <button style={S.btnSm("#6b7280")} onClick={()=>setActiveCount(null)}>Ẩn</button>
-            </div>
-          </div>
-          <div style={{padding:16}}>
-            {/* Add item form */}
-            <div style={{background:"#f8fafc",borderRadius:8,padding:12,marginBottom:12}}>
-              <div style={{fontWeight:700,fontSize:13,marginBottom:8,color:"#374151"}}>+ Nhập kết quả kiểm</div>
-              <div style={{display:"grid",gridTemplateColumns:"2fr 1.2fr 1fr 1fr auto",gap:8,alignItems:"end"}}>
-                <div><label style={S.label}>Tên linh kiện *</label><input style={S.input} value={newItem.part_name} onChange={e=>setNewItem(p=>({...p,part_name:e.target.value}))} placeholder="Tên linh kiện..." /></div>
-                <div><label style={S.label}>SKU</label><input style={S.input} value={newItem.sku} onChange={e=>setNewItem(p=>({...p,sku:e.target.value}))} /></div>
-                <div><label style={S.label}>Tồn hệ thống</label><input style={S.input} type="number" value={newItem.qty_system} onChange={e=>setNewItem(p=>({...p,qty_system:e.target.value}))} /></div>
-                <div><label style={S.label}>Thực tế *</label><input style={S.input} type="number" value={newItem.qty_actual} onChange={e=>setNewItem(p=>({...p,qty_actual:e.target.value}))} /></div>
-                <button style={{...S.btn(),marginBottom:2}} onClick={addCountItem}>+ Ghi</button>
-              </div>
-              {newItem.qty_actual!=="" && !isNaN(newItem.qty_actual) && (
-                <div style={{marginTop:8,fontSize:12,fontWeight:700,color:Number(newItem.qty_actual)===Number(newItem.qty_system)?"#059669":Number(newItem.qty_actual)>Number(newItem.qty_system)?"#2563eb":"#dc2626"}}>
-                  {Number(newItem.qty_actual)===Number(newItem.qty_system)?"✅ Khớp":Number(newItem.qty_actual)>Number(newItem.qty_system)?`📈 Thừa +${Number(newItem.qty_actual)-Number(newItem.qty_system)}`:`📉 Thiếu ${Number(newItem.qty_actual)-Number(newItem.qty_system)}`}
-                </div>
-              )}
-            </div>
-
-            {/* Count items list */}
-            {countItems.length>0 && (
-              <table style={S.table}>
-                <thead><tr>{["Linh kiện","SKU","Hệ thống","Thực tế","Chênh lệch","Người kiểm"].map(h=><th key={h} style={S.th}>{h}</th>)}</tr></thead>
-                <tbody>
-                  {countItems.map(ci=>(
-                    <tr key={ci.id}>
-                      <td style={S.td}>{ci.part_name}</td>
-                      <td style={S.td}><code style={{fontSize:11}}>{ci.sku||"—"}</code></td>
-                      <td style={S.td}>{ci.qty_system}</td>
-                      <td style={S.td}><b>{ci.qty_actual}</b></td>
-                      <td style={S.td}>
-                        <b style={{color:ci.qty_diff===0?"#059669":ci.qty_diff>0?"#2563eb":"#dc2626"}}>
-                          {ci.qty_diff>0?"+":""}{ci.qty_diff}
-                        </b>
-                      </td>
-                      <td style={S.td}>{ci.counted_by_name}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* History */}
-      {loading ? <div style={S.empty}>⏳ Đang tải...</div> : (
-        <div style={S.card}>
-          <div style={{overflowX:"auto"}}>
-            <table style={S.table}>
-              <thead><tr>{["Mã phiên","Kho","Phạm vi","Trạng thái","Số mục","Tổng lệch","Người tạo","Ngày",""].map(h=><th key={h} style={S.th}>{h}</th>)}</tr></thead>
-              <tbody>
-                {counts.length===0 ? <tr><td colSpan={9} style={{...S.td,textAlign:"center",color:"#9ca3af",padding:32}}>Chưa có phiên kiểm kho</td></tr>
-                : counts.map(c=>(
-                  <tr key={c.id}>
-                    <td style={S.td}><code style={{fontSize:11}}>{c.count_code}</code></td>
-                    <td style={S.td}>{c.warehouse_name}</td>
-                    <td style={S.td}>{{full:"Toàn bộ",zone:"Khu vực",location:"Vị trí"}[c.scope]||c.scope}</td>
-                    <td style={S.td}><span style={S.badge(statusColor2[c.status]||"#6b7280")}>{statusLabel2[c.status]||c.status}</span></td>
-                    <td style={S.td}>{c.counted_locations||0}</td>
-                    <td style={S.td}><b style={{color:(c.total_discrepancy_qty||0)>0?"#dc2626":"#059669"}}>{c.total_discrepancy_qty||0}</b></td>
-                    <td style={S.td}>{c.started_by_name}</td>
-                    <td style={S.td}>{new Date(c.created||c.created_date).toLocaleDateString("vi")}</td>
-                    <td style={S.td}>
-                      {c.status==="in_progress" && <button style={S.btnSm()} onClick={async()=>{ setActiveCount(c); const items = await CountItem.filter(`count_id='${c.id}'`); setCountItems(items); }}>▶ Tiếp tục</button>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {modal && (
-        <Modal title="📋 Tạo phiên kiểm kho" onClose={()=>setModal(false)}>
-          <Field label="Kho cần kiểm *">
-            <select style={S.select} value={form.warehouse_id} onChange={e=>setForm(p=>({...p,warehouse_id:e.target.value}))}>
-              <option value="">-- Chọn kho --</option>
-              {warehouses.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}
-            </select>
-          </Field>
-          <Field label="Phạm vi kiểm">
-            <select style={S.select} value={form.scope} onChange={e=>setForm(p=>({...p,scope:e.target.value}))}>
-              <option value="full">Toàn bộ kho</option>
-              <option value="zone">Theo khu vực</option>
-              <option value="location">Theo vị trí kệ</option>
-            </select>
-          </Field>
-          <Field label="Ghi chú"><textarea style={{...S.input,height:60,resize:"none"}} value={form.note} onChange={e=>setForm(p=>({...p,note:e.target.value}))} /></Field>
-          <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:8}}>
-            <button style={S.btnGhost()} onClick={()=>setModal(false)}>Hủy</button>
-            <button style={S.btn()} onClick={createCount}>🔍 Bắt đầu kiểm kho</button>
-          </div>
-        </Modal>
-      )}
-    </div>
-  );
-}
-
 // ═══════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════
@@ -1004,7 +825,7 @@ export default function WarehouseManager({ user, onBack }) {
         {tab==="zones"      && <ZoneLocationTab user={user} toast={toast} />}
         {tab==="ledger"     && <StockLedgerTab user={user} toast={toast} />}
         {tab==="transfer"   && <TransferTab user={user} toast={toast} />}
-        {tab==="count"      && <StockCountTab user={user} toast={toast} />}
+        {tab==="count"      && <StockCountPage user={user} />}
       </div>
 
       <toast.ToastContainer />
