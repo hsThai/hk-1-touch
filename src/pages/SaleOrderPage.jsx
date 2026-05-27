@@ -1,6 +1,6 @@
 /* SaleOrderPage.jsx — POS bán hàng lẻ */
 import React, { useState, useEffect, useRef } from "react";
-import { SparePart, SaleOrder, SaleOrderItem, StockMovement, AppSettings } from "./pb.jsx";
+import { SparePart, SaleOrder, SaleOrderItem, StockMovement, AppSettings, Customer } from "./pb.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 function padZ(n) { return String(n).padStart(4,"0"); }
@@ -44,8 +44,10 @@ export default function SaleOrderPage({ user }) {
   const [search,      setSearch]      = useState("");
   const [searchRes,   setSearchRes]   = useState([]);
   const [cart,        setCart]        = useState([]);
-  const [custName,    setCustName]    = useState("");
-  const [custPhone,   setCustPhone]   = useState("");
+  const [custName,       setCustName]       = useState("");
+  const [custPhone,      setCustPhone]      = useState("");
+  const [custSearch,     setCustSearch]     = useState("");
+  const [custSuggestions,setCustSuggestions]= useState([]);
   const [discount,    setDiscount]    = useState(0);
   const [payMethod,   setPayMethod]   = useState("");
   const [cashAmt,     setCashAmt]     = useState(0);
@@ -67,6 +69,24 @@ export default function SaleOrderPage({ user }) {
       if (m.shop_phone) setShopPhone(m.shop_phone);
     }).catch(()=>{});
   }, []);
+
+  // Autocomplete khách hàng
+  useEffect(() => {
+    if (custSearch.length < 2) { setCustSuggestions([]); return; }
+    const t = setTimeout(async () => {
+      try {
+        const q = custSearch.toLowerCase();
+        const all = await Customer.list({ limit:300 });
+        setCustSuggestions(
+          (all||[]).filter(c =>
+            (c.full_name||"").toLowerCase().includes(q) ||
+            (c.phone||"").includes(custSearch)
+          ).slice(0, 6)
+        );
+      } catch {}
+    }, 300);
+    return () => clearTimeout(t);
+  }, [custSearch]);
 
   async function loadTodayOrders() {
     try {
@@ -265,16 +285,63 @@ export default function SaleOrderPage({ user }) {
         </div>
       )}
 
-      {/* KH info */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16 }}>
-        <div>
-          <label style={{ fontSize:12, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>Tên khách (tuỳ chọn)</label>
-          <input value={custName} onChange={e=>setCustName(e.target.value)} placeholder="Nguyễn Văn A" style={INP} />
-        </div>
-        <div>
-          <label style={{ fontSize:12, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>SĐT (tuỳ chọn)</label>
-          <input value={custPhone} onChange={e=>setCustPhone(e.target.value)} placeholder="0901234567" type="tel" style={INP} />
-        </div>
+      {/* KH info — autocomplete */}
+      <div style={{ marginBottom:16 }}>
+        <label style={{ fontSize:12, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>Khách hàng (tuỳ chọn)</label>
+
+        {/* Chip khi đã chọn */}
+        {custName ? (
+          <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px",
+            background:"#f0fdf4", border:"1.5px solid #86efac", borderRadius:12 }}>
+            <span style={{ fontSize:14, fontWeight:700, color:"#059669", flex:1 }}>
+              ✅ {custName}{custPhone ? " — " + custPhone : ""}
+            </span>
+            <button onClick={()=>{ setCustName(""); setCustPhone(""); setCustSearch(""); setCustSuggestions([]); }}
+              style={{ background:"none", border:"none", cursor:"pointer", color:"#6b7280", fontSize:18, lineHeight:1, padding:"0 4px" }}>×</button>
+          </div>
+        ) : (
+          <div style={{ position:"relative" }}>
+            <input value={custSearch}
+              onChange={e=>{ setCustSearch(e.target.value); if (!e.target.value) { setCustName(""); setCustPhone(""); } }}
+              placeholder="Tìm tên hoặc SĐT khách..."
+              style={INP} />
+
+            {/* Dropdown gợi ý */}
+            {custSuggestions.length > 0 && (
+              <div style={{ position:"absolute", top:46, left:0, right:0, background:"#fff",
+                border:"1.5px solid #e5e7eb", borderRadius:12, zIndex:100,
+                boxShadow:"0 8px 24px rgba(0,0,0,.12)", maxHeight:240, overflowY:"auto" }}>
+                {custSuggestions.map(c => (
+                  <div key={c.id}
+                    onClick={()=>{ setCustName(c.full_name||""); setCustPhone(c.phone||""); setCustSearch((c.full_name||"")+(c.phone?" — "+c.phone:"")); setCustSuggestions([]); }}
+                    style={{ padding:"11px 16px", cursor:"pointer", borderBottom:"1px solid #f3f4f6",
+                      display:"flex", justifyContent:"space-between", alignItems:"center" }}
+                    onMouseEnter={e=>e.currentTarget.style.background="#f9fafb"}
+                    onMouseLeave={e=>e.currentTarget.style.background=""}>
+                    <span style={{ fontWeight:700, fontSize:14 }}>{c.full_name}</span>
+                    <span style={{ fontSize:12, color:"#6b7280" }}>{c.phone||""}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Khách mới: hiện 2 input nhập tay */}
+            {custSearch.length >= 2 && custSuggestions.length === 0 && !custName && (
+              <div style={{ marginTop:10, display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                <div>
+                  <label style={{ fontSize:11, fontWeight:700, color:"#6b7280", display:"block", marginBottom:4 }}>Tên khách mới</label>
+                  <input value={custName} onChange={e=>setCustName(e.target.value)}
+                    placeholder="Nguyễn Văn A" style={INP} />
+                </div>
+                <div>
+                  <label style={{ fontSize:11, fontWeight:700, color:"#6b7280", display:"block", marginBottom:4 }}>SĐT</label>
+                  <input value={custPhone} onChange={e=>setCustPhone(e.target.value)}
+                    placeholder="0901234567" type="tel" style={INP} />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* HTTT */}

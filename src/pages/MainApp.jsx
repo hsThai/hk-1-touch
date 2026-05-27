@@ -1595,7 +1595,7 @@ function MainAppInner() {
         {page==="customers" && <CustomerList />}
         {page==="dashboard" && (
           user.role==="manager" || user.role==="admin"
-            ? <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><ManagerDashboard currentUser={user} orders={orders} users={users} /></Suspense>
+            ? <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><ManagerDashboard user={user} /></Suspense>
             : <Dashboard />
         )}
         {page==="staff" && <StaffManagerPage />}
