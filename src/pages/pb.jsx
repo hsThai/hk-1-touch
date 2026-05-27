@@ -227,6 +227,9 @@ export const StockCountItem     = makeCollection("stock_count_items");
 export const SaleOrder          = makeCollection("sale_orders");
 export const SaleOrderItem      = makeCollection("sale_order_items");
 export const Expense            = makeCollection("expenses");
+export const Role               = makeCollection("roles");
+export const RolePermission     = makeCollection("role_permissions");
+export const MediaPost          = makeCollection("media_posts");
 
 // ── Helper: ghi log lịch sử đơn ──────────────────────────
 export async function logHistory({ order_id, order_code, action_type, action_label, changed_by_id, changed_by_name, changed_by_role, old_value, new_value, note }) {

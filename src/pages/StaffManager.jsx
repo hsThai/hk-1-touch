@@ -1,16 +1,18 @@
 /* v1774860462-5573 */
 import { useState, useEffect } from "react";
-import { Staff, Warehouse } from "./pb.jsx";
+import { Staff, Warehouse, Role } from "./pb.jsx";
+import { ROLE_DEFINITIONS } from "./seedRoles.js";
 
-const ROLES = [
-  { value:"manager",      label:"Quản lý",        color:"#7c3aed", bg:"#f5f3ff", icon:"👑" },
-  { value:"receptionist", label:"Tiếp tân",        color:"#1d4ed8", bg:"#dbeafe", icon:"💁" },
-  { value:"technician",   label:"Kỹ thuật viên",   color:"#065f46", bg:"#dcfce7", icon:"🔧" },
-  { value:"warehouse",    label:"Nhân viên kho",   color:"#0369a1", bg:"#e0f2fe", icon:"📦" },
-];
+// Fallback tĩnh — dùng khi DB chưa có dữ liệu
+const ROLES_FALLBACK = ROLE_DEFINITIONS.map(r => ({
+  value: r.key,
+  label: r.label,
+  color: r.color,
+  bg:    r.bg,
+  icon:  r.icon,
+}));
 
 function simpleHash(str) { return btoa(unescape(encodeURIComponent(str))); }
-function roleInfo(role) { return ROLES.find(r=>r.value===role) || ROLES[0]; }
 
 const EMPTY = { full_name:"", phone:"", username:"", role:"technician", password:"", note:"", is_active:true, warehouse_ids:[] };
 
@@ -25,14 +27,37 @@ export default function StaffManager({ currentStaff }) {
   const [filterRole, setFilterRole] = useState("all");
   const [toast, setToast]   = useState("");
   const [warehouses, setWarehouses] = useState([]);
+  const [roles, setRoles]           = useState(ROLES_FALLBACK);
 
-  useEffect(() => { load(); loadWarehouses(); }, []);
+  function roleInfo(roleKey) {
+    return roles.find(r => r.value===roleKey) || ROLES_FALLBACK.find(r=>r.value===roleKey) || ROLES_FALLBACK[0];
+  }
+
+  useEffect(() => { load(); loadWarehouses(); loadRoles(); }, []);
 
   async function loadWarehouses() {
     try {
       const whs = await Warehouse.list({ limit: 50, filter: "is_active=true" });
       setWarehouses(whs);
     } catch {}
+  }
+
+  async function loadRoles() {
+    try {
+      const dbRoles = await Role.list({ limit: 100, sort: "sort_order" });
+      if (dbRoles && dbRoles.length > 0) {
+        setRoles(dbRoles.map(r => ({
+          value: r.key,
+          label: r.label,
+          color: r.color || "#6b7280",
+          bg:    r.bg    || "#f3f4f6",
+          icon:  r.icon  || "👤",
+        })));
+      }
+      // Nếu DB rỗng → giữ ROLES_FALLBACK
+    } catch {
+      // Lỗi mạng → giữ fallback, không crash
+    }
   }
 
   async function load() {

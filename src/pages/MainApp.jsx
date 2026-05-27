@@ -46,6 +46,7 @@ import { MediaViewer, AcceptChecklistModal, AcceptTimer, timeAgo, genOrderId, ge
 import { OrderDrawer } from "./OrderDrawer";
 import { NewOrderModal, KPIPage, ProductHistoryModal } from "./OrderForms";
 import LoginPage, { showSystemNotif, requestNotifPermission } from "./LoginV2";
+import { PermissionProvider } from "./PermissionContext.jsx";
 import ChangePassword from "./ChangePassword";
 
 const _BUILD_V4 = "loginv2-real-db";
@@ -1397,6 +1398,7 @@ function MainAppInner() {
   }
 
   return (
+    <PermissionProvider user={user}>
     <div style={{ minHeight:"100vh", background:"#f8fafc", fontFamily:"system-ui,-apple-system,sans-serif" }}>
       {/* Header */}
       <div style={{ position:"sticky", top:0, zIndex:100, background:"#1e1b4b", padding:"12px 16px", display:"flex", alignItems:"center", gap:12 }}>
@@ -1688,6 +1690,7 @@ function MainAppInner() {
         </div>
       )}
     </div>
+    </PermissionProvider>
   );
 }
 
