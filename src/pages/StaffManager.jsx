@@ -163,7 +163,7 @@ export default function StaffManager({ currentStaff }) {
         <select value={filterRole} onChange={e=>setFilterRole(e.target.value)}
           style={{ height:40, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:13, background:"#fff", cursor:"pointer" }}>
           <option value="all">Tất cả vai trò</option>
-          {ROLES.map(r=><option key={r.value} value={r.value}>{r.icon} {r.label}</option>)}
+          {roles.map(r=><option key={r.value} value={r.value}>{r.icon} {r.label}</option>)}
         </select>
       </div>
 
@@ -249,7 +249,7 @@ export default function StaffManager({ currentStaff }) {
               <label style={{ fontSize:13, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>Vai trò *</label>
               <select value={form.role} onChange={e=>setForm(p=>({...p,role:e.target.value}))}
                 style={{ width:"100%", height:44, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:14, background:"#fff", boxSizing:"border-box" }}>
-                {ROLES.map(r=><option key={r.value} value={r.value}>{r.icon} {r.label}</option>)}
+                {roles.map(r=><option key={r.value} value={r.value}>{r.icon} {r.label}</option>)}
               </select>
             </div>
             <div style={{ marginBottom:14 }}>
