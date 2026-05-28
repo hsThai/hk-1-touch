@@ -21,9 +21,10 @@ function makeWHCol(colName) {
   }
   return {
     list:   (p={})   => {
-      const { limit, ...rest } = p;
-      const params = new URLSearchParams({ perPage: limit||500, ...rest });
-      return pbFetch(`collections/${colName}/records?${params}`).then(r=>r.items||[]);
+      const { limit, sort, ...rest } = p;
+      const qp = { perPage: limit||500, ...rest };
+      if (sort) qp.sort = sort;
+      return pbFetch(`collections/${colName}/records?${new URLSearchParams(qp)}`).then(r=>r.items||[]);
     },
     filter: (f,p={}) => {
       const { limit, sort, ...rest } = p;
@@ -1199,7 +1200,7 @@ function StockReportTab({ warehouses }) {
       const filterStr = wh ? `warehouse_id='${wh}'` : "";
       const [l, m] = await Promise.all([
         filterStr ? Ledger.filter(filterStr, { limit:1000 }) : Ledger.list({ limit:1000 }),
-        filterStr ? Move.filter(filterStr, { limit:500, sort:"-created" }) : Move.list({ limit:500, sort:"-created" }),
+        filterStr ? Move.filter(filterStr, { limit:500 }) : Move.list({ limit:500 }),
       ]);
       setLedgers(l||[]);
       setMovements(m||[]);
