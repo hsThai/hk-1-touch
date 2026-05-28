@@ -1147,7 +1147,6 @@ function MainAppContent({ onUserChange }) {
     {key:"wh_orders",  icon:"chat",          label:"Chat đơn"},
     {key:"wh_export",  icon:"outbox",        label:"Phiếu xuất kho"},
     {key:"wh_import",  icon:"move_to_inbox", label:"Nhập hàng"},
-    {key:"wh_stock",   icon:"inventory_2",   label:"Tồn kho"},
     {key:"wh_manager", icon:"warehouse",     label:"Quản lý kho"},
   ] : [
     // Trang chủ theo role
@@ -1164,7 +1163,6 @@ function MainAppContent({ onUserChange }) {
     {key:"tasks", icon:"check_circle", label:"Danh sách đơn"},
 
     // Kho
-    ...(can("stock_ledger","view") ? [{key:"wh_stock", icon:"inventory_2", label:"Tồn kho"}] : []),
 
     // Bán hàng
     ...(can("sale_order","view")   ? [{key:"cashier_home", icon:"point_of_sale", label:"Bán hàng"}] : []),
@@ -1728,7 +1726,6 @@ function MainAppContent({ onUserChange }) {
         {page==="wh_orders" && <WarehouseOrders user={user} users={users} setSelectedOrder={setSelectedOrderSync} />}
         {page==="wh_export" && <WarehouseExport user={user} />}
         {page==="wh_import" && <WarehouseImport user={user} />}
-        {page==="wh_stock"  && <WarehouseStock  user={user} />}
         {page==="wh_manager" && <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"dashboard")} />}
         {page==="cashier_home" && <CashierApp user={user} />}
         {page==="manager_app" && <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><ManagerDashboard user={user} /></Suspense>}
@@ -2088,7 +2085,6 @@ function WarehouseHome({ user, setPage }) {
     { key:"wh_export",  icon:"outbox",         label:"Phiếu chờ xuất",  value:stats.pendingExport,  color:"#d97706", bg:"#fffbeb", border:"#fcd34d", urgent:stats.pendingExport>0 },
     { key:"wh_export",  icon:"pending_actions", label:"Chờ KTV nhận",    value:stats.waitingKtv,     color:"#0891b2", bg:"#ecfeff", border:"#67e8f9", urgent:stats.waitingKtv>0 },
     { key:"wh_export",  icon:"assignment_late", label:"Mượn quá hạn",    value:stats.overdueBorrow,  color:"#dc2626", bg:"#fff1f2", border:"#fca5a5", urgent:stats.overdueBorrow>0 },
-    { key:"wh_stock",   icon:"inventory_2",     label:"LK tồn thấp",     value:stats.lowStock,       color:"#0369a1", bg:"#e0f2fe", border:"#7dd3fc", urgent:stats.lowStock>0 },
     { key:"wh_import",  icon:"move_to_inbox",   label:"Phiếu nhập draft",value:stats.pendingImport,  color:"#7c3aed", bg:"#f5f3ff", border:"#c4b5fd", urgent:false },
   ];
 
@@ -2122,7 +2118,6 @@ function WarehouseHome({ user, setPage }) {
         {[
           { page:"wh_export", icon:"outbox",         label:"Xử lý phiếu xuất kho", sub:"Xác nhận xuất cho KTV",        color:"#d97706", bg:"#fffbeb" },
           { page:"wh_import", icon:"move_to_inbox",  label:"Tạo phiếu nhập hàng",  sub:"Máy móc & linh kiện",           color:"#7c3aed", bg:"#f5f3ff" },
-          { page:"wh_stock",  icon:"search",         label:"Tra cứu tồn kho",       sub:"Tìm linh kiện theo tên / SKU",  color:"#0369a1", bg:"#e0f2fe" },
         ].map(item => (
           <div key={item.page+item.label} onClick={() => setPage(item.page)}
             style={{ background:item.bg, borderRadius:14, padding:"14px 16px", border:`1.5px solid ${item.highlight > 0 ? item.color : item.bg}`, cursor:"pointer", display:"flex", alignItems:"center", gap:14, boxShadow:"0 2px 8px rgba(0,0,0,.05)" }}>
@@ -2807,85 +2802,6 @@ function WarehouseImport({ user }) {
 }
 
 
-// ─── Warehouse: Tồn kho ──────────────────────────────────
-function WarehouseStock({ user }) {
-  const [parts, setParts]   = React.useState([]);
-  const [loading, setLoading] = React.useState(true);
-  const [search, setSearch] = React.useState("");
-  const [filter, setFilter] = React.useState("all");
-
-  React.useEffect(() => { load(); }, []);
-
-  async function load() {
-    setLoading(true);
-    try {
-      const data = await SparePart.filter({ is_active:true });
-      setParts(data.sort((a,b)=>(a.name||"").localeCompare(b.name)));
-    } catch(e){ console.error(e); }
-    setLoading(false);
-  }
-
-  const filtered = parts.filter(p => {
-    const q = search.toLowerCase();
-    const matchSearch = !search || (p.name||"").toLowerCase().includes(q) || (p.sku||"").toLowerCase().includes(q);
-    const qty = p.stock_qty||0;
-    const matchFilter = filter==="all" || (filter==="low"&&qty>0&&qty<=3) || (filter==="out"&&qty===0) || (filter==="ok"&&qty>3);
-    return matchSearch && matchFilter;
-  });
-
-  function stockColor(qty) {
-    if (qty===0) return {color:"#dc2626",bg:"#fff1f2",label:"Hết hàng"};
-    if (qty<=3)  return {color:"#d97706",bg:"#fffbeb",label:"Tồn thấp"};
-    return {color:"#059669",bg:"#f0fdf4",label:"Còn hàng"};
-  }
-
-  return (
-    <div style={{ paddingBottom:100 }}>
-      <div style={{ padding:"14px 14px 8px", position:"sticky", top:56, background:"#fff", zIndex:10, borderBottom:"1.5px solid #e5e7eb" }}>
-        <div style={{ fontWeight:900, fontSize:17, color:"#1e1b4b", marginBottom:10 }}>🔍 Tồn kho linh kiện</div>
-        <input value={search} onChange={e=>setSearch(e.target.value)}
-          placeholder="Tìm theo tên hoặc SKU..."
-          style={{ width:"100%", height:40, borderRadius:12, border:"1.5px solid #e5e7eb", padding:"0 14px", fontSize:14, outline:"none", marginBottom:10, boxSizing:"border-box" }}/>
-        <div style={{ display:"flex", gap:6 }}>
-          {[{k:"all",l:"Tất cả"},{k:"ok",l:"🟢 Đủ"},{k:"low",l:"🟡 Thấp"},{k:"out",l:"🔴 Hết"}].map(f=>(
-            <button key={f.k} onClick={()=>setFilter(f.k)}
-              style={{ padding:"6px 12px", borderRadius:20, border:"none", background:filter===f.k?"#1e1b4b":"#f3f4f6", color:filter===f.k?"#fff":"#374151", fontWeight:700, fontSize:12, cursor:"pointer", flexShrink:0 }}>
-              {f.l}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ padding:"10px 14px" }}>
-        {loading ? <div style={{textAlign:"center",padding:40,color:"#9ca3af"}}>⏳ Đang tải...</div>
-        : filtered.length===0 ? (
-          <div style={{textAlign:"center",padding:"40px 20px",color:"#9ca3af"}}>
-            <span className="material-icons" style={{fontSize:48,display:"block",marginBottom:8}}>inventory_2</span>
-            Không tìm thấy linh kiện
-          </div>
-        ) : filtered.map(p => {
-          const sc = stockColor(p.stock_qty||0);
-          return (
-            <div key={p.id} style={{ background:"#fff", borderRadius:14, padding:"12px 14px", marginBottom:8, border:"1.5px solid #e5e7eb", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontWeight:700, fontSize:14, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name}</div>
-                <div style={{ fontSize:12, color:"#6b7280", marginTop:2, display:"flex", gap:8 }}>
-                  {p.sku && <span>SKU: {p.sku}</span>}
-                  {p.category && <span>{p.category}</span>}
-                </div>
-                <div style={{ fontSize:12, fontWeight:700, color:"#4f46e5", marginTop:2 }}>{(p.price||0).toLocaleString("vi-VN")}đ/{p.unit||"cái"}</div>
-              </div>
-              <div style={{ textAlign:"right", flexShrink:0, marginLeft:10 }}>
-                <div style={{ background:sc.bg, color:sc.color, borderRadius:20, padding:"4px 12px", fontWeight:900, fontSize:16 }}>{p.stock_qty||0}</div>
-                <div style={{ fontSize:10, color:sc.color, fontWeight:700, marginTop:2 }}>{sc.label}</div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 function MainAppInner() {
   const [user, setUser] = useState(null);
