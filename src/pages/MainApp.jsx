@@ -19,6 +19,9 @@ const StaffManagerPage = lazy(() => import("./StaffManager").catch(() => ({ defa
     <div style={{fontWeight:700,marginTop:8}}>Module không tải được</div>
   </div>
 )})));
+const CustomerManagerPage = lazy(() => import("./CustomerManager").catch(() => ({ default: () => (
+  <div style={{padding:40,textAlign:"center",color:"#dc2626"}}>Lỗi tải màn hình Khách hàng</div>
+)})));
 const ManagerDashboard = lazy(() => import("./ManagerDashboard").catch(() => ({ default: () => (
   <div style={{padding:32,textAlign:"center",color:"#ef4444"}}>❌ Lỗi tải Manager Dashboard</div>
 )})));
@@ -1511,8 +1514,7 @@ function MainAppContent({ onUserChange }) {
           ))}
         </div>
 
-        {/* KPI bảng */}
-        <KPIPage users={users} orders={orders} />
+
       </div>
     );
   }
@@ -1713,7 +1715,11 @@ function MainAppContent({ onUserChange }) {
           </div>
         )}
         {page==="kpi" && <KPIPage users={users} orders={orders} />}
-        {page==="customers" && <CustomerList />}
+        {page==="customers" && (
+          <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
+            <CustomerManagerPage />
+          </Suspense>
+        )}
         {page==="dashboard" && (
           user.role==="manager" || user.role==="admin"
             ? <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><ManagerDashboard user={user} /></Suspense>
