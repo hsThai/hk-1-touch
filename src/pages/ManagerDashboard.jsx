@@ -846,24 +846,23 @@ export default function ManagerDashboard({ user }) {
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    try {
-      const [ro, so, ex, sp, sf, cu, si] = await Promise.all([
-        RepairOrder.list({ limit:500, sort:"-received_date" }),
-        SaleOrder.list({ limit:500, sort:"-created" }),
-        Expense.list({ limit:500, sort:"-expense_date" }),
-        SparePart.list({ limit:500 }),
-        Staff.list({ limit:100 }),
-        Customer.list({ limit:500 }),
-        StockImport.list({ limit:200, sort:"-created" }),
-      ]);
-      setRepairOrders(ro||[]);
-      setSaleOrders(so||[]);
-      setExpenses(ex||[]);
-      setSpareParts(sp||[]);
-      setStaff(sf||[]);
-      setCustomers(cu||[]);
-      setStockImports(si||[]);
-    } catch(e) { console.error("ManagerDashboard load error:", e); }
+    const safe = (p) => p.catch(e => { console.warn("MD fetch warn:", e?.message); return []; });
+    const [ro, so, ex, sp, sf, cu, si] = await Promise.all([
+      safe(RepairOrder.list({ limit:500, sort:"-received_date" })),
+      safe(SaleOrder.list({ limit:500, sort:"-created" })),
+      safe(Expense.list({ limit:500, sort:"-expense_date" })),
+      safe(SparePart.list({ limit:500 })),
+      safe(Staff.list({ limit:100 })),
+      safe(Customer.list({ limit:500 })),
+      safe(StockImport.list({ limit:200, sort:"-created" })),
+    ]);
+    setRepairOrders(ro||[]);
+    setSaleOrders(so||[]);
+    setExpenses(ex||[]);
+    setSpareParts(sp||[]);
+    setStaff(sf||[]);
+    setCustomers(cu||[]);
+    setStockImports(si||[]);
     setLoading(false);
   }, []);
 
