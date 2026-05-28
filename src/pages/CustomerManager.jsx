@@ -55,7 +55,11 @@ export default function CustomerManager({ onSelectCustomer }) {
         showToast("✅ Đã cập nhật khách hàng");
       }
       setModal(null); load();
-    } catch { setErr("Lỗi lưu dữ liệu."); }
+    } catch(e) {
+      console.error("CustomerManager save error:", e);
+      const msg = e?.data ? JSON.stringify(e.data) : e?.message || "Lỗi không xác định";
+      setErr("Lỗi lưu dữ liệu: " + msg);
+    }
     setSaving(false);
   }
 
