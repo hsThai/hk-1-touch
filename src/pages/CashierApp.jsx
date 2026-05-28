@@ -74,7 +74,145 @@ const NAV_TABS = [
   { key:"revenue",  icon:"bar_chart",     label:"Doanh thu" },
   { key:"expense",  icon:"receipt_long",  label:"Chi phí" },
   { key:"overview", icon:"dashboard",     label:"Tổng quan" },
+  { key:"shift",    icon:"balance",       label:"Đối soát ca" },
 ];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ShiftReconcile — Đối soát ca ngày
+// ─────────────────────────────────────────────────────────────────────────────
+function ShiftReconcile({ user }) {
+  const [date, setDate]       = useState(new Date().toISOString().slice(0,10));
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => { load(); }, [date]);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const start = new Date(date); start.setHours(0,0,0,0);
+      const end   = new Date(date); end.setHours(23,59,59,999);
+      const inDay = d => d && new Date(d) >= start && new Date(d) <= end;
+
+      const [repairs, sales, exps] = await Promise.all([
+        RepairOrder.list({ limit:500 }),
+        SaleOrder.list({ limit:500 }),
+        Expense.list({ limit:200 }),
+      ]);
+
+      const doneRepairs = (repairs||[]).filter(o =>
+        ["Đã Thanh Toán","Hoàn Thành","Đã Giao"].includes(o.status) &&
+        inDay(o.done_date || o.updated_date || o.updated));
+      const paidSales   = (sales||[]).filter(o => o.status==="paid" && inDay(o.created||o.created_date));
+      const dayExp      = (exps||[]).filter(e => inDay(e.expense_date||e.created_date||e.created));
+
+      const repairCash = doneRepairs.filter(o=>!o.payment_method||o.payment_method==="Tiền mặt").reduce((s,o)=>s+(o.final_cost||0),0);
+      const repairBank = doneRepairs.filter(o=>o.payment_method==="Chuyển khoản").reduce((s,o)=>s+(o.final_cost||0),0);
+      const saleCash   = paidSales.filter(o=>!o.payment_method||o.payment_method==="Tiền mặt").reduce((s,o)=>s+(o.total||0),0);
+      const saleBank   = paidSales.filter(o=>o.payment_method==="Chuyển khoản").reduce((s,o)=>s+(o.total||0),0);
+      const totalRev   = doneRepairs.reduce((s,o)=>s+(o.final_cost||0),0) + paidSales.reduce((s,o)=>s+(o.total||0),0);
+      const totalExp   = dayExp.reduce((s,e)=>s+(e.amount||0),0);
+
+      setData({ doneRepairs, paidSales, dayExp,
+        repairRev: doneRepairs.reduce((s,o)=>s+(o.final_cost||0),0),
+        saleRev:   paidSales.reduce((s,o)=>s+(o.total||0),0),
+        totalRev, totalExp, profit: totalRev-totalExp,
+        totalCash: repairCash+saleCash, totalBank: repairBank+saleBank,
+        repairCash, repairBank, saleCash, saleBank,
+        deposits: doneRepairs.reduce((s,o)=>s+(o.deposit||0),0),
+      });
+    } catch(e){ alert("Lỗi: "+e.message); }
+    setLoading(false);
+  }
+
+  const fmt = n => Number(n||0).toLocaleString("vi-VN")+"đ";
+
+  function exportCSV() {
+    if (!data) return;
+    const BOM = "﻿";
+    const rows = [
+      ["ĐỐI SOÁT CA — " + date], [],
+      ["DOANH THU"], ["Sửa chữa",data.repairRev,"Bán lẻ",data.saleRev,"Tổng",data.totalRev],
+      [], ["THANH TOÁN"],
+      ["TM sửa",data.repairCash,"TM bán",data.saleCash,"Tổng TM",data.totalCash],
+      ["CK sửa",data.repairBank,"CK bán",data.saleBank,"Tổng CK",data.totalBank],
+      [], ["Chi phí",data.totalExp,"Lợi nhuận",data.profit], [],
+      ["ĐƠN SỬA"], ["Mã phiếu","KH","SĐT","Thiết bị","Tổng","Cọc","Còn lại","TT"],
+      ...(data.doneRepairs.map(o=>[o.order_code||o.id,o.customer_name,o.customer_phone,o.device_model,o.final_cost||0,o.deposit||0,Math.max(0,(o.final_cost||0)-(o.deposit||0)),o.payment_method||"TM"])),
+      [], ["BÁN LẺ"], ["Mã","Ghi chú","Tổng","TT"],
+      ...(data.paidSales.map(o=>[o.order_code||o.id,o.note||"",o.total||0,o.payment_method||"TM"])),
+      [], ["CHI PHÍ"], ["Loại","Mô tả","Số tiền"],
+      ...(data.dayExp.map(e=>[e.category||"Khác",e.description||"",e.amount||0])),
+    ];
+    const blob = new Blob([BOM+rows.map(r=>r.join(",")).join("
+")],{type:"text/csv;charset=utf-8"});
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+    a.download="DoiSoatCa_"+date+".csv"; a.click();
+  }
+
+  return (
+    <div style={{ padding:"16px 14px 100px" }}>
+      <div style={{ display:"flex", gap:8, alignItems:"center", marginBottom:16 }}>
+        <div style={{ fontWeight:800, fontSize:17, flex:1 }}>📊 Đối soát ca</div>
+        <input type="date" value={date} onChange={e=>setDate(e.target.value)}
+          style={{ border:"1.5px solid #e5e7eb", borderRadius:8, padding:"6px 10px", fontSize:13 }}/>
+        <button onClick={exportCSV}
+          style={{ background:"#4f46e5", color:"#fff", border:"none", borderRadius:8, padding:"7px 12px", fontSize:13, cursor:"pointer" }}>
+          ⬇️ CSV
+        </button>
+      </div>
+      {loading && <div style={{textAlign:"center",padding:40,color:"#9ca3af"}}>Đang tải...</div>}
+      {data && !loading && (<>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:16 }}>
+          {[
+            {label:"Doanh thu", value:fmt(data.totalRev), color:"#4f46e5", bg:"#eef2ff"},
+            {label:"Chi phí",   value:fmt(data.totalExp), color:"#dc2626", bg:"#fee2e2"},
+            {label:"Lợi nhuận", value:fmt(data.profit),   color:"#059669", bg:"#f0fdf4"},
+            {label:"Tiền mặt",  value:fmt(data.totalCash),color:"#d97706", bg:"#fffbeb"},
+          ].map(c=>(
+            <div key={c.label} style={{background:c.bg,borderRadius:12,padding:12}}>
+              <div style={{fontSize:12,color:c.color,fontWeight:700}}>{c.label}</div>
+              <div style={{fontSize:18,fontWeight:900,color:c.color}}>{c.value}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{background:"#fff",borderRadius:12,padding:14,marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,.06)"}}>
+          <div style={{fontWeight:700,fontSize:14,marginBottom:10}}>💳 Phân loại thanh toán</div>
+          {[
+            {label:"Sửa chữa — Tiền mặt",     v:data.repairCash},
+            {label:"Sửa chữa — Chuyển khoản", v:data.repairBank},
+            {label:"Bán lẻ — Tiền mặt",       v:data.saleCash},
+            {label:"Bán lẻ — Chuyển khoản",   v:data.saleBank},
+          ].map(r=>(
+            <div key={r.label} style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"5px 0",borderBottom:"1px solid #f3f4f6"}}>
+              <span style={{color:"#6b7280"}}>{r.label}</span>
+              <span style={{fontWeight:700}}>{fmt(r.v)}</span>
+            </div>
+          ))}
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:14,padding:"8px 0 0",fontWeight:800,color:"#4f46e5"}}>
+            <span>Tổng tiền mặt thực nhận</span><span>{fmt(data.totalCash)}</span>
+          </div>
+          {data.deposits>0 && <div style={{fontSize:12,color:"#9ca3af"}}>* Bao gồm cọc: {fmt(data.deposits)}</div>}
+        </div>
+        <div style={{background:"#fff",borderRadius:12,padding:14,boxShadow:"0 1px 4px rgba(0,0,0,.06)"}}>
+          <div style={{fontWeight:700,fontSize:14,marginBottom:8}}>🔧 Đơn sửa hoàn thành ({data.doneRepairs.length})</div>
+          {data.doneRepairs.length===0 && <div style={{color:"#9ca3af",fontSize:13}}>Chưa có đơn nào hôm nay</div>}
+          {data.doneRepairs.map(o=>(
+            <div key={o.id} style={{padding:"8px 0",borderBottom:"1px solid #f3f4f6"}}>
+              <div style={{display:"flex",justifyContent:"space-between"}}>
+                <span style={{fontWeight:700,fontSize:13}}>{o.order_code||o.id}</span>
+                <span style={{fontWeight:700,color:"#059669"}}>{fmt(o.final_cost)}</span>
+              </div>
+              <div style={{fontSize:12,color:"#6b7280"}}>{o.customer_name} · {o.device_model}</div>
+              <div style={{fontSize:11,color:"#9ca3af"}}>{o.payment_method||"Tiền mặt"} · Cọc: {fmt(o.deposit)}</div>
+            </div>
+          ))}
+        </div>
+      </>)}
+    </div>
+  );
+}
+
 
 export default function CashierApp({ user }) {
   const [tab, setTab] = useState("sale");
@@ -112,6 +250,7 @@ export default function CashierApp({ user }) {
         {tab === "revenue"  && (RevenueReportPage  ? <RevenueReportPage user={user} />  : <Fallback />)}
         {tab === "expense"  && (ExpensePage        ? <ExpensePage user={user} />        : <Fallback />)}
         {tab === "overview" && <OverviewTab user={user} />}
+        {tab === "shift"    && <ShiftReconcile user={user} />}
       </div>
 
       <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#fff", borderTop:"1.5px solid #e5e7eb", display:"flex", zIndex:100, paddingBottom:"env(safe-area-inset-bottom)" }}>

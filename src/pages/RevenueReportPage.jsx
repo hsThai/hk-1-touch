@@ -1,6 +1,6 @@
 /* RevenueReportPage.jsx — Báo cáo doanh thu */
 import React, { useState, useEffect, useMemo } from "react";
-import { RepairOrder, SaleOrder, Expense } from "./pb.jsx";
+import { RepairOrder, SaleOrder, Expense, StockImport, StockExportRequest } from "./pb.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 function fmtDate(dateStr) {
@@ -35,6 +35,162 @@ const EXP_COLORS = { salary:"#7c3aed", rent:"#dc2626", utility:"#2563eb", supply
 
 const TH = { padding:"10px 12px", background:"#f9fafb", fontWeight:800, fontSize:12, color:"#374151", textAlign:"left", borderBottom:"1.5px solid #e5e7eb" };
 const TD = { padding:"10px 12px", fontSize:13, borderBottom:"1px solid #f3f4f6", verticalAlign:"middle" };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sub-components cho RevenueReportPage
+// ─────────────────────────────────────────────────────────────────────────────
+
+function TabByKTV({ orders, period, inPeriod, DONE_STATUS }) {
+  const filtered = orders.filter(o=>DONE_STATUS.includes(o.status)&&inPeriod(o.done_date||o.updated_date||o.updated,period));
+  const byKtv = {};
+  filtered.forEach(o=>{
+    const name = o.assigned_to_name||"Chưa phân công";
+    if(!byKtv[name]) byKtv[name]={name,count:0,revenue:0};
+    byKtv[name].count++; byKtv[name].revenue+=(o.final_cost||0);
+  });
+  const list = Object.values(byKtv).sort((a,b)=>b.revenue-a.revenue);
+  const maxRev = Math.max(...list.map(x=>x.revenue),1);
+  return (
+    <div>
+      <div style={{fontWeight:700,fontSize:14,marginBottom:12}}>Doanh thu theo Kỹ thuật viên</div>
+      {list.length===0 && <div style={{color:"#9ca3af",textAlign:"center",padding:20}}>Không có dữ liệu</div>}
+      {list.map(k=>(
+        <div key={k.name} style={{background:"#fff",borderRadius:10,padding:12,marginBottom:8,boxShadow:"0 1px 4px rgba(0,0,0,.06)"}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+            <span style={{fontWeight:700,fontSize:14}}>{k.name}</span>
+            <span style={{fontWeight:700,color:"#4f46e5"}}>{Number(k.revenue).toLocaleString("vi-VN")}đ</span>
+          </div>
+          <div style={{height:8,background:"#f3f4f6",borderRadius:4}}>
+            <div style={{height:"100%",background:"#4f46e5",borderRadius:4,width:`${(k.revenue/maxRev*100).toFixed(1)}%`}}/>
+          </div>
+          <div style={{fontSize:12,color:"#6b7280",marginTop:4}}>{k.count} đơn hoàn thành</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TabServices({ orders, period, inPeriod, DONE_STATUS }) {
+  const filtered = orders.filter(o=>DONE_STATUS.includes(o.status)&&inPeriod(o.done_date||o.updated_date||o.updated,period));
+  const svcMap = {};
+  filtered.forEach(o=>{
+    const issues = (o.issue_description||"").split(/[,
+;、]+/).map(s=>s.trim()).filter(s=>s.length>2&&s.length<60);
+    issues.forEach(svc=>{
+      if(!svcMap[svc]) svcMap[svc]={name:svc,count:0,revenue:0};
+      svcMap[svc].count++; svcMap[svc].revenue+=(o.final_cost||0)/Math.max(issues.length,1);
+    });
+  });
+  const list = Object.values(svcMap).sort((a,b)=>b.count-a.count).slice(0,20);
+  return (
+    <div>
+      <div style={{fontWeight:700,fontSize:14,marginBottom:12}}>Dịch vụ phổ biến nhất</div>
+      {list.length===0 && <div style={{color:"#9ca3af",textAlign:"center",padding:20}}>Không có dữ liệu</div>}
+      <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+        <thead><tr>
+          <th style={{padding:"8px 10px",background:"#f9fafb",fontWeight:800,fontSize:12,textAlign:"left",borderBottom:"1.5px solid #e5e7eb"}}>Dịch vụ</th>
+          <th style={{padding:"8px 10px",background:"#f9fafb",fontWeight:800,fontSize:12,textAlign:"right",borderBottom:"1.5px solid #e5e7eb"}}>Lần</th>
+          <th style={{padding:"8px 10px",background:"#f9fafb",fontWeight:800,fontSize:12,textAlign:"right",borderBottom:"1.5px solid #e5e7eb"}}>~Doanh thu</th>
+        </tr></thead>
+        <tbody>{list.map((s,i)=>(
+          <tr key={s.name}>
+            <td style={{padding:"8px 10px",fontSize:13,borderBottom:"1px solid #f3f4f6"}}>{i+1}. {s.name}</td>
+            <td style={{padding:"8px 10px",fontSize:13,borderBottom:"1px solid #f3f4f6",textAlign:"right",fontWeight:700}}>{s.count}</td>
+            <td style={{padding:"8px 10px",fontSize:13,borderBottom:"1px solid #f3f4f6",textAlign:"right",color:"#059669"}}>{Number(s.revenue).toLocaleString("vi-VN")}đ</td>
+          </tr>
+        ))}</tbody>
+      </table>
+    </div>
+  );
+}
+
+function TabDebt({ orders }) {
+  const debtOrders = orders.filter(o=>!["Đã Thanh Toán","Hoàn Thành","Đã Giao","Hủy"].includes(o.status)&&o.estimated_cost>0);
+  const byCustomer = {};
+  debtOrders.forEach(o=>{
+    const key = o.customer_phone||o.customer_name||o.id;
+    if(!byCustomer[key]) byCustomer[key]={name:o.customer_name,phone:o.customer_phone,orders:[],totalDebt:0};
+    byCustomer[key].orders.push(o);
+    byCustomer[key].totalDebt+=Math.max(0,(o.estimated_cost||0)-(o.deposit||0));
+  });
+  const list = Object.values(byCustomer).filter(c=>c.totalDebt>0).sort((a,b)=>b.totalDebt-a.totalDebt);
+  return (
+    <div>
+      <div style={{fontWeight:700,fontSize:14,marginBottom:4}}>Công nợ khách hàng</div>
+      <div style={{fontSize:12,color:"#9ca3af",marginBottom:12}}>Đơn chưa hoàn thành / chưa thu đủ</div>
+      {list.length===0 && <div style={{color:"#9ca3af",textAlign:"center",padding:20}}>Không có công nợ 🎉</div>}
+      {list.map(c=>(
+        <div key={c.phone||c.name} style={{background:"#fff",borderRadius:10,padding:12,marginBottom:8,boxShadow:"0 1px 4px rgba(0,0,0,.06)"}}>
+          <div style={{display:"flex",justifyContent:"space-between"}}>
+            <div>
+              <div style={{fontWeight:700,fontSize:14}}>{c.name}</div>
+              <div style={{fontSize:12,color:"#6b7280"}}>{c.phone}</div>
+            </div>
+            <div style={{fontWeight:800,fontSize:15,color:"#dc2626"}}>{Number(c.totalDebt).toLocaleString("vi-VN")}đ</div>
+          </div>
+          {c.orders.map(o=>(
+            <div key={o.id} style={{fontSize:12,color:"#9ca3af",marginTop:4}}>
+              {o.order_code||o.id} · {o.device_model} · {o.status}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TabStockReport({ period, startOf }) {
+  const [imports,  setImports]  = useState([]);
+  const [exports_, setExports]  = useState([]);
+  const [loading,  setLoading]  = useState(true);
+
+  useEffect(()=>{
+    Promise.all([
+      StockImport.list({ limit:200, sort:"-created_date" }),
+      StockExportRequest.list({ limit:200, sort:"-created_date" }),
+    ]).then(([imp,exp])=>{ setImports(imp||[]); setExports(exp||[]); })
+      .catch(()=>{}).finally(()=>setLoading(false));
+  },[]);
+
+  const start = startOf(period);
+  const filtImp = imports.filter(i=>new Date(i.created_date||i.created)>=start);
+  const filtExp = exports_.filter(e=>new Date(e.created_date||e.created)>=start);
+  const totalImpVal = filtImp.reduce((s,i)=>s+(i.total_value||0),0);
+  const totalExpVal = filtExp.reduce((s,e)=>s+(e.total_value||0),0);
+
+  return (
+    <div>
+      <div style={{fontWeight:700,fontSize:14,marginBottom:12}}>Linh kiện nhập / xuất theo kỳ</div>
+      {loading && <div style={{color:"#9ca3af",textAlign:"center",padding:20}}>Đang tải...</div>}
+      {!loading && (<>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+          <div style={{background:"#f0fdf4",borderRadius:10,padding:12,textAlign:"center"}}>
+            <div style={{fontWeight:700,color:"#059669",fontSize:13}}>Nhập kho</div>
+            <div style={{fontWeight:900,fontSize:20,color:"#059669"}}>{filtImp.length} phiếu</div>
+            <div style={{fontSize:12,color:"#6b7280"}}>{Number(totalImpVal).toLocaleString("vi-VN")}đ</div>
+          </div>
+          <div style={{background:"#fff7ed",borderRadius:10,padding:12,textAlign:"center"}}>
+            <div style={{fontWeight:700,color:"#d97706",fontSize:13}}>Xuất kho</div>
+            <div style={{fontWeight:900,fontSize:20,color:"#d97706"}}>{filtExp.length} phiếu</div>
+            <div style={{fontSize:12,color:"#6b7280"}}>{Number(totalExpVal).toLocaleString("vi-VN")}đ</div>
+          </div>
+        </div>
+        <div style={{fontWeight:700,fontSize:13,marginBottom:8}}>Phiếu nhập gần đây</div>
+        {filtImp.slice(0,10).map(i=>(
+          <div key={i.id} style={{background:"#fff",borderRadius:8,padding:10,marginBottom:6,boxShadow:"0 1px 3px rgba(0,0,0,.05)"}}>
+            <div style={{display:"flex",justifyContent:"space-between"}}>
+              <span style={{fontWeight:700,fontSize:13}}>{i.import_code||i.id}</span>
+              <span style={{fontWeight:700,color:"#059669"}}>{Number(i.total_value||0).toLocaleString("vi-VN")}đ</span>
+            </div>
+            <div style={{fontSize:12,color:"#6b7280"}}>{i.supplier_name||""} · {i.status}</div>
+          </div>
+        ))}
+        {filtImp.length===0 && <div style={{color:"#9ca3af",fontSize:13}}>Không có phiếu nhập trong kỳ</div>}
+      </>)}
+    </div>
+  );
+}
+
 
 export default function RevenueReportPage({ user }) {
   const [period,      setPeriod]      = useState("today");
@@ -78,29 +234,37 @@ export default function RevenueReportPage({ user }) {
 
   function exportCSV() {
     const BOM = "\uFEFF";
-    let csv = "";
-    const now = new Date();
-    const fname = "BaoCao_" + String(now.getDate()).padStart(2,"0") + String(now.getMonth()+1).padStart(2,"0") + now.getFullYear() + ".csv";
-    if (detailTab==="repair") {
-      csv = BOM + "Mã đơn,Khách hàng,Thiết bị,Ngày hoàn thành,Doanh thu,Trạng thái\n";
-      periodRepair.forEach(o => {
-        csv += '"'+(o.order_code||"")+'","'+(o.customer_name||"")+'","'+(o.device_model||"")+'","'+fmtDate(o.done_date)+'","'+(o.final_cost||0)+'","'+(o.status||"")+'"\n';
-      });
-    } else if (detailTab==="sale") {
-      csv = BOM + "Mã đơn,Khách hàng,Số SP,Tổng tiền,HTTT,Ngày bán\n";
-      periodSale.forEach(o => {
-        csv += '"'+(o.order_code||"")+'","'+(o.customer_name||"")+'","'+((o.items||[]).length)+'","'+(o.total||0)+'","'+(o.payment_method||"")+'","'+fmtDate(o.created||o.created_date)+'"\n';
-      });
-    } else {
-      csv = BOM + "Danh mục,Mô tả,Số tiền,Ngày,Người tạo\n";
-      periodExp.forEach(e => {
-        csv += '"'+(EXP_LABELS[e.category]||e.category||"")+'","'+(e.description||"")+'","'+(e.amount||0)+'","'+fmtDate(e.expense_date)+'","'+(e.created_by_name||"")+'"\n';
-      });
-    }
-    const blob = new Blob([csv], { type:"text/csv;charset=utf-8;" });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement("a"); a.href=url; a.download=fname; a.click();
-    URL.revokeObjectURL(url);
+    const rows = [
+      ["BÁO CÁO DOANH THU — " + period.toUpperCase(),"","",""],
+      ["Doanh thu sửa",repairRev,"Doanh thu bán",saleRev,"Tổng",totalRev],
+      ["Chi phí",totalExp,"Lợi nhuận",totalRev-totalExp],
+      [],
+      ["CHI TIẾT ĐƠN SỬA"],
+      ["Mã phiếu","Khách hàng","SĐT","Thiết bị","KTV","Giá cuối","Đã cọc","Còn lại","Ngày xong"],
+      ...periodRepair.map(o=>[
+        o.order_code||o.id, o.customer_name||"", o.customer_phone||"",
+        o.device_model||"", o.assigned_to_name||"",
+        o.final_cost||0, o.deposit||0, Math.max(0,(o.final_cost||0)-(o.deposit||0)),
+        o.done_date ? new Date(o.done_date).toLocaleDateString("vi-VN") : ""
+      ]),
+      [],
+      ["CHI TIẾT BÁN LẺ"],
+      ["Mã đơn","Ghi chú","Tổng","Hình thức","Ngày"],
+      ...periodSale.map(o=>[
+        o.order_code||o.id, o.note||"", o.total||0, o.payment_method||"",
+        new Date(o.created||o.created_date).toLocaleDateString("vi-VN")
+      ]),
+      [],
+      ["CHI PHÍ"],
+      ["Loại","Mô tả","Số tiền","Ngày"],
+      ...periodExp.map(e=>[
+        e.category||"Khác", e.description||"", e.amount||0,
+        e.expense_date ? new Date(e.expense_date).toLocaleDateString("vi-VN") : ""
+      ]),
+    ];
+    const blob = new Blob([BOM+rows.map(r=>r.join(",")).join("\n")],{type:"text/csv;charset=utf-8"});
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+    a.download="BaoCao_"+period+"_"+new Date().toISOString().slice(0,10)+".csv"; a.click();
   }
 
   const SUMMARY_CARDS = [
@@ -113,9 +277,13 @@ export default function RevenueReportPage({ user }) {
   ];
 
   const DETAIL_TABS = [
-    { key:"repair",  label:"🔧 Đơn sửa" },
-    { key:"sale",    label:"🛒 Bán lẻ" },
-    { key:"expense", label:"💸 Chi phí" },
+    { key:"repair",       label:"🔧 Đơn sửa" },
+    { key:"sale",         label:"🛒 Bán lẻ" },
+    { key:"expense",      label:"💸 Chi phí" },
+    { key:"by_ktv",       label:"👨‍🔧 Theo KTV" },
+    { key:"services",     label:"🏆 Dịch vụ PB" },
+    { key:"debt",         label:"⚠️ Công nợ" },
+    { key:"stock_report", label:"📦 LK nhập/xuất" },
   ];
 
   if (loading) return <div style={{ textAlign:"center", padding:48, color:"#9ca3af" }}>⏳ Đang tải...</div>;
@@ -265,6 +433,11 @@ export default function RevenueReportPage({ user }) {
             </table>
           </div>
         )}
+
+        {detailTab==="by_ktv"       && <div style={{padding:16}}><TabByKTV orders={repairOrders} period={period} inPeriod={inPeriod} DONE_STATUS={DONE_STATUS}/></div>}
+        {detailTab==="services"     && <div style={{padding:16}}><TabServices orders={repairOrders} period={period} inPeriod={inPeriod} DONE_STATUS={DONE_STATUS}/></div>}
+        {detailTab==="debt"         && <div style={{padding:16}}><TabDebt orders={repairOrders}/></div>}
+        {detailTab==="stock_report" && <div style={{padding:16}}><TabStockReport period={period} startOf={startOf}/></div>}
       </div>
     </div>
   );
