@@ -539,6 +539,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
       logHistory({ order_id:order._id||order.id, order_code:order.order_code||order.id, action_type:"delivered", action_label:"Xác nhận hoàn thành", changed_by_id:currentUser?.id||"", changed_by_name:currentUser?.name||"", changed_by_role:currentUser?.role||"", old_value:order.status||"", new_value:"Hoàn Thành" });
     showToast("Hoàn thành! +2 KPI");
     setEditMode(false);
+    updateCustomerStats({ ...order, status:"Hoàn Thành" });
   }
   const [printing, setPrinting] = useState(false);
 
@@ -550,7 +551,20 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
     } catch { return {}; }
   }
 
-  async function handlePrintReceipt() {
+  async function updateCustomerStats(ord) {
+    if (!ord.customer_phone) return;
+    try {
+      const custs = await Customer.filter({ phone: ord.customer_phone });
+      if (!custs || custs.length === 0) return;
+      const cust = custs[0];
+      await Customer.update(cust.id, {
+        total_spent:  (cust.total_spent||0) + (ord.final_cost||ord.estimated_cost||0),
+        total_orders: (cust.total_orders||0) + 1,
+      });
+    } catch(e) { console.warn("updateCustomerStats:", e.message); }
+  }
+
+    async function handlePrintReceipt() {
     setPrinting(true);
     try {
       const shopInfo = await getShopInfo();
@@ -999,6 +1013,26 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                     {printing ? "Đang in..." : "In Bill Thanh Toán"}
                   </button>
                 )}
+
+                {/* Lịch sử thanh toán */}
+                <div style={{ background:"#f0fdf4", borderRadius:10, padding:12, marginTop:8 }}>
+                  <div style={{ fontWeight:700, fontSize:13, color:"#15803d", marginBottom:8 }}>💳 Lịch sử thanh toán</div>
+                  {order.deposit > 0 && (
+                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, padding:"4px 0", borderBottom:"1px dashed #bbf7d0" }}>
+                      <span style={{ color:"#6b7280" }}>Đặt cọc {order.received_date ? new Date(order.received_date).toLocaleDateString("vi-VN") : ""}</span>
+                      <span style={{ fontWeight:700, color:"#166534" }}>+{Number(order.deposit).toLocaleString("vi-VN")}đ</span>
+                    </div>
+                  )}
+                  {order.final_cost > 0 && ["Đã Thanh Toán","Hoàn Thành","Đã Giao"].includes(order.status) && (
+                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, padding:"4px 0" }}>
+                      <span style={{ color:"#6b7280" }}>Thanh toán {order.done_date ? new Date(order.done_date).toLocaleDateString("vi-VN") : ""}</span>
+                      <span style={{ fontWeight:700, color:"#166534" }}>+{Number(Math.max(0,(order.final_cost||0)-(order.deposit||0))).toLocaleString("vi-VN")}đ</span>
+                    </div>
+                  )}
+                  {order.payment_method && (
+                    <div style={{ fontSize:12, color:"#9ca3af", marginTop:4 }}>Hình thức: {order.payment_method}</div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -1589,6 +1623,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 handover_media: handoverData.media,
                 final_cost: handoverData.final_cost,
               }, null);
+              updateCustomerStats({ ...order, final_cost: handoverData.final_cost, status:"Đã Giao" });
               logHistory({
                 order_id: order._id||order.id,
                 order_code: order.order_code||order.id,

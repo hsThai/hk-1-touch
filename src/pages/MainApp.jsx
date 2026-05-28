@@ -1357,29 +1357,95 @@ function MainAppContent({ onUserChange }) {
 
   // ── Customer List ─────────────────────────────────────────
   function CustomerList() {
-    const custMap = {};
-    orders.forEach(o => {
-      if (o.customer_phone) {
-        if (!custMap[o.customer_phone]) custMap[o.customer_phone] = { name:o.customer_name, phone:o.customer_phone, orders:0, lastOrder:o.created };
-        custMap[o.customer_phone].orders++;
-        if (o.created > custMap[o.customer_phone].lastOrder) custMap[o.customer_phone].lastOrder = o.created;
-      }
-    });
-    const custs = Object.values(custMap).sort((a,b) => b.orders - a.orders);
+    const [custs, setCusts]           = useState([]);
+    const [search, setSearch]         = useState("");
+    const [loading, setLoading]       = useState(true);
+    const [detail, setDetail]         = useState(null);
+    const [custOrders, setCustOrders] = useState([]);
+
+    useEffect(() => {
+      Customer.list({ limit:500, sort:"-created_date" })
+        .then(d => setCusts(d||[]))
+        .catch(()=>{})
+        .finally(()=>setLoading(false));
+    }, []);
+
+    async function openDetail(c) {
+      setDetail(c);
+      try {
+        const ords = await RepairOrder.filter({ customer_phone: c.phone });
+        setCustOrders((ords||[]).sort((a,b)=>new Date(b.created_date||b.created)-new Date(a.created_date||a.created)));
+      } catch { setCustOrders([]); }
+    }
+
+    const filtered = custs.filter(c =>
+      !search ||
+      (c.full_name||"").toLowerCase().includes(search.toLowerCase()) ||
+      (c.phone||"").includes(search)
+    );
+
+    if (detail) return (
+      <div style={{ padding:"0 16px 80px" }}>
+        <button onClick={()=>setDetail(null)}
+          style={{ background:"none", border:"none", color:"#4f46e5", fontSize:14, cursor:"pointer", padding:"8px 0" }}>
+          ← Quay lại
+        </button>
+        <div style={{ background:"#fff", borderRadius:14, padding:16, marginBottom:12, boxShadow:"0 1px 4px rgba(0,0,0,.06)" }}>
+          <div style={{ fontWeight:800, fontSize:17 }}>{detail.full_name}</div>
+          <div style={{ fontSize:13, color:"#6b7280", marginTop:4 }}>📱 {detail.phone}</div>
+          {detail.address && <div style={{ fontSize:13, color:"#6b7280" }}>📍 {detail.address}</div>}
+          {detail.note && <div style={{ fontSize:13, color:"#9ca3af", marginTop:4 }}>💬 {detail.note}</div>}
+          <div style={{ display:"flex", gap:16, marginTop:12 }}>
+            <div style={{ textAlign:"center" }}>
+              <div style={{ fontSize:20, fontWeight:900, color:"#4f46e5" }}>{detail.total_orders||custOrders.length}</div>
+              <div style={{ fontSize:11, color:"#6b7280" }}>Đơn</div>
+            </div>
+            <div style={{ textAlign:"center" }}>
+              <div style={{ fontSize:20, fontWeight:900, color:"#059669" }}>{Number(detail.total_spent||0).toLocaleString("vi-VN")}đ</div>
+              <div style={{ fontSize:11, color:"#6b7280" }}>Tổng chi</div>
+            </div>
+          </div>
+        </div>
+        <div style={{ fontWeight:700, fontSize:14, marginBottom:8 }}>Lịch sử sửa chữa ({custOrders.length})</div>
+        {custOrders.length===0 && <div style={{ textAlign:"center", color:"#9ca3af", padding:20 }}>Chưa có đơn nào</div>}
+        {custOrders.map(o => (
+          <div key={o.id} style={{ background:"#fff", borderRadius:12, padding:12, marginBottom:8, boxShadow:"0 1px 4px rgba(0,0,0,.05)" }}>
+            <div style={{ display:"flex", justifyContent:"space-between" }}>
+              <div style={{ fontWeight:700, fontSize:13 }}>{o.order_code||o.id}</div>
+              <div style={{ fontSize:11, background:"#eef2ff", color:"#4f46e5", borderRadius:6, padding:"2px 8px" }}>{o.status}</div>
+            </div>
+            <div style={{ fontSize:12, color:"#6b7280", marginTop:4 }}>{o.device_model||o.device_name} · {o.issue_description?.slice(0,40)}</div>
+            <div style={{ fontSize:12, color:"#059669", marginTop:4, fontWeight:700 }}>
+              {o.final_cost>0 ? Number(o.final_cost).toLocaleString("vi-VN")+"đ"
+                : o.estimated_cost>0 ? "~"+Number(o.estimated_cost).toLocaleString("vi-VN")+"đ"
+                : "Chưa báo giá"}
+            </div>
+            <div style={{ fontSize:11, color:"#9ca3af" }}>{new Date(o.created_date||o.created).toLocaleDateString("vi-VN")}</div>
+          </div>
+        ))}
+      </div>
+    );
+
     return (
       <div style={{ padding:"0 16px 80px" }}>
-
-        {custs.length===0 && <div style={{ textAlign:"center", color:"#9ca3af", padding:40 }}>Chưa có khách hàng</div>}
-        {custs.map(c => (
-          <div key={c.phone} style={{ background:"#fff", borderRadius:14, padding:14, marginBottom:8, boxShadow:"0 1px 4px rgba(0,0,0,.06)" }}>
-            <div style={{ fontWeight:800, fontSize:15 }}>{c.name}</div>
-            <div style={{ fontSize:13, color:"#6b7280", marginTop:2 }}>  {c.phone} · {c.orders} đơn</div>
+        <input value={search} onChange={e=>setSearch(e.target.value)}
+          placeholder="🔍 Tìm theo tên hoặc SĐT..."
+          style={{ width:"100%", border:"1.5px solid #e5e7eb", borderRadius:10, padding:"10px 14px",
+                   fontSize:14, marginBottom:12, boxSizing:"border-box" }} />
+        {loading && <div style={{ textAlign:"center", color:"#9ca3af", padding:20 }}>Đang tải...</div>}
+        {!loading && filtered.length===0 && <div style={{ textAlign:"center", color:"#9ca3af", padding:40 }}>Không tìm thấy</div>}
+        {filtered.map(c => (
+          <div key={c.id} onClick={()=>openDetail(c)}
+            style={{ background:"#fff", borderRadius:14, padding:14, marginBottom:8,
+                     boxShadow:"0 1px 4px rgba(0,0,0,.06)", cursor:"pointer" }}>
+            <div style={{ fontWeight:800, fontSize:15 }}>{c.full_name}</div>
+            <div style={{ fontSize:13, color:"#6b7280", marginTop:2 }}>📱 {c.phone} · {c.total_orders||0} đơn</div>
+            {c.address && <div style={{ fontSize:12, color:"#9ca3af" }}>📍 {c.address}</div>}
           </div>
         ))}
       </div>
     );
   }
-
   // ── Dashboard ─────────────────────────────────────────────
   function Dashboard() {
     const stats = {
