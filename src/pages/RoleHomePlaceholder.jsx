@@ -19,7 +19,7 @@ const ROLE_ACTIONS = {
     { icon:"bar_chart",       label:"Báo cáo",          page:"dashboard",     color:"#2563eb", bg:"#dbeafe" },
     { icon:"receipt_long",    label:"Đơn sửa chữa",    page:"tasks",         color:"#059669", bg:"#dcfce7" },
     { icon:"point_of_sale",   label:"Bán hàng",         page:"cashier_home",  color:"#d97706", bg:"#fef3c7" },
-    { icon:"inventory_2",     label:"Tồn kho",           page:"wh_stock",      color:"#0369a1", bg:"#e0f2fe" },
+    { icon:"warehouse",     label:"Quản lý kho",      page:"wh_manager",    color:"#0369a1", bg:"#e0f2fe" },
   ],
   hr: [
     { icon:"person",          label:"Nhân viên",        page:"staff",         color:"#7c3aed", bg:"#f5f3ff" },
@@ -37,7 +37,7 @@ const ROLE_ACTIONS = {
     { icon:"assignment",      label:"Bảng theo dõi",    page:"board",         color:"#059669", bg:"#dcfce7" },
     { icon:"check_circle",    label:"Danh sách đơn",    page:"tasks",         color:"#2563eb", bg:"#dbeafe" },
     { icon:"emoji_events",    label:"KPI",               page:"kpi",           color:"#d97706", bg:"#fef3c7" },
-    { icon:"inventory_2",     label:"Kiểm kho",         page:"wh_stock",      color:"#0369a1", bg:"#e0f2fe" },
+    { icon:"fact_check",    label:"Kiểm kho",         page:"wh_count",      color:"#0369a1", bg:"#e0f2fe" },
   ],
   support: [
     { icon:"assignment",      label:"Bảng theo dõi",    page:"board",         color:"#059669", bg:"#dcfce7" },
@@ -55,7 +55,7 @@ const ROLE_ACTIONS = {
     { icon:"settings",        label:"Cài đặt",          page:"settings",      color:"#374151", bg:"#f3f4f6" },
     { icon:"person",          label:"Nhân viên",        page:"staff",         color:"#7c3aed", bg:"#f5f3ff" },
     { icon:"warehouse",       label:"Quản lý kho",      page:"wh_manager",    color:"#0369a1", bg:"#e0f2fe" },
-    { icon:"inventory_2",     label:"Linh kiện",        page:"wh_stock",      color:"#059669", bg:"#dcfce7" },
+    { icon:"warehouse",     label:"Quản lý kho",      page:"wh_manager",    color:"#059669", bg:"#dcfce7" },
   ],
   supervisor: [
     { icon:"bar_chart",       label:"Tổng quan",        page:"dashboard",     color:"#2563eb", bg:"#dbeafe" },
@@ -66,7 +66,7 @@ const ROLE_ACTIONS = {
   viewer: [
     { icon:"bar_chart",       label:"Báo cáo",          page:"dashboard",     color:"#2563eb", bg:"#dbeafe" },
     { icon:"check_circle",    label:"Danh sách đơn",    page:"tasks",         color:"#9ca3af", bg:"#f3f4f6" },
-    { icon:"inventory_2",     label:"Tồn kho",           page:"wh_stock",      color:"#0369a1", bg:"#e0f2fe" },
+    { icon:"warehouse",     label:"Quản lý kho",      page:"wh_manager",    color:"#0369a1", bg:"#e0f2fe" },
     { icon:"emoji_events",    label:"KPI",               page:"kpi",           color:"#d97706", bg:"#fef3c7" },
   ],
 };
