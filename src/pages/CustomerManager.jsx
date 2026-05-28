@@ -57,7 +57,8 @@ export default function CustomerManager({ onSelectCustomer }) {
       setModal(null); load();
     } catch(e) {
       console.error("CustomerManager save error:", e);
-      const msg = e?.data ? JSON.stringify(e.data) : e?.message || "Lỗi không xác định";
+      const dataStr = e?.data && Object.keys(e.data).length > 0 ? " | " + JSON.stringify(e.data) : "";
+      const msg = (e?.message || "Lỗi không xác định") + dataStr;
       setErr("Lỗi lưu dữ liệu: " + msg);
     }
     setSaving(false);
