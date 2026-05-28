@@ -635,6 +635,8 @@ function TransferTab({ user, toast }) {
   const [items, setItems] = useState([{ part_name:"", sku:"", qty:1, unit_price:0 }]);
   const [detailModal, setDetailModal] = useState(null);
   const [partSuggestions, setPartSuggestions] = useState([]);
+  const [openDrop, setOpenDrop] = useState(-1); // index item đang mở dropdown
+  const [dropSearch, setDropSearch] = useState({}); // { [i]: "search text" }
 
   useEffect(() => {
     WH.list().then(r => setWarehouses(filterWarehousesByUser(r, user)));
@@ -754,32 +756,70 @@ function TransferTab({ user, toast }) {
           <div style={{fontWeight:700,fontSize:13,color:"#1e1b4b",marginBottom:8}}>Danh sách hàng chuyển</div>
           {items.map((item,i)=>(
             <div key={i} style={{display:"grid",gridTemplateColumns:"2fr 1.2fr 1fr 1fr auto",gap:6,marginBottom:6,alignItems:"end"}}>
-              <div>
+              <div style={{ position:"relative" }}>
                 <label style={S.label}>Tên hàng *</label>
                 <input
-                  style={S.input}
-                  list={`part-list-${i}`}
-                  value={item.part_name}
+                  style={{ ...S.input, paddingRight: 32 }}
+                  value={dropSearch[i] !== undefined ? dropSearch[i] : item.part_name}
                   onChange={e => {
-                    const val = e.target.value;
-                    const match = partSuggestions.find(p => p.name === val);
-                    setItems(prev => prev.map((x, j) => j !== i ? x : {
-                      ...x,
-                      part_name: val,
-                      sku: match ? match.sku : x.sku,
-                      unit_price: match ? match.cost : x.unit_price,
-                    }));
+                    setDropSearch(p => ({ ...p, [i]: e.target.value }));
+                    setOpenDrop(i);
                   }}
+                  onFocus={() => {
+                    setDropSearch(p => ({ ...p, [i]: item.part_name }));
+                    setOpenDrop(i);
+                  }}
+                  onBlur={() => setTimeout(() => setOpenDrop(v => v === i ? -1 : v), 180)}
                   placeholder="Gõ để tìm linh kiện..."
                   autoComplete="off"
                 />
-                <datalist id={`part-list-${i}`}>
-                  {partSuggestions.map((p, idx) => (
-                    <option key={idx} value={p.name}>
-                      {p.sku ? `SKU: ${p.sku} — ` : ""}{`Tồn: ${p.qty}`}
-                    </option>
-                  ))}
-                </datalist>
+                {/* arrow icon */}
+                <span style={{ position:"absolute", right:10, top:30, fontSize:12, color:"#9ca3af", pointerEvents:"none" }}>▼</span>
+
+                {/* Custom dropdown list */}
+                {openDrop === i && (() => {
+                  const q = (dropSearch[i] || "").toLowerCase();
+                  const filtered = partSuggestions.filter(p =>
+                    !q || p.name.toLowerCase().includes(q) || (p.sku||"").toLowerCase().includes(q)
+                  ).slice(0, 20);
+                  if (filtered.length === 0) return null;
+                  return (
+                    <div style={{
+                      position:"absolute", top:"100%", left:0, right:0, zIndex:10000,
+                      background:"#fff", border:"1.5px solid #e5e7eb", borderRadius:10,
+                      boxShadow:"0 8px 24px rgba(0,0,0,.12)", maxHeight:220, overflowY:"auto",
+                      marginTop:2,
+                    }}>
+                      {filtered.map((p, idx) => (
+                        <div key={idx}
+                          onMouseDown={() => {
+                            setItems(prev => prev.map((x, j) => j !== i ? x : {
+                              ...x,
+                              part_name: p.name,
+                              sku: p.sku || x.sku,
+                              unit_price: p.cost || x.unit_price,
+                            }));
+                            setDropSearch(prev => ({ ...prev, [i]: undefined }));
+                            setOpenDrop(-1);
+                          }}
+                          style={{
+                            padding:"10px 14px", cursor:"pointer", borderBottom:"1px solid #f3f4f6",
+                            transition:"background .1s",
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background="#f5f3ff"}
+                          onMouseLeave={e => e.currentTarget.style.background="#fff"}
+                        >
+                          <div style={{ fontWeight:600, fontSize:13, color:"#1e1b4b", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                            {p.name}
+                          </div>
+                          <div style={{ fontSize:11, color:"#6b7280", marginTop:2 }}>
+                            {p.sku ? `SKU: ${p.sku}  •  ` : ""}Tồn: {p.qty}  •  {(p.cost||0).toLocaleString("vi")}đ
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
               <div><label style={S.label}>SKU</label><input style={S.input} value={item.sku} onChange={e=>setItems(p=>p.map((x,j)=>j===i?{...x,sku:e.target.value}:x))} /></div>
               <div><label style={S.label}>SL *</label><input style={S.input} type="number" min="1" value={item.qty} onChange={e=>setItems(p=>p.map((x,j)=>j===i?{...x,qty:e.target.value}:x))} /></div>
