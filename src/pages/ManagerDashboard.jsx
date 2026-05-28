@@ -101,6 +101,13 @@ function BarChart({ data }) {
 // ── TAB 1: Overview ────────────────────────────────────────
 function OverviewTab({ repairOrders, saleOrders, spareParts }) {
   const now = new Date();
+  const [isPC, setIsPC] = React.useState(window.innerWidth >= 1024);
+  React.useEffect(() => {
+    const fn = () => setIsPC(window.innerWidth >= 1024);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
+
   const active    = repairOrders.filter(o => !SKIP_ST.includes(o.status));
   const doneToday = repairOrders.filter(o => DONE_ST.includes(o.status) && isToday(o.done_date||o.updated));
   const saleToday = saleOrders.filter(o => o.status==="paid" && isToday(o.created||o.created_date));
@@ -109,50 +116,62 @@ function OverviewTab({ repairOrders, saleOrders, spareParts }) {
 
   const days7 = last7Days();
   const chartData = days7.map(day => {
-    const lbl = String(day.getDate()).padStart(2,"0") + "/" + String(day.getMonth()+1).padStart(2,"0");
-    const rv = repairOrders.filter(o=>DONE_ST.includes(o.status)&&o.done_date&&sameDay(new Date(o.done_date),day))
-                           .reduce((s,o)=>s+(o.final_cost||0),0);
-    const sv = saleOrders.filter(o=>o.status==="paid"&&(o.created||o.created_date)&&sameDay(new Date(o.created||o.created_date),day))
-                         .reduce((s,o)=>s+(o.total||0),0);
+    const lbl = String(day.getDate()).padStart(2,"0")+"/"+String(day.getMonth()+1).padStart(2,"0");
+    const rv = repairOrders.filter(o=>DONE_ST.includes(o.status)&&o.done_date&&sameDay(new Date(o.done_date),day)).reduce((s,o)=>s+(o.final_cost||0),0);
+    const sv = saleOrders.filter(o=>o.status==="paid"&&(o.created||o.created_date)&&sameDay(new Date(o.created||o.created_date),day)).reduce((s,o)=>s+(o.total||0),0);
     return { label:lbl, value:rv+sv };
   });
 
-  const lowStock  = spareParts.filter(p => p.is_active!==false && (p.stock_qty||0) <= Math.max(p.min_stock||0, 2));
-  const recent5   = [...repairOrders].sort((a,b)=>new Date(b.created||b.received_date)-new Date(a.created||a.received_date)).slice(0,5);
+  const lowStock = spareParts.filter(p => p.is_active!==false && (p.stock_qty||0) <= Math.max(p.min_stock||0, 2));
+  const recent5  = [...repairOrders].sort((a,b)=>new Date(b.created||b.received_date)-new Date(a.created||a.received_date)).slice(0,5);
 
   const CARDS = [
-    { icon:"🔧", label:"Đơn đang sửa",        value:active.length,    sub:"đơn", bg:"#eff6ff", bc:"#bfdbfe", cl:"#1d4ed8" },
-    { icon:"✅", label:"Hoàn thành hôm nay",   value:doneToday.length, sub:"đơn", bg:"#f0fdf4", bc:"#86efac", cl:"#059669" },
-    { icon:"💰", label:"Doanh thu hôm nay",    value:fmtMoney(revenue),sub:"",    bg:"#fefce8", bc:"#fde68a", cl:"#ca8a04" },
-    { icon:"⚠️", label:"Quá hạn",              value:overdue.length,   sub:"đơn", bg:"#fef2f2", bc:"#fca5a5", cl:"#dc2626" },
+    { icon:"🔧", label:"Đơn đang sửa",       value:active.length,     sub:"đơn", bg:"#eff6ff", bc:"#bfdbfe", cl:"#1d4ed8" },
+    { icon:"✅", label:"Hoàn thành hôm nay",  value:doneToday.length,  sub:"đơn", bg:"#f0fdf4", bc:"#86efac", cl:"#059669" },
+    { icon:"💰", label:"Doanh thu hôm nay",   value:fmtMoney(revenue), sub:"",    bg:"#fefce8", bc:"#fde68a", cl:"#ca8a04" },
+    { icon:"⚠️", label:"Quá hạn",             value:overdue.length,    sub:"đơn", bg:"#fef2f2", bc:"#fca5a5", cl:"#dc2626" },
   ];
 
   return (
-    <div style={{ padding:"16px 14px 110px" }}>
-      {/* Cards */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:20 }}>
+    <div style={{ padding: isPC ? "20px 24px 40px" : "16px 14px 110px", maxWidth:1400, margin:"0 auto" }}>
+
+      {/* === CARDS === */}
+      <div style={{
+        display:"grid",
+        gridTemplateColumns: isPC ? "repeat(4,1fr)" : "1fr 1fr",
+        gap: isPC ? 16 : 12,
+        marginBottom: isPC ? 20 : 16,
+      }}>
         {CARDS.map((c,i) => (
-          <div key={i} style={{ background:c.bg, border:"2px solid "+c.bc, borderRadius:16, padding:"14px 12px" }}>
-            <div style={{ fontSize:22, marginBottom:4 }}>{c.icon}</div>
-            <div style={{ fontSize:c.sub?24:18, fontWeight:900, color:c.cl, lineHeight:1.1 }}>
-              {c.value}{c.sub?<span style={{fontSize:13}}> {c.sub}</span>:""}
+          <div key={i} style={{ background:c.bg, border:"2px solid "+c.bc, borderRadius:16,
+            padding: isPC ? "20px 18px" : "14px 12px" }}>
+            <div style={{ fontSize: isPC ? 26 : 22, marginBottom:4 }}>{c.icon}</div>
+            <div style={{ fontSize: isPC ? 32 : (c.sub?24:18), fontWeight:900, color:c.cl, lineHeight:1.1 }}>
+              {c.value}{c.sub ? <span style={{fontSize: isPC?16:13}}> {c.sub}</span> : ""}
             </div>
-            <div style={{ fontSize:11, color:"#6b7280", marginTop:5, fontWeight:600 }}>{c.label}</div>
+            <div style={{ fontSize: isPC?13:11, color:"#6b7280", marginTop:5, fontWeight:600 }}>{c.label}</div>
           </div>
         ))}
       </div>
 
-      {/* Bar chart */}
-      <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", padding:"16px", marginBottom:20 }}>
-        <div style={{ fontWeight:800, fontSize:14, color:"#374151", marginBottom:14 }}>📈 Doanh thu 7 ngày gần nhất</div>
-        <BarChart data={chartData} />
-      </div>
+      {/* === PC: Chart 60% | Đơn mới 40% | Mobile: dọc === */}
+      <div style={{
+        display:"grid",
+        gridTemplateColumns: isPC ? "3fr 2fr" : "1fr",
+        gap:16,
+        marginBottom:16,
+        alignItems:"start",
+      }}>
+        {/* Chart */}
+        <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", padding:16 }}>
+          <div style={{ fontWeight:800, fontSize:14, color:"#374151", marginBottom:14 }}>📈 Doanh thu 7 ngày gần nhất</div>
+          <BarChart data={chartData} />
+        </div>
 
-      {/* 2 panels */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr", gap:16 }}>
         {/* Đơn mới nhất */}
         <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", overflow:"hidden" }}>
           <div style={{ padding:"12px 16px", borderBottom:"1px solid #f3f4f6", fontWeight:800, fontSize:14 }}>🕐 Đơn mới nhất</div>
+          {recent5.length===0 && <div style={{padding:"20px 16px",color:"#9ca3af",fontSize:13}}>Chưa có đơn nào</div>}
           {recent5.map(o => (
             <div key={o.id} style={{ padding:"10px 16px", borderBottom:"1px solid #f3f4f6",
               display:"flex", justifyContent:"space-between", alignItems:"center" }}>
@@ -167,35 +186,41 @@ function OverviewTab({ repairOrders, saleOrders, spareParts }) {
                   color:STATUS_COLORS[o.status]||"#6b7280", borderRadius:99, padding:"2px 8px", fontWeight:700 }}>
                   {o.status}
                 </div>
-                <div style={{ fontSize:10, color:"#9ca3af", marginTop:2 }}>
-                  {timeAgo(o.created||o.received_date)}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Tồn kho thấp */}
-        <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", overflow:"hidden" }}>
-          <div style={{ padding:"12px 16px", borderBottom:"1px solid #f3f4f6", fontWeight:800, fontSize:14 }}>⚠️ Tồn kho sắp hết</div>
-          {lowStock.length === 0 ? (
-            <div style={{ padding:"20px 16px", color:"#059669", fontSize:13, fontWeight:600 }}>✅ Tồn kho ổn định</div>
-          ) : lowStock.slice(0,8).map(p => (
-            <div key={p.id} style={{ padding:"10px 16px", borderBottom:"1px solid #f3f4f6",
-              display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <div>
-                <div style={{ fontWeight:700, fontSize:13 }}>{p.name}</div>
-                <div style={{ fontSize:11, color:"#6b7280" }}>{p.sku||"—"}</div>
-              </div>
-              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                <span style={{ fontWeight:800, fontSize:14, color:"#dc2626" }}>{p.stock_qty||0}</span>
-                <span style={{ fontSize:11, background:"#fee2e2", color:"#dc2626", borderRadius:99,
-                  padding:"2px 8px", fontWeight:700 }}>Sắp hết</span>
+                <div style={{ fontSize:10, color:"#9ca3af", marginTop:2 }}>{timeAgo(o.created||o.received_date)}</div>
               </div>
             </div>
           ))}
         </div>
       </div>
+
+      {/* === Tồn kho sắp hết — full width === */}
+      <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", overflow:"hidden" }}>
+        <div style={{ padding:"12px 16px", borderBottom:"1px solid #f3f4f6", fontWeight:800, fontSize:14 }}>⚠️ Tồn kho sắp hết</div>
+        {lowStock.length === 0 ? (
+          <div style={{ padding:"20px 16px", color:"#059669", fontSize:13, fontWeight:600 }}>✅ Tồn kho ổn định</div>
+        ) : (
+          <div style={{
+            display:"grid",
+            gridTemplateColumns: isPC ? "repeat(3,1fr)" : "1fr",
+          }}>
+            {lowStock.slice(0, isPC?12:8).map(p => (
+              <div key={p.id} style={{ padding:"10px 16px", borderBottom:"1px solid #f3f4f6",
+                display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <div>
+                  <div style={{ fontWeight:700, fontSize:13 }}>{p.name}</div>
+                  <div style={{ fontSize:11, color:"#6b7280" }}>{p.sku||"—"}</div>
+                </div>
+                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  <span style={{ fontWeight:800, fontSize:14, color:"#dc2626" }}>{p.stock_qty||0}</span>
+                  <span style={{ fontSize:11, background:"#fee2e2", color:"#dc2626",
+                    borderRadius:99, padding:"2px 8px", fontWeight:700 }}>Sắp hết</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }
