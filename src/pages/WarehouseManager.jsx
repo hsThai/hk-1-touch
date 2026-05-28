@@ -37,6 +37,7 @@ const Trans = makeWHCol("stock_transfers");
 const Parts    = makeWHCol("spare_parts");
 const Usage    = makeWHCol("spare_part_usages");
 const Notif    = makeWHCol("notifications");
+const Imports  = makeWHCol("stock_imports");
 const Count    = makeWHCol("stock_counts");
 const CountItem= makeWHCol("stock_count_items");
 
@@ -997,6 +998,213 @@ function PreorderTab({ user, warehouses }) {
 }
 
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ShippingTab — Mã vận đơn / Theo dõi ship
+// ─────────────────────────────────────────────────────────────────────────────
+function ShippingTab({ user }) {
+  const [imports, setImports] = useState([]);
+  const [loading,  setLoading] = useState(true);
+  const [editId,   setEditId]  = useState(null);
+  const [form, setForm] = useState({ tracking_code:"", shipping_unit:"", received_date:"", note:"" });
+
+  useEffect(() => {
+    Imports.list({ limit:200, sort:"-created_date" })
+      .then(d=>setImports(d||[])).catch(()=>{}).finally(()=>setLoading(false));
+  }, []);
+
+  async function saveTracking(id) {
+    try {
+      await Imports.update(id, {
+        tracking_code:  form.tracking_code,
+        shipping_unit:  form.shipping_unit,
+        received_date:  form.received_date || null,
+        shipping_note:  form.note,
+        status: form.received_date ? "confirmed" : "pending",
+      });
+      setEditId(null);
+      setImports(p => p.map(i => i.id===id ? {...i, ...form, status: form.received_date?"confirmed":"pending"} : i));
+      alert("✅ Đã cập nhật vận đơn");
+    } catch(e) { alert("Lỗi: "+e.message); }
+  }
+
+  const STS = { pending:"🚚 Đang vận chuyển", confirmed:"✅ Đã nhận", draft:"📝 Nháp" };
+  const STC = { pending:"#d97706", confirmed:"#059669", draft:"#9ca3af" };
+
+  return (
+    <div style={{ padding:"16px 14px 100px" }}>
+      <div style={{ fontWeight:800, fontSize:17, marginBottom:16 }}>🚚 Mã vận đơn / Theo dõi ship</div>
+      {loading && <div style={{ textAlign:"center", padding:20, color:"#9ca3af" }}>Đang tải...</div>}
+      {imports.map(imp=>(
+        <div key={imp.id} style={{ background:"#fff", borderRadius:10, padding:14, marginBottom:10, boxShadow:"0 1px 4px rgba(0,0,0,.06)" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <div>
+              <div style={{ fontWeight:700, fontSize:14 }}>{imp.import_code||imp.id}</div>
+              <div style={{ fontSize:12, color:"#6b7280" }}>{imp.supplier_name||"Chưa có NCC"} · {imp.total_items||0} mặt hàng</div>
+            </div>
+            <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
+              <span style={{ fontSize:11, fontWeight:700, color:STC[imp.status]||"#9ca3af", background:"#f3f4f6", padding:"2px 8px", borderRadius:6 }}>
+                {STS[imp.status]||imp.status||"Nháp"}
+              </span>
+              <button onClick={()=>{ setEditId(imp.id===editId?null:imp.id); setForm({ tracking_code:imp.tracking_code||"", shipping_unit:imp.shipping_unit||"", received_date:imp.received_date||"", note:imp.shipping_note||"" }); }}
+                style={{ fontSize:11, color:"#4f46e5", background:"none", border:"none", cursor:"pointer", textDecoration:"underline" }}>
+                {imp.id===editId?"Đóng":"✏️ Sửa vận đơn"}
+              </button>
+            </div>
+          </div>
+
+          {imp.tracking_code && (
+            <div style={{ fontSize:13, color:"#4f46e5", marginTop:6 }}>
+              📦 {imp.shipping_unit||""} — <b>{imp.tracking_code}</b>
+              {imp.received_date && <span style={{ color:"#059669" }}> · Nhận {new Date(imp.received_date).toLocaleDateString("vi-VN")}</span>}
+            </div>
+          )}
+
+          {editId===imp.id && (
+            <div style={{ marginTop:10, paddingTop:10, borderTop:"1px dashed #e5e7eb" }}>
+              {[
+                { ph:"Mã vận đơn (GHN123456...)",        key:"tracking_code" },
+                { ph:"Đơn vị vận chuyển (GHN, GHTK...)", key:"shipping_unit" },
+                { ph:"Ghi chú",                           key:"note" },
+              ].map(f=>(
+                <input key={f.key} placeholder={f.ph} value={form[f.key]}
+                  onChange={e=>setForm(v=>({...v,[f.key]:e.target.value}))}
+                  style={{ width:"100%", border:"1.5px solid #e5e7eb", borderRadius:8, padding:"8px 10px", fontSize:13, marginBottom:6, boxSizing:"border-box" }}/>
+              ))}
+              <div style={{ fontSize:12, color:"#6b7280", marginBottom:4 }}>Ngày nhận thực tế:</div>
+              <input type="date" value={form.received_date}
+                onChange={e=>setForm(v=>({...v,received_date:e.target.value}))}
+                style={{ width:"100%", border:"1.5px solid #e5e7eb", borderRadius:8, padding:"8px 10px", fontSize:13, marginBottom:8, boxSizing:"border-box" }}/>
+              <button onClick={()=>saveTracking(imp.id)}
+                style={{ background:"#4f46e5", color:"#fff", border:"none", borderRadius:8, padding:"8px 16px", fontSize:13, cursor:"pointer", width:"100%" }}>
+                💾 Lưu vận đơn
+              </button>
+            </div>
+          )}
+        </div>
+      ))}
+      {!loading && imports.length===0 && <div style={{ textAlign:"center", padding:40, color:"#9ca3af" }}>Chưa có phiếu nhập kho</div>}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// StockReportTab — Báo cáo tồn kho tổng hợp
+// ─────────────────────────────────────────────────────────────────────────────
+function StockReportTab({ warehouses }) {
+  const [ledgers,   setLedgers]   = useState([]);
+  const [movements, setMovements] = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [wh,        setWh]        = useState("");
+
+  useEffect(() => { load(); }, [wh]);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const [l,m] = await Promise.all([
+        Ledger.list({ limit:500 }),
+        Move.list({ limit:500, sort:"-created_date" }),
+      ]);
+      setLedgers(l||[]);
+      setMovements(m||[]);
+    } catch {}
+    setLoading(false);
+  }
+
+  const filtLedgers  = wh ? ledgers.filter(l=>l.warehouse_id===wh) : ledgers;
+  const totalValue   = filtLedgers.reduce((s,l)=>s+(l.qty_on_hand||0)*(l.cost_price||0), 0);
+  const lowStock     = filtLedgers.filter(l=>(l.qty_on_hand||0)<=(l.min_qty||2) && (l.qty_on_hand||0)>=0);
+  const cutoff       = new Date(); cutoff.setDate(cutoff.getDate()-30);
+  const recentExp    = movements.filter(m=>["export","use","defect"].includes(m.movement_type) && new Date(m.created_date||m.created)>=cutoff);
+  const topParts     = {};
+  recentExp.forEach(m=>{ const k=m.part_name||"?"; if(!topParts[k]) topParts[k]={name:k,qty:0}; topParts[k].qty+=Math.abs(m.qty_change||0); });
+  const topList      = Object.values(topParts).sort((a,b)=>b.qty-a.qty).slice(0,10);
+
+  function exportReport() {
+    const BOM = "﻿";
+    const rows = [
+      ["BÁO CÁO TỒN KHO — "+new Date().toLocaleDateString("vi-VN")],
+      ["Tổng giá trị", totalValue],
+      [],
+      ["CHI TIẾT TỒN KHO"],
+      ["Kho","Tên LK","SKU","Tồn thực","Reserve","Khả dụng","Tối thiểu","Giá vốn","Giá trị"],
+      ...filtLedgers.map(l=>[
+        l.warehouse_name, l.part_name, l.sku||"",
+        l.qty_on_hand||0, l.qty_reserved||0, l.qty_available||0,
+        l.min_qty||0, l.cost_price||0, (l.qty_on_hand||0)*(l.cost_price||0),
+      ]),
+      [],
+      ["TOP LK XUẤT NHIỀU (30 ngày)"],
+      ["Tên LK","Tổng xuất"],
+      ...topList.map(p=>[p.name, p.qty]),
+    ];
+    const blob = new Blob([BOM+rows.map(r=>r.join(",")).join("
+")], { type:"text/csv;charset=utf-8" });
+    const a = document.createElement("a"); a.href=URL.createObjectURL(blob);
+    a.download = "TonKho_"+new Date().toISOString().slice(0,10)+".csv"; a.click();
+  }
+
+  return (
+    <div style={{ padding:"16px 14px 100px" }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+        <div style={{ fontWeight:800, fontSize:17 }}>📊 Báo cáo tồn kho</div>
+        <button onClick={exportReport}
+          style={{ background:"#4f46e5", color:"#fff", border:"none", borderRadius:8, padding:"7px 12px", fontSize:13, cursor:"pointer" }}>
+          ⬇️ Xuất CSV
+        </button>
+      </div>
+      <select value={wh} onChange={e=>setWh(e.target.value)}
+        style={{ width:"100%", border:"1.5px solid #e5e7eb", borderRadius:8, padding:"8px 10px", fontSize:13, marginBottom:12 }}>
+        <option value="">Tất cả kho</option>
+        {warehouses.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}
+      </select>
+
+      {loading && <div style={{ textAlign:"center", padding:20, color:"#9ca3af" }}>Đang tải...</div>}
+      {!loading && (<>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:16 }}>
+          <div style={{ background:"#eef2ff", borderRadius:10, padding:12, textAlign:"center" }}>
+            <div style={{ fontWeight:700, color:"#4f46e5", fontSize:12 }}>Tổng giá trị kho</div>
+            <div style={{ fontWeight:900, fontSize:16, color:"#4f46e5" }}>{Number(totalValue).toLocaleString("vi-VN")}đ</div>
+          </div>
+          <div style={{ background:"#fee2e2", borderRadius:10, padding:12, textAlign:"center" }}>
+            <div style={{ fontWeight:700, color:"#dc2626", fontSize:12 }}>Sắp hết hàng</div>
+            <div style={{ fontWeight:900, fontSize:20, color:"#dc2626" }}>{lowStock.length}</div>
+          </div>
+        </div>
+
+        {lowStock.length > 0 && (<>
+          <div style={{ fontWeight:700, fontSize:14, marginBottom:8, color:"#dc2626" }}>🔴 Cảnh báo sắp hết</div>
+          {lowStock.map(l=>(
+            <div key={l.id} style={{ background:"#fee2e2", borderRadius:8, padding:10, marginBottom:6, border:"1px solid #fca5a5" }}>
+              <div style={{ display:"flex", justifyContent:"space-between" }}>
+                <span style={{ fontWeight:700, fontSize:13 }}>{l.part_name}</span>
+                <span style={{ fontWeight:700, color:"#dc2626" }}>Tồn: {l.qty_on_hand||0}</span>
+              </div>
+              <div style={{ fontSize:12, color:"#6b7280" }}>{l.warehouse_name} · Tối thiểu: {l.min_qty||2}</div>
+            </div>
+          ))}
+        </>)}
+
+        {topList.length > 0 && (<>
+          <div style={{ fontWeight:700, fontSize:14, marginBottom:8, marginTop:16, color:"#059669" }}>🏆 LK xuất nhiều nhất (30 ngày)</div>
+          {topList.map((p,i)=>(
+            <div key={p.name} style={{ background:"#fff", borderRadius:8, padding:10, marginBottom:6, boxShadow:"0 1px 3px rgba(0,0,0,.05)" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <span style={{ fontWeight:700, fontSize:13 }}>#{i+1} {p.name}</span>
+                <span style={{ fontSize:13, color:"#059669", fontWeight:700 }}>x{p.qty}</span>
+              </div>
+              <div style={{ marginTop:4, height:6, background:"#f3f4f6", borderRadius:3 }}>
+                <div style={{ height:"100%", background:"#059669", borderRadius:3, width:`${(p.qty/(topList[0]?.qty||1)*100).toFixed(0)}%` }}/>
+              </div>
+            </div>
+          ))}
+        </>)}
+      </>)}
+    </div>
+  );
+}
+
+
 export default function WarehouseManager({ user, onBack }) {
   const [tab, setTab]       = useState("warehouses");
   const [whList, setWhList] = useState([]);
@@ -1045,8 +1253,8 @@ export default function WarehouseManager({ user, onBack }) {
         {tab==="count"      && <StockCountPage user={user} />}
         {tab==="defect"     && <DefectTab user={user} warehouses={whList} />}
         {tab==="preorder"   && <PreorderTab user={user} warehouses={whList} />}
-        {tab==="shipping"   && <div style={S.empty}>🚧 Tính năng Vận đơn sẽ ra mắt sớm</div>}
-        {tab==="wh_report"  && <div style={S.empty}>🚧 Tính năng Báo cáo kho sẽ ra mắt sớm</div>}
+        {tab==="shipping"   && <ShippingTab user={user}/>}
+        {tab==="wh_report"  && <StockReportTab warehouses={whList}/>}
       </div>
 
       <toast.ToastContainer />
