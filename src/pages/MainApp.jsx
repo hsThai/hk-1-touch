@@ -1145,44 +1145,70 @@ function MainAppContent({ onUserChange }) {
   const isRoleHome   = ["cashier","accountant","hr","marketing","qa","support","delivery","it","viewer","supervisor"].includes(user.role);
 
   // navItems dùng can() để lọc quyền
-  const navItems = isWarehouse ? [
-    {key:"wh_home",    icon:"home",          label:"Trang chủ"},
-    {key:"wh_orders",  icon:"chat",          label:"Chat đơn"},
-    {key:"wh_export",  icon:"outbox",        label:"Phiếu xuất kho"},
-    {key:"wh_import",  icon:"move_to_inbox", label:"Nhập hàng"},
-    {key:"wh_manager", icon:"warehouse",     label:"Quản lý kho"},
-  ] : [
-    // Trang chủ theo role
-    ...(isManager   ? [{key:"dashboard", icon:"bar_chart",   label:"Tổng quan"}]   : []),
-    ...(isKtv       ? [{key:"ktv_home",  icon:"home",        label:"Trang chủ"}]   : []),
-    ...(isReception ? [{key:"rec_home",  icon:"home",        label:"Trang chủ"}]   : []),
-    ...(isRoleHome  ? [{key:"role_home", icon:"home",        label:"Trang chủ"}]   : []),
+  const navItems = (() => {
+    // ── WAREHOUSE — menu riêng ──────────────────────────────
+    if (isWarehouse) return [
+      { key:"wh_home",    icon:"home",          label:"Trang chủ" },
+      { key:"wh_orders",  icon:"chat",          label:"Chat đơn" },
+      { key:"wh_export",  icon:"outbox",        label:"Phiếu xuất kho" },
+      { key:"wh_import",  icon:"move_to_inbox", label:"Nhập hàng" },
+      { key:"wh_manager", icon:"warehouse",     label:"Quản lý kho" },
+    ];
 
-    // Đơn sửa chữa
-    ...(can("repair_order","view") && !isKtv
-        ? [{key:"board",  icon:"assignment",   label:"Bảng theo dõi"},
-           {key:"new",    icon:"add",          label:"Tạo đơn"}]
-        : []),
-    {key:"tasks", icon:"check_circle", label:"Danh sách đơn"},
+    const items = [];
 
-    // Kho
+    // ── 1. TRANG CHỦ / TỔNG QUAN ───────────────────────────
+    if (isManager)
+      items.push({ key:"dashboard",    icon:"bar_chart",   label:"Tổng quan" });
+    else if (isKtv)
+      items.push({ key:"ktv_home",     icon:"home",        label:"Trang chủ" });
+    else if (isReception)
+      items.push({ key:"rec_home",     icon:"home",        label:"Trang chủ" });
+    else if (isRoleHome)
+      items.push({ key:"role_home",    icon:"home",        label:"Trang chủ" });
 
-    // Bán hàng
-    ...(can("sale_order","view")   ? [{key:"cashier_home", icon:"point_of_sale", label:"Bán hàng"}] : []),
+    // ── 2. BẢNG THEO DÕI — chỉ manager/supervisor ──────────
+    if (can("repair_order","view") && isManager)
+      items.push({ key:"board",        icon:"assignment",  label:"Bảng theo dõi" });
 
-    // Khách hàng
-    ...(can("customer","view") && !isKtv
-        ? [{key:"customers", icon:"group", label:"Khách hàng"}]
-        : []),
+    // ── 3. TẠO ĐƠN — manager, receptionist ─────────────────
+    if (can("repair_order","create") && !isKtv)
+      items.push({ key:"new",          icon:"add_circle",  label:"Tạo đơn" });
 
-    // KPI
-    
+    // ── 4. DANH SÁCH ĐƠN — hầu hết roles ──────────────────
+    if (can("repair_order","view"))
+      items.push({ key:"tasks",        icon:"assignment",  label:"Danh sách đơn" });
 
-    // Admin/manager extras
-    ...(can("staff","view")         ? [{key:"staff",       icon:"person",     label:"Nhân viên"}]    : []),
-    ...(can("warehouse_mgr","view") ? [{key:"wh_manager",  icon:"warehouse",  label:"Quản lý kho"}]  : []),
-    ...(can("settings","view")      ? [{key:"settings",    icon:"settings",   label:"Cài đặt"}]      : []),
-  ];
+    // ── 5. BÁN HÀNG — cashier, accountant, receptionist, manager ──
+    if (can("sale_order","view"))
+      items.push({ key:"cashier_home", icon:"point_of_sale", label:"Bán hàng" });
+
+    // ── 6. KHÁCH HÀNG — receptionist, cashier, marketing, manager ──
+    if (can("customer","view") && !isKtv)
+      items.push({ key:"customers",    icon:"group",       label:"Khách hàng" });
+
+    // ── 7. KIỂM KHO — warehouse, manager, technician ───────
+    if (can("stock_count","view") && !isManager && !isRoleHome)
+      items.push({ key:"stock_count",  icon:"fact_check",  label:"Kiểm kho" });
+
+    // ── 8. NHÂN VIÊN — admin/owner/manager/hr ───────────────
+    if (can("staff","view"))
+      items.push({ key:"staff",        icon:"person",      label:"Nhân viên" });
+
+    // ── 9. QUẢN LÝ KHO — manager, it ────────────────────────
+    if (can("warehouse_mgr","view"))
+      items.push({ key:"wh_manager",   icon:"warehouse",   label:"Quản lý kho" });
+
+    // ── 10. MANAGER DASHBOARD — owner/admin/manager ─────────
+    if (isManager)
+      items.push({ key:"manager_app",  icon:"analytics",   label:"Manager App" });
+
+    // ── 11. CÀI ĐẶT — admin/owner/it ────────────────────────
+    if (can("settings","view"))
+      items.push({ key:"settings",     icon:"settings",    label:"Cài đặt" });
+
+    return items;
+  })();
 
   // ── Kanban Board ─────────────────────────────────────────
   const COLUMNS = ["Chờ KTV","KTV Đang Kiểm","Chờ Báo Giá","Chờ Xác Nhận","Chờ KTV Sửa","Đang Sửa","Chờ Linh Kiện","Hoàn Thành","Đã Giao"];
