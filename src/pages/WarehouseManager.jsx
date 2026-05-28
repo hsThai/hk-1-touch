@@ -1186,13 +1186,19 @@ function StockReportTab({ warehouses }) {
   async function load() {
     setLoading(true);
     try {
-      const [l,m] = await Promise.all([
-        Ledger.list({ limit:500 }),
-        Move.list({ limit:500, sort:"-created_date" }),
+      // Dùng filter thay vì list — nhất quán với StockLedgerTab
+      const filterStr = wh ? `warehouse_id='${wh}'` : "";
+      const [l, m] = await Promise.all([
+        filterStr ? Ledger.filter(filterStr, { limit:1000 }) : Ledger.list({ limit:1000 }),
+        filterStr ? Move.filter(filterStr, { limit:500, sort:"-created_date" }) : Move.list({ limit:500, sort:"-created_date" }),
       ]);
       setLedgers(l||[]);
       setMovements(m||[]);
-    } catch {}
+    } catch(e) {
+      console.error("StockReportTab load error:", e);
+      setLedgers([]);
+      setMovements([]);
+    }
     setLoading(false);
   }
 
@@ -1245,6 +1251,11 @@ function StockReportTab({ warehouses }) {
 
       {loading && <div style={{ textAlign:"center", padding:20, color:"#9ca3af" }}>Đang tải...</div>}
       {!loading && (<>
+        {ledgers.length === 0 && (
+          <div style={{ textAlign:"center", padding:20, color:"#ef4444", fontWeight:600 }}>
+            ⚠️ Không tải được dữ liệu — kiểm tra API Rules PocketBase cho collection stock_ledgers
+          </div>
+        )}
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:16 }}>
           <div style={{ background:"#eef2ff", borderRadius:10, padding:12, textAlign:"center" }}>
             <div style={{ fontWeight:700, color:"#4f46e5", fontSize:12 }}>Tổng giá trị kho</div>
