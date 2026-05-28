@@ -17,7 +17,7 @@ const RESOURCE_META = {
   stock_import:       { label:"Nhập kho",            module:"Kho",        icon:"move_to_inbox" },
   stock_transfer:     { label:"Chuyển kho",          module:"Kho",        icon:"swap_horiz" },
   stock_count:        { label:"Kiểm kho",            module:"Kho",        icon:"fact_check" },
-  stock_ledger:       { label:"Tồn kho",             module:"Kho",        icon:"inventory_2" },
+  stock_ledger:       { label:"Sổ cái kho",         module:"Kho",        icon:"menu_book" },
   customer:           { label:"Khách hàng",          module:"Kinh doanh", icon:"group" },
   sale_order:         { label:"Bán hàng lẻ",         module:"Kinh doanh", icon:"point_of_sale" },
   expense:            { label:"Chi phí",             module:"Kinh doanh", icon:"payments" },
