@@ -1725,7 +1725,7 @@ function MainAppContent({ onUserChange }) {
             ? <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><ManagerDashboard user={user} /></Suspense>
             : <Dashboard />
         )}
-        {page==="staff"      && <StaffManagerPage />}
+        {page==="staff"      && <StaffManagerPage currentStaff={user} />}
         {page==="settings"   && <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}><SettingsHub user={user} /></Suspense>}
         {page==="role_home"  && <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}><RoleHomePlaceholder user={user} setPage={setPage} orders={orders} /></Suspense>}
         {page==="wh_home"   && <WarehouseHome   user={user} setPage={setPage} />}

@@ -37,7 +37,7 @@ const ROLE_ACTIONS = {
     { icon:"assignment",      label:"Bảng theo dõi",    page:"board",         color:"#059669", bg:"#dcfce7" },
     { icon:"check_circle",    label:"Danh sách đơn",    page:"tasks",         color:"#2563eb", bg:"#dbeafe" },
     { icon:"emoji_events",    label:"KPI",               page:"kpi",           color:"#d97706", bg:"#fef3c7" },
-    { icon:"fact_check",    label:"Kiểm kho",         page:"wh_count",      color:"#0369a1", bg:"#e0f2fe" },
+    { icon:"fact_check",    label:"Kiểm kho",         page:"stock_count",   color:"#0369a1", bg:"#e0f2fe" },
   ],
   support: [
     { icon:"assignment",      label:"Bảng theo dõi",    page:"board",         color:"#059669", bg:"#dcfce7" },
