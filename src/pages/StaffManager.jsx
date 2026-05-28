@@ -401,46 +401,41 @@ export default function StaffManager({ currentStaff }) {
               {modal.mode==="add" && <div style={{ fontSize:11, color:"#6b7280", marginTop:4 }}>⚠️ Nhân viên sẽ bị yêu cầu đổi mật khẩu khi đăng nhập lần đầu.</div>}
             </div>
             {/* ── Phân quyền kho ── */}
-            {(form.role === "warehouse" || form.role === "technician") && (
-              <div style={{ marginBottom:20, background:"#f8fafc", borderRadius:14, padding:"14px 16px", border:"1.5px solid #e5e7eb" }}>
-                <div style={{ fontSize:13, fontWeight:700, color:"#374151", marginBottom:4 }}>🏭 Kho được phép truy cập</div>
-                <div style={{ fontSize:12, color:"#9ca3af", marginBottom:10 }}>Để trống = thấy tất cả kho</div>
-                {warehouses.length === 0 ? (
-                  <div style={{ fontSize:13, color:"#9ca3af" }}>Chưa có kho nào</div>
-                ) : (
-                  <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                    {warehouses.map(wh => {
-                      const checked = (form.warehouse_ids || []).includes(wh.id);
-                      return (
-                        <label key={wh.id} style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer", padding:"8px 10px", borderRadius:10, background: checked ? "#ede9fe" : "#fff", border:`1.5px solid ${checked ? "#7c3aed" : "#e5e7eb"}`, transition:"all .15s" }}>
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={e => {
-                              const ids = form.warehouse_ids || [];
-                              setForm(p => ({
-                                ...p,
-                                warehouse_ids: e.target.checked
-                                  ? [...ids, wh.id]
-                                  : ids.filter(id => id !== wh.id)
-                              }));
-                            }}
-                            style={{ width:16, height:16, accentColor:"#7c3aed", cursor:"pointer" }}
-                          />
-                          <span style={{ flex:1, fontWeight:600, fontSize:14, color: checked ? "#5b21b6" : "#374151" }}>
-                            🏭 {wh.name}
-                          </span>
-                          {wh.code && <span style={{ fontSize:11, color:"#9ca3af", fontFamily:"monospace" }}>{wh.code}</span>}
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
-                {(form.warehouse_ids || []).length === 0 && (
-                  <div style={{ marginTop:8, fontSize:12, color:"#059669", fontWeight:600 }}>✅ Không giới hạn — thấy tất cả kho</div>
-                )}
-              </div>
-            )}
+            <div style={{ marginBottom:20, background:"#f8fafc", borderRadius:14, padding:"14px 16px", border:"1.5px solid #e5e7eb" }}>
+              <div style={{ fontSize:13, fontWeight:700, color:"#374151", marginBottom:4 }}>🏭 Kho được phép truy cập</div>
+              <div style={{ fontSize:12, color:"#9ca3af", marginBottom:10 }}>Tích chọn kho được phép vào. Không tích = không được vào kho nào</div>
+              {warehouses.length === 0 ? (
+                <div style={{ fontSize:13, color:"#9ca3af" }}>Chưa có kho nào</div>
+              ) : (
+                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                  {warehouses.map(wh => {
+                    const checked = (form.warehouse_ids || []).includes(wh.id);
+                    return (
+                      <label key={wh.id} style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer", padding:"8px 10px", borderRadius:10, background: checked ? "#ede9fe" : "#fff", border:`1.5px solid ${checked ? "#7c3aed" : "#e5e7eb"}`, transition:"all .15s" }}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={e => {
+                            const ids = form.warehouse_ids || [];
+                            setForm(p => ({
+                              ...p,
+                              warehouse_ids: e.target.checked
+                                ? [...ids, wh.id]
+                                : ids.filter(id => id !== wh.id)
+                            }));
+                          }}
+                          style={{ width:16, height:16, accentColor:"#7c3aed", cursor:"pointer" }}
+                        />
+                        <span style={{ flex:1, fontWeight:600, fontSize:14, color: checked ? "#5b21b6" : "#374151" }}>
+                          🏭 {wh.name}
+                        </span>
+                        {wh.code && <span style={{ fontSize:11, color:"#9ca3af", fontFamily:"monospace" }}>{wh.code}</span>}
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
             <div style={{ marginBottom:20 }}>
               <label style={{ fontSize:13, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>Ghi chú</label>

@@ -31,6 +31,14 @@ function makeWHCol(colName) {
 const WH    = makeWHCol("warehouses");
 const Zone  = makeWHCol("warehouse_zones");
 const Loc   = makeWHCol("warehouse_locations");
+
+// Lọc kho theo quyền: admin/owner/manager thấy tất cả, còn lại chỉ thấy kho được gán
+function filterWarehousesByUser(warehouses, user) {
+  const isWhAdmin = ["admin","owner","manager"].includes(user?.role);
+  if (isWhAdmin) return warehouses;
+  const allowed = user?.warehouse_ids || [];
+  return warehouses.filter(w => allowed.includes(w.id));
+}
 const Ledger= makeWHCol("stock_ledgers");
 const Move  = makeWHCol("stock_movements");
 const Trans = makeWHCol("stock_transfers");
@@ -129,8 +137,8 @@ function WarehouseTab({ user, toast }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { setWarehouses(await WH.list()); } finally { setLoading(false); }
-  }, []);
+    try { const all = await WH.list(); setWarehouses(filterWarehousesByUser(all, user)); } finally { setLoading(false); }
+  }, [user]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -223,7 +231,7 @@ function ZoneLocationTab({ user, toast }) {
   const [form, setForm] = useState({});
   const [expandedZone, setExpandedZone] = useState(null);
 
-  useEffect(() => { WH.list().then(r=>{ setWarehouses(r); if(r.length) setSelWH(r[0].id); }); }, []);
+  useEffect(() => { WH.list().then(r=>{ const filtered = filterWarehousesByUser(r, user); setWarehouses(filtered); if(filtered.length) setSelWH(filtered[0].id); }); }, [user]);
 
   useEffect(() => {
     if (!selWH) return;
@@ -433,7 +441,7 @@ function StockLedgerTab({ user, toast }) {
   const [adjustModal, setAdjustModal] = useState(null);
   const [adjForm, setAdjForm] = useState({ qty:"", note:"" });
 
-  useEffect(() => { WH.list().then(r=>{ setWarehouses(r); if(r.length) setSelWH(r[0].id); }); }, []);
+  useEffect(() => { WH.list().then(r=>{ const filtered = filterWarehousesByUser(r, user); setWarehouses(filtered); if(filtered.length) setSelWH(filtered[0].id); }); }, [user]);
 
   useEffect(() => {
     if (!selWH) return;
@@ -628,9 +636,9 @@ function TransferTab({ user, toast }) {
   const [detailModal, setDetailModal] = useState(null);
 
   useEffect(() => {
-    WH.list().then(setWarehouses);
+    WH.list().then(r => setWarehouses(filterWarehousesByUser(r, user)));
     load();
-  }, []);
+  }, [user]);
 
   async function load() {
     setLoading(true);
