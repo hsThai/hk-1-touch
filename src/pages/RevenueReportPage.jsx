@@ -74,8 +74,7 @@ function TabServices({ orders, period, inPeriod, DONE_STATUS }) {
   const filtered = orders.filter(o=>DONE_STATUS.includes(o.status)&&inPeriod(o.done_date||o.updated_date||o.updated,period));
   const svcMap = {};
   filtered.forEach(o=>{
-    const issues = (o.issue_description||"").split(/[,
-;、]+/).map(s=>s.trim()).filter(s=>s.length>2&&s.length<60);
+    const issues = (o.issue_description||"").split(/[,\n;、]+/).map(s=>s.trim()).filter(s=>s.length>2&&s.length<60);
     issues.forEach(svc=>{
       if(!svcMap[svc]) svcMap[svc]={name:svc,count:0,revenue:0};
       svcMap[svc].count++; svcMap[svc].revenue+=(o.final_cost||0)/Math.max(issues.length,1);

@@ -47,7 +47,7 @@ const S = {
   tabs:    { display:"flex", gap:0, background:"#fff", borderBottom:"2px solid #e5e7eb", overflowX:"auto" },
   tab:     (a)=>({ padding:"12px 18px", fontWeight:600, fontSize:13, cursor:"pointer", whiteSpace:"nowrap",
     borderBottom: a?"3px solid #4f46e5":"3px solid transparent",
-    color: a?"#4f46e5":"#6b7280", background:"none", border:"none", borderBottom: a?"3px solid #4f46e5":"3px solid transparent" }),
+    color: a?"#4f46e5":"#6b7280", background:"none", border:"none" }),
   body:    { padding:"16px 12px", maxWidth:1100, margin:"0 auto" },
   card:    { background:"#fff", borderRadius:12, border:"1px solid #e5e7eb", marginBottom:12, overflow:"hidden" },
   cardHdr: { padding:"12px 16px", background:"#f9fafb", borderBottom:"1px solid #e5e7eb", display:"flex", alignItems:"center", justifyContent:"space-between" },

@@ -1838,7 +1838,7 @@ function ShareOrderModal({ order, onClose }) {
         <div style={{ padding:"20px 20px 24px" }}>
           {/* QR Code */}
           <div style={{ display:"flex", flexDirection:"column", alignItems:"center", marginBottom:18 }}>
-            <div style={{ padding:12, background:"#f8fafc", borderRadius:16, border:"2px solid #e5e7eb", display:"inline-block", minWidth:224, minHeight:224, display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <div style={{ padding:12, background:"#f8fafc", borderRadius:16, border:"2px solid #e5e7eb", display:"flex", alignItems:"center", justifyContent:"center", minWidth:224, minHeight:224 }}>
               <div ref={qrRef} />
               {!qrReady && (
                 <div style={{ width:200, height:200, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:8, color:"#9ca3af" }}>

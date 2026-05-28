@@ -144,8 +144,7 @@ function ShiftReconcile({ user }) {
       [], ["CHI PHÍ"], ["Loại","Mô tả","Số tiền"],
       ...(data.dayExp.map(e=>[e.category||"Khác",e.description||"",e.amount||0])),
     ];
-    const blob = new Blob([BOM+rows.map(r=>r.join(",")).join("
-")],{type:"text/csv;charset=utf-8"});
+    const blob = new Blob([BOM+rows.map(r=>r.join(",")).join("\n")],{type:"text/csv;charset=utf-8"});
     const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
     a.download="DoiSoatCa_"+date+".csv"; a.click();
   }
