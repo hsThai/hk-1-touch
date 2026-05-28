@@ -142,7 +142,7 @@ export default function StaffManager({ currentStaff }) {
   });
 
   return (
-    <div style={{ padding:16, maxWidth:900, margin:"0 auto" }}>
+    <div style={{ padding:16, paddingBottom:100, maxWidth:900, margin:"0 auto" }}>
       {/* Header */}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20, flexWrap:"wrap", gap:10 }}>
         <div>
