@@ -1138,8 +1138,7 @@ function StockReportTab({ warehouses }) {
       ["Tên LK","Tổng xuất"],
       ...topList.map(p=>[p.name, p.qty]),
     ];
-    const blob = new Blob([BOM+rows.map(r=>r.join(",")).join("
-")], { type:"text/csv;charset=utf-8" });
+    const blob = new Blob([BOM+rows.map(r=>r.join(",")).join("\n")], { type:"text/csv;charset=utf-8" });
     const a = document.createElement("a"); a.href=URL.createObjectURL(blob);
     a.download = "TonKho_"+new Date().toISOString().slice(0,10)+".csv"; a.click();
   }
