@@ -3,10 +3,22 @@ import { useState, useEffect } from "react";
 import { Staff } from "./pb.js";
 
 const ROLES = [
-  { value:"manager",      label:"Quản lý",        color:"#7c3aed", bg:"#f5f3ff", icon:"👑" },
-  { value:"receptionist", label:"Tiếp tân",        color:"#1d4ed8", bg:"#dbeafe", icon:"💁" },
-  { value:"technician",   label:"Kỹ thuật viên",   color:"#065f46", bg:"#dcfce7", icon:"🔧" },
-  { value:"warehouse",    label:"Nhân viên kho",   color:"#0369a1", bg:"#e0f2fe", icon:"📦" },
+  { value:"owner",        label:"Chủ cơ sở",        color:"#1e1b4b", bg:"#ede9fe", icon:"🏢" },
+  { value:"admin",        label:"Quản trị viên",     color:"#4f46e5", bg:"#eef2ff", icon:"⚙️" },
+  { value:"manager",      label:"Quản lý",           color:"#7c3aed", bg:"#f5f3ff", icon:"👑" },
+  { value:"supervisor",   label:"Giám sát",          color:"#0369a1", bg:"#e0f2fe", icon:"🔭" },
+  { value:"receptionist", label:"Tiếp tân",          color:"#1d4ed8", bg:"#dbeafe", icon:"💁" },
+  { value:"technician",   label:"Kỹ thuật viên",     color:"#065f46", bg:"#dcfce7", icon:"🔧" },
+  { value:"warehouse",    label:"Thủ kho",           color:"#92400e", bg:"#fef3c7", icon:"📦" },
+  { value:"cashier",      label:"Thu ngân",          color:"#dc2626", bg:"#fee2e2", icon:"💰" },
+  { value:"accountant",   label:"Kế toán",           color:"#2563eb", bg:"#dbeafe", icon:"📊" },
+  { value:"hr",           label:"Nhân sự",           color:"#d97706", bg:"#fef3c7", icon:"👥" },
+  { value:"marketing",    label:"Marketing",         color:"#db2777", bg:"#fce7f3", icon:"📣" },
+  { value:"qa",           label:"QA / Kiểm soát CL", color:"#059669", bg:"#ecfdf5", icon:"✅" },
+  { value:"support",      label:"Hỗ trợ KT",         color:"#0891b2", bg:"#e0f9fe", icon:"🎧" },
+  { value:"delivery",     label:"Giao nhận",         color:"#6b7280", bg:"#f3f4f6", icon:"🚚" },
+  { value:"it",           label:"IT / Dev",          color:"#374151", bg:"#f9fafb", icon:"💻" },
+  { value:"viewer",       label:"Chỉ xem",           color:"#9ca3af", bg:"#f3f4f6", icon:"👁️" },
 ];
 
 function simpleHash(str) { return btoa(unescape(encodeURIComponent(str))); }

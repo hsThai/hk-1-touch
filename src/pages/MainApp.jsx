@@ -36,6 +36,9 @@ const WarehouseManager = lazy(() => import("./WarehouseManager").catch(() => ({ 
   </div>
 )})));
 const CashierApp = lazy(() => import("./CashierApp").catch(() => ({ default: () => (
+const StockCountPage = lazy(() => import("./StockCountPage").catch(() => ({ default: () => (
+  <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải kiểm kho</div>
+) })));
   <div style={{padding:32,textAlign:"center",color:"#ef4444"}}>❌ Lỗi tải App Kế toán</div>
 )})));
 
@@ -353,7 +356,7 @@ function MainAppContent({ onUserChange }) {
           user?.role === "warehouse"    ? "wh_home"     :
           user?.role === "accountant"   ? "cashier_home":
           user?.role === "cashier"      ? "cashier_home":
-          user?.role === "owner"        ? "manager_app" :
+          user?.role === "owner"        ? "dashboard" :
           "dashboard"
         );
       }
@@ -1662,6 +1665,11 @@ function MainAppContent({ onUserChange }) {
         {page==="wh_manager" && <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"dashboard")} />}
         {page==="cashier_home" && <CashierApp user={user} />}
         {page==="manager_app" && <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><ManagerDashboard user={user} /></Suspense>}
+        {page==="stock_count" && (
+          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
+            <StockCountPage user={user} />
+          </Suspense>
+        )}
       </Suspense>
 
       {/* Bottom nav */}

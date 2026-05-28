@@ -1,6 +1,18 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { RepairOrder, Customer, RepairChat, Staff, Notification } from "@/api/entities";
-import { uploadFile } from "@/api/storage";
+import { RepairOrder, Customer, RepairChat, Staff, Notification, getPbUrl, getAuth } from "./pb.jsx";
+
+async function uploadFilePb(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+  const { token } = getAuth();
+  const res = await fetch(`${getPbUrl()}/api/files/upload`, {
+    method: "POST",
+    headers: { Authorization: token },
+    body: formData,
+  });
+  const data = await res.json();
+  return data.url || "";
+}
 
 const STATUSES = ["Mới Nhận","Đang Sửa","Chờ Linh Kiện","Hoàn Thành","Đã Giao"];
 const STATUS_STYLE = {
@@ -215,7 +227,7 @@ function OrderDrawer({ order, staff, onClose, onUpdate, onRefresh, allStaff }) {
     if (!file) return;
     setChatUploading(true);
     try {
-      const url = await uploadFile(file);
+      const url = await uploadFilePb(file);
       let msgType = type;
       if (!msgType) {
         if (file.type?.startsWith("image")) msgType = "image";
