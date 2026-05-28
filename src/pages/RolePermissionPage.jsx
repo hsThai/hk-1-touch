@@ -115,7 +115,7 @@ export default function RolePermissionPage() {
         }
         setPerms(map);
       } catch (e) {
-        showToast("⚠️ Lỗi tải dữ liệu: " + e.message);
+        showToast("⚠️ Không tải được dữ liệu phân quyền — kiểm tra kết nối PocketBase.");
       }
       setLoading(false);
     })();
@@ -168,7 +168,7 @@ export default function RolePermissionPage() {
         }));
       }
     } catch (e) {
-      showToast("❌ Lỗi lưu: " + e.message);
+      showToast("❌ Lỗi lưu quyền — kiểm tra kết nối hoặc quyền PocketBase.");
       // Rollback
       setPerms(prev => ({
         ...prev,
@@ -205,7 +205,7 @@ export default function RolePermissionPage() {
       setPerms(map);
       showToast("✅ Seed xong!");
     } catch (e) {
-      showToast("❌ " + e.message);
+      showToast("❌ Lỗi thao tác — vui lòng thử lại.");
     }
     setSeeding(false);
   }
