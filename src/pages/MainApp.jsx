@@ -1544,7 +1544,7 @@ function MainAppContent({ onUserChange }) {
   }
 
   return (
-    <div style={{ minHeight:"100vh", background:"#f8fafc", fontFamily:"system-ui,-apple-system,sans-serif" }}>
+    <div style={{ minHeight:"100vh", width:"100%", maxWidth:"100vw", background:"#f8fafc", fontFamily:"system-ui,-apple-system,sans-serif", overflowX:"hidden" }}>
       {/* Header */}
       <div style={{ position:"sticky", top:0, zIndex:100, background:"#1e1b4b", padding:"12px 16px", display:"flex", alignItems:"center", gap:12 }}>
         <button onClick={() => setSidebarOpen(v=>!v)} style={{ background:"none", border:"none", color:"#fff", fontSize:22, cursor:"pointer", padding:4 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:24,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>menu</span></button>
