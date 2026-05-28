@@ -784,7 +784,11 @@ function TransferTab({ user, toast }) {
                     <td style={S.td}>{(t.total_value||0).toLocaleString("vi")}</td>
                     <td style={S.td}><span style={S.badge(statusColor[t.status]||"#6b7280")}>{statusLabel[t.status]||t.status}</span></td>
                     <td style={S.td}>{t.requested_by_name}</td>
-                    <td style={S.td}>{new Date(t.created||t.created_date).toLocaleDateString("vi")}</td>
+                    <td style={S.td}>{(() => {
+  if (t.confirmed_at) return new Date(t.confirmed_at).toLocaleDateString("vi-VN");
+  const m = (t.transfer_code||"").match(/TR-(\d{4})(\d{2})(\d{2})/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : "—";
+})()}</td>
                     <td style={S.td}>
                       <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
                         <button style={S.btnSm("#4f46e5")} onClick={()=>setDetailModal(t)}>👁️</button>
