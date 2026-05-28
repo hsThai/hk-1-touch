@@ -36,11 +36,11 @@ const WarehouseManager = lazy(() => import("./WarehouseManager").catch(() => ({ 
   </div>
 )})));
 const CashierApp = lazy(() => import("./CashierApp").catch(() => ({ default: () => (
+  <div style={{padding:32,textAlign:"center",color:"#ef4444"}}>❌ Lỗi tải App Kế toán</div>
+)})));
 const StockCountPage = lazy(() => import("./StockCountPage").catch(() => ({ default: () => (
   <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải kiểm kho</div>
 ) })));
-  <div style={{padding:32,textAlign:"center",color:"#ef4444"}}>❌ Lỗi tải App Kế toán</div>
-)})));
 
 
 // Components loaded from OrderComponents
