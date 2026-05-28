@@ -903,7 +903,7 @@ function DefectTab({ user, warehouses }) {
   async function loadList() {
     setLoading(true);
     try {
-      const mvs = await Move.list({ limit:200, sort:"-created_date" });
+      const mvs = await Move.list({ limit:200, sort:"-created" });
       setList((mvs||[]).filter(m=>m.movement_type==="defect"));
     } catch { setList([]); }
     setLoading(false);
@@ -1014,7 +1014,7 @@ function PreorderTab({ user, warehouses }) {
     setLoading(true);
     try {
       const [u, l] = await Promise.all([
-        Usage.list({ limit:300, sort:"-created_date" }),
+        Usage.list({ limit:300, sort:"-created" }),
         Ledger.list({ limit:500 }),
       ]);
       setUsages((u||[]).filter(x=>x.status==="pending"||x.status==="requested"));
@@ -1102,7 +1102,7 @@ function ShippingTab({ user }) {
   const [form, setForm] = useState({ tracking_code:"", shipping_unit:"", received_date:"", note:"" });
 
   useEffect(() => {
-    Imports.list({ limit:200, sort:"-created_date" })
+    Imports.list({ limit:200, sort:"-created" })
       .then(d=>setImports(d||[])).catch(()=>{}).finally(()=>setLoading(false));
   }, []);
 
@@ -1199,7 +1199,7 @@ function StockReportTab({ warehouses }) {
       const filterStr = wh ? `warehouse_id='${wh}'` : "";
       const [l, m] = await Promise.all([
         filterStr ? Ledger.filter(filterStr, { limit:1000 }) : Ledger.list({ limit:1000 }),
-        filterStr ? Move.filter(filterStr, { limit:500, sort:"-created_date" }) : Move.list({ limit:500, sort:"-created_date" }),
+        filterStr ? Move.filter(filterStr, { limit:500, sort:"-created" }) : Move.list({ limit:500, sort:"-created" }),
       ]);
       setLedgers(l||[]);
       setMovements(m||[]);
