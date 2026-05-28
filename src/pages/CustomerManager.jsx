@@ -67,18 +67,18 @@ export default function CustomerManager({ onSelectCustomer }) {
 
   return (
     <div style={{ padding:16, maxWidth:900, margin:"0 auto" }}>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20, flexWrap:"wrap", gap:10 }}>
-        <div>
-          <div style={{ fontSize:20, fontWeight:900, color:"#1e1b4b" }}>👤 Quản lý khách hàng</div>
-          <div style={{ fontSize:13, color:"#6b7280" }}>{list.length} khách hàng</div>
+      <div style={{ marginBottom:16 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+          <div>
+            <div style={{ fontSize:20, fontWeight:900, color:"#1e1b4b" }}>👤 Quản lý khách hàng</div>
+            <div style={{ fontSize:13, color:"#6b7280" }}>{list.length} khách hàng</div>
+          </div>
+          {onSelectCustomer && <div style={{ fontSize:12, color:"#6b7280" }}>Chọn khách để điền vào đơn</div>}
         </div>
-        <div style={{ display:"flex", gap:8 }}>
-          {onSelectCustomer && <div style={{ fontSize:12, color:"#6b7280", alignSelf:"center" }}>Chọn khách để điền vào đơn</div>}
-          <button onClick={openAdd}
-            style={{ height:44, padding:"0 20px", background:"#4f46e5", color:"#fff", border:"none", borderRadius:12, fontWeight:800, fontSize:14, cursor:"pointer" }}>
-            ＋ Thêm khách
-          </button>
-        </div>
+        <button onClick={openAdd}
+          style={{ width:"100%", height:46, background:"#4f46e5", color:"#fff", border:"none", borderRadius:12, fontWeight:800, fontSize:15, cursor:"pointer" }}>
+          ＋ Thêm khách hàng mới
+        </button>
       </div>
 
       <input value={search} onChange={e=>setSearch(e.target.value)}
