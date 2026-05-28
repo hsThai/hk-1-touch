@@ -1,5 +1,6 @@
 /**
  * WarehouseManager.jsx
+ * @version 2026-05-28-v3 — fix StockReportTab filter limit→perPage
  * Quản lý kho đa điểm — Kho / Zone / Kệ / Tồn kho / Nhập / Xuất / Chuyển / Kiểm kho
  */
 import React, { useState, useEffect, useCallback } from "react";
@@ -1184,7 +1185,7 @@ function ShippingTab({ user }) {
 // StockReportTab — Báo cáo tồn kho tổng hợp
 // ─────────────────────────────────────────────────────────────────────────────
 function StockReportTab({ warehouses }) {
-  const [ledgers,   setLedgers]   = useState([]);
+  const [ledgers,   setLedgers]   = useState(null);
   const [movements, setMovements] = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [wh,        setWh]        = useState("");
@@ -1204,13 +1205,13 @@ function StockReportTab({ warehouses }) {
       setMovements(m||[]);
     } catch(e) {
       console.error("StockReportTab load error:", e);
-      setLedgers([]);
+      setLedgers(null);   // null = lỗi thật, [] = load OK nhưng không có data
       setMovements([]);
     }
     setLoading(false);
   }
 
-  const filtLedgers  = wh ? ledgers.filter(l=>l.warehouse_id===wh) : ledgers;
+  const filtLedgers  = wh ? (ledgers||[]).filter(l=>l.warehouse_id===wh) : (ledgers||[]);
   const totalValue   = filtLedgers.reduce((s,l)=>s+(l.qty_on_hand||0)*(l.cost_price||0), 0);
   const lowStock     = filtLedgers.filter(l=>(l.qty_on_hand||0)<=(l.min_qty||2) && (l.qty_on_hand||0)>=0);
   const cutoff       = new Date(); cutoff.setDate(cutoff.getDate()-30);
@@ -1259,9 +1260,9 @@ function StockReportTab({ warehouses }) {
 
       {loading && <div style={{ textAlign:"center", padding:20, color:"#9ca3af" }}>Đang tải...</div>}
       {!loading && (<>
-        {ledgers.length === 0 && (
+        {ledgers === null && (
           <div style={{ textAlign:"center", padding:20, color:"#ef4444", fontWeight:600 }}>
-            ⚠️ Không tải được dữ liệu — kiểm tra API Rules PocketBase cho collection stock_ledgers
+            ⚠️ Không tải được dữ liệu — kiểm tra kết nối PocketBase.
           </div>
         )}
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:16 }}>
