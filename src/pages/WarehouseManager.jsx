@@ -19,8 +19,16 @@ function makeWHCol(colName) {
     return res.json();
   }
   return {
-    list:   (p={})   => pbFetch(`collections/${colName}/records?perPage=500&${new URLSearchParams(p)}`).then(r=>r.items||[]),
-    filter: (f,p={}) => pbFetch(`collections/${colName}/records?perPage=500&filter=${encodeURIComponent(f)}&${new URLSearchParams(p)}`).then(r=>r.items||[]),
+    list:   (p={})   => {
+      const { limit, ...rest } = p;
+      const params = new URLSearchParams({ perPage: limit||500, ...rest });
+      return pbFetch(`collections/${colName}/records?${params}`).then(r=>r.items||[]);
+    },
+    filter: (f,p={}) => {
+      const { limit, sort, ...rest } = p;
+      const params = new URLSearchParams({ perPage: limit||500, ...(sort?{sort}:{}), ...rest });
+      return pbFetch(`collections/${colName}/records?filter=${encodeURIComponent(f)}&${params}`).then(r=>r.items||[]);
+    },
     create: (d)      => pbFetch(`collections/${colName}/records`, { method:"POST", body:JSON.stringify(d) }),
     update: (id,d)   => pbFetch(`collections/${colName}/records/${id}`, { method:"PATCH", body:JSON.stringify(d) }),
     delete: (id)     => pbFetch(`collections/${colName}/records/${id}`, { method:"DELETE" }),
