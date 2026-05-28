@@ -634,11 +634,22 @@ function TransferTab({ user, toast }) {
   const [form, setForm] = useState({ from_warehouse_id:"", to_warehouse_id:"", note:"" });
   const [items, setItems] = useState([{ part_name:"", sku:"", qty:1, unit_price:0 }]);
   const [detailModal, setDetailModal] = useState(null);
+  const [partSuggestions, setPartSuggestions] = useState([]);
 
   useEffect(() => {
     WH.list().then(r => setWarehouses(filterWarehousesByUser(r, user)));
     load();
   }, [user]);
+
+  useEffect(() => {
+    if (!form.from_warehouse_id) { setPartSuggestions([]); return; }
+    Ledger.list({ limit:500 }).then(ledgers => {
+      const filtered = ledgers
+        .filter(l => l.warehouse_id === form.from_warehouse_id && (l.qty_on_hand||0) > 0)
+        .map(l => ({ name: l.part_name||"", sku: l.sku||"", qty: l.qty_on_hand||0, cost: l.cost_price||0 }));
+      setPartSuggestions(filtered);
+    }).catch(() => setPartSuggestions([]));
+  }, [form.from_warehouse_id]);
 
   async function load() {
     setLoading(true);
@@ -743,7 +754,33 @@ function TransferTab({ user, toast }) {
           <div style={{fontWeight:700,fontSize:13,color:"#1e1b4b",marginBottom:8}}>Danh sách hàng chuyển</div>
           {items.map((item,i)=>(
             <div key={i} style={{display:"grid",gridTemplateColumns:"2fr 1.2fr 1fr 1fr auto",gap:6,marginBottom:6,alignItems:"end"}}>
-              <div><label style={S.label}>Tên hàng *</label><input style={S.input} value={item.part_name} onChange={e=>setItems(p=>p.map((x,j)=>j===i?{...x,part_name:e.target.value}:x))} placeholder="Tên linh kiện..." /></div>
+              <div>
+                <label style={S.label}>Tên hàng *</label>
+                <input
+                  style={S.input}
+                  list={`part-list-${i}`}
+                  value={item.part_name}
+                  onChange={e => {
+                    const val = e.target.value;
+                    const match = partSuggestions.find(p => p.name === val);
+                    setItems(prev => prev.map((x, j) => j !== i ? x : {
+                      ...x,
+                      part_name: val,
+                      sku: match ? match.sku : x.sku,
+                      unit_price: match ? match.cost : x.unit_price,
+                    }));
+                  }}
+                  placeholder="Gõ để tìm linh kiện..."
+                  autoComplete="off"
+                />
+                <datalist id={`part-list-${i}`}>
+                  {partSuggestions.map((p, idx) => (
+                    <option key={idx} value={p.name}>
+                      {p.sku ? `SKU: ${p.sku} — ` : ""}{`Tồn: ${p.qty}`}
+                    </option>
+                  ))}
+                </datalist>
+              </div>
               <div><label style={S.label}>SKU</label><input style={S.input} value={item.sku} onChange={e=>setItems(p=>p.map((x,j)=>j===i?{...x,sku:e.target.value}:x))} /></div>
               <div><label style={S.label}>SL *</label><input style={S.input} type="number" min="1" value={item.qty} onChange={e=>setItems(p=>p.map((x,j)=>j===i?{...x,qty:e.target.value}:x))} /></div>
               <div><label style={S.label}>Đơn giá</label><input style={S.input} type="number" value={item.unit_price} onChange={e=>setItems(p=>p.map((x,j)=>j===i?{...x,unit_price:e.target.value}:x))} /></div>
