@@ -20,7 +20,13 @@ export default function CustomerManager({ onSelectCustomer }) {
 
   async function load() {
     setLoading(true);
-    try { const d = await Customer.list("-created_date"); setList(d); } catch {}
+    try {
+      const d = await Customer.list({ sort: "-created_date", limit: 500 });
+      setList(d || []);
+    } catch(e) {
+      console.error("CustomerManager load error:", e);
+      showToast("⚠️ Không tải được danh sách khách hàng. Kiểm tra kết nối PocketBase.");
+    }
     setLoading(false);
   }
 
