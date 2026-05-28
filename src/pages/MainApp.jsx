@@ -1176,9 +1176,7 @@ function MainAppContent({ onUserChange }) {
         : []),
 
     // KPI
-    ...(can("kpi","view") && !isReception
-        ? [{key:"kpi", icon:"emoji_events", label:"KPI"}]
-        : []),
+    
 
     // Admin/manager extras
     ...(can("staff","view")         ? [{key:"staff",       icon:"person",     label:"Nhân viên"}]    : []),
@@ -1714,7 +1712,7 @@ function MainAppContent({ onUserChange }) {
             </div>
           </div>
         )}
-        {page==="kpi" && <KPIPage users={users} orders={orders} />}
+        
         {page==="customers" && (
           <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
             <CustomerManagerPage />

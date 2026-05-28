@@ -278,28 +278,9 @@ export default function StaffManager({ currentStaff }) {
     return matchQ && matchR;
   });
 
-  const [activeTab, setActiveTab] = useState("list");
-  const SM_TABS = [
-    { key:"list", label:"👥 Nhân viên" },
-    { key:"kpi",  label:"📊 KPI" },
-  ];
-
   return (
     <div style={{ padding:16, paddingBottom:100, maxWidth:900, margin:"0 auto" }}>
-      {/* Tab nav */}
-      <div style={{ display:"flex", gap:0, background:"#fff", borderRadius:12, border:"1px solid #e5e7eb", marginBottom:16, overflow:"hidden" }}>
-        {SM_TABS.map(t=>(
-          <button key={t.key} onClick={()=>setActiveTab(t.key)}
-            style={{ flex:1, padding:"11px 8px", fontSize:13, fontWeight:activeTab===t.key?800:500,
-              background:activeTab===t.key?"#4f46e5":"transparent", color:activeTab===t.key?"#fff":"#6b7280",
-              border:"none", cursor:"pointer", transition:"all .15s" }}>
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {activeTab==="kpi" && <StaffKpiTab currentUser={user}/>}
-      {activeTab==="list" && (<>
+      <>
 
       {/* Header */}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20, flexWrap:"wrap", gap:10 }}>
@@ -488,7 +469,7 @@ export default function StaffManager({ currentStaff }) {
         </div>
       )}
 
-      </> )}
+      </>
 
       {/* Toast */}
       {toast && (
