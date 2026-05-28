@@ -830,7 +830,6 @@ const NAV_TABS = [
   { key:"overview",     icon:"dashboard",        label:"Tổng quan" },
   { key:"revenue",      icon:"bar_chart",        label:"Doanh thu" },
   { key:"staff_kpi",    icon:"people",           label:"KPI NV" },
-  { key:"inventory",    icon:"inventory_2",      label:"Tồn kho" },
   { key:"settings_mgr", icon:"manage_accounts",  label:"Cài đặt" },
 ];
 
@@ -909,7 +908,6 @@ export default function ManagerDashboard({ user }) {
             {tab==="overview"     && <OverviewTab repairOrders={repairOrders} saleOrders={saleOrders} spareParts={spareParts} />}
             {tab==="revenue"      && <RevenueTab repairOrders={repairOrders} saleOrders={saleOrders} expenses={expenses} />}
             {tab==="staff_kpi"    && <StaffKpiTab staff={staff} repairOrders={repairOrders} />}
-            {tab==="inventory"    && <InventoryTab spareParts={spareParts} stockImports={stockImports} />}
             {tab==="settings_mgr" && <SettingsMgrTab user={user} staff={staff} repairOrders={repairOrders}
                 customers={customers} spareParts={spareParts} onStaffUpdate={handleStaffUpdate} />}
           </>
