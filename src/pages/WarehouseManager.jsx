@@ -693,9 +693,64 @@ function TransferTab({ user, toast }) {
 
   async function confirm(t) {
     try {
+      // 1. Cập nhật trạng thái phiếu
       await Trans.update(t.id, { status:"received", confirmed_by_id:user?.id||"", confirmed_by_name:user?.name||"", confirmed_at:new Date().toISOString() });
-      toast.show("Đã xác nhận nhận hàng"); load();
-    } catch(e) { toast.show(e.message,"error"); }
+
+      // 2. Cập nhật stock_ledgers: trừ kho xuất, cộng kho nhận
+      const items = Array.isArray(t.items) ? t.items : (typeof t.items==="string" ? JSON.parse(t.items||"[]") : []);
+      for (const item of items) {
+        const partId   = item.part_id;
+        const qty      = Number(item.qty) || 0;
+        const costPrice= Number(item.unit_price||item.cost_price) || 0;
+
+        // -- Trừ kho xuất --
+        const fromLedgers = await Ledger.filter(`warehouse_id='${t.from_warehouse_id}' && part_id='${partId}'`);
+        if (fromLedgers.length > 0) {
+          const fl = fromLedgers[0];
+          const newQty = Math.max(0, (fl.qty_on_hand||0) - qty);
+          await Ledger.update(fl.id, {
+            qty_on_hand: newQty,
+            qty_available: Math.max(0, newQty - (fl.qty_reserved||0)),
+            last_movement_at: new Date().toISOString(),
+          });
+        }
+
+        // -- Cộng kho nhận --
+        const toLedgers = await Ledger.filter(`warehouse_id='${t.to_warehouse_id}' && part_id='${partId}'`);
+        if (toLedgers.length > 0) {
+          // Đã có ledger record → cộng thêm
+          const tl = toLedgers[0];
+          const newQty = (tl.qty_on_hand||0) + qty;
+          await Ledger.update(tl.id, {
+            qty_on_hand: newQty,
+            qty_available: Math.max(0, newQty - (tl.qty_reserved||0)),
+            last_movement_at: new Date().toISOString(),
+          });
+        } else {
+          // Chưa có → tạo mới ledger record cho kho nhận
+          const toWhName = t.to_warehouse_name || "";
+          await Ledger.create({
+            warehouse_id: t.to_warehouse_id,
+            warehouse_name: toWhName,
+            part_id: partId,
+            part_name: item.part_name||"",
+            sku: item.sku||"",
+            category: item.category||"",
+            unit: item.unit||"Cái",
+            cost_price: costPrice,
+            qty_on_hand: qty,
+            qty_reserved: 0,
+            qty_available: qty,
+            min_qty: 0,
+            location_id: "",
+            location_code: "",
+            last_movement_at: new Date().toISOString(),
+          });
+        }
+      }
+
+      toast.show("✅ Đã xác nhận — tồn kho đã được cập nhật"); load();
+    } catch(e) { console.error(e); toast.show(e.message,"error"); }
   }
 
   async function cancel(t) {
