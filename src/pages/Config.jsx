@@ -8,6 +8,8 @@ const SHOP_KEYS = [
   { key:"shop_phone",    label:"Số điện thoại",  placeholder:"0901234567" },
   { key:"shop_address",  label:"Địa chỉ",        placeholder:"123 Đường ABC, Q.1, TP.HCM" },
   { key:"warranty_note", label:"Cam kết bảo hành",placeholder:"Bảo hành linh kiện 30 ngày, lỗi do sửa 7 ngày" },
+  { key:"bank_account", label:"Số tài khoản ngân hàng", placeholder:"0123456789" },
+  { key:"bank_name",    label:"Mã ngân hàng VietQR",    placeholder:"mb / vietcombank / techcombank / acb" },
 ];
 
 // ── Âm thanh thông báo ──

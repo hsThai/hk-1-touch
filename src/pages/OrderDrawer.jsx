@@ -1,6 +1,7 @@
 /* v1774860462-5727 */
 import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
 import HandoverModal from "./HandoverModal.jsx";
+import { printReceiptA5, printBillA5, previewBill } from "../utils/printClient.js";
 import EditOrderModal from "./EditOrderModal.jsx";
 import PreCheckModal, { QT2Modal, CustomerConfirmModal } from "./PreCheckModal.jsx";
 const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ default: ({ onClose }) => (
@@ -539,6 +540,43 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
     showToast("Hoàn thành! +2 KPI");
     setEditMode(false);
   }
+  const [printing, setPrinting] = useState(false);
+
+  async function getShopInfo() {
+    try {
+      const keys = ["shop_name","shop_phone","shop_address","warranty_note","bank_account","bank_name"];
+      const vals = await Promise.all(keys.map(k => pbSettings.get(k).catch(()=>"")));
+      return Object.fromEntries(keys.map((k,i) => [k, vals[i]||""]));
+    } catch { return {}; }
+  }
+
+  async function handlePrintReceipt() {
+    setPrinting(true);
+    try {
+      const shopInfo = await getShopInfo();
+      await printReceiptA5(order, shopInfo);
+    } catch (e) {
+      const shopInfo = await getShopInfo();
+      previewBill(order, [], shopInfo);
+      alert("Print Agent không kết nối — mở preview để in thủ công.\n\n" + e.message);
+    } finally { setPrinting(false); }
+  }
+
+  async function handlePrintBill() {
+    setPrinting(true);
+    try {
+      const [shopInfo, parts] = await Promise.all([
+        getShopInfo(),
+        SparePartUsage.filter({ order_id: order.id }).catch(()=>[]),
+      ]);
+      await printBillA5(order, parts, shopInfo);
+    } catch (e) {
+      const shopInfo = await getShopInfo();
+      previewBill(order, [], shopInfo);
+      alert("Print Agent không kết nối — mở preview để in thủ công.\n\n" + e.message);
+    } finally { setPrinting(false); }
+  }
+
   const qrContent = order.id;
 
   return (
@@ -604,6 +642,13 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 )}
               </>
             )}
+            <button onClick={handlePrintReceipt} disabled={printing}
+              style={{ background:"#f0fdf4", border:"1px solid #86efac", color:"#15803d",
+                       borderRadius:8, padding:"6px 12px", fontSize:13, cursor:"pointer",
+                       display:"flex", alignItems:"center", gap:4 }}>
+              <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>print</span>
+              {printing ? "Đang in..." : "In Phiếu"}
+            </button>
             <button onClick={onClose} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:34, height:34, borderRadius:"50%", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>close</span></button>
           </div>
         </div>
@@ -944,6 +989,15 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                     <span style={{ fontSize:12, fontWeight:700, color:"#065f46" }}>✅ Thanh toán thực tế:</span>
                     <span style={{ fontSize:14, fontWeight:900, color:"#059669" }}>{Number(order.final_cost).toLocaleString("vi-VN")}đ</span>
                   </div>
+                )}
+                {(order.final_cost > 0 || order.estimated_cost > 0) && (
+                  <button onClick={handlePrintBill} disabled={printing}
+                    style={{ marginTop:8, background:"#1e1b4b", border:"none", color:"#fff",
+                             borderRadius:8, padding:"8px 16px", fontSize:13, cursor:"pointer",
+                             display:"flex", alignItems:"center", gap:6, width:"100%" }}>
+                    <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>receipt</span>
+                    {printing ? "Đang in..." : "In Bill Thanh Toán"}
+                  </button>
                 )}
               </div>
             )}
