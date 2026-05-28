@@ -1,6 +1,6 @@
 /* v1774860462-5573 */
 import { useState, useEffect } from "react";
-import { Staff, Warehouse, Role } from "./pb.jsx";
+import { Staff, Warehouse, Role, ActionLog, RepairOrder } from "./pb.jsx";
 import { ROLE_DEFINITIONS } from "./seedRoles.js";
 
 // Fallback tĩnh — dùng khi DB chưa có dữ liệu
@@ -15,6 +15,143 @@ const ROLES_FALLBACK = ROLE_DEFINITIONS.map(r => ({
 function simpleHash(str) { return btoa(unescape(encodeURIComponent(str))); }
 
 const EMPTY = { full_name:"", phone:"", username:"", role:"technician", password:"", note:"", is_active:true, warehouse_ids:[] };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// StaffKpiTab — KPI nhân viên + Log thao tác
+// ─────────────────────────────────────────────────────────────────────────────
+function StaffKpiTab({ currentUser }) {
+  const [logs,     setLogs]     = useState([]);
+  const [records,  setRecords]  = useState([]);
+  const [staffs,   setStaffs]   = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [period,   setPeriod]   = useState("month");
+  const [selStaff, setSelStaff] = useState("");
+
+  useEffect(() => { load(); }, [period]);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const [l, r, s] = await Promise.all([
+        ActionLog.list({ limit:500, sort:"-created_date" }),
+        RepairOrder.list({ limit:500 }),
+        Staff.list({ limit:100 }),
+      ]);
+      setLogs(l||[]);
+      setRecords(r||[]);
+      setStaffs(s||[]);
+    } catch {}
+    setLoading(false);
+  }
+
+  const now = new Date();
+  function inPeriod(d) {
+    if (!d) return false;
+    const dt = new Date(d);
+    if (period==="today") return dt.toDateString()===now.toDateString();
+    if (period==="week")  { const s=new Date(now); s.setDate(now.getDate()-7); return dt>=s; }
+    if (period==="month") return dt.getMonth()===now.getMonth() && dt.getFullYear()===now.getFullYear();
+    return true;
+  }
+
+  const DONE = ["Hoàn Thành","Đã Thanh Toán","Đã Giao"];
+  const periodOrders = records.filter(o=>DONE.includes(o.status) && inPeriod(o.done_date||o.updated_date||o.updated));
+
+  const kpiMap = {};
+  staffs.forEach(s=>{ kpiMap[s.id]={ id:s.id, name:s.name||s.full_name, role:s.role, orders:0, revenue:0, actions:0 }; });
+  periodOrders.forEach(o=>{
+    const k = o.assigned_to||o.assigned_to_id;
+    if (k && kpiMap[k]) { kpiMap[k].orders++; kpiMap[k].revenue+=(o.final_cost||0); }
+  });
+  logs.filter(l=>inPeriod(l.logged_at)).forEach(l=>{
+    if (kpiMap[l.staff_id]) kpiMap[l.staff_id].actions++;
+  });
+  const kpiList = Object.values(kpiMap).filter(k=>k.orders>0||k.actions>0).sort((a,b)=>b.revenue-a.revenue);
+  const maxRev  = Math.max(...kpiList.map(k=>k.revenue), 1);
+  const detailLogs = selStaff ? logs.filter(l=>l.staff_id===selStaff && inPeriod(l.logged_at)) : [];
+
+  function exportKpi() {
+    const BOM = "﻿";
+    const rows = [
+      ["KPI NHÂN VIÊN — "+period.toUpperCase()],
+      ["Tên","Chức vụ","Đơn HT","Doanh thu","Thao tác"],
+      ...kpiList.map(k=>[k.name, k.role, k.orders, k.revenue, k.actions]),
+    ];
+    const blob = new Blob([BOM+rows.map(r=>r.join(",")).join("\n")], { type:"text/csv;charset=utf-8" });
+    const a = document.createElement("a"); a.href=URL.createObjectURL(blob);
+    a.download = "KPI_"+period+"_"+new Date().toISOString().slice(0,10)+".csv"; a.click();
+  }
+
+  return (
+    <div style={{ padding:"0 0 100px" }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+        <div style={{ fontWeight:800, fontSize:17 }}>📊 KPI Nhân viên</div>
+        <button onClick={exportKpi}
+          style={{ background:"#4f46e5", color:"#fff", border:"none", borderRadius:8, padding:"7px 12px", fontSize:13, cursor:"pointer" }}>
+          ⬇️ CSV
+        </button>
+      </div>
+
+      {/* Period filter */}
+      <div style={{ display:"flex", gap:6, marginBottom:14 }}>
+        {[{v:"today",l:"Hôm nay"},{v:"week",l:"7 ngày"},{v:"month",l:"Tháng này"},{v:"all",l:"Tất cả"}].map(p=>(
+          <button key={p.v} onClick={()=>setPeriod(p.v)}
+            style={{ flex:1, padding:"7px 4px", fontSize:12, fontWeight:period===p.v?700:400,
+              background:period===p.v?"#4f46e5":"#f3f4f6", color:period===p.v?"#fff":"#374151",
+              border:"none", borderRadius:8, cursor:"pointer" }}>
+            {p.l}
+          </button>
+        ))}
+      </div>
+
+      {loading && <div style={{ textAlign:"center", padding:30, color:"#9ca3af" }}>Đang tải...</div>}
+      {!loading && (<>
+        {kpiList.length===0 && <div style={{ textAlign:"center", padding:30, color:"#9ca3af" }}>Chưa có dữ liệu KPI kỳ này</div>}
+        {kpiList.map(k=>(
+          <div key={k.id} onClick={()=>setSelStaff(selStaff===k.id?"":k.id)}
+            style={{ background:selStaff===k.id?"#eef2ff":"#fff", borderRadius:12, padding:14, marginBottom:10,
+              boxShadow:"0 1px 4px rgba(0,0,0,.06)", cursor:"pointer",
+              border:selStaff===k.id?"1.5px solid #4f46e5":"1.5px solid transparent" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+              <div>
+                <div style={{ fontWeight:700, fontSize:15 }}>{k.name}</div>
+                <div style={{ fontSize:12, color:"#6b7280" }}>{k.role} · {k.actions} thao tác</div>
+              </div>
+              <div style={{ textAlign:"right" }}>
+                <div style={{ fontWeight:800, fontSize:15, color:"#4f46e5" }}>{Number(k.revenue).toLocaleString("vi-VN")}đ</div>
+                <div style={{ fontSize:12, color:"#6b7280" }}>{k.orders} đơn HT</div>
+              </div>
+            </div>
+            <div style={{ height:8, background:"#f3f4f6", borderRadius:4 }}>
+              <div style={{ height:"100%", background:"#4f46e5", borderRadius:4, width:`${(k.revenue/maxRev*100).toFixed(1)}%` }}/>
+            </div>
+            {selStaff===k.id && detailLogs.length>0 && (
+              <div style={{ marginTop:12, paddingTop:10, borderTop:"1px dashed #e5e7eb" }}>
+                <div style={{ fontWeight:700, fontSize:13, marginBottom:6 }}>Log thao tác ({detailLogs.length})</div>
+                {detailLogs.slice(0,20).map(l=>(
+                  <div key={l.id} style={{ fontSize:12, padding:"4px 0", borderBottom:"1px solid #f3f4f6", color:"#374151" }}>
+                    <span style={{ color:"#4f46e5", fontWeight:600 }}>{l.action}</span>
+                    {" · "}{l.target_type} {l.target_id?.slice(-6)||""}
+                    {l.detail && <span style={{ color:"#9ca3af" }}> — {l.detail}</span>}
+                    <span style={{ float:"right", color:"#9ca3af" }}>
+                      {new Date(l.logged_at).toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"})}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {selStaff===k.id && detailLogs.length===0 && (
+              <div style={{ marginTop:10, fontSize:12, color:"#9ca3af", textAlign:"center", paddingTop:8, borderTop:"1px dashed #e5e7eb" }}>
+                Chưa có log thao tác kỳ này
+              </div>
+            )}
+          </div>
+        ))}
+      </>)}
+    </div>
+  );
+}
+
 
 export default function StaffManager({ currentStaff }) {
   const [list, setList]     = useState([]);
@@ -141,8 +278,29 @@ export default function StaffManager({ currentStaff }) {
     return matchQ && matchR;
   });
 
+  const [activeTab, setActiveTab] = useState("list");
+  const SM_TABS = [
+    { key:"list", label:"👥 Nhân viên" },
+    { key:"kpi",  label:"📊 KPI" },
+  ];
+
   return (
     <div style={{ padding:16, paddingBottom:100, maxWidth:900, margin:"0 auto" }}>
+      {/* Tab nav */}
+      <div style={{ display:"flex", gap:0, background:"#fff", borderRadius:12, border:"1px solid #e5e7eb", marginBottom:16, overflow:"hidden" }}>
+        {SM_TABS.map(t=>(
+          <button key={t.key} onClick={()=>setActiveTab(t.key)}
+            style={{ flex:1, padding:"11px 8px", fontSize:13, fontWeight:activeTab===t.key?800:500,
+              background:activeTab===t.key?"#4f46e5":"transparent", color:activeTab===t.key?"#fff":"#6b7280",
+              border:"none", cursor:"pointer", transition:"all .15s" }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab==="kpi" && <StaffKpiTab currentUser={user}/>}
+      {activeTab==="list" && (<>
+
       {/* Header */}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20, flexWrap:"wrap", gap:10 }}>
         <div>
@@ -329,6 +487,8 @@ export default function StaffManager({ currentStaff }) {
           </div>
         </div>
       )}
+
+      </> )}
 
       {/* Toast */}
       {toast && (

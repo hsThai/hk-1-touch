@@ -230,6 +230,8 @@ export const Expense            = makeCollection("expenses");
 export const Role               = makeCollection("roles");
 export const RolePermission     = makeCollection("role_permissions");
 export const MediaPost          = makeCollection("media_posts");
+export const ActionLog          = makeCollection("action_logs");
+export const KpiRecord          = makeCollection("kpi_records");
 
 // ── Helper: ghi log lịch sử đơn ──────────────────────────
 export async function logHistory({ order_id, order_code, action_type, action_label, changed_by_id, changed_by_name, changed_by_role, old_value, new_value, note }) {

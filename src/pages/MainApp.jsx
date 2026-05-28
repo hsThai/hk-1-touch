@@ -1,7 +1,7 @@
 /* REBUILD_20260406_1408 */
 /* v4-loginv2-real-db */
 import React, { lazy, Suspense, useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
-import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, StockExportRequest, StockImport, StockImportItem, getPbUrl, getAuth, logHistory } from "./pb.jsx";
+import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, StockExportRequest, StockImport, StockImportItem, ActionLog, getPbUrl, getAuth, logHistory } from "./pb.jsx";
 import { uploadFile } from "./pb.jsx";
 import { getNotifSound } from "./Settings";
 const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ default: ({ onClose }) => (
@@ -1021,6 +1021,7 @@ function MainAppContent({ onUserChange }) {
         changed_by_role: user?.role || "",
         new_value:       `${data.device_model || ""} — ${data.customer_name || ""}`,
       });
+      logAction(user, "create_order", "repair_order", saved.id, `${data.device_model||""} — ${data.customer_name||""}`);
     } catch(e) {
       console.error("[createOrder] Lần 1 thất bại:", e?.message, JSON.stringify(e?.data || {}));
       console.error("[createOrder] pbData gửi lên:", JSON.stringify(pbData));
@@ -2894,5 +2895,22 @@ function MainAppInner() {
     </PermissionProvider>
   );
 }
+
+// ─── Log thao tác ───────────────────────────────────────
+async function logAction(user, action, target_type, target_id="", detail="") {
+  try {
+    await ActionLog.create({
+      staff_id:   user?.id||"",
+      staff_name: user?.name||user?.full_name||"",
+      staff_role: user?.role||"",
+      action,
+      target_type,
+      target_id,
+      detail,
+      logged_at: new Date().toISOString(),
+    });
+  } catch(e) { console.warn("logAction:", e.message); }
+}
+
 
 export default function MainApp() { return <ErrorBoundary><MainAppInner /></ErrorBoundary>; }

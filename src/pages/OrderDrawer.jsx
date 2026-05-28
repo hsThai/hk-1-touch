@@ -13,7 +13,7 @@ const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ defa
     </div>
   </div>
 )})));
-import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage, StockExportRequest, subscribeCollection, getPbUrl, getAuth, logHistory, pbSettings } from "./pb.jsx";
+import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage, StockExportRequest, ActionLog, subscribeCollection, getPbUrl, getAuth, logHistory, pbSettings } from "./pb.jsx";
 import { getNotifSound } from "./Settings";
 import { uploadFile } from "./pb.jsx";
 
@@ -62,6 +62,13 @@ async function playNotifSound(type) {
     }
   } catch {}
 }
+
+async function logAction(user, action, target_type, target_id="", detail="") {
+  try {
+    await ActionLog.create({ staff_id:user?.id||"", staff_name:user?.name||user?.full_name||"", staff_role:user?.role||"", action, target_type, target_id, detail, logged_at:new Date().toISOString() });
+  } catch(e) { console.warn("logAction:", e.message); }
+}
+
 
 function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, onGoToPendingAccept }) {
   const [chatInput, setChatInput] = useState("");
@@ -537,6 +544,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
   function handleMarkDone() {
     onUpdate(order.id, { status:"Hoàn Thành", accept_stage:3 }, { userId:order.assigned_to, delta:2, note:"Sửa xong +2 KPI" });
       logHistory({ order_id:order._id||order.id, order_code:order.order_code||order.id, action_type:"delivered", action_label:"Xác nhận hoàn thành", changed_by_id:currentUser?.id||"", changed_by_name:currentUser?.name||"", changed_by_role:currentUser?.role||"", old_value:order.status||"", new_value:"Hoàn Thành" });
+    logAction(currentUser, "complete_order", "repair_order", order._id||order.id, order.order_code||order.id);
     showToast("Hoàn thành! +2 KPI");
     setEditMode(false);
     updateCustomerStats({ ...order, status:"Hoàn Thành" });
@@ -1467,6 +1475,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                                         ktv_confirmed_at: new Date().toISOString(),
                                         ktv_note: ktvConfirmNote,
                                       });
+                                      logAction(currentUser, "export_stock", "stock_export", req.id, req.request_code||req.id);
                                       // Cập nhật local list
                                       setExportReqs(prev => prev.map(r => r.id === req.id ? {...r, status:"ktv_confirmed", ktv_confirmed_by_name:currentUser.name, ktv_note:ktvConfirmNote} : r));
                                       setKtvConfirmingId(null);
