@@ -34,7 +34,7 @@ export default function CustomerManager({ onSelectCustomer }) {
     setDetail(c);
     try {
       const ords = await RepairOrder.filter({ customer_phone: c.phone });
-      setOrders(ords.sort((a,b) => new Date(b.created_date)-new Date(a.created_date)));
+      setOrders(ords.sort((a,b) => new Date(b.created||b.created_date)-new Date(a.created||a.created_date)));
     } catch { setOrders([]); }
   }
 
@@ -197,7 +197,7 @@ export default function CustomerManager({ onSelectCustomer }) {
                 <div style={{ fontSize:13, color:"#374151", marginTop:4 }}>{o.device_model} {o.imei ? `· ${o.imei}` : ""}</div>
                 <div style={{ fontSize:12, color:"#6b7280", marginTop:2 }}>{o.issue_description}</div>
                 <div style={{ display:"flex", justifyContent:"space-between", marginTop:6, fontSize:12, color:"#9ca3af" }}>
-                  <span>{o.received_date ? new Date(o.received_date).toLocaleDateString("vi-VN") : new Date(o.created_date).toLocaleDateString("vi-VN")}</span>
+                  <span>{o.received_date ? new Date(o.received_date).toLocaleDateString("vi-VN") : new Date(o.created||o.created_date).toLocaleDateString("vi-VN")}</span>
                   {o.final_cost > 0 && <span style={{ fontWeight:700, color:"#065f46" }}>{o.final_cost?.toLocaleString()}đ</span>}
                 </div>
               </div>
