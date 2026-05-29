@@ -1777,19 +1777,19 @@ function MainAppContent({ onUserChange }) {
         {page==="wh_manager" && <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"dashboard")} />}
         {page==="cashier_home" && <CashierApp user={user} />}
         {page==="manager_app" && <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><ManagerDashboard user={user} /></Suspense>}
-        {page==="suppliers" && currentUser && (
+        {page==="suppliers" && user && (
           <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
-            <SupplierPage user={currentUser} />
+            <SupplierPage user={user} />
           </Suspense>
         )}
-        {page==="debts" && currentUser && (
+        {page==="debts" && user && (
           <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
-            <DebtPage user={currentUser} />
+            <DebtPage user={user} />
           </Suspense>
         )}
-        {page==="cash_journal" && currentUser && (
+        {page==="cash_journal" && user && (
           <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
-            <CashJournalPage user={currentUser} />
+            <CashJournalPage user={user} />
           </Suspense>
         )}
         {page==="stock_count" && (
