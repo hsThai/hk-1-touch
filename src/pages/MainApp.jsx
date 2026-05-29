@@ -253,6 +253,8 @@ const RoleHomePlaceholder  = lazy(() => import("./RoleHomePlaceholder").catch(()
 
 function MainAppContent({ onUserChange }) {
   const { can } = usePermission();
+  const bp = useBreakpoint();
+  const isPC = bp === "pc";
   const [user, setUser] = useState(null);
   const ordersRef = useRef([]); // luôn giữ latest orders snapshot
   const usersRef  = useRef([]); // luôn giữ latest users snapshot
