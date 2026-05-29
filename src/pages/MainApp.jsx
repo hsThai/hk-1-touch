@@ -251,6 +251,13 @@ const RoleHomePlaceholder  = lazy(() => import("./RoleHomePlaceholder").catch(()
   <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang chủ</div>
 ) })));
 
+const MGR_SUB_ITEMS = [
+  { key:"overview",  icon:"dashboard",   label:"Tổng quan" },
+  { key:"business",  icon:"bar_chart",   label:"Kinh doanh" },
+  { key:"staff",     icon:"people",      label:"Nhân viên" },
+  { key:"inventory", icon:"inventory_2", label:"Kho & KT" },
+];
+
 function MainAppContent({ onUserChange }) {
   const { can } = usePermission();
   const bp = useBreakpoint();
@@ -339,6 +346,8 @@ function MainAppContent({ onUserChange }) {
   const users = users_raw;
   const [dataLoading, setDataLoading] = useState(true);
   const [page, setPage] = useState("board");
+  const [mgrAccordionOpen, setMgrAccordionOpen] = useState(false);
+  const [mgrTab, setMgrTab] = useState("overview");
   const [search, setSearch] = useState("");
   const [dashboardFilter, setDashboardFilter] = useState(null); // "active"|"done"|"needs_reassign"|null
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -353,6 +362,12 @@ function MainAppContent({ onUserChange }) {
   };
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // ── Auto mở/đóng accordion theo page ──────────────────────
+  useEffect(() => {
+    if (page === "dashboard") setMgrAccordionOpen(true);
+    else setMgrAccordionOpen(false);
+  }, [page]);
 
   // ── Global: chặn chọn chữ toàn app ──────────────────────
   useEffect(() => {
@@ -1188,9 +1203,7 @@ function MainAppContent({ onUserChange }) {
     const items = [];
 
     // ── 1. TRANG CHỦ / TỔNG QUAN ───────────────────────────
-    if (isManager)
-      items.push({ key:"dashboard",    icon:"bar_chart",   label:"Tổng quan" });
-    else if (isKtv)
+    if (isKtv)
       items.push({ key:"ktv_home",     icon:"home",        label:"Trang chủ" });
     else if (isReception)
       items.push({ key:"rec_home",     icon:"home",        label:"Trang chủ" });
@@ -1243,6 +1256,82 @@ function MainAppContent({ onUserChange }) {
 
     return items;
   })();
+
+  // ── Accordion Manager ───────────────────────────────────
+  function renderMgrAccordion() {
+    return (
+      <div style={{ marginBottom:2 }}>
+        <button
+          onClick={() => {
+            const willOpen = !mgrAccordionOpen;
+            setMgrAccordionOpen(willOpen);
+            if (page !== "dashboard") {
+              setPage("dashboard");
+              setDashboardFilter(null);
+            }
+          }}
+          style={{
+            width:"100%", textAlign:"left", padding:"14px 16px", borderRadius:12,
+            border:"none",
+            background: page==="dashboard" ? "#eef2ff" : "transparent",
+            color:       page==="dashboard" ? "#4f46e5" : "#374151",
+            fontWeight:  page==="dashboard" ? 800 : 500,
+            fontSize:15, cursor:"pointer",
+            display:"flex", alignItems:"center", gap:10,
+          }}>
+          <span className="material-icons"
+            style={{fontSize:20,fontFamily:"Material Icons",verticalAlign:"middle",lineHeight:1}}>
+            dashboard
+          </span>
+          <span style={{ flex:1 }}>Tổng quan</span>
+          <span className="material-icons"
+            style={{
+              fontSize:18, fontFamily:"Material Icons", lineHeight:1,
+              transition:"transform .2s",
+              transform: mgrAccordionOpen ? "rotate(180deg)" : "rotate(0deg)",
+              color:"#9ca3af",
+            }}>
+            expand_more
+          </span>
+        </button>
+        {mgrAccordionOpen && (
+          <div style={{ paddingLeft:14, marginTop:2, marginBottom:4 }}>
+            {MGR_SUB_ITEMS.map(sub => {
+              const isActive = page==="dashboard" && mgrTab===sub.key;
+              return (
+                <button key={sub.key}
+                  onClick={() => {
+                    setPage("dashboard");
+                    setMgrTab(sub.key);
+                    setSidebarOpen(false);
+                    setDashboardFilter(null);
+                  }}
+                  style={{
+                    width:"100%", textAlign:"left",
+                    padding:"9px 12px", borderRadius:10, border:"none",
+                    background: isActive ? "#ede9fe" : "transparent",
+                    color:      isActive ? "#4f46e5" : "#6b7280",
+                    fontWeight: isActive ? 700 : 400,
+                    fontSize:13, cursor:"pointer",
+                    display:"flex", alignItems:"center", gap:8, marginBottom:2,
+                  }}>
+                  <div style={{
+                    width:2, height:14, borderRadius:2, flexShrink:0,
+                    background: isActive ? "#4f46e5" : "#e5e7eb",
+                  }} />
+                  <span className="material-icons"
+                    style={{fontSize:15,fontFamily:"Material Icons",lineHeight:1}}>
+                    {sub.icon}
+                  </span>
+                  {sub.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   // ── Kanban Board ─────────────────────────────────────────
   const COLUMNS = ["Chờ KTV","KTV Đang Kiểm","Chờ Báo Giá","Chờ Xác Nhận","Chờ KTV Sửa","Đang Sửa","Chờ Linh Kiện","Hoàn Thành","Đã Giao"];
@@ -1594,11 +1683,58 @@ function MainAppContent({ onUserChange }) {
             </div>
           </div>
           <nav style={{ flex:1, padding:"12px 8px", display:"flex", flexDirection:"column", gap:2 }}>
+            {/* Accordion Tổng quan PC — chỉ với isManager */}
+            {isManager && (
+              <div style={{ marginBottom:2 }}>
+                <button
+                  onClick={() => {
+                    const willOpen = !mgrAccordionOpen;
+                    setMgrAccordionOpen(willOpen);
+                    if (page !== "dashboard") { setPage("dashboard"); setDashboardFilter(null); }
+                  }}
+                  style={{ width:"100%", display:"flex", alignItems:"center", gap:10, padding:"10px 14px",
+                    borderRadius:10, border:"none", textAlign:"left", cursor:"pointer",
+                    background: page==="dashboard" ? "rgba(255,255,255,.2)" : "transparent",
+                    color: page==="dashboard" ? "#fff" : "rgba(255,255,255,.7)",
+                    fontWeight: page==="dashboard" ? 700 : 400, fontSize:14 }}>
+                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,lineHeight:1}}>dashboard</span>
+                  <span style={{ flex:1 }}>Tổng quan</span>
+                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,lineHeight:1,
+                    transition:"transform .2s", transform:mgrAccordionOpen?"rotate(180deg)":"rotate(0deg)",
+                    color:"rgba(255,255,255,.4)"}}>expand_more</span>
+                </button>
+                {mgrAccordionOpen && (
+                  <div style={{ paddingLeft:12, marginTop:2 }}>
+                    {MGR_SUB_ITEMS.map(sub => {
+                      const isActive = page==="dashboard" && mgrTab===sub.key;
+                      return (
+                        <button key={sub.key}
+                          onClick={() => { setPage("dashboard"); setMgrTab(sub.key); setDashboardFilter(null); }}
+                          style={{ width:"100%", display:"flex", alignItems:"center", gap:8, padding:"8px 10px",
+                            borderRadius:8, border:"none", textAlign:"left", cursor:"pointer", marginBottom:2,
+                            background: isActive ? "rgba(255,255,255,.15)" : "transparent",
+                            color: isActive ? "#fff" : "rgba(255,255,255,.55)",
+                            fontWeight: isActive ? 700 : 400, fontSize:13 }}>
+                          <div style={{ width:2, height:12, borderRadius:2, flexShrink:0,
+                            background: isActive ? "#a5b4fc" : "rgba(255,255,255,.2)" }} />
+                          <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:14,lineHeight:1}}>{sub.icon}</span>
+                          {sub.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
             {navItems.map(item => {
               const active = page === item.key;
               return (
                 <button key={item.key}
-                  onClick={() => { setPage(item.key); if(["board","dashboard","tasks","ktv_home","rec_home"].includes(item.key)) setDashboardFilter(null); }}
+                  onClick={() => {
+                    setPage(item.key);
+                    setMgrAccordionOpen(false);
+                    if(["board","tasks","ktv_home","rec_home"].includes(item.key)) setDashboardFilter(null);
+                  }}
                   style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px",
                     borderRadius:10, border:"none", textAlign:"left", cursor:"pointer",
                     background: active ? "rgba(255,255,255,.15)" : "transparent",
@@ -1647,7 +1783,7 @@ function MainAppContent({ onUserChange }) {
               {page==="tasks" && <TaskList />}
               {page==="new" && <div style={{padding:24}}><button onClick={() => setShowNewOrder(true)} style={{ width:"100%", height:52, background:"linear-gradient(135deg,#4f46e5,#7c3aed)", color:"#fff", border:"none", borderRadius:14, fontWeight:800, fontSize:16, cursor:"pointer" }}>+ Tạo Đơn Mới</button></div>}
               {page==="customers" && <Suspense fallback={<div style={{padding:32,textAlign:"center"}}>⏳</div>}><CustomerManagerPage /></Suspense>}
-              {page==="dashboard" && (user.role==="manager"||user.role==="admin" ? <Suspense fallback={<div style={{padding:32}}>⏳</div>}><ManagerDashboard user={user} /></Suspense> : <Dashboard />)}
+              {page==="dashboard" && (user.role==="manager"||user.role==="admin" ? <Suspense fallback={<div style={{padding:32}}>⏳</div>}><ManagerDashboard user={user} initialTab={mgrTab} onTabChange={setMgrTab} /></Suspense> : <Dashboard />)}
               {page==="staff" && <StaffManagerPage currentStaff={user} />}
               {page==="settings" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><SettingsHub user={user} /></Suspense>}
               {page==="wh_home" && <WarehouseHome user={user} setPage={setPage} />}
@@ -1656,7 +1792,6 @@ function MainAppContent({ onUserChange }) {
               {page==="wh_import" && <WarehouseImport user={user} />}
               {page==="wh_manager" && <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"dashboard")} />}
               {page==="cashier_home" && <CashierApp user={user} />}
-              {page==="manager_app" && <Suspense fallback={<div style={{padding:32}}>⏳</div>}><ManagerDashboard user={user} /></Suspense>}
               {page==="suppliers" && user && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><SupplierPage user={user} /></Suspense>}
               {page==="debts" && user && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><DebtPage user={user} /></Suspense>}
               {page==="cash_journal" && user && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><CashJournalPage user={user} /></Suspense>}
@@ -1693,10 +1828,21 @@ function MainAppContent({ onUserChange }) {
               <div style={{ fontSize:12, color:"#c7d2fe", marginTop:2 }}>{user.role}{(user.role==="technician"||user.role==="manager")?" · KPI: "+user.kpi:""}</div>
             </div>
             <div style={{ flex:1, overflowY:"auto", padding:8 }}>
+              {/* Accordion Tổng quan — chỉ với isManager */}
+              {isManager && renderMgrAccordion()}
               {navItems.map(n => (
-                <button key={n.key} onClick={() => { setPage(n.key); setSidebarOpen(false); if(n.key==="board"||n.key==="dashboard"||n.key==="tasks"||n.key==="ktv_home"||n.key==="rec_home")setDashboardFilter(null); }}
-                  style={{ width:"100%", textAlign:"left", padding:"14px 16px", borderRadius:12, border:"none", background:page===n.key?"#eef2ff":"transparent", color:page===n.key?"#4f46e5":"#374151", fontWeight:page===n.key?800:500, fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", gap:10, marginBottom:2 }}>
-                  <span className="material-icons" style={{fontSize:20,fontFamily:"Material Icons",verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>{n.icon}</span> {n.label}
+                <button key={n.key} onClick={() => {
+                    setPage(n.key); setSidebarOpen(false);
+                    setMgrAccordionOpen(false);
+                    if(["board","tasks","ktv_home","rec_home"].includes(n.key)) setDashboardFilter(null);
+                  }}
+                  style={{ width:"100%", textAlign:"left", padding:"14px 16px", borderRadius:12, border:"none",
+                    background:page===n.key?"#eef2ff":"transparent",
+                    color:page===n.key?"#4f46e5":"#374151",
+                    fontWeight:page===n.key?800:500,
+                    fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", gap:10, marginBottom:2 }}>
+                  <span className="material-icons" style={{fontSize:20,fontFamily:"Material Icons",verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>{n.icon}</span>
+                  {n.label}
                 </button>
               ))}
             </div>
@@ -1871,7 +2017,7 @@ function MainAppContent({ onUserChange }) {
         )}
         {page==="dashboard" && (
           user.role==="manager" || user.role==="admin"
-            ? <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><ManagerDashboard user={user} /></Suspense>
+            ? <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><ManagerDashboard user={user} initialTab={mgrTab} onTabChange={setMgrTab} /></Suspense>
             : <Dashboard />
         )}
         {page==="staff"      && <StaffManagerPage currentStaff={user} />}
@@ -1883,7 +2029,6 @@ function MainAppContent({ onUserChange }) {
         {page==="wh_import" && <WarehouseImport user={user} />}
         {page==="wh_manager" && <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"dashboard")} />}
         {page==="cashier_home" && <CashierApp user={user} />}
-        {page==="manager_app" && <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><ManagerDashboard user={user} /></Suspense>}
         {page==="suppliers" && user && (
           <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
             <SupplierPage user={user} />

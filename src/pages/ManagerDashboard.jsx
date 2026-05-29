@@ -699,152 +699,6 @@ function InventoryTab({ spareParts, stockImports, ledgerSummary=[] }) {
 }
 
 // ── TAB 5: Settings Manager ────────────────────────────────
-function SettingsMgrTab({ user, staff: staffList, repairOrders, customers, spareParts, ledgerSummary=[], onStaffUpdate }) {
-  const [shopInfo,  setShopInfo]  = useState({});
-  const [toast,     setToast]     = useState("");
-
-  useEffect(() => {
-    AppSettings.list({ limit:200 }).then(list => {
-      const m = {}; (list||[]).forEach(s=>{ m[s.key]=s.value; });
-      setShopInfo(m);
-    }).catch(()=>{});
-  }, []);
-
-  function showToast(msg) { setToast(msg); setTimeout(()=>setToast(""),3000); }
-
-  async function toggleActive(s) {
-    try {
-      await Staff.update(s.id, { is_active:!s.is_active });
-      onStaffUpdate(s.id, { is_active:!s.is_active });
-      showToast((s.is_active?"Đã khoá":"Đã mở khoá") + " tài khoản " + s.full_name);
-    } catch(e) { showToast("❌ Lỗi: "+e.message); }
-  }
-
-  async function resetKpi(s) {
-    if (!window.confirm("Đặt lại KPI của " + s.full_name + " về 0?")) return;
-    try {
-      await Staff.update(s.id, { kpi_score:0 });
-      onStaffUpdate(s.id, { kpi_score:0 });
-      showToast("✅ Đã đặt lại KPI của " + s.full_name);
-    } catch(e) { showToast("❌ Lỗi: "+e.message); }
-  }
-
-  // System stats
-  const firstOrder = repairOrders.length > 0
-    ? repairOrders.reduce((min,o)=>{
-        const d = new Date(o.created||o.received_date);
-        return d < min ? d : min;
-      }, new Date())
-    : null;
-  const daysActive = firstOrder
-    ? Math.max(1, Math.round((Date.now()-firstOrder.getTime())/(1000*60*60*24)))
-    : 0;
-
-  const isAdmin = ["admin","owner"].includes(user.role);
-  const TH = { padding:"10px 12px",background:"#f9fafb",fontWeight:800,fontSize:12,color:"#374151",
-    textAlign:"left",borderBottom:"1.5px solid #e5e7eb" };
-  const TD = { padding:"10px 12px",fontSize:13,borderBottom:"1px solid #f3f4f6",verticalAlign:"middle" };
-  const INFO = { fontSize:13,color:"#374151",marginBottom:10,display:"flex",justifyContent:"space-between" };
-
-  return (
-    <div style={{ padding:"16px 14px 110px" }}>
-      {/* Staff quick */}
-      <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", overflow:"hidden", marginBottom:20 }}>
-        <div style={{ padding:"12px 16px",borderBottom:"1px solid #f3f4f6",fontWeight:800,fontSize:14 }}>
-          👥 Quản lý nhân viên nhanh
-        </div>
-        <div style={{ overflowX:"auto" }}>
-          <table style={{ width:"100%",borderCollapse:"collapse" }}>
-            <thead>
-              <tr>
-                <th style={TH}>Tên</th><th style={TH}>Role</th>
-                <th style={{...TH,textAlign:"center"}}>KPI</th>
-                <th style={{...TH,textAlign:"center"}}>Trạng thái</th>
-                {isAdmin && <th style={{...TH,textAlign:"center"}}>Reset KPI</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {staffList.filter(s=>!["admin","owner"].includes(s.role)||isAdmin).map(s=>(
-                <tr key={s.id}>
-                  <td style={{...TD,fontWeight:700}}>{s.full_name}</td>
-                  <td style={TD}>
-                    <span style={{ fontSize:11,background:(ROLE_COLORS[s.role]||"#6b7280")+"22",
-                      color:ROLE_COLORS[s.role]||"#6b7280",borderRadius:99,padding:"2px 8px",fontWeight:700 }}>
-                      {ROLE_LABELS[s.role]||s.role}
-                    </span>
-                  </td>
-                  <td style={{...TD,textAlign:"center",fontWeight:800,
-                    color:(s.kpi_score||0)>=80?"#059669":(s.kpi_score||0)>=50?"#ca8a04":"#dc2626"}}>
-                    {s.kpi_score||0}
-                  </td>
-                  <td style={{...TD,textAlign:"center"}}>
-                    <button onClick={()=>toggleActive(s)}
-                      style={{ padding:"4px 12px", borderRadius:99, border:"none", cursor:"pointer",
-                        background:s.is_active?"#dcfce7":"#fee2e2",
-                        color:s.is_active?"#059669":"#dc2626",
-                        fontWeight:700, fontSize:12 }}>
-                      {s.is_active?"✅ Hoạt động":"🔴 Khoá"}
-                    </button>
-                  </td>
-                  {isAdmin && (
-                    <td style={{...TD,textAlign:"center"}}>
-                      <button onClick={()=>resetKpi(s)}
-                        style={{ padding:"4px 10px",borderRadius:8,border:"none",cursor:"pointer",
-                          background:"#fef2f2",color:"#dc2626",fontWeight:700,fontSize:11 }}>
-                        Đặt lại
-                      </button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Shop info */}
-      <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", padding:"16px", marginBottom:20 }}>
-        <div style={{ fontWeight:800,fontSize:14,marginBottom:14 }}>🏪 Thông tin cửa hàng</div>
-        {[["shop_name","Tên cửa hàng"],["shop_phone","SĐT"],["shop_address","Địa chỉ"],["warranty_note","Ghi chú bảo hành"]]
-          .map(([k,l])=>(
-          <div key={k} style={INFO}>
-            <span style={{ color:"#6b7280",minWidth:110 }}>{l}:</span>
-            <span style={{ fontWeight:600,textAlign:"right" }}>{shopInfo[k]||"—"}</span>
-          </div>
-        ))}
-        <div style={{ marginTop:8,fontSize:12,color:"#6b7280" }}>
-          ✏️ Để sửa → vào <b>Cài đặt</b> trong menu sidebar
-        </div>
-      </div>
-
-      {/* System stats */}
-      <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", padding:"16px" }}>
-        <div style={{ fontWeight:800,fontSize:14,marginBottom:14 }}>📊 Thống kê hệ thống</div>
-        {[
-          ["Tổng đơn sửa chữa",  repairOrders.length + " đơn"],
-          ["Tổng khách hàng",    customers.length + " khách"],
-          ["Tổng linh kiện",     (ledgerSummary.length>0?ledgerSummary.length:spareParts.filter(p=>p.is_active!==false).length) + " SKU"],
-          ["Ngày hoạt động",     daysActive + " ngày"],
-        ].map(([l,v])=>(
-          <div key={l} style={INFO}>
-            <span style={{ color:"#6b7280" }}>{l}:</span>
-            <span style={{ fontWeight:700 }}>{v}</span>
-          </div>
-        ))}
-      </div>
-
-      {toast && (
-        <div style={{ position:"fixed",bottom:80,left:"50%",transform:"translateX(-50%)",
-          background:"#1e1b4b",color:"#fff",borderRadius:14,padding:"12px 24px",
-          fontSize:14,fontWeight:700,zIndex:500,whiteSpace:"nowrap" }}>
-          {toast}
-        </div>
-      )}
-    </div>
-  );
-}
-
-
 // ══════════════════════════════════════════════════════════════
 // PILL TABS COMPONENT (dùng chung)
 // ══════════════════════════════════════════════════════════════
@@ -1258,9 +1112,19 @@ const NAV_TABS = [
   { key:"settings",   icon:"settings",     label:"Cài đặt" },
 ];
 
-export default function ManagerDashboard({ user }) {
+export default function ManagerDashboard({ user, initialTab = "overview", onTabChange }) {
   const bp = useBreakpoint();
-  const [tab,            setTab]            = useState("overview");
+  const [tab, setTab] = useState(initialTab);
+
+  useEffect(() => {
+    if (initialTab && initialTab !== tab) setTab(initialTab);
+  }, [initialTab]);
+
+  function handleTabChange(newTab) {
+    setTab(newTab);
+    if (onTabChange) onTabChange(newTab);
+  }
+
   const [loading,        setLoading]        = useState(true);
   const [repairOrders,   setRepairOrders]   = useState([]);
   const [saleOrders,     setSaleOrders]     = useState([]);
@@ -1385,38 +1249,37 @@ export default function ManagerDashboard({ user }) {
 
   // Mobile/Tablet: header + bottom nav
   return (
-    <div style={{ height:"100vh", display:"flex", flexDirection:"column", background:"#f9fafb" }}>
-      <div style={{ background:"linear-gradient(135deg,#1e1b4b,#4f46e5)", color:"#fff",
-        padding: bp==="tablet" ? "16px 24px 14px" : "14px 16px 12px", flexShrink:0 }}>
-        <div style={{ fontWeight:900, fontSize: bp==="mobile"?16:18 }}>📊 Manager Dashboard</div>
-        <div style={{ fontSize:12, opacity:0.8, marginTop:2 }}>
-          {user.full_name||user.name} · {todayStr()}
+    <div style={{ minHeight:"100%", display:"flex", flexDirection:"column", background:"#f9fafb" }}>
+      <div style={{ padding:"16px 16px 0", borderBottom:"1px solid #f3f4f6", flexShrink:0 }}>
+        <div style={{ fontWeight:900, fontSize:18, color:"#1e1b4b" }}>
+          {NAV_TABS.find(t=>t.key===tab)?.label || "Tổng quan"}
+        </div>
+        <div style={{ fontSize:12, color:"#9ca3af", marginTop:2 }}>{todayStr()}</div>
+      </div>
+      <div style={{ padding:"12px 16px 0", borderBottom:"1px solid #f3f4f6", flexShrink:0 }}>
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+          {NAV_TABS.map(n => (
+            <button key={n.key} onClick={() => handleTabChange(n.key)}
+              style={{
+                padding:"6px 14px", borderRadius:99, border:"none", cursor:"pointer",
+                background: tab===n.key ? "#4f46e5" : "#f3f4f6",
+                color:       tab===n.key ? "#fff"    : "#374151",
+                fontWeight:  tab===n.key ? 700       : 500,
+                fontSize:12,
+                display:"flex", alignItems:"center", gap:5,
+                transition:"all .15s",
+                marginBottom:8,
+              }}>
+              <span className="material-icons"
+                style={{fontFamily:"Material Icons",fontSize:14,lineHeight:1}}>
+                {n.icon}
+              </span>
+              {n.label}
+            </button>
+          ))}
         </div>
       </div>
       <div style={{ flex:1, overflowY:"auto" }}>{renderContent()}</div>
-      {/* Bottom Nav */}
-      <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#fff",
-        borderTop:"1.5px solid #e5e7eb", display:"flex", zIndex:100,
-        paddingBottom:"env(safe-area-inset-bottom)" }}>
-        {NAV_TABS.map(n => {
-          const active = tab===n.key;
-          return (
-            <button key={n.key} onClick={()=>setTab(n.key)}
-              style={{ flex:1, border:"none", background:"none", cursor:"pointer",
-                padding: bp==="tablet" ? "12px 4px 10px" : "10px 2px 8px",
-                display:"flex", flexDirection:"column", alignItems:"center", gap:3,
-                position:"relative", color:active?"#4f46e5":"#9ca3af" }}>
-              {active && <div style={{ position:"absolute",top:0,left:"50%",transform:"translateX(-50%)",
-                width:32,height:2,background:"#4f46e5",borderRadius:2 }} />}
-              <span className="material-icons"
-                style={{ fontFamily:"Material Icons",fontSize:22,lineHeight:1,color:active?"#4f46e5":"#9ca3af" }}>
-                {n.icon}
-              </span>
-              <span style={{ fontSize: bp==="tablet"?11:9, fontWeight:active?800:500 }}>{n.label}</span>
-            </button>
-          );
-        })}
-      </div>
     </div>
   );
 }
