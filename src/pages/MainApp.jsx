@@ -1217,29 +1217,25 @@ function MainAppContent({ onUserChange }) {
     if (can("customer","view") && !isKtv)
       items.push({ key:"customers",    icon:"group",       label:"Khách hàng" });
 
-    // ── 6b. NHÀ CUNG CẤP + CÔNG NỢ — theo can() permission matrix ──
-    if (can("supplier","view"))
+    // ── 6b. NHÀ CUNG CẤP + CÔNG NỢ — chỉ cashier/accountant (manager dùng tab Kinh doanh)
+    if (can("supplier","view") && !isManager)
       items.push({ key:"suppliers",    icon:"storefront",             label:"Nhà cung cấp" });
-    if (can("debt","view"))
+    if (can("debt","view") && !isManager)
       items.push({ key:"debts",        icon:"account_balance_wallet", label:"Công nợ" });
-    if (can("cash_journal","view"))
+    if (can("cash_journal","view") && !isManager)
       items.push({ key:"cash_journal", icon:"menu_book",             label:"Sổ quỹ" });
 
     // ── 7. KIỂM KHO — warehouse, manager, technician ───────
     if (can("stock_count","view") && !isManager && !isRoleHome)
       items.push({ key:"stock_count",  icon:"fact_check",  label:"Kiểm kho" });
 
-    // ── 8. NHÂN VIÊN — admin/owner/manager/hr ───────────────
-    if (can("staff","view"))
+    // ── 8. NHÂN VIÊN — admin/owner/manager/hr (manager dùng tab Nhân viên trong Dashboard)
+    if (can("staff","view") && !isManager)
       items.push({ key:"staff",        icon:"person",      label:"Nhân viên" });
 
-    // ── 9. QUẢN LÝ KHO — manager, it ────────────────────────
-    if (can("warehouse_mgr","view"))
+    // ── 9. QUẢN LÝ KHO — manager, it (manager dùng tab Kho & KT trong Dashboard)
+    if (can("warehouse_mgr","view") && !isManager)
       items.push({ key:"wh_manager",   icon:"warehouse",   label:"Quản lý kho" });
-
-    // ── 10. MANAGER DASHBOARD — owner/admin/manager ─────────
-    if (isManager)
-      items.push({ key:"manager_app",  icon:"analytics",   label:"Manager App" });
 
     // ── 11. CÀI ĐẶT — admin/owner/it ────────────────────────
     if (can("settings","view"))

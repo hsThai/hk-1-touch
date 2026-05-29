@@ -1,7 +1,7 @@
 /* ManagerDashboard.jsx — App 4: Manager Dashboard (5 tabs) */
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Staff, RepairOrder, SparePart, SaleOrder, Expense,
-         StockLedger, Warehouse, Customer, AppSettings, StockImport } from "./pb.jsx";
+         StockLedger, Warehouse, Customer, AppSettings, StockImport, SparePartUsage } from "./pb.jsx";
 
 // ── Constants ──────────────────────────────────────────────
 const ALLOWED = ["manager","admin","owner"];
@@ -844,60 +844,475 @@ function SettingsMgrTab({ user, staff: staffList, repairOrders, customers, spare
   );
 }
 
-// ── Main: ManagerDashboard ─────────────────────────────────
+
+// ══════════════════════════════════════════════════════════════
+// PILL TABS COMPONENT (dùng chung)
+// ══════════════════════════════════════════════════════════════
+function PillTabs({ tabs, active, onChange }) {
+  return (
+    <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap" }}>
+      {tabs.map(t => (
+        <button key={t.key} onClick={() => onChange(t.key)}
+          style={{
+            padding:"7px 18px", borderRadius:99, border:"none", cursor:"pointer",
+            background: active===t.key ? "#4f46e5" : "#f3f4f6",
+            color:       active===t.key ? "#fff"    : "#374151",
+            fontWeight:  active===t.key ? 700       : 500,
+            fontSize:    13,
+            transition:  "all .15s",
+          }}>
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── TAB 2: Kinh doanh (Business) ──────────────────────────────
+function DebtSubTab({ repairOrders }) {
+  const debtMap = {};
+  repairOrders
+    .filter(o => (o.balance||0) > 0 && !["Huỷ"].includes(o.status))
+    .forEach(o => {
+      const k = o.customer_id || o.customer_name || "Không rõ";
+      if (!debtMap[k]) debtMap[k] = { name: o.customer_name||k, phone: o.customer_phone||"", total:0, orders:0 };
+      debtMap[k].total  += (o.balance||0);
+      debtMap[k].orders += 1;
+    });
+  const list = Object.values(debtMap).sort((a,b) => b.total - a.total);
+
+  if (list.length === 0) return (
+    <div style={{ textAlign:"center", padding:40, color:"#9ca3af" }}>
+      <div style={{ fontSize:32, marginBottom:8 }}>✅</div>
+      <div>Không có công nợ khách hàng</div>
+    </div>
+  );
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+      {list.map((c,i) => (
+        <div key={i} style={{ background:"#fff", border:"1.5px solid #fca5a5", borderRadius:14, padding:"14px 16px",
+          display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <div>
+            <div style={{ fontWeight:800, fontSize:15 }}>{c.name}</div>
+            <div style={{ fontSize:12, color:"#6b7280", marginTop:2 }}>{c.orders} đơn nợ</div>
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            <div style={{ fontWeight:900, fontSize:16, color:"#dc2626" }}>{fmtMoney(c.total)}</div>
+            {c.phone && (
+              <a href={"tel:"+c.phone}
+                style={{ background:"#4f46e5", color:"#fff", borderRadius:10, padding:"7px 14px",
+                  fontSize:13, fontWeight:700, textDecoration:"none" }}>
+                📞
+              </a>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CashflowSubTab({ repairOrders, expenses, saleOrders }) {
+  const now = new Date();
+  const thisMonth = (d) => {
+    const dt = new Date(d);
+    return dt.getMonth()===now.getMonth() && dt.getFullYear()===now.getFullYear();
+  };
+  const DONE_ST = ["Hoàn Thành","Đã Giao","Đã Thanh Toán"];
+  const repairRevenue = repairOrders
+    .filter(o => DONE_ST.includes(o.status) && thisMonth(o.done_date||o.updated))
+    .reduce((s,o) => s+(o.final_cost||0), 0);
+  const saleRevenue = saleOrders
+    .filter(o => thisMonth(o.created))
+    .reduce((s,o) => s+(o.total||0), 0);
+  const totalRevenue = repairRevenue + saleRevenue;
+  const totalExpense = expenses
+    .filter(e => thisMonth(e.expense_date||e.created))
+    .reduce((s,e) => s+(e.amount||0), 0);
+  const balance = totalRevenue - totalExpense;
+
+  const ROWS = [
+    { label:"💰 Thu sửa chữa", value:repairRevenue, color:"#059669" },
+    { label:"🛒 Thu bán hàng",  value:saleRevenue,   color:"#0891b2" },
+    { label:"📤 Chi phí",       value:-totalExpense,  color:"#dc2626" },
+  ];
+
+  return (
+    <div>
+      <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", overflow:"hidden", marginBottom:16 }}>
+        <div style={{ padding:"12px 16px", borderBottom:"1px solid #f3f4f6", fontWeight:800, fontSize:14 }}>
+          📅 Tháng {now.getMonth()+1}/{now.getFullYear()}
+        </div>
+        {ROWS.map((r,i) => (
+          <div key={i} style={{ padding:"12px 16px", borderBottom:"1px solid #f3f4f6",
+            display:"flex", justifyContent:"space-between" }}>
+            <span style={{ fontSize:14, color:"#374151" }}>{r.label}</span>
+            <span style={{ fontWeight:800, color:r.color }}>{fmtMoney(Math.abs(r.value))}</span>
+          </div>
+        ))}
+        <div style={{ padding:"14px 16px", background: balance>=0?"#f0fdf4":"#fef2f2",
+          display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <span style={{ fontWeight:800, fontSize:15 }}>📊 Số dư</span>
+          <span style={{ fontWeight:900, fontSize:18, color: balance>=0?"#059669":"#dc2626" }}>
+            {balance>=0?"+":""}{fmtMoney(balance)}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BusinessTab({ repairOrders, saleOrders, expenses }) {
+  const [sub, setSub] = useState("revenue");
+  const SUB_TABS = [
+    { key:"revenue",  label:"💰 Doanh thu" },
+    { key:"debt",     label:"📋 Công nợ" },
+    { key:"cashflow", label:"💵 Sổ quỹ" },
+  ];
+  return (
+    <div style={{ padding:"16px 14px 110px" }}>
+      <PillTabs tabs={SUB_TABS} active={sub} onChange={setSub} />
+      {sub==="revenue"  && <RevenueTab repairOrders={repairOrders} saleOrders={saleOrders} expenses={expenses} />}
+      {sub==="debt"     && <DebtSubTab repairOrders={repairOrders} />}
+      {sub==="cashflow" && <CashflowSubTab repairOrders={repairOrders} expenses={expenses} saleOrders={saleOrders} />}
+    </div>
+  );
+}
+
+// ── TAB 3: Nhân viên ──────────────────────────────────────────
+function initials(name) {
+  return (name||"?").split(" ").slice(-2).map(w=>w[0]||"").join("").toUpperCase() || "?";
+}
+
+function StaffListSubTab({ staff: staffList, onStaffUpdate }) {
+  const [toast, setToast] = useState("");
+  function showToast(msg) { setToast(msg); setTimeout(()=>setToast(""),3000); }
+
+  async function toggleActive(s) {
+    try {
+      await Staff.update(s.id, { is_active:!s.is_active });
+      onStaffUpdate(s.id, { is_active:!s.is_active });
+      showToast((s.is_active?"Đã khoá":"Đã mở khoá")+" "+s.full_name);
+    } catch(e) { showToast("❌ "+e.message); }
+  }
+  async function resetKpi(s) {
+    if (!window.confirm("Đặt lại KPI của "+s.full_name+" về 0?")) return;
+    try {
+      await Staff.update(s.id, { kpi_score:0 });
+      onStaffUpdate(s.id, { kpi_score:0 });
+      showToast("✅ Đã đặt lại KPI "+s.full_name);
+    } catch(e) { showToast("❌ "+e.message); }
+  }
+
+  return (
+    <div>
+      {toast && (
+        <div style={{ position:"fixed",top:70,left:"50%",transform:"translateX(-50%)",
+          background:"#1e1b4b",color:"#fff",borderRadius:12,padding:"10px 20px",
+          fontSize:14,fontWeight:700,zIndex:999,whiteSpace:"nowrap" }}>{toast}</div>
+      )}
+      <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+        {staffList.map(s => {
+          const roleColor = ROLE_COLORS[s.role]||"#6b7280";
+          const init = initials(s.full_name);
+          return (
+            <div key={s.id} style={{ background:"#fff", border:"1.5px solid #e5e7eb", borderRadius:14,
+              padding:"12px 14px", display:"flex", alignItems:"center", gap:12 }}>
+              {/* Avatar */}
+              <div style={{ width:42, height:42, borderRadius:"50%", background:roleColor+"22",
+                border:"2px solid "+roleColor, display:"flex", alignItems:"center", justifyContent:"center",
+                fontWeight:900, fontSize:14, color:roleColor, flexShrink:0 }}>
+                {init}
+              </div>
+              {/* Info */}
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontWeight:800, fontSize:14, display:"flex", alignItems:"center", gap:8 }}>
+                  {s.full_name}
+                  {!s.is_active && <span style={{ fontSize:10, background:"#fee2e2",color:"#dc2626",
+                    borderRadius:99, padding:"1px 7px", fontWeight:700 }}>Khoá</span>}
+                </div>
+                <div style={{ display:"flex", gap:6, marginTop:4, flexWrap:"wrap" }}>
+                  <span style={{ fontSize:11, background:roleColor+"22", color:roleColor,
+                    borderRadius:99, padding:"2px 8px", fontWeight:700 }}>
+                    {ROLE_LABELS[s.role]||s.role}
+                  </span>
+                  <span style={{ fontSize:11, color:"#6b7280" }}>KPI: {s.kpi_score||0}</span>
+                </div>
+              </div>
+              {/* Actions */}
+              <div style={{ display:"flex", gap:6, flexShrink:0 }}>
+                <button onClick={()=>toggleActive(s)}
+                  style={{ padding:"6px 12px", borderRadius:8, border:"1.5px solid #e5e7eb",
+                    background:s.is_active?"#fef2f2":"#f0fdf4", color:s.is_active?"#dc2626":"#059669",
+                    fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                  {s.is_active?"Khoá":"Mở"}
+                </button>
+                <button onClick={()=>resetKpi(s)}
+                  style={{ padding:"6px 12px", borderRadius:8, border:"1.5px solid #e5e7eb",
+                    background:"#f9fafb", color:"#374151", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                  ↺ KPI
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function StaffTab({ staff, repairOrders, onStaffUpdate }) {
+  const [sub, setSub] = useState("kpi");
+  const SUB_TABS = [
+    { key:"kpi",  label:"🏆 KPI" },
+    { key:"list", label:"👥 Danh sách" },
+  ];
+  return (
+    <div style={{ padding:"16px 14px 110px" }}>
+      <PillTabs tabs={SUB_TABS} active={sub} onChange={setSub} />
+      {sub==="kpi"  && <StaffKpiTab staff={staff} repairOrders={repairOrders} />}
+      {sub==="list" && <StaffListSubTab staff={staff} onStaffUpdate={onStaffUpdate} />}
+    </div>
+  );
+}
+
+// ── TAB 4: Kho & Kế toán ─────────────────────────────────────
+function ImportSubTab({ stockImports }) {
+  const recent = [...stockImports].sort((a,b)=>new Date(b.created)-new Date(a.created)).slice(0,20);
+  const STATUS_BADGE = {
+    draft:      { label:"Nháp",     bg:"#f3f4f6", cl:"#6b7280" },
+    confirmed:  { label:"Xác nhận", bg:"#f0fdf4", cl:"#059669" },
+    cancelled:  { label:"Huỷ",      bg:"#fef2f2", cl:"#dc2626" },
+  };
+  if (recent.length===0) return (
+    <div style={{ textAlign:"center", padding:40, color:"#9ca3af" }}>Chưa có phiếu nhập nào</div>
+  );
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+      {recent.map(imp => {
+        const b = STATUS_BADGE[imp.status]||STATUS_BADGE.draft;
+        return (
+          <div key={imp.id} style={{ background:"#fff", border:"1.5px solid #e5e7eb", borderRadius:12, padding:"12px 14px" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+              <div>
+                <div style={{ fontWeight:800, fontSize:13 }}>{imp.import_code||imp.id}</div>
+                <div style={{ fontSize:12, color:"#6b7280", marginTop:3 }}>
+                  {imp.supplier_name||"NCC"} · {imp.total_items||0} sản phẩm
+                </div>
+              </div>
+              <span style={{ fontSize:11, background:b.bg, color:b.cl,
+                borderRadius:99, padding:"3px 10px", fontWeight:700, flexShrink:0 }}>
+                {b.label}
+              </span>
+            </div>
+            <div style={{ display:"flex", justifyContent:"space-between", marginTop:8 }}>
+              <span style={{ fontSize:12, color:"#9ca3af" }}>
+                {imp.confirmed_at ? new Date(imp.confirmed_at).toLocaleDateString("vi-VN") :
+                  new Date(imp.created).toLocaleDateString("vi-VN")}
+              </span>
+              <span style={{ fontWeight:800, color:"#059669", fontSize:13 }}>
+                {fmtMoney(imp.total_value||0)}
+              </span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ExportSubTab({ sparePartUsages, onApprove }) {
+  const pending = sparePartUsages.filter(u => u.status==="pending" || u.status==="requested");
+  if (pending.length===0) return (
+    <div style={{ textAlign:"center", padding:40, color:"#9ca3af" }}>
+      <div style={{ fontSize:32, marginBottom:8 }}>✅</div>
+      <div>Không có yêu cầu xuất kho chờ duyệt</div>
+    </div>
+  );
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+      {pending.map(u => (
+        <div key={u.id} style={{ background:"#fff", border:"1.5px solid #fde68a", borderRadius:12, padding:"12px 14px" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+            <div style={{ flex:1 }}>
+              <div style={{ fontWeight:800, fontSize:13 }}>{u.part_name||u.name||"Linh kiện"}</div>
+              <div style={{ fontSize:12, color:"#6b7280", marginTop:3 }}>
+                {u.warehouse_name||""} · KTV: {u.created_by_name||""} · SL: {u.qty_requested||u.qty||1}
+              </div>
+              <div style={{ fontSize:11, color:"#9ca3af", marginTop:2 }}>
+                {new Date(u.created).toLocaleDateString("vi-VN")}
+              </div>
+            </div>
+            <button onClick={() => onApprove(u.id)}
+              style={{ padding:"8px 14px", background:"#4f46e5", color:"#fff", border:"none",
+                borderRadius:10, fontSize:13, fontWeight:700, cursor:"pointer", flexShrink:0 }}>
+              Duyệt
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function InventoryWrapTab({ spareParts, stockImports, ledgerSummary, sparePartUsages, onApproveUsage }) {
+  const [sub, setSub] = useState("stock");
+  const SUB_TABS = [
+    { key:"stock",  label:"📦 Tồn kho" },
+    { key:"import", label:"📥 Nhập kho" },
+    { key:"export", label:"📤 Xuất kho" },
+  ];
+  return (
+    <div style={{ padding:"16px 14px 110px" }}>
+      <PillTabs tabs={SUB_TABS} active={sub} onChange={setSub} />
+      {sub==="stock"  && <InventoryTab spareParts={spareParts} stockImports={stockImports} ledgerSummary={ledgerSummary} />}
+      {sub==="import" && <ImportSubTab stockImports={stockImports} />}
+      {sub==="export" && <ExportSubTab sparePartUsages={sparePartUsages} onApprove={onApproveUsage} />}
+    </div>
+  );
+}
+
+// ── TAB 5: Cài đặt gọn ───────────────────────────────────────
+function SettingsLiteTab({ user, repairOrders, customers, spareParts, ledgerSummary, onRefresh }) {
+  const [shopInfo, setShopInfo] = useState({});
+  useEffect(() => {
+    AppSettings.list({ limit:200 }).then(list => {
+      const m = {}; (list||[]).forEach(s=>{ m[s.key]=s.value; });
+      setShopInfo(m);
+    }).catch(()=>{});
+  }, []);
+
+  const firstOrder = repairOrders.length > 0
+    ? repairOrders.reduce((min,o)=>{
+        const d = new Date(o.created||o.received_date);
+        return d < min ? d : min;
+      }, new Date()) : null;
+  const daysActive = firstOrder
+    ? Math.max(1, Math.round((Date.now()-firstOrder.getTime())/(1000*60*60*24))) : 0;
+
+  const STATS = [
+    { label:"Tổng đơn",   value:repairOrders.length },
+    { label:"Khách hàng", value:customers.length },
+    { label:"Tổng SKU",   value:(ledgerSummary.length||spareParts.length) },
+    { label:"Ngày HĐ",    value:daysActive },
+  ];
+  const INFO = { fontSize:13,color:"#374151",marginBottom:10,display:"flex",justifyContent:"space-between" };
+
+  return (
+    <div style={{ padding:"16px 14px 110px" }}>
+      {/* Thống kê hệ thống */}
+      <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", padding:"16px", marginBottom:16 }}>
+        <div style={{ fontWeight:800, fontSize:14, marginBottom:14 }}>📊 Thống kê hệ thống</div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+          {STATS.map((s,i) => (
+            <div key={i} style={{ background:"#f9fafb", borderRadius:12, padding:"12px 14px" }}>
+              <div style={{ fontSize:20, fontWeight:900, color:"#4f46e5" }}>{s.value}</div>
+              <div style={{ fontSize:12, color:"#6b7280", marginTop:2 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Thông tin cửa hàng */}
+      {shopInfo["shop_name"] && (
+        <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", padding:"16px", marginBottom:16 }}>
+          <div style={{ fontWeight:800, fontSize:14, marginBottom:12 }}>🏪 Thông tin cửa hàng</div>
+          <div style={INFO}><span>Tên</span><span style={{fontWeight:700}}>{shopInfo["shop_name"]||"—"}</span></div>
+          <div style={INFO}><span>SĐT</span><span>{shopInfo["shop_phone"]||"—"}</span></div>
+          <div style={INFO}><span>Địa chỉ</span><span style={{maxWidth:"60%",textAlign:"right"}}>{shopInfo["shop_address"]||"—"}</span></div>
+          <div style={{ fontSize:12, color:"#9ca3af", marginTop:8 }}>
+            💡 Để sửa thông tin → vào Cài đặt trong sidebar
+          </div>
+        </div>
+      )}
+
+      {/* Kết nối */}
+      <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", padding:"16px", marginBottom:16 }}>
+        <div style={{ fontWeight:800, fontSize:14, marginBottom:12 }}>🔗 Thông tin kết nối</div>
+        <div style={INFO}>
+          <span style={{color:"#6b7280"}}>PocketBase URL</span>
+          <span style={{fontSize:11,color:"#4f46e5",wordBreak:"break-all",maxWidth:"60%",textAlign:"right"}}>
+            {typeof window!=="undefined" ? (localStorage.getItem("pb_url")||"—") : "—"}
+          </span>
+        </div>
+        <button onClick={onRefresh}
+          style={{ width:"100%", padding:"10px", background:"linear-gradient(135deg,#4f46e5,#7c3aed)",
+            color:"#fff", border:"none", borderRadius:12, fontWeight:700, fontSize:14, cursor:"pointer", marginTop:8 }}>
+          🔄 Đồng bộ dữ liệu
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// MAIN COMPONENT
+// ══════════════════════════════════════════════════════════════
+
 const NAV_TABS = [
-  { key:"overview",     icon:"dashboard",        label:"Tổng quan" },
-  { key:"revenue",      icon:"bar_chart",        label:"Doanh thu" },
-  { key:"staff_kpi",    icon:"people",           label:"KPI NV" },
-  { key:"settings_mgr", icon:"manage_accounts",  label:"Cài đặt" },
+  { key:"overview",   icon:"dashboard",    label:"Tổng quan" },
+  { key:"business",   icon:"bar_chart",    label:"Kinh doanh" },
+  { key:"staff",      icon:"people",       label:"Nhân viên" },
+  { key:"inventory",  icon:"inventory_2",  label:"Kho & KT" },
+  { key:"settings",   icon:"settings",     label:"Cài đặt" },
 ];
 
 export default function ManagerDashboard({ user }) {
   const bp = useBreakpoint();
-  const [tab,          setTab]          = useState("overview");
-  const [loading,      setLoading]      = useState(true);
-  const [repairOrders, setRepairOrders] = useState([]);
-  const [saleOrders,   setSaleOrders]   = useState([]);
-  const [expenses,     setExpenses]     = useState([]);
-  const [spareParts,   setSpareParts]   = useState([]);
-  const [staff,        setStaff]        = useState([]);
-  const [customers,    setCustomers]    = useState([]);
-  const [stockImports, setStockImports] = useState([]);
-  const [ledgerSummary,setLedgerSummary]= useState([]);
+  const [tab,            setTab]            = useState("overview");
+  const [loading,        setLoading]        = useState(true);
+  const [repairOrders,   setRepairOrders]   = useState([]);
+  const [saleOrders,     setSaleOrders]     = useState([]);
+  const [expenses,       setExpenses]       = useState([]);
+  const [spareParts,     setSpareParts]     = useState([]);
+  const [staff,          setStaff]          = useState([]);
+  const [customers,      setCustomers]      = useState([]);
+  const [stockImports,   setStockImports]   = useState([]);
+  const [ledgerSummary,  setLedgerSummary]  = useState([]);
+  const [sparePartUsages,setSparePartUsages]= useState([]);
+
+  if (!user) return null;
+  if (!ALLOWED.includes(user.role)) return (
+    <div style={{ textAlign:"center", padding:80, color:"#dc2626" }}>
+      <div style={{ fontSize:48 }}>🚫</div>
+      <div style={{ fontWeight:700, fontSize:16, marginTop:12 }}>Không có quyền truy cập</div>
+    </div>
+  );
 
   const loadData = useCallback(async () => {
     setLoading(true);
     const safe = (p) => p.catch(e => { console.warn("MD fetch warn:", e?.message); return []; });
-    const [ro, so, ex, sp, sf, cu, si, lg] = await Promise.all([
+    const [orders, sales, exps, parts, staffList, custs, imports, ledger, usages] = await Promise.all([
       safe(RepairOrder.list({ limit:500, sort:"-received_date" })),
-      safe(SaleOrder.list({ limit:500, sort:"-created" })),
-      safe(Expense.list({ limit:500, sort:"-expense_date" })),
+      safe(SaleOrder.list({ limit:200, sort:"-created" })),
+      safe(Expense.list({ limit:200, sort:"-expense_date" })),
       safe(SparePart.list({ limit:500 })),
       safe(Staff.list({ limit:100 })),
       safe(Customer.list({ limit:500 })),
-      safe(StockImport.list({ limit:200, sort:"-created" })),
-      safe(StockLedger.list({ limit:2000 })),
+      safe(StockImport.list({ limit:50, sort:"-created" })),
+      safe(StockLedger.list({ limit:500 })),
+      safe(SparePartUsage.list({ limit:100, sort:"-created" })),
     ]);
-    setRepairOrders(ro||[]);
-    setSaleOrders(so||[]);
-    setExpenses(ex||[]);
-    setSpareParts(sp||[]);
-    setStaff(sf||[]);
-    setCustomers(cu||[]);
-    setStockImports(si||[]);
-    // Tổng hợp ledger theo part_id
-    const lmap = {};
-    (lg||[]).forEach(l => {
-      const k = l.part_id || l.part_name;
-      if (!lmap[k]) lmap[k] = {
-        part_id: l.part_id, part_name: l.part_name,
-        sku: l.sku, total_qty: 0, total_value: 0, min_qty: l.min_qty||0,
-      };
-      lmap[k].total_qty   += (l.qty_on_hand||0);
-      lmap[k].total_value += (l.qty_on_hand||0) * (l.cost_price||0);
-      lmap[k].min_qty      = Math.max(lmap[k].min_qty, l.min_qty||0);
+
+    // Aggregate ledger
+    const ledgerMap = {};
+    (ledger||[]).forEach(l => {
+      const k = l.part_id||l.sku;
+      if (!ledgerMap[k]) ledgerMap[k] = { ...l, total_qty:0, total_value:0 };
+      ledgerMap[k].total_qty   += (l.qty_on_hand||0);
+      ledgerMap[k].total_value += (l.qty_on_hand||0)*(l.cost_price||0);
     });
-    setLedgerSummary(Object.values(lmap));
+
+    setRepairOrders(orders||[]);
+    setSaleOrders(sales||[]);
+    setExpenses(exps||[]);
+    setSpareParts(parts||[]);
+    setStaff(staffList||[]);
+    setCustomers(custs||[]);
+    setStockImports(imports||[]);
+    setLedgerSummary(Object.values(ledgerMap));
+    setSparePartUsages(usages||[]);
     setLoading(false);
   }, []);
 
@@ -907,96 +1322,78 @@ export default function ManagerDashboard({ user }) {
     setStaff(prev => prev.map(s => s.id===id ? {...s,...patch} : s));
   }
 
-  // Auth guard — sau tất cả hooks
-  if (!user || !ALLOWED.includes(user.role)) {
-    return (
-      <div style={{ padding:48, textAlign:"center", color:"#6b7280" }}>
-        <div style={{ fontSize:48 }}>⛔</div>
-        <div style={{ fontSize:18, fontWeight:700, color:"#dc2626", marginTop:12 }}>Không có quyền truy cập</div>
-      </div>
-    );
+  async function handleApproveUsage(id) {
+    try {
+      await SparePartUsage.update(id, { status:"approved" });
+      setSparePartUsages(prev => prev.map(u => u.id===id ? {...u, status:"approved"} : u));
+    } catch(e) { alert("Lỗi duyệt: "+e.message); }
   }
 
-  const activeTab = NAV_TABS.find(t=>t.key===tab);
+  function todayStr() {
+    return new Date().toLocaleDateString("vi-VN",{weekday:"long",day:"2-digit",month:"2-digit",year:"numeric"});
+  }
 
-  // PC layout — sidebar trái
+  const renderContent = () => {
+    if (loading) return (
+      <div style={{ textAlign:"center", padding:64, color:"#9ca3af" }}>
+        <div style={{ fontSize:32, marginBottom:12 }}>⏳</div>
+        <div>Đang tải dữ liệu...</div>
+      </div>
+    );
+    switch(tab) {
+      case "overview":  return <OverviewTab repairOrders={repairOrders} saleOrders={saleOrders} spareParts={spareParts} ledgerSummary={ledgerSummary} />;
+      case "business":  return <BusinessTab repairOrders={repairOrders} saleOrders={saleOrders} expenses={expenses} />;
+      case "staff":     return <StaffTab staff={staff} repairOrders={repairOrders} onStaffUpdate={handleStaffUpdate} />;
+      case "inventory": return <InventoryWrapTab spareParts={spareParts} stockImports={stockImports} ledgerSummary={ledgerSummary} sparePartUsages={sparePartUsages} onApproveUsage={handleApproveUsage} />;
+      case "settings":  return <SettingsLiteTab user={user} repairOrders={repairOrders} customers={customers} spareParts={spareParts} ledgerSummary={ledgerSummary} onRefresh={loadData} />;
+      default: return null;
+    }
+  };
+
+  // PC: sidebar layout
   if (bp === "pc") return (
-    <div style={{ height:"100vh", display:"flex", background:"#f9fafb" }}>
+    <div style={{ display:"flex", height:"100vh", background:"#f9fafb" }}>
       {/* Sidebar */}
-      <div style={{ width:220, background:"#fff", borderRight:"1.5px solid #e5e7eb",
-        display:"flex", flexDirection:"column", flexShrink:0 }}>
-        <div style={{ background:"linear-gradient(135deg,#1e1b4b,#4f46e5)", color:"#fff",
-          padding:"20px 16px 16px" }}>
-          <div style={{ fontWeight:900, fontSize:15 }}>📊 Manager</div>
-          <div style={{ fontSize:11, opacity:0.8, marginTop:2 }}>{user.full_name||user.name}</div>
+      <div style={{ width:200, background:"#1e1b4b", display:"flex", flexDirection:"column", flexShrink:0 }}>
+        <div style={{ padding:"20px 16px 14px", borderBottom:"1px solid rgba(255,255,255,.1)" }}>
+          <div style={{ fontWeight:900, fontSize:15, color:"#fff" }}>📊 Manager</div>
+          <div style={{ fontSize:11, color:"rgba(255,255,255,.6)", marginTop:3 }}>{user.full_name||user.name}</div>
         </div>
-        <nav style={{ flex:1, padding:"12px 8px", display:"flex", flexDirection:"column", gap:4 }}>
+        <nav style={{ flex:1, padding:"12px 8px" }}>
           {NAV_TABS.map(n => {
             const active = tab===n.key;
             return (
               <button key={n.key} onClick={()=>setTab(n.key)}
-                style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px",
-                  borderRadius:10, border:"none", background:active?"#ede9fe":"none",
-                  color:active?"#4f46e5":"#374151", cursor:"pointer", fontWeight:active?700:500,
-                  fontSize:14, textAlign:"left" }}>
-                <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,lineHeight:1}}>
-                  {n.icon}
-                </span>
+                style={{ width:"100%", display:"flex", alignItems:"center", gap:10, padding:"10px 12px",
+                  borderRadius:10, border:"none", cursor:"pointer", marginBottom:4,
+                  background: active?"rgba(255,255,255,.15)":"transparent",
+                  color: active?"#fff":"rgba(255,255,255,.65)", fontWeight:active?700:500, fontSize:14 }}>
+                <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:20, lineHeight:1 }}>{n.icon}</span>
                 {n.label}
               </button>
             );
           })}
         </nav>
-        <div style={{ padding:"12px 8px", borderTop:"1px solid #e5e7eb", fontSize:11, color:"#9ca3af", textAlign:"center" }}>
+        <div style={{ padding:"12px 8px", borderTop:"1px solid rgba(255,255,255,.1)", fontSize:10, color:"rgba(255,255,255,.4)", textAlign:"center" }}>
           {todayStr()}
         </div>
       </div>
       {/* Content */}
-      <div style={{ flex:1, overflowY:"auto" }}>
-        {loading ? <div style={{textAlign:"center",padding:64,color:"#9ca3af"}}>⏳ Đang tải...</div> : (
-          <>
-            {tab==="overview"     && <OverviewTab repairOrders={repairOrders} saleOrders={saleOrders} spareParts={spareParts} ledgerSummary={ledgerSummary} />}
-            {tab==="revenue"      && <RevenueTab repairOrders={repairOrders} saleOrders={saleOrders} expenses={expenses} />}
-            {tab==="staff_kpi"    && <StaffKpiTab staff={staff} repairOrders={repairOrders} />}
-            {tab==="settings_mgr" && <SettingsMgrTab user={user} staff={staff} repairOrders={repairOrders}
-                customers={customers} spareParts={spareParts} ledgerSummary={ledgerSummary} onStaffUpdate={handleStaffUpdate} />}
-          </>
-        )}
-      </div>
+      <div style={{ flex:1, overflowY:"auto" }}>{renderContent()}</div>
     </div>
   );
 
+  // Mobile/Tablet: header + bottom nav
   return (
     <div style={{ height:"100vh", display:"flex", flexDirection:"column", background:"#f9fafb" }}>
-      {/* Header */}
-      <div style={{ background:"linear-gradient(135deg,#1e1b4b,#4f46e5)",
-        color:"#fff", padding: bp==="pc" ? "16px 32px 14px" : "14px 16px 12px", flexShrink:0 }}>
-        <div style={{ maxWidth:1400, margin:"0 auto" }}>
-          <div style={{ fontWeight:900, fontSize: bp==="mobile"?16:18 }}>📊 Manager Dashboard</div>
-          <div style={{ fontSize:12, opacity:0.8, marginTop:2 }}>
-            {user.full_name||user.name} · {todayStr()}
-          </div>
+      <div style={{ background:"linear-gradient(135deg,#1e1b4b,#4f46e5)", color:"#fff",
+        padding: bp==="tablet" ? "16px 24px 14px" : "14px 16px 12px", flexShrink:0 }}>
+        <div style={{ fontWeight:900, fontSize: bp==="mobile"?16:18 }}>📊 Manager Dashboard</div>
+        <div style={{ fontSize:12, opacity:0.8, marginTop:2 }}>
+          {user.full_name||user.name} · {todayStr()}
         </div>
       </div>
-
-      {/* Content */}
-      <div style={{ flex:1, overflowY:"auto" }}>
-        {loading ? (
-          <div style={{ textAlign:"center", padding:64, color:"#9ca3af" }}>
-            <div style={{ fontSize:32, marginBottom:12 }}>⏳</div>
-            <div>Đang tải dữ liệu...</div>
-          </div>
-        ) : (
-          <>
-            {tab==="overview"     && <OverviewTab repairOrders={repairOrders} saleOrders={saleOrders} spareParts={spareParts} ledgerSummary={ledgerSummary} />}
-            {tab==="revenue"      && <RevenueTab repairOrders={repairOrders} saleOrders={saleOrders} expenses={expenses} />}
-            {tab==="staff_kpi"    && <StaffKpiTab staff={staff} repairOrders={repairOrders} />}
-            {tab==="settings_mgr" && <SettingsMgrTab user={user} staff={staff} repairOrders={repairOrders}
-                customers={customers} spareParts={spareParts} ledgerSummary={ledgerSummary} onStaffUpdate={handleStaffUpdate} />}
-          </>
-        )}
-      </div>
-
+      <div style={{ flex:1, overflowY:"auto" }}>{renderContent()}</div>
       {/* Bottom Nav */}
       <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#fff",
         borderTop:"1.5px solid #e5e7eb", display:"flex", zIndex:100,
@@ -1006,9 +1403,9 @@ export default function ManagerDashboard({ user }) {
           return (
             <button key={n.key} onClick={()=>setTab(n.key)}
               style={{ flex:1, border:"none", background:"none", cursor:"pointer",
-                padding: bp==="tablet" ? "12px 4px 10px" : "10px 2px 8px", display:"flex", flexDirection:"column",
-                alignItems:"center", gap:3, position:"relative",
-                color:active?"#4f46e5":"#9ca3af" }}>
+                padding: bp==="tablet" ? "12px 4px 10px" : "10px 2px 8px",
+                display:"flex", flexDirection:"column", alignItems:"center", gap:3,
+                position:"relative", color:active?"#4f46e5":"#9ca3af" }}>
               {active && <div style={{ position:"absolute",top:0,left:"50%",transform:"translateX(-50%)",
                 width:32,height:2,background:"#4f46e5",borderRadius:2 }} />}
               <span className="material-icons"
