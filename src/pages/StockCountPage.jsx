@@ -241,7 +241,7 @@ function CreateCountModal({ user, onClose, onCreated }) {
       const zone = zones.find(z=>z.id===form.zone_id);
       const code = genCode();
 
-      // Lấy danh sách spare_parts theo scope
+      // Lấy danh sách product_catalog theo scope
       let parts = [];
       const allParts = await SparePart.list({ limit:500 });
       const activeParts = (allParts||[]).filter(p=>p.is_active!==false);
@@ -690,7 +690,7 @@ function ReviewScreen({ count, user, onBack, onRefresh }) {
             });
           }
         } catch {}
-        // 2. Update spare_parts.stock_qty
+        // 2. Update product_catalog.stock_qty
         try {
           const parts = await SparePart.list({ limit:1 });
           // Dùng filter để tìm đúng part

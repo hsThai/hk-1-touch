@@ -52,7 +52,7 @@ function filterWarehousesByUser(warehouses, user) {
 const Ledger= makeWHCol("stock_ledgers");
 const Move  = makeWHCol("stock_movements");
 const Trans = makeWHCol("stock_transfers");
-const Parts    = makeWHCol("spare_parts");
+const Catalog  = makeWHCol("product_catalog");
 const Usage    = makeWHCol("spare_part_usages");
 const Notif    = makeWHCol("notifications");
 const Imports  = makeWHCol("stock_imports");
@@ -1004,7 +1004,7 @@ function DefectTab({ user, warehouses }) {
   const [form, setForm] = useState({ part_name:"", sku:"", qty:1, reason:"", supplier_name:"", note:"", warehouse_id:"" });
 
   useEffect(() => {
-    Parts.list({ limit:300 }).then(p=>setParts(p||[])).catch(()=>{});
+    Catalog.list({ limit:300 }).then(p=>setParts(p||[])).catch(()=>{});
     loadList();
   }, []);
 
