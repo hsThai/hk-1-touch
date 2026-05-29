@@ -1,6 +1,6 @@
 /* Stock Export Request Flow - KTV tạo đề nghị xuất */
 import React, { useState } from "react";
-import { StockExportRequest, SparePartUsage, RepairChat } from "./pb.jsx";
+import { StockExportRequest, SparePartUsage, RepairChat, StockLedger, StockMovement } from "./pb.jsx";
 
 export async function createExportRequest({
   order,
@@ -75,6 +75,7 @@ export async function confirmWarehouseExport({
   warehouseStaff,
   note,
   mediaUrls, // ảnh/video
+  usages,    // SparePartUsage list liên quan (optional — để trừ tồn)
 }) {
   try {
     const updated = await StockExportRequest.update(requestId, {
@@ -86,8 +87,46 @@ export async function confirmWarehouseExport({
       warehouse_media: JSON.stringify(mediaUrls || []),
     });
 
-    // TODO: Tạo phiếu xuất bên KiotViet
-    // await createKvDeliveryOrder({...});
+    // Trừ tồn kho thật + bỏ reserved + tạo stock_movement cho từng usage
+    if (usages && usages.length > 0) {
+      for (const usage of usages) {
+        if (!usage.ledger_id) continue; // usage cũ không có ledger_id → bỏ qua
+        try {
+          const ledger = await StockLedger.get(usage.ledger_id).catch(()=>null);
+          if (ledger) {
+            const qtyUsed       = usage.qty_used || usage.qty_requested || 0;
+            const newQtyOnHand  = Math.max(0, (ledger.qty_on_hand||0) - qtyUsed);
+            const newQtyReserved = Math.max(0, (ledger.qty_reserved||0) - qtyUsed);
+            await StockLedger.update(ledger.id, {
+              qty_on_hand:   newQtyOnHand,
+              qty_reserved:  newQtyReserved,
+              qty_available: Math.max(0, newQtyOnHand - newQtyReserved),
+              last_movement_at: new Date().toISOString(),
+            });
+            await StockMovement.create({
+              movement_code:  "USE-" + Date.now() + "-" + Math.floor(Math.random()*9999),
+              movement_type:  "usage",
+              warehouse_id:   ledger.warehouse_id,
+              warehouse_name: usage.warehouse_name || ledger.warehouse_name || "",
+              part_id:        usage.part_id,
+              part_name:      usage.part_name,
+              sku:            usage.sku || "",
+              qty_before:     ledger.qty_on_hand || 0,
+              qty_change:     -qtyUsed,
+              qty_after:      newQtyOnHand,
+              unit_price:     usage.unit_price || 0,
+              ref_type:       "spare_part_usage",
+              ref_id:         usage.id,
+              ref_code:       usage.order_code || "",
+              note:           `Giao LK đơn ${usage.order_code || usage.order_id}`,
+              created_by_name: warehouseStaff.full_name || "",
+            });
+          }
+        } catch(err) {
+          console.warn("Lỗi update ledger cho usage", usage.id, err?.message);
+        }
+      }
+    }
 
     return updated;
   } catch (e) {

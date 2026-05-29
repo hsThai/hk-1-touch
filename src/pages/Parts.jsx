@@ -1,6 +1,6 @@
 /* v1774860462-8691 */
 import { useState, useEffect } from "react";
-import { SparePart, SparePartUsage, RepairChat, RepairOrder } from "./pb.js";
+import { SparePart, SparePartUsage, RepairChat, RepairOrder, Warehouse, StockLedger } from "./pb.jsx";
 
 // ── Màn hình linh kiện cho KTV ──
 // Props:
@@ -18,8 +18,20 @@ export default function SparePartModal({ order, currentStaff, onClose, onDone })
   const [toast, setToast]       = useState("");
   const [confirming, setConfirming] = useState(false); // confirm "Sửa Xong"
   const [finishing, setFinishing]   = useState(false);
+  const [warehouses, setWarehouses] = useState([]);
+  const [selectedWH, setSelectedWH] = useState("");
 
   useEffect(() => { loadAll(); }, [order.id]);
+
+  useEffect(() => {
+    const whIds = currentStaff?.warehouse_ids || [];
+    if (whIds.length === 0) return;
+    Warehouse.list({ limit:100 }).then(all => {
+      const allowed = (all||[]).filter(w => whIds.includes(w.id));
+      setWarehouses(allowed);
+      if (allowed.length === 1) setSelectedWH(allowed[0].id);
+    }).catch(()=>{});
+  }, [currentStaff]);
 
   async function loadAll() {
     setLoading(true);
@@ -40,20 +52,49 @@ export default function SparePartModal({ order, currentStaff, onClose, onDone })
     const exist = usages.find(u => u.part_id === part.id && u.status !== "returned");
     if (exist) { showToast("⚠️ Linh kiện này đã được thêm vào đơn!"); return; }
 
+    // Validate kho
+    if (!selectedWH) { showToast("⚠️ Chọn kho lấy LK trước!"); return; }
+
     try {
+      // Tìm ledger trong kho đã chọn
+      let ledger = null;
+      try {
+        const ledgers = await StockLedger.list({ limit:500 });
+        ledger = (ledgers||[]).find(l => l.warehouse_id === selectedWH && l.part_id === part.id);
+      } catch {}
+
+      if (!ledger) {
+        showToast(`❌ "${part.name}" không có trong kho này!`);
+        return;
+      }
+      if ((ledger.qty_available||0) < 1) {
+        showToast(`❌ Không đủ hàng! Tồn khả dụng: ${ledger.qty_available||0}`);
+        return;
+      }
+
+      const whName = warehouses.find(w => w.id === selectedWH)?.name || "";
       const usage = await SparePartUsage.create({
-        order_id:     order.id,
-        order_code:   order.order_code,
-        part_id:      part.id,
-        part_name:    part.name,
-        sku:          part.sku || "",
+        order_id:      order.id,
+        order_code:    order.order_code,
+        part_id:       part.id,
+        part_name:     part.name,
+        sku:           part.sku || "",
         qty_requested: 1,
         qty_returned:  0,
         qty_used:      1,
-        unit_price:   part.price || 0,
-        total_price:  part.price || 0,
-        status:       "pending",
-        is_extra:     order.status === "Đang sửa", // nếu đã đang sửa thì là phát sinh
+        unit_price:    part.price || 0,
+        total_price:   part.price || 0,
+        status:        "pending",
+        is_extra:      order.status === "Đang sửa",
+        warehouse_id:  selectedWH,
+        warehouse_name: whName,
+        ledger_id:     ledger.id,
+      });
+
+      // Cộng qty_reserved vào ledger (giữ chỗ, chưa trừ thật)
+      await StockLedger.update(ledger.id, {
+        qty_reserved:  (ledger.qty_reserved||0) + 1,
+        qty_available: Math.max(0, (ledger.qty_on_hand||0) - (ledger.qty_reserved||0) - 1),
       });
 
       // Auto chat kho
@@ -61,9 +102,9 @@ export default function SparePartModal({ order, currentStaff, onClose, onDone })
 
       setUsages(prev => [...prev, usage]);
       setTab("used");
-      showToast(`✅ Đã thêm "${part.name}" — đã nhắn kho xuất tạm`);
+      showToast(`✅ Đã thêm "${part.name}" từ ${whName}`);
     } catch (e) {
-      showToast("❌ Lỗi thêm linh kiện!");
+      showToast("❌ Lỗi thêm linh kiện: " + (e?.message||""));
     }
   }
 
@@ -251,7 +292,21 @@ export default function SparePartModal({ order, currentStaff, onClose, onDone })
             <>
               <input value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="🔍 Tìm tên, SKU, loại linh kiện..."
-                style={{ width:"100%", height:44, borderRadius:12, border:"1.5px solid #e5e7eb", padding:"0 14px", fontSize:14, outline:"none", marginBottom:12, boxSizing:"border-box", background:"#fff" }} />
+                style={{ width:"100%", height:44, borderRadius:12, border:"1.5px solid #e5e7eb", padding:"0 14px", fontSize:14, outline:"none", marginBottom:8, boxSizing:"border-box", background:"#fff" }} />
+
+              {/* Chọn kho lấy LK */}
+              {warehouses.length > 1 && (
+                <select value={selectedWH} onChange={e => setSelectedWH(e.target.value)}
+                  style={{ width:"100%", height:40, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 10px", fontSize:13, marginBottom:10, boxSizing:"border-box", background:"#fff", color:selectedWH?"#1e1b4b":"#9ca3af" }}>
+                  <option value="">🏭 -- Chọn kho lấy LK --</option>
+                  {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                </select>
+              )}
+              {warehouses.length === 1 && (
+                <div style={{ fontSize:12, color:"#6b7280", marginBottom:10, padding:"4px 2px" }}>
+                  🏭 Kho: <b style={{color:"#1e1b4b"}}>{warehouses[0]?.name}</b>
+                </div>
+              )}
               {filteredParts.length === 0 ? (
                 <div style={{ textAlign:"center", padding:32, color:"#9ca3af" }}>
                   <div style={{ fontSize:36 }}>📦</div>

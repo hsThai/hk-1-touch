@@ -1,7 +1,7 @@
 /* REBUILD_20260406_1408 */
 /* v3-export-request-flow — fixed JSX */
 import React, { useState, useEffect, useRef } from "react";
-import { SparePart, SparePartUsage, RepairChat, RepairOrder, Notification, Staff, StockExportRequest } from "./pb.jsx";
+import { SparePart, SparePartUsage, RepairChat, RepairOrder, Notification, Staff, StockExportRequest, Warehouse, StockLedger } from "./pb.jsx";
 
 function genCode() {
   const n = new Date();
@@ -449,8 +449,20 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
   const [returnDays, setReturnDays] = useState(3);
   const [reqNote, setReqNote]     = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [warehouses, setWarehouses] = useState([]);
+  const [selectedWH, setSelectedWH] = useState("");
 
   useEffect(()=>{ if (order?.id) loadAll(); },[order?.id]);
+
+  useEffect(() => {
+    const whIds = currentStaff?.warehouse_ids || [];
+    if (whIds.length === 0) return;
+    Warehouse.list({ limit:100 }).then(all => {
+      const allowed = (all||[]).filter(w => whIds.includes(w.id));
+      setWarehouses(allowed);
+      if (allowed.length === 1) setSelectedWH(allowed[0].id);
+    }).catch(()=>{});
+  }, [currentStaff]);
 
   async function loadAll() {
     setLoading(true);
@@ -479,20 +491,48 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
 
   async function handleSubmitRequest() {
     if(cartItems.length===0){showToast("Giỏ trống!");return;}
+    if(!selectedWH){showToast("⚠️ Chọn kho lấy LK trước!");return;}
     setSubmitting(true);
     try {
       const due=new Date(Date.now()+dueMinutes*60000).toISOString();
       const ret=exportType==="borrow"?new Date(Date.now()+returnDays*86400000).toISOString():null;
-      const totalValue=cartItems.reduce((s,i)=>s+i.total_price,0);
+      const whName=warehouses.find(w=>w.id===selectedWH)?.name||"";
+
+      // Kiểm tra + lấy ledger cho từng item trong giỏ
+      let allLedgers=[];
+      try { allLedgers=await StockLedger.list({limit:2000}); } catch{}
+      const enrichedItems=[];
+      for(const c of cartItems){
+        const ledger=(allLedgers||[]).find(l=>l.warehouse_id===selectedWH && l.part_id===c.part_id);
+        if(!ledger){showToast(`❌ "${c.part_name}" không có trong kho này!`);setSubmitting(false);return;}
+        if((ledger.qty_available||0)<c.qty){showToast(`❌ Không đủ "${c.part_name}"! Khả dụng: ${ledger.qty_available||0}`);setSubmitting(false);return;}
+        enrichedItems.push({...c, warehouse_id:selectedWH, warehouse_name:whName, ledger_id:ledger.id});
+      }
+
+      const totalValue=enrichedItems.reduce((s,i)=>s+i.total_price,0);
       const code=genCode();
-      const req=await StockExportRequest.create({request_code:code,order_id:order.order_code||order.id,order_code:order.order_code||order.id,export_type:exportType,items:cartItems,due_datetime:due,return_due_date:ret,status:"pending",requested_by:currentStaff.id,requested_by_name:(currentStaff.full_name||currentStaff.name||""),total_value:totalValue,reminded_15min:false});
-      const lines=cartItems.map(i=>`• ${i.part_name} ×${i.qty}`).join("\n");
+      const req=await StockExportRequest.create({request_code:code,order_id:order.order_code||order.id,order_code:order.order_code||order.id,export_type:exportType,items:enrichedItems,due_datetime:due,return_due_date:ret,status:"pending",requested_by:currentStaff.id,requested_by_name:(currentStaff.full_name||currentStaff.name||""),total_value:totalValue,reminded_15min:false,warehouse_id:selectedWH,warehouse_name:whName});
+
+      // Cộng qty_reserved cho từng ledger
+      for(const c of enrichedItems){
+        try{
+          const led=(allLedgers||[]).find(l=>l.id===c.ledger_id);
+          if(led){
+            await StockLedger.update(led.id,{
+              qty_reserved:(led.qty_reserved||0)+c.qty,
+              qty_available:Math.max(0,(led.qty_on_hand||0)-(led.qty_reserved||0)-c.qty),
+            });
+          }
+        }catch{}
+      }
+
+      const lines=enrichedItems.map(i=>`• ${i.part_name} ×${i.qty}`).join("\n");
       const lbl=exportType==="borrow"?"MƯỢN TẠM":"XUẤT SỬA";
-      await RepairChat.create({order_id:order.id,order_code:order.order_code||order.id,sender_id:currentStaff.id,sender_name:(currentStaff.full_name||currentStaff.name||""),message:`📦 [ĐỀ NGHỊ XUẤT KHO - ${lbl}]\n━━━━━━━━━━━━━━━━\nPhiếu: ${code}\nĐơn: ${order.order_code} | KTV: ${(currentStaff.full_name||currentStaff.name||"")}\nHạn: ${fmtDt(due)}\n${lines}`,message_type:"system"});
+      await RepairChat.create({order_id:order.id,order_code:order.order_code||order.id,sender_id:currentStaff.id,sender_name:(currentStaff.full_name||currentStaff.name||""),message:`📦 [ĐỀ NGHỊ XUẤT KHO - ${lbl}]\n━━━━━━━━━━━━━━━━\nPhiếu: ${code}\nKho: ${whName}\nĐơn: ${order.order_code} | KTV: ${(currentStaff.full_name||currentStaff.name||"")}\nHạn: ${fmtDt(due)}\n${lines}`,message_type:"system"});
       try {
         const staffList=await Staff.filter({is_active:true});
         for(const ws of staffList.filter(s=>s.role==="Nhân viên kho")){
-          await Notification.create({user_id:ws.id,user_name:ws.full_name,title:`📦 Đề nghị XK - ${lbl}`,message:`Phiếu ${code} | ${order.order_code} | Hạn: ${fmtDt(due)}`,order_id:order.id,order_code:order.order_code||order.id,type:"export_request",is_read:false});
+          await Notification.create({user_id:ws.id,user_name:ws.full_name,title:`📦 Đề nghị XK - ${lbl}`,message:`Phiếu ${code} | ${order.order_code} | Kho: ${whName} | Hạn: ${fmtDt(due)}`,order_id:order.id,order_code:order.order_code||order.id,type:"export_request",is_read:false});
         }
       } catch{}
       setRequests(prev=>[req,...prev]);
@@ -563,6 +603,21 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
                 </div>
               )}
 
+              {/* Chọn kho lấy LK */}
+              {warehouses.length > 1 && (
+                <div style={{padding:"0 12px 4px"}}>
+                  <select value={selectedWH} onChange={e=>setSelectedWH(e.target.value)}
+                    style={{width:"100%",height:40,borderRadius:10,border:"1.5px solid #e5e7eb",padding:"0 10px",fontSize:13,boxSizing:"border-box",background:"#fff",color:selectedWH?"#1e1b4b":"#9ca3af"}}>
+                    <option value="">🏭 -- Chọn kho lấy LK --</option>
+                    {warehouses.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}
+                  </select>
+                </div>
+              )}
+              {warehouses.length === 1 && (
+                <div style={{padding:"0 12px 4px",fontSize:12,color:"#6b7280"}}>
+                  🏭 Kho: <b style={{color:"#1e1b4b"}}>{warehouses[0]?.name}</b>
+                </div>
+              )}
               <TabList parts={filteredParts} cartItems={cartItems} search={search} setSearch={setSearch} addToCart={addToCart} removeFromCart={removeFromCart}/>
             </>
           ) : tab==="cart" ? (
