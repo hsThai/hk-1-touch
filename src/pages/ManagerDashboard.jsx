@@ -153,7 +153,7 @@ function OverviewTab({ repairOrders, saleOrders, spareParts, ledgerSummary=[] })
         display:"grid",
         gridTemplateColumns: bp==="mobile" ? "1fr 1fr" : "repeat(4,1fr)",
         gap: bp==="mobile" ? 12 : 16,
-        marginBottom: isPC ? 20 : 16,
+        marginBottom: bp==="pc" ? 20 : 16,
       }}>
         {CARDS.map((c,i) => (
           <div key={i} style={{ background:c.bg, border:"2px solid "+c.bc, borderRadius:16,
