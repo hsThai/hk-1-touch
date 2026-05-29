@@ -1,7 +1,7 @@
 /* REBUILD_20260406_1408 */
 /* v4-loginv2-real-db */
 import React, { lazy, Suspense, useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
-import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, StockExportRequest, StockImport, StockImportItem, ActionLog, getPbUrl, getAuth, logHistory } from "./pb.jsx";
+import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, StockExportRequest, StockImport, StockImportItem, StockLedger, ActionLog, getPbUrl, getAuth, logHistory } from "./pb.jsx";
 import { uploadFile } from "./pb.jsx";
 import { getNotifSound } from "./Settings";
 const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ default: ({ onClose }) => (
@@ -2085,18 +2085,24 @@ function WarehouseHome({ user, setPage }) {
     else setRefreshing(true);
     try {
       // Dùng list + lọc client-side để tránh lỗi filter trên PocketBase
-      const [allExports, parts, imports] = await Promise.all([
+      const [allExports, parts, imports, allLedgers] = await Promise.all([
         StockExportRequest.list({ limit:500 }).catch(() => []),
         SparePart.list({ limit:500 }).catch(() => []),
         StockImport.list({ limit:200, sort:"-id" }).catch(() => []),
+        StockLedger.list({ limit:2000 }).catch(() => []),
       ]);
       const pendingExports = allExports.filter(r => r.status === "pending");
       const overdue = allExports.filter(r =>
         r.export_type === "borrow" && r.status === "ktv_confirmed" &&
         r.return_due_date && new Date(r.return_due_date) < Date.now()
       );
-      const activeParts = parts.filter(p => p.is_active !== false);
-      const lowStockCount = activeParts.filter(p => (p.stock_qty||0) <= 3).length;
+      // Tính tồn kho thực từ stock_ledgers
+      const partTotals = {};
+      (allLedgers||[]).forEach(l => {
+        const k = l.part_id || l.part_name;
+        partTotals[k] = (partTotals[k]||0) + (l.qty_on_hand||0);
+      });
+      const lowStockCount = Object.values(partTotals).filter(qty => qty <= 3).length;
       const draftImports = imports.filter(r => r.status === "draft");
       const waitingKtv = allExports.filter(r => r.status === "warehouse_confirmed");
       setStats({

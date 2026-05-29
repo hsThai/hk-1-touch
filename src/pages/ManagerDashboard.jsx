@@ -99,7 +99,7 @@ function BarChart({ data }) {
 }
 
 // ── TAB 1: Overview ────────────────────────────────────────
-function OverviewTab({ repairOrders, saleOrders, spareParts }) {
+function OverviewTab({ repairOrders, saleOrders, spareParts, ledgerSummary=[] }) {
   const now = new Date();
   const [isPC, setIsPC] = React.useState(window.innerWidth >= 1024);
   React.useEffect(() => {
@@ -122,7 +122,7 @@ function OverviewTab({ repairOrders, saleOrders, spareParts }) {
     return { label:lbl, value:rv+sv };
   });
 
-  const lowStock = spareParts.filter(p => p.is_active!==false && (p.stock_qty||0) <= Math.max(p.min_stock||0, 2));
+  const lowStock = ledgerSummary.filter(p => p.total_qty <= Math.max(p.min_qty, 2));
   const recent5  = [...repairOrders].sort((a,b)=>new Date(b.created||b.received_date)-new Date(a.created||a.received_date)).slice(0,5);
 
   const CARDS = [
@@ -555,21 +555,27 @@ function StaffModal({ staff: s, repairOrders, onClose }) {
 }
 
 // ── TAB 4: Inventory ───────────────────────────────────────
-function InventoryTab({ spareParts, stockImports }) {
+function InventoryTab({ spareParts, stockImports, ledgerSummary=[] }) {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState("name");
   const [sortAsc, setSortAsc] = useState(true);
 
   const active = spareParts.filter(p=>p.is_active!==false);
-  const lowCnt = active.filter(p=>(p.stock_qty||0)<=Math.max(p.min_stock||0,2)).length;
-  const totalVal = active.reduce((s,p)=>s+(p.stock_qty||0)*(p.cost_price||p.price||0),0);
+  // Tính từ ledgerSummary nếu có, fallback sang spareParts
+  const effectiveParts = ledgerSummary.length > 0 ? ledgerSummary : active;
+  const lowCnt = ledgerSummary.length > 0
+    ? ledgerSummary.filter(p => p.total_qty <= Math.max(p.min_qty, 2)).length
+    : active.filter(p=>(p.stock_qty||0)<=Math.max(p.min_stock||0,2)).length;
+  const totalVal = ledgerSummary.length > 0
+    ? ledgerSummary.reduce((s,p)=>s+p.total_value, 0)
+    : active.reduce((s,p)=>s+(p.stock_qty||0)*(p.cost_price||p.price||0),0);
   const now = new Date();
   const importsCnt = stockImports.filter(i=>i.status==="confirmed"&&i.confirmed_at&&
     new Date(i.confirmed_at).getMonth()===now.getMonth()&&
     new Date(i.confirmed_at).getFullYear()===now.getFullYear()).length;
 
   const SCARDS = [
-    { icon:"📦", label:"Tổng SKU",           value:active.length+" SKU",   bg:"#eff6ff",bc:"#bfdbfe",cl:"#1d4ed8" },
+    { icon:"📦", label:"Tổng SKU",           value:(ledgerSummary.length>0?ledgerSummary.length:active.length)+" SKU", bg:"#eff6ff",bc:"#bfdbfe",cl:"#1d4ed8" },
     { icon:"⚠️", label:"Sắp hết hàng",       value:lowCnt+" SKU",          bg:"#fef2f2",bc:"#fca5a5",cl:"#dc2626" },
     { icon:"💰", label:"Giá trị tồn kho",     value:fmtMoney(totalVal),     bg:"#f0fdf4",bc:"#86efac",cl:"#059669" },
     { icon:"🔄", label:"Nhập kho tháng này",  value:importsCnt+" phiếu",    bg:"#fefce8",bc:"#fde68a",cl:"#ca8a04" },
@@ -680,7 +686,7 @@ function InventoryTab({ spareParts, stockImports }) {
 }
 
 // ── TAB 5: Settings Manager ────────────────────────────────
-function SettingsMgrTab({ user, staff: staffList, repairOrders, customers, spareParts, onStaffUpdate }) {
+function SettingsMgrTab({ user, staff: staffList, repairOrders, customers, spareParts, ledgerSummary=[], onStaffUpdate }) {
   const [shopInfo,  setShopInfo]  = useState({});
   const [toast,     setToast]     = useState("");
 
@@ -804,7 +810,7 @@ function SettingsMgrTab({ user, staff: staffList, repairOrders, customers, spare
         {[
           ["Tổng đơn sửa chữa",  repairOrders.length + " đơn"],
           ["Tổng khách hàng",    customers.length + " khách"],
-          ["Tổng linh kiện",     spareParts.filter(p=>p.is_active!==false).length + " SKU"],
+          ["Tổng linh kiện",     (ledgerSummary.length>0?ledgerSummary.length:spareParts.filter(p=>p.is_active!==false).length) + " SKU"],
           ["Ngày hoạt động",     daysActive + " ngày"],
         ].map(([l,v])=>(
           <div key={l} style={INFO}>
@@ -843,11 +849,12 @@ export default function ManagerDashboard({ user }) {
   const [staff,        setStaff]        = useState([]);
   const [customers,    setCustomers]    = useState([]);
   const [stockImports, setStockImports] = useState([]);
+  const [ledgerSummary,setLedgerSummary]= useState([]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     const safe = (p) => p.catch(e => { console.warn("MD fetch warn:", e?.message); return []; });
-    const [ro, so, ex, sp, sf, cu, si] = await Promise.all([
+    const [ro, so, ex, sp, sf, cu, si, lg] = await Promise.all([
       safe(RepairOrder.list({ limit:500, sort:"-received_date" })),
       safe(SaleOrder.list({ limit:500, sort:"-created" })),
       safe(Expense.list({ limit:500, sort:"-expense_date" })),
@@ -855,6 +862,7 @@ export default function ManagerDashboard({ user }) {
       safe(Staff.list({ limit:100 })),
       safe(Customer.list({ limit:500 })),
       safe(StockImport.list({ limit:200, sort:"-created" })),
+      safe(StockLedger.list({ limit:2000 })),
     ]);
     setRepairOrders(ro||[]);
     setSaleOrders(so||[]);
@@ -863,6 +871,19 @@ export default function ManagerDashboard({ user }) {
     setStaff(sf||[]);
     setCustomers(cu||[]);
     setStockImports(si||[]);
+    // Tổng hợp ledger theo part_id
+    const lmap = {};
+    (lg||[]).forEach(l => {
+      const k = l.part_id || l.part_name;
+      if (!lmap[k]) lmap[k] = {
+        part_id: l.part_id, part_name: l.part_name,
+        sku: l.sku, total_qty: 0, total_value: 0, min_qty: l.min_qty||0,
+      };
+      lmap[k].total_qty   += (l.qty_on_hand||0);
+      lmap[k].total_value += (l.qty_on_hand||0) * (l.cost_price||0);
+      lmap[k].min_qty      = Math.max(lmap[k].min_qty, l.min_qty||0);
+    });
+    setLedgerSummary(Object.values(lmap));
     setLoading(false);
   }, []);
 
@@ -904,11 +925,11 @@ export default function ManagerDashboard({ user }) {
           </div>
         ) : (
           <>
-            {tab==="overview"     && <OverviewTab repairOrders={repairOrders} saleOrders={saleOrders} spareParts={spareParts} />}
+            {tab==="overview"     && <OverviewTab repairOrders={repairOrders} saleOrders={saleOrders} spareParts={spareParts} ledgerSummary={ledgerSummary} />}
             {tab==="revenue"      && <RevenueTab repairOrders={repairOrders} saleOrders={saleOrders} expenses={expenses} />}
             {tab==="staff_kpi"    && <StaffKpiTab staff={staff} repairOrders={repairOrders} />}
             {tab==="settings_mgr" && <SettingsMgrTab user={user} staff={staff} repairOrders={repairOrders}
-                customers={customers} spareParts={spareParts} onStaffUpdate={handleStaffUpdate} />}
+                customers={customers} spareParts={spareParts} ledgerSummary={ledgerSummary} onStaffUpdate={handleStaffUpdate} />}
           </>
         )}
       </div>
