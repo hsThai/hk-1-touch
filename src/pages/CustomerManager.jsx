@@ -21,7 +21,7 @@ export default function CustomerManager({ onSelectCustomer }) {
   async function load() {
     setLoading(true);
     try {
-      const d = await Customer.list({ sort: "-created_date", limit: 500 });
+      const d = await Customer.list({ sort: "-created", limit: 500 });
       setList(d || []);
     } catch(e) {
       console.error("CustomerManager load error:", e);

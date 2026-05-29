@@ -484,7 +484,7 @@ function NewOrderModal({ staff, onClose, onCreated }) {
   useEffect(() => {
     if (custSearch.length < 2) { setCustomers([]); return; }
     const t = setTimeout(() => {
-      Customer.list("-created_date").then(all => {
+      Customer.list("-created").then(all => {
         const q = custSearch.toLowerCase();
         setCustomers(all.filter(c => c.full_name?.toLowerCase().includes(q)||c.phone?.includes(q)).slice(0,5));
       }).catch(()=>{});
@@ -655,7 +655,7 @@ export default function MainBoard({ currentStaff }) {
 
   async function loadOrders() {
     try {
-      let all = await RepairOrder.list("-created_date");
+      let all = await RepairOrder.list("-created");
       if (currentStaff.role === "technician") all = all.filter(o => o.assigned_to === currentStaff.id);
       setOrders(all);
     } catch {}

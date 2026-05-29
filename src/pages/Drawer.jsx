@@ -33,7 +33,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
     if (tab !== "chat") return;
     let cancelled = false;
     setChatLoading(true);
-    RepairChat.filter({ order_id: order.id }, { sort: "created_date" })
+    RepairChat.filter({ order_id: order.id }, { sort: "created" })
       .then(data => { if (!cancelled) { setChats(data); setChatLoading(false); } })
       .catch(() => { if (!cancelled) setChatLoading(false); });
     return () => { cancelled = true; };

@@ -33,7 +33,7 @@ function StaffKpiTab({ currentUser }) {
     setLoading(true);
     try {
       const [l, r, s] = await Promise.all([
-        ActionLog.list({ limit:500, sort:"-created_date" }),
+        ActionLog.list({ limit:500, sort:"-created" }),
         RepairOrder.list({ limit:500 }),
         Staff.list({ limit:100 }),
       ]);

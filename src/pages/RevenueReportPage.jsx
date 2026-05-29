@@ -145,8 +145,8 @@ function TabStockReport({ period, startOf }) {
 
   useEffect(()=>{
     Promise.all([
-      StockImport.list({ limit:200, sort:"-created_date" }),
-      StockExportRequest.list({ limit:200, sort:"-created_date" }),
+      StockImport.list({ limit:200, sort:"-created" }),
+      StockExportRequest.list({ limit:200, sort:"-created" }),
     ]).then(([imp,exp])=>{ setImports(imp||[]); setExports(exp||[]); })
       .catch(()=>{}).finally(()=>setLoading(false));
   },[]);
