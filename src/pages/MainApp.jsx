@@ -219,6 +219,13 @@ function SwipeableNotif({ notif: n, onDelete, onClick }) {
 const SettingsHub          = lazy(() => import("./SettingsHub").catch(() => ({ default: () => (
   <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải SettingsHub</div>
 ) })));
+
+const SupplierPage         = lazy(() => import("./SupplierPage").catch(() => ({ default: () => (
+  <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>Đang tải Nhà cung cấp...</div>
+) })));
+const DebtPage             = lazy(() => import("./DebtPage").catch(() => ({ default: () => (
+  <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>Đang tải Công nợ...</div>
+) })));
 const RoleHomePlaceholder  = lazy(() => import("./RoleHomePlaceholder").catch(() => ({ default: () => (
   <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang chủ</div>
 ) })));
@@ -1187,6 +1194,12 @@ function MainAppContent({ onUserChange }) {
     if (can("customer","view") && !isKtv)
       items.push({ key:"customers",    icon:"group",       label:"Khách hàng" });
 
+    // ── 6b. NHÀ CUNG CẤP + CÔNG NỢ — accountant, cashier, manager, admin ──
+    if (["owner","admin","manager","accountant","cashier"].includes(user?.role)) {
+      items.push({ key:"suppliers", icon:"storefront",           label:"Nhà cung cấp" });
+      items.push({ key:"debts",     icon:"account_balance_wallet", label:"Công nợ" });
+    }
+
     // ── 7. KIỂM KHO — warehouse, manager, technician ───────
     if (can("stock_count","view") && !isManager && !isRoleHome)
       items.push({ key:"stock_count",  icon:"fact_check",  label:"Kiểm kho" });
@@ -1759,6 +1772,16 @@ function MainAppContent({ onUserChange }) {
         {page==="wh_manager" && <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"dashboard")} />}
         {page==="cashier_home" && <CashierApp user={user} />}
         {page==="manager_app" && <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><ManagerDashboard user={user} /></Suspense>}
+        {page==="suppliers" && currentUser && (
+          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
+            <SupplierPage user={currentUser} />
+          </Suspense>
+        )}
+        {page==="debts" && currentUser && (
+          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
+            <DebtPage user={currentUser} />
+          </Suspense>
+        )}
         {page==="stock_count" && (
           <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
             <StockCountPage user={user} />

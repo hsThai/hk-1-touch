@@ -1,6 +1,6 @@
 /* ExpensePage.jsx — Quản lý chi phí */
 import React, { useState, useEffect } from "react";
-import { Expense } from "./pb.jsx";
+import { Expense, CashJournal } from "./pb.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 function fmtDate(dateStr) {
@@ -23,7 +23,14 @@ const CATEGORIES = [
   { value:"other",   label:"Khác",            color:"#6b7280" },
 ];
 const CAT_MAP = Object.fromEntries(CATEGORIES.map(c=>[c.value,c]));
-const MGMT_ROLES = ["manager","admin"];
+const MGMT_ROLES    = ["manager","admin"];
+const APPROVER_ROLES = ["owner","admin","manager"];
+
+const STATUS_EXP = {
+  pending:  { label:"🟡 Chờ duyệt", color:"#d97706", bg:"#fef3c7" },
+  approved: { label:"🟢 Đã duyệt",  color:"#059669", bg:"#dcfce7" },
+  rejected: { label:"🔴 Từ chối",   color:"#dc2626", bg:"#fee2e2" },
+};
 
 const INP = { width:"100%", height:44, borderRadius:12, border:"1.5px solid #e5e7eb", padding:"0 14px", fontSize:14, outline:"none", boxSizing:"border-box" };
 const SEL = { width:"100%", height:44, borderRadius:12, border:"1.5px solid #e5e7eb", padding:"0 14px", fontSize:14, outline:"none", boxSizing:"border-box", background:"#fff" };
@@ -74,6 +81,44 @@ export default function ExpensePage({ user }) {
       loadExpenses();
     } catch(e) { showToast("❌ Lỗi: "+e.message); }
     setSubmitting(false);
+  }
+
+  async function handleApprove(exp) {
+    setSaving(true);
+    try {
+      await Expense.update(exp.id, {
+        status: "approved",
+        approved_by_id:   user.id,
+        approved_by_name: user.full_name || user.name || "",
+        approved_at:      new Date().toISOString(),
+      });
+      if (exp.payment_method === "cash" || !exp.payment_method) {
+        await CashJournal.create({
+          journal_date:    exp.expense_date || new Date().toISOString().slice(0,10),
+          entry_type:      "payment",
+          amount:          exp.amount,
+          ref_type:        "expense",
+          ref_id:          exp.id,
+          ref_code:        exp.expense_code,
+          description:     "Chi phí: " + (exp.description || exp.category),
+          payment_method:  "cash",
+          created_by_id:   user.id,
+          created_by_name: user.full_name || user.name || "",
+        });
+      }
+      showToast("✅ Đã duyệt chi phí");
+      loadExpenses();
+    } catch(e) { showToast("❌ Lỗi: " + e.message); }
+    setSaving(false);
+  }
+
+  async function handleReject(exp) {
+    if (!window.confirm('Từ chối chi phí "' + (exp.description || exp.category) + '"?')) return;
+    try {
+      await Expense.update(exp.id, { status:"rejected" });
+      showToast("❌ Đã từ chối chi phí");
+      loadExpenses();
+    } catch(e) { showToast("❌ Lỗi: " + e.message); }
   }
 
   async function handleDelete(exp) {
@@ -171,7 +216,8 @@ export default function ExpensePage({ user }) {
                   <th style={TH}>Danh mục</th><th style={TH}>Mô tả</th>
                   <th style={{...TH,textAlign:"right"}}>Số tiền</th>
                   <th style={TH}>Ngày</th><th style={TH}>Người tạo</th>
-                  <th style={{...TH,textAlign:"center"}}>Xóa</th>
+                  <th style={TH}>Trạng thái</th>
+                  <th style={{...TH,textAlign:"center"}}>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -190,13 +236,31 @@ export default function ExpensePage({ user }) {
                       <td style={{...TD,textAlign:"right",fontWeight:800,color:"#dc2626"}}>{fmtMoney(e.amount)}</td>
                       <td style={TD}>{fmtDate(e.expense_date)}</td>
                       <td style={TD}>{e.created_by_name||"-"}</td>
+                      <td style={TD}>
+                        {(() => {
+                          const st = STATUS_EXP[e.status] || STATUS_EXP.pending;
+                          return <span style={{ background:st.bg, color:st.color, borderRadius:99, padding:"2px 8px", fontSize:11, fontWeight:700, whiteSpace:"nowrap" }}>{st.label}</span>;
+                        })()}
+                      </td>
                       <td style={{...TD,textAlign:"center"}}>
+                        <div style={{ display:"flex", gap:4, justifyContent:"center", flexWrap:"wrap" }}>
+                        {APPROVER_ROLES.includes(user.role) && (e.status==="pending"||!e.status) && (<>
+                          <button onClick={()=>handleApprove(e)}
+                            style={{ background:"#dcfce7", color:"#059669", border:"none", borderRadius:8, padding:"3px 8px", fontSize:11, fontWeight:700, cursor:"pointer" }}>
+                            ✅
+                          </button>
+                          <button onClick={()=>handleReject(e)}
+                            style={{ background:"#fee2e2", color:"#dc2626", border:"none", borderRadius:8, padding:"3px 8px", fontSize:11, fontWeight:700, cursor:"pointer" }}>
+                            ❌
+                          </button>
+                        </>)}
                         {canDel && (
                           <button onClick={()=>handleDelete(e)}
-                            style={{ background:"#fee2e2", color:"#dc2626", border:"none", borderRadius:8,
-                              padding:"4px 10px", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                            style={{ background:"#f3f4f6", color:"#6b7280", border:"none", borderRadius:8, padding:"3px 8px", fontSize:11, fontWeight:700, cursor:"pointer" }}>
                             🗑️
                           </button>
+                        )}
+                        </div>
                         )}
                       </td>
                     </tr>
