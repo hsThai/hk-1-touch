@@ -295,7 +295,7 @@ function RevenueTab({ repairOrders, saleOrders, expenses }) {
   const TD = { padding:"10px 12px", fontSize:13, borderBottom:"1px solid #f3f4f6" };
 
   return (
-    <div style={{ padding:"16px 14px 110px" }}>
+    <div style={{ padding:"16px 14px 40px" }}>
       {/* Period */}
       <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap" }}>
         {["today","7days","30days","thismonth"].map((p,i)=>(
@@ -390,7 +390,7 @@ function StaffKpiTab({ staff, repairOrders }) {
   const TD = { padding:"10px 12px", fontSize:13, borderBottom:"1px solid #f3f4f6", verticalAlign:"middle" };
 
   return (
-    <div style={{ padding:"16px 14px 110px" }}>
+    <div style={{ padding:"16px 14px 40px" }}>
       {/* Filters */}
       <div style={{ display:"flex", gap:8, marginBottom:12, flexWrap:"wrap" }}>
         {[["today","Hôm nay"],["thisweek","Tuần này"],["thismonth","Tháng này"]].map(([k,l])=>(
@@ -625,7 +625,7 @@ function InventoryTab({ spareParts, stockImports, ledgerSummary=[] }) {
   const TD = { padding:"10px 12px", fontSize:13, borderBottom:"1px solid #f3f4f6", verticalAlign:"middle" };
 
   return (
-    <div style={{ padding:"16px 14px 110px" }}>
+    <div style={{ padding:"16px 14px 40px" }}>
       {/* Summary */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:20 }}>
         {SCARDS.map((c,i)=>(
@@ -825,7 +825,7 @@ function BusinessTab({ repairOrders, saleOrders, expenses }) {
     { key:"cashflow", label:"💵 Sổ quỹ" },
   ];
   return (
-    <div style={{ padding:"16px 14px 110px" }}>
+    <div style={{ padding:"16px 14px 40px" }}>
       <PillTabs tabs={SUB_TABS} active={sub} onChange={setSub} />
       {sub==="revenue"  && <RevenueTab repairOrders={repairOrders} saleOrders={saleOrders} expenses={expenses} />}
       {sub==="debt"     && <DebtSubTab repairOrders={repairOrders} />}
@@ -923,7 +923,7 @@ function StaffTab({ staff, repairOrders, onStaffUpdate }) {
     { key:"list", label:"👥 Danh sách" },
   ];
   return (
-    <div style={{ padding:"16px 14px 110px" }}>
+    <div style={{ padding:"16px 14px 40px" }}>
       <PillTabs tabs={SUB_TABS} active={sub} onChange={setSub} />
       {sub==="kpi"  && <StaffKpiTab staff={staff} repairOrders={repairOrders} />}
       {sub==="list" && <StaffListSubTab staff={staff} onStaffUpdate={onStaffUpdate} />}
@@ -1018,7 +1018,7 @@ function InventoryWrapTab({ spareParts, stockImports, ledgerSummary, sparePartUs
     { key:"export", label:"📤 Xuất kho" },
   ];
   return (
-    <div style={{ padding:"16px 14px 110px" }}>
+    <div style={{ padding:"16px 14px 40px" }}>
       <PillTabs tabs={SUB_TABS} active={sub} onChange={setSub} />
       {sub==="stock"  && <InventoryTab spareParts={spareParts} stockImports={stockImports} ledgerSummary={ledgerSummary} />}
       {sub==="import" && <ImportSubTab stockImports={stockImports} />}
@@ -1054,7 +1054,7 @@ function SettingsLiteTab({ user, repairOrders, customers, spareParts, ledgerSumm
   const INFO = { fontSize:13,color:"#374151",marginBottom:10,display:"flex",justifyContent:"space-between" };
 
   return (
-    <div style={{ padding:"16px 14px 110px" }}>
+    <div style={{ padding:"16px 14px 40px" }}>
       {/* Thống kê hệ thống */}
       <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", padding:"16px", marginBottom:16 }}>
         <div style={{ fontWeight:800, fontSize:14, marginBottom:14 }}>📊 Thống kê hệ thống</div>
@@ -1109,7 +1109,6 @@ const NAV_TABS = [
   { key:"business",   icon:"bar_chart",    label:"Kinh doanh" },
   { key:"staff",      icon:"people",       label:"Nhân viên" },
   { key:"inventory",  icon:"inventory_2",  label:"Kho & KT" },
-  { key:"settings",   icon:"settings",     label:"Cài đặt" },
 ];
 
 export default function ManagerDashboard({ user, initialTab = "overview", onTabChange }) {
@@ -1215,63 +1214,36 @@ export default function ManagerDashboard({ user, initialTab = "overview", onTabC
   };
 
   // PC: sidebar layout
-  if (bp === "pc") return (
-    <div style={{ display:"flex", height:"100vh", background:"#f9fafb" }}>
-      {/* Sidebar */}
-      <div style={{ width:200, background:"#1e1b4b", display:"flex", flexDirection:"column", flexShrink:0 }}>
-        <div style={{ padding:"20px 16px 14px", borderBottom:"1px solid rgba(255,255,255,.1)" }}>
-          <div style={{ fontWeight:900, fontSize:15, color:"#fff" }}>📊 Manager</div>
-          <div style={{ fontSize:11, color:"rgba(255,255,255,.6)", marginTop:3 }}>{user.full_name||user.name}</div>
-        </div>
-        <nav style={{ flex:1, padding:"12px 8px" }}>
-          {NAV_TABS.map(n => {
-            const active = tab===n.key;
-            return (
-              <button key={n.key} onClick={()=>setTab(n.key)}
-                style={{ width:"100%", display:"flex", alignItems:"center", gap:10, padding:"10px 12px",
-                  borderRadius:10, border:"none", cursor:"pointer", marginBottom:4,
-                  background: active?"rgba(255,255,255,.15)":"transparent",
-                  color: active?"#fff":"rgba(255,255,255,.65)", fontWeight:active?700:500, fontSize:14 }}>
-                <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:20, lineHeight:1 }}>{n.icon}</span>
-                {n.label}
-              </button>
-            );
-          })}
-        </nav>
-        <div style={{ padding:"12px 8px", borderTop:"1px solid rgba(255,255,255,.1)", fontSize:10, color:"rgba(255,255,255,.4)", textAlign:"center" }}>
-          {todayStr()}
-        </div>
-      </div>
-      {/* Content */}
-      <div style={{ flex:1, overflowY:"auto" }}>{renderContent()}</div>
-    </div>
-  );
-
-  // Mobile/Tablet: header + bottom nav
+  // Layout duy nhất — responsive cho mọi breakpoint
   return (
     <div style={{ minHeight:"100%", display:"flex", flexDirection:"column", background:"#f9fafb" }}>
-      <div style={{ padding:"16px 16px 0", borderBottom:"1px solid #f3f4f6", flexShrink:0 }}>
-        <div style={{ fontWeight:900, fontSize:18, color:"#1e1b4b" }}>
+
+      {/* Header + Pill tabs */}
+      <div style={{ background:"#fff", borderBottom:"1.5px solid #f3f4f6", flexShrink:0,
+        padding: bp==="pc" ? "16px 32px 0" : "14px 16px 0" }}>
+        <div style={{ fontWeight:900, color:"#1e1b4b",
+          fontSize: bp==="pc" ? 20 : 17 }}>
           {NAV_TABS.find(t=>t.key===tab)?.label || "Tổng quan"}
         </div>
-        <div style={{ fontSize:12, color:"#9ca3af", marginTop:2 }}>{todayStr()}</div>
-      </div>
-      <div style={{ padding:"12px 16px 0", borderBottom:"1px solid #f3f4f6", flexShrink:0 }}>
-        <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+        <div style={{ fontSize:12, color:"#9ca3af", marginTop:2, marginBottom:12 }}>{todayStr()}</div>
+
+        {/* Pill tabs */}
+        <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
           {NAV_TABS.map(n => (
             <button key={n.key} onClick={() => handleTabChange(n.key)}
               style={{
-                padding:"6px 14px", borderRadius:99, border:"none", cursor:"pointer",
+                padding: bp==="pc" ? "7px 18px" : "6px 13px",
+                borderRadius:99, border:"none", cursor:"pointer",
                 background: tab===n.key ? "#4f46e5" : "#f3f4f6",
-                color:       tab===n.key ? "#fff"    : "#374151",
-                fontWeight:  tab===n.key ? 700       : 500,
-                fontSize:12,
+                color:      tab===n.key ? "#fff"    : "#374151",
+                fontWeight: tab===n.key ? 700       : 500,
+                fontSize: bp==="pc" ? 13 : 12,
                 display:"flex", alignItems:"center", gap:5,
                 transition:"all .15s",
                 marginBottom:8,
               }}>
               <span className="material-icons"
-                style={{fontFamily:"Material Icons",fontSize:14,lineHeight:1}}>
+                style={{fontFamily:"Material Icons",fontSize: bp==="pc" ? 16 : 14,lineHeight:1}}>
                 {n.icon}
               </span>
               {n.label}
@@ -1279,6 +1251,8 @@ export default function ManagerDashboard({ user, initialTab = "overview", onTabC
           ))}
         </div>
       </div>
+
+      {/* Content */}
       <div style={{ flex:1, overflowY:"auto" }}>{renderContent()}</div>
     </div>
   );
