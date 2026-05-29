@@ -115,15 +115,6 @@ export default function Settings({ user }) {
       NOTIF_TYPES.forEach(n => { if (!map[n.key]) map[n.key] = n.default; });
       if (!map["notif_sound_master"]) map["notif_sound_master"] = "on";
       setSettings(map);
-      // Load Haravan
-      setHaravanKey(map["haravan_api_key"] || "");
-      setHaravanShopId(map["haravan_shop_id"] || "");
-      setHaravanWhId(map["haravan_warehouse_id"] || "");
-      // Load Zalo
-      setZaloOaId(map["zalo_oa_id"] || "");
-      setZaloToken(map["zalo_access_token"] || "");
-      setZaloTplReceived(map["zalo_template_id_received"] || "");
-      setZaloTplDone(map["zalo_template_id_done"] || "");
     } catch {}
   }
 
@@ -184,22 +175,7 @@ export default function Settings({ user }) {
   const [pbTesting, setPbTesting] = React.useState(false);
   const [pbConnStatus, setPbConnStatus] = React.useState(null);
 
-  // ── Haravan states ──
-  const [haravanKey, setHaravanKey]       = React.useState("");
-  const [haravanShopId, setHaravanShopId] = React.useState("");
-  const [haravanWhId, setHaravanWhId]     = React.useState("");
-  const [haravanConn, setHaravanConn]     = React.useState(null); // null | true | false
-  const [haravanTesting, setHaravanTesting] = React.useState(false);
-  const [savingHaravan, setSavingHaravan] = React.useState(false);
 
-  // ── Zalo states ──
-  const [zaloOaId, setZaloOaId]           = React.useState("");
-  const [zaloToken, setZaloToken]         = React.useState("");
-  const [zaloTplReceived, setZaloTplReceived] = React.useState("");
-  const [zaloTplDone, setZaloTplDone]     = React.useState("");
-  const [zaloSdt, setZaloSdt]             = React.useState("");
-  const [showZaloTest, setShowZaloTest]   = React.useState(false);
-  const [savingZalo, setSavingZalo]       = React.useState(false);
 
   const savePbUrl = () => {
     setPbUrl(pbUrl.trim().replace(/\/$/, ""));
@@ -417,133 +393,6 @@ export default function Settings({ user }) {
         </button>
       </div>
 
-      {/* ── Tích hợp bên ngoài ── */}
-      <div style={{ background:"#fff", border:"1.5px solid #e5e7eb", borderRadius:20, padding:"20px 16px", marginTop:20 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20 }}>
-          <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:20, verticalAlign:"middle", lineHeight:1, color:"#4f46e5" }}>link</span>
-          <div style={{ fontWeight:900, fontSize:17, color:"#1e1b4b" }}>Tích hợp bên ngoài</div>
-        </div>
-
-        {/* ── Block Haravan ── */}
-        <div style={{ marginBottom:24, paddingBottom:24, borderBottom:"1.5px solid #f3f4f6" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
-            <div style={{ fontWeight:800, fontSize:15, color:"#374151" }}>📦 Haravan</div>
-            {haravanConn === true  && <span style={{ background:"#dcfce7", color:"#065f46", borderRadius:99, padding:"2px 10px", fontSize:11, fontWeight:700 }}>🟢 Đã kết nối</span>}
-            {haravanConn === false && <span style={{ background:"#fee2e2", color:"#dc2626", borderRadius:99, padding:"2px 10px", fontSize:11, fontWeight:700 }}>🔴 Chưa kết nối</span>}
-            {haravanConn === null  && <span style={{ background:"#f3f4f6", color:"#6b7280", borderRadius:99, padding:"2px 10px", fontSize:11, fontWeight:700 }}>— Chưa test</span>}
-          </div>
-
-          {[
-            { label:"API Key", value:haravanKey, set:setHaravanKey, type:"password", placeholder:"Bearer token..." },
-            { label:"Shop ID", value:haravanShopId, set:setHaravanShopId, type:"text", placeholder:"your-shop.myharavan.com" },
-            { label:"Warehouse ID", value:haravanWhId, set:setHaravanWhId, type:"text", placeholder:"WH-001" },
-          ].map(f => (
-            <div key={f.label} style={{ marginBottom:12 }}>
-              <label style={{ fontSize:13, fontWeight:700, color:"#374151", display:"block", marginBottom:6 }}>{f.label}</label>
-              <input type={f.type} value={f.value} placeholder={f.placeholder}
-                onChange={e => f.set(e.target.value)}
-                style={{ width:"100%", height:44, borderRadius:12, border:"1.5px solid #e5e7eb", padding:"0 14px", fontSize:14, outline:"none", boxSizing:"border-box" }}
-              />
-            </div>
-          ))}
-
-          <div style={{ display:"flex", gap:10, marginTop:14 }}>
-            <button disabled={savingHaravan} onClick={async () => {
-              setSavingHaravan(true);
-              await saveSetting("haravan_api_key", haravanKey);
-              await saveSetting("haravan_shop_id", haravanShopId);
-              await saveSetting("haravan_warehouse_id", haravanWhId);
-              setSavingHaravan(false);
-              showToast("Đã lưu cài đặt Haravan");
-            }} style={{ height:40, padding:"0 18px", background:"#4f46e5", color:"#fff", border:"none", borderRadius:12, fontWeight:800, fontSize:13, cursor:"pointer" }}>
-              {savingHaravan ? "Đang lưu..." : "💾 Lưu cài đặt Haravan"}
-            </button>
-
-            <button disabled={haravanTesting} onClick={async () => {
-              setHaravanTesting(true);
-              try {
-                const r = await fetch("https://apis.haravan.com/com/ping", {
-                  headers: { Authorization: "Bearer " + haravanKey }
-                });
-                if (r.ok) { setHaravanConn(true); showToast("Kết nối Haravan thành công"); }
-                else { setHaravanConn(false); showToast("Lỗi " + r.status + ": " + r.statusText); }
-              } catch(e) { setHaravanConn(false); showToast("Không kết nối được: " + e.message); }
-              setHaravanTesting(false);
-            }} style={{ height:40, padding:"0 18px", background:"#f3f4f6", color:"#374151", border:"1.5px solid #e5e7eb", borderRadius:12, fontWeight:800, fontSize:13, cursor:"pointer" }}>
-              {haravanTesting ? "⏳ Đang test..." : "🔌 Test kết nối"}
-            </button>
-          </div>
-        </div>
-
-        {/* ── Block Zalo OA ── */}
-        <div>
-          <div style={{ fontWeight:800, fontSize:15, color:"#374151", marginBottom:14 }}>📲 Zalo OA (ZNS)</div>
-
-          {[
-            { label:"OA ID", value:zaloOaId, set:setZaloOaId, type:"text", placeholder:"OA ID..." },
-            { label:"Access Token", value:zaloToken, set:setZaloToken, type:"password", placeholder:"Token..." },
-            { label:"Template ID — Đã nhận máy", value:zaloTplReceived, set:setZaloTplReceived, type:"text", placeholder:"template_id..." },
-            { label:"Template ID — Máy xong lấy được", value:zaloTplDone, set:setZaloTplDone, type:"text", placeholder:"template_id..." },
-          ].map(f => (
-            <div key={f.label} style={{ marginBottom:12 }}>
-              <label style={{ fontSize:13, fontWeight:700, color:"#374151", display:"block", marginBottom:6 }}>{f.label}</label>
-              <input type={f.type} value={f.value} placeholder={f.placeholder}
-                onChange={e => f.set(e.target.value)}
-                style={{ width:"100%", height:44, borderRadius:12, border:"1.5px solid #e5e7eb", padding:"0 14px", fontSize:14, outline:"none", boxSizing:"border-box" }}
-              />
-            </div>
-          ))}
-
-          <div style={{ display:"flex", gap:10, marginTop:14, flexWrap:"wrap" }}>
-            <button disabled={savingZalo} onClick={async () => {
-              setSavingZalo(true);
-              await saveSetting("zalo_oa_id", zaloOaId);
-              await saveSetting("zalo_access_token", zaloToken);
-              await saveSetting("zalo_template_id_received", zaloTplReceived);
-              await saveSetting("zalo_template_id_done", zaloTplDone);
-              setSavingZalo(false);
-              showToast("Đã lưu cài đặt Zalo");
-            }} style={{ height:40, padding:"0 18px", background:"#4f46e5", color:"#fff", border:"none", borderRadius:12, fontWeight:800, fontSize:13, cursor:"pointer" }}>
-              {savingZalo ? "Đang lưu..." : "💾 Lưu cài đặt Zalo"}
-            </button>
-
-            <button onClick={() => setShowZaloTest(v => !v)}
-              style={{ height:40, padding:"0 18px", background:"#f3f4f6", color:"#374151", border:"1.5px solid #e5e7eb", borderRadius:12, fontWeight:800, fontSize:13, cursor:"pointer" }}>
-              🧪 Gửi test
-            </button>
-          </div>
-
-          {showZaloTest && (
-            <div style={{ marginTop:12, background:"#f9fafb", borderRadius:12, padding:"14px" }}>
-              <label style={{ fontSize:13, fontWeight:700, color:"#374151", display:"block", marginBottom:6 }}>SĐT nhận test (10 số)</label>
-              <div style={{ display:"flex", gap:8 }}>
-                <input type="tel" value={zaloSdt} onChange={e => setZaloSdt(e.target.value)}
-                  placeholder="0901234567" maxLength={10}
-                  style={{ flex:1, height:40, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:14, outline:"none" }}
-                />
-                <button onClick={async () => {
-                  if (!zaloSdt || zaloSdt.length !== 10) { showToast("SĐT không hợp lệ"); return; }
-                  try {
-                    const r = await fetch("https://business.openapi.zalo.me/message/template", {
-                      method: "POST",
-                      headers: { access_token: zaloToken, "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        phone: zaloSdt,
-                        template_id: zaloTplReceived,
-                        template_data: { order_code: "TEST-001", customer_name: "Khách Test", device_model: "iPhone Test" }
-                      })
-                    });
-                    const json = await r.json();
-                    showToast(json.error === 0 ? "✅ Gửi Zalo thành công" : "❌ Lỗi: " + (json.message || JSON.stringify(json)));
-                  } catch(e) { showToast("Lỗi kết nối: " + e.message); }
-                }} style={{ height:40, padding:"0 16px", background:"#22c55e", color:"#fff", border:"none", borderRadius:10, fontWeight:800, fontSize:13, cursor:"pointer" }}>
-                  Gửi
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
 
       {toast && (
         <div style={{ position:"fixed", bottom:24, left:"50%", transform:"translateX(-50%)", background:"#1e1b4b", color:"#fff", borderRadius:14, padding:"12px 24px", fontSize:14, fontWeight:700, zIndex:5000, boxShadow:"0 8px 24px rgba(0,0,0,.3)" }}>
