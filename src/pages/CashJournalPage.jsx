@@ -180,28 +180,29 @@ export default function CashJournalPage({ user }) {
   return (
     <div style={{ padding:"16px 14px 100px" }}>
       {/* Header */}
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
         <div>
           <div style={{ fontWeight:900, fontSize:18, color:"#1e1b4b" }}>📒 Sổ quỹ tiền mặt</div>
           <div style={{ fontSize:12, color:"#6b7280" }}>{monthData.length} bút toán</div>
         </div>
-        <div style={{ display:"flex", gap:8 }}>
-          <button onClick={exportCSV}
-            style={{ background:"#f3f4f6", border:"none", borderRadius:10, padding:"8px 12px", fontSize:12, fontWeight:700, cursor:"pointer" }}>
-            ⬇️ CSV
+        {["owner","admin","manager","accountant"].includes(user?.role) && (
+          <button onClick={()=>setModal(true)}
+            style={{ background:"#4f46e5", color:"#fff", border:"none", borderRadius:10, padding:"8px 12px", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+            ➕ Ghi thủ công
           </button>
-          {["owner","admin","manager","accountant"].includes(user?.role) && (
-            <button onClick={()=>setModal(true)}
-              style={{ background:"#4f46e5", color:"#fff", border:"none", borderRadius:10, padding:"8px 12px", fontSize:12, fontWeight:700, cursor:"pointer" }}>
-              ➕ Ghi thủ công
-            </button>
-          )}
-        </div>
+        )}
       </div>
 
-      {/* Month picker */}
-      <input type="month" value={month} onChange={e=>setMonth(e.target.value)}
-        style={{ border:"1.5px solid #e5e7eb", borderRadius:10, padding:"8px 12px", fontSize:13, marginBottom:16, width:"100%", boxSizing:"border-box" }}/>
+      {/* Month picker + CSV — cùng hàng */}
+      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:16 }}>
+        <input type="month" value={month} onChange={e=>setMonth(e.target.value)}
+          lang="vi"
+          style={{ border:"1.5px solid #e5e7eb", borderRadius:10, padding:"6px 10px", fontSize:12, flex:1, boxSizing:"border-box" }}/>
+        <button onClick={exportCSV}
+          style={{ background:"#f3f4f6", border:"1.5px solid #e5e7eb", borderRadius:10, padding:"6px 12px", fontSize:12, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0 }}>
+          ⬇️ CSV
+        </button>
+      </div>
 
       {/* Summary */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:20 }}>
