@@ -148,6 +148,25 @@ function clearCred() {
 }
 
 const LOGO = "https://media.base44.com/images/public/69bf5d0a924e0a8766577274/37193b36d_HKlogo.jpg";
+
+function useBreakpoint() {
+  const [bp, setBp] = React.useState(() => {
+    const w = window.innerWidth;
+    if (w >= 1200) return "pc";
+    if (w >= 768)  return "tablet";
+    return "mobile";
+  });
+  React.useEffect(() => {
+    const fn = () => {
+      const w = window.innerWidth;
+      setBp(w >= 1200 ? "pc" : w >= 768 ? "tablet" : "mobile");
+    };
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
+  return bp;
+}
+
 const SPLASH = "https://base44.app/api/apps/69bf5d0a924e0a8766577274/files/mp/public/69bf5d0a924e0a8766577274/cd197582b_robot_splash.webp";
 // Preload ảnh ngay khi JS parse (không chờ render)
 (function() { const img = new window.Image(); img.src = SPLASH; })();
@@ -191,6 +210,7 @@ export function showSystemNotif(title, body, opts={}) {
 }
 
 export default function LoginV2({ onLogin, loggedOut }) {
+  const bp = useBreakpoint();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -306,14 +326,19 @@ export default function LoginV2({ onLogin, loggedOut }) {
 
   return (
     <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#0f172a 0%,#1e1b4b 50%,#312e81 100%)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-      <div style={{ background:"#fff", borderRadius:28, padding:"36px 32px", width:"100%", maxWidth:400, boxShadow:"0 32px 80px rgba(0,0,0,.4)" }}>
+      <form onSubmit={e=>{e.preventDefault();doLogin();}}
+        style={{ background:"#fff", borderRadius:28,
+          padding: bp==="tablet" ? "40px 48px" : bp==="pc" ? "36px 32px" : "28px 20px",
+          width:"100%",
+          maxWidth: bp==="tablet" ? 480 : 420,
+          boxShadow:"0 32px 80px rgba(0,0,0,.4)" }}>
 
         {/* Logo + tên app */}
         <div style={{ textAlign:"center", marginBottom:28 }}>
           <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}>
-            <img src={SPLASH} alt="HK Robot" style={{ width:110, height:110, objectFit:"contain", display:"block" }} />
+            <img src={SPLASH} alt="HK Robot" style={{ width: bp==="tablet"?120:bp==="pc"?110:90, height: bp==="tablet"?120:bp==="pc"?110:90, objectFit:"contain", display:"block" }} />
           </div>
-          <div style={{ fontWeight:900, fontSize:26, color:"#1e1b4b", letterSpacing:"-0.5px" }}>HK One Touch</div>
+          <div style={{ fontWeight:900, fontSize: bp==="mobile"?22:26, color:"#1e1b4b", letterSpacing:"-0.5px" }}>HK One Touch</div>
           <div style={{ color:"#6b7280", fontSize:13, marginTop:4, fontStyle:"italic" }}>Quản lý với một chạm !</div>
         </div>
 
@@ -347,7 +372,6 @@ export default function LoginV2({ onLogin, loggedOut }) {
         <div style={{ marginBottom:14 }}>
           <label style={{ display:"block", fontSize:13, fontWeight:700, color:"#374151", marginBottom:6 }}>  Tên đăng nhập</label>
           <input value={username} onChange={e => { setUsername(e.target.value); setErr(""); }}
-            onKeyDown={e => e.key==="Enter" && doLogin()}
             placeholder="Nhập username..." autoFocus
             style={{ width:"100%", height:50, borderRadius:12, border:`2px solid ${err?"#ef4444":"#e5e7eb"}`, padding:"0 16px", fontSize:15, outline:"none", boxSizing:"border-box" }} />
         </div>
@@ -357,7 +381,6 @@ export default function LoginV2({ onLogin, loggedOut }) {
           <label style={{ display:"block", fontSize:13, fontWeight:700, color:"#374151", marginBottom:6 }}>  Mật khẩu</label>
           <div style={{ position:"relative" }}>
             <input value={password} onChange={e => { setPassword(e.target.value); setErr(""); }}
-              onKeyDown={e => e.key==="Enter" && doLogin()}
               placeholder="Nhập mật khẩu..." type={showPw?"text":"password"}
               style={{ width:"100%", height:50, borderRadius:12, border:`2px solid ${err?"#ef4444":"#e5e7eb"}`, padding:"0 50px 0 16px", fontSize:15, outline:"none", boxSizing:"border-box" }} />
             <button onClick={() => setShowPw(v=>!v)} type="button"
@@ -386,11 +409,11 @@ export default function LoginV2({ onLogin, loggedOut }) {
         )}
 
         {/* Submit */}
-        <button onClick={() => doLogin()} disabled={loading}
+        <button type="submit" disabled={loading}
           style={{ width:"100%", height:54, background:loading?"#a5b4fc":"linear-gradient(135deg,#4f46e5,#7c3aed)", color:"#fff", border:"none", borderRadius:14, fontSize:18, fontWeight:800, cursor:loading?"not-allowed":"pointer", boxShadow:"0 4px 16px rgba(79,70,229,.4)" }}>
           {loading ? "⏳ Đang đăng nhập..." : <><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",lineHeight:1}}>login</span> Đăng Nhập</>}
         </button>
-      </div>
+      </form>
     </div>
   );
 }

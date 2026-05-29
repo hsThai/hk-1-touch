@@ -220,6 +220,24 @@ const SettingsHub          = lazy(() => import("./SettingsHub").catch(() => ({ d
   <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải SettingsHub</div>
 ) })));
 
+export function useBreakpoint() {
+  const [bp, setBp] = React.useState(() => {
+    const w = window.innerWidth;
+    if (w >= 1200) return "pc";
+    if (w >= 768)  return "tablet";
+    return "mobile";
+  });
+  React.useEffect(() => {
+    const fn = () => {
+      const w = window.innerWidth;
+      setBp(w >= 1200 ? "pc" : w >= 768 ? "tablet" : "mobile");
+    };
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
+  return bp;
+}
+
 const SupplierPage         = lazy(() => import("./SupplierPage").catch(() => ({ default: () => (
   <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>Đang tải Nhà cung cấp...</div>
 ) })));
@@ -1261,7 +1279,10 @@ function MainAppContent({ onUserChange }) {
       <div
         ref={kanbanScrollRef}
         onScroll={handleScroll}
-        style={{ overflowX:"auto", padding:"8px 16px 0", WebkitOverflowScrolling:"touch" }}
+        style={{ overflowX:"auto", padding:"8px 16px 80px", WebkitOverflowScrolling:"touch",
+          scrollSnapType:"x mandatory",
+          WebkitMaskImage:"linear-gradient(to right, black 85%, transparent 100%)",
+          maskImage:"linear-gradient(to right, black 85%, transparent 100%)" }}
       >
         <div style={{ display:"flex", gap:12, minWidth: COLUMNS.length * 240 }}>
           {COLUMNS.map(col => {
@@ -1562,9 +1583,96 @@ function MainAppContent({ onUserChange }) {
   }
 
   return (
+    <>
+    {/* ── PC SIDEBAR LAYOUT ── */}
+    {isPC && (
+      <div style={{ display:"flex", height:"100vh", background:"#f9fafb" }}>
+        {/* Left Sidebar */}
+        <div style={{ width:240, background:"#1e1b4b", display:"flex", flexDirection:"column", flexShrink:0, overflowY:"auto" }}>
+          <div style={{ padding:"20px 16px 16px", borderBottom:"1px solid rgba(255,255,255,.1)" }}>
+            <div style={{ fontWeight:900, fontSize:16, color:"#fff" }}>🏠 HK One Touch</div>
+            <div style={{ fontSize:12, color:"rgba(255,255,255,.6)", marginTop:4 }}>
+              {user?.name} · {user?.role}
+            </div>
+          </div>
+          <nav style={{ flex:1, padding:"12px 8px", display:"flex", flexDirection:"column", gap:2 }}>
+            {navItems.map(item => {
+              const active = page === item.key;
+              return (
+                <button key={item.key}
+                  onClick={() => { setPage(item.key); if(["board","dashboard","tasks","ktv_home","rec_home"].includes(item.key)) setDashboardFilter(null); }}
+                  style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px",
+                    borderRadius:10, border:"none", textAlign:"left", cursor:"pointer",
+                    background: active ? "rgba(255,255,255,.15)" : "transparent",
+                    color: active ? "#fff" : "rgba(255,255,255,.7)",
+                    fontWeight: active ? 700 : 400, fontSize:14 }}>
+                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,lineHeight:1}}>
+                    {item.icon}
+                  </span>
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
+          <button onClick={doLogout}
+            style={{ margin:"12px 8px", padding:"10px 14px", borderRadius:10, border:"none",
+              background:"rgba(239,68,68,.2)", color:"#fca5a5", cursor:"pointer",
+              display:"flex", alignItems:"center", gap:10, fontSize:14, fontWeight:700 }}>
+            <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,lineHeight:1}}>logout</span>
+            Đăng xuất
+          </button>
+        </div>
+        {/* Main Content PC */}
+        <div style={{ flex:1, overflowY:"auto", display:"flex", flexDirection:"column" }}>
+          <div style={{ background:"#fff", borderBottom:"1px solid #e5e7eb", padding:"12px 24px",
+            display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
+            <div style={{ fontWeight:700, fontSize:16, color:"#1e1b4b" }}>
+              {navItems.find(n=>n.key===page)?.label || "HK One Touch"}
+            </div>
+            <div style={{ display:"flex", gap:8 }}>
+              <div style={{ position:"relative" }}>
+                <button onClick={() => setShowNotif(v=>!v)} style={{ background:"none", border:"none", color:"#374151", fontSize:22, cursor:"pointer", padding:4 }}>
+                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:24,verticalAlign:"middle",lineHeight:1}}>notifications</span>
+                  {(notifications.length+dbNotifications.length)>0 && <span style={{ position:"absolute", top:-2, right:-2, background:"#ef4444", color:"#fff", borderRadius:"50%", width:16, height:16, fontSize:10, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800 }}>{notifications.length+dbNotifications.length}</span>}
+                </button>
+              </div>
+              <button onClick={() => setShowQRScan(true)} style={{ background:"none", border:"none", color:"#374151", fontSize:22, cursor:"pointer", padding:4 }}>
+                <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:24,verticalAlign:"middle",lineHeight:1}}>qr_code_scanner</span>
+              </button>
+            </div>
+          </div>
+          <div style={{ flex:1, overflowY:"auto" }}>
+            <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
+              {page==="ktv_home" && <TechnicianHome user={user} orders={orders} setPage={setPage} />}
+              {page==="rec_home" && <ReceptionHome user={user} orders={orders} setPage={setPage} />}
+              {page==="board" && <KanbanBoard />}
+              {page==="tasks" && <TaskList />}
+              {page==="new" && <div style={{padding:24}}><button onClick={() => setShowNewOrder(true)} style={{ width:"100%", height:52, background:"linear-gradient(135deg,#4f46e5,#7c3aed)", color:"#fff", border:"none", borderRadius:14, fontWeight:800, fontSize:16, cursor:"pointer" }}>+ Tạo Đơn Mới</button></div>}
+              {page==="customers" && <Suspense fallback={<div style={{padding:32,textAlign:"center"}}>⏳</div>}><CustomerManagerPage /></Suspense>}
+              {page==="dashboard" && (user.role==="manager"||user.role==="admin" ? <Suspense fallback={<div style={{padding:32}}>⏳</div>}><ManagerDashboard user={user} /></Suspense> : <Dashboard />)}
+              {page==="staff" && <StaffManagerPage currentStaff={user} />}
+              {page==="settings" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><SettingsHub user={user} /></Suspense>}
+              {page==="wh_home" && <WarehouseHome user={user} setPage={setPage} />}
+              {page==="wh_orders" && <WarehouseOrders user={user} users={users} setSelectedOrder={setSelectedOrderSync} />}
+              {page==="wh_export" && <WarehouseExport user={user} />}
+              {page==="wh_import" && <WarehouseImport user={user} />}
+              {page==="wh_manager" && <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"dashboard")} />}
+              {page==="cashier_home" && <CashierApp user={user} />}
+              {page==="manager_app" && <Suspense fallback={<div style={{padding:32}}>⏳</div>}><ManagerDashboard user={user} /></Suspense>}
+              {page==="suppliers" && user && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><SupplierPage user={user} /></Suspense>}
+              {page==="debts" && user && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><DebtPage user={user} /></Suspense>}
+              {page==="cash_journal" && user && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><CashJournalPage user={user} /></Suspense>}
+              {page==="stock_count" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><StockCountPage user={user} /></Suspense>}
+              {page==="role_home" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><RoleHomePlaceholder user={user} setPage={setPage} orders={orders} /></Suspense>}
+            </Suspense>
+          </div>
+        </div>
+      </div>
+    )}
+    {!isPC && (
     <div style={{ minHeight:"100vh", width:"100%", maxWidth:"100vw", background:"#f8fafc", fontFamily:"system-ui,-apple-system,sans-serif", overflowX:"hidden" }}>
       {/* Header */}
-      <div style={{ position:"sticky", top:0, zIndex:100, background:"#1e1b4b", padding:"12px 16px", display:"flex", alignItems:"center", gap:12 }}>
+      <div style={{ position:"sticky", top:0, zIndex:100, background:"#1e1b4b", padding: bp==="tablet"?"14px 20px 12px":"12px 16px", display:"flex", alignItems:"center", gap:12 }}>
         <button onClick={() => setSidebarOpen(v=>!v)} style={{ background:"none", border:"none", color:"#fff", fontSize:22, cursor:"pointer", padding:4 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:24,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>menu</span></button>
         <div style={{ flex:1, fontWeight:800, fontSize:16, color:"#fff"}}>HK One Touch</div>
         <div style={{ position:"relative" }}>
@@ -1580,7 +1688,7 @@ function MainAppContent({ onUserChange }) {
       {sidebarOpen && (
         <div style={{ position:"fixed", inset:0, zIndex:200 }}>
           <div style={{ position:"absolute", inset:0, background:"rgba(0,0,0,.4)" }} onClick={() => setSidebarOpen(false)} />
-          <div style={{ position:"absolute", left:0, top:0, bottom:0, width:260, background:"#fff", boxShadow:"4px 0 20px rgba(0,0,0,.15)", display:"flex", flexDirection:"column" }}>
+          <div style={{ position:"absolute", left:0, top:0, bottom:0, width: bp==="tablet" ? 320 : 260, background:"#fff", boxShadow:"4px 0 20px rgba(0,0,0,.15)", display:"flex", flexDirection:"column" }}>
             <div style={{ background:"#1e1b4b", padding:24, color:"#fff" }}>
               <div style={{ fontSize:40 }}>{user.avatar_url ? <img src={user.avatar_url} style={{width:48,height:48,borderRadius:"50%"}} alt="" /> : <span className="material-icons" style={{fontSize:48,fontFamily:"Material Icons",color:"#9ca3af"}}>person</span>}</div>
               <div style={{ fontWeight:800, fontSize:16, marginTop:8 }}>{user.name}</div>
@@ -1708,6 +1816,7 @@ function MainAppContent({ onUserChange }) {
 
       {/* Main content */}
       <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
+        <div style={{ paddingBottom:72 }}>
         {page==="ktv_home" && <TechnicianHome user={user} orders={orders} setPage={setPage} />}
         {page==="rec_home" && <ReceptionHome user={user} orders={orders} setPage={setPage} />}
         {page==="board" && <KanbanBoard />}
@@ -1797,6 +1906,7 @@ function MainAppContent({ onUserChange }) {
             <StockCountPage user={user} />
           </Suspense>
         )}
+        </div>
       </Suspense>
 
       {/* Bottom nav */}
@@ -1805,7 +1915,7 @@ function MainAppContent({ onUserChange }) {
           <button key={n.key} onClick={() => { setPage(n.key); if(n.key==="board"||n.key==="dashboard"||n.key==="tasks"||n.key==="ktv_home"||n.key==="rec_home")setDashboardFilter(null); }}
             style={{ flex:1, padding:"10px 4px", background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
             <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",lineHeight:1}}>{n.icon}</span>
-            <span style={{ fontSize:10, color:page===n.key?"#4f46e5":"#9ca3af", fontWeight:page===n.key?800:500 }}>{n.label}</span>
+            <span style={{ fontSize: bp==="tablet"?11:10, color:page===n.key?"#4f46e5":"#9ca3af", fontWeight:page===n.key?800:500 }}>{n.label}</span>
           </button>
         ))}
       </div>
@@ -1877,6 +1987,8 @@ function MainAppContent({ onUserChange }) {
         </div>
       )}
     </div>
+    )}
+    </>
   );
 }
 
@@ -2982,6 +3094,8 @@ function WarehouseImport({ user }) {
 
 
 function MainAppInner() {
+  const bp = useBreakpoint();
+  const isPC = bp === "pc";
   const [user, setUser] = useState(null);
   return (
     <PermissionProvider user={user}>

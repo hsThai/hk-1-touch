@@ -73,11 +73,29 @@ function sameDay(a, b) {
 }
 
 // ── CSS Bar Chart ──────────────────────────────────────────
-function BarChart({ data }) {
+function useBreakpoint() {
+  const [bp, setBp] = React.useState(() => {
+    const w = window.innerWidth;
+    if (w >= 1200) return "pc";
+    if (w >= 768)  return "tablet";
+    return "mobile";
+  });
+  React.useEffect(() => {
+    const fn = () => {
+      const w = window.innerWidth;
+      setBp(w >= 1200 ? "pc" : w >= 768 ? "tablet" : "mobile");
+    };
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
+  return bp;
+}
+
+function BarChart({ data, height=100 }) {
   // data: [{label, value}]
   const max = Math.max(...data.map(d=>d.value), 1);
   return (
-    <div style={{ display:"flex", alignItems:"flex-end", gap:6, height:100, padding:"0 4px" }}>
+    <div style={{ display:"flex", alignItems:"flex-end", gap:6, height:height, padding:"0 4px" }}>
       {data.map((d,i) => {
         const pct = Math.round((d.value/max)*100);
         return (
@@ -101,12 +119,7 @@ function BarChart({ data }) {
 // ── TAB 1: Overview ────────────────────────────────────────
 function OverviewTab({ repairOrders, saleOrders, spareParts, ledgerSummary=[] }) {
   const now = new Date();
-  const [isPC, setIsPC] = React.useState(window.innerWidth >= 1024);
-  React.useEffect(() => {
-    const fn = () => setIsPC(window.innerWidth >= 1024);
-    window.addEventListener("resize", fn);
-    return () => window.removeEventListener("resize", fn);
-  }, []);
+  const bp = useBreakpoint();
 
   const active    = repairOrders.filter(o => !SKIP_ST.includes(o.status));
   const doneToday = repairOrders.filter(o => DONE_ST.includes(o.status) && isToday(o.done_date||o.updated));
@@ -133,23 +146,23 @@ function OverviewTab({ repairOrders, saleOrders, spareParts, ledgerSummary=[] })
   ];
 
   return (
-    <div style={{ padding: isPC ? "20px 24px 40px" : "16px 14px 110px", maxWidth:1400, margin:"0 auto" }}>
+    <div style={{ padding: bp==="pc" ? "24px 32px 40px" : bp==="tablet" ? "20px 24px 80px" : "16px 14px 80px", maxWidth:1400, margin:"0 auto" }}>
 
       {/* === CARDS === */}
       <div style={{
         display:"grid",
-        gridTemplateColumns: isPC ? "repeat(4,1fr)" : "1fr 1fr",
-        gap: isPC ? 16 : 12,
+        gridTemplateColumns: bp==="mobile" ? "1fr 1fr" : "repeat(4,1fr)",
+        gap: bp==="mobile" ? 12 : 16,
         marginBottom: isPC ? 20 : 16,
       }}>
         {CARDS.map((c,i) => (
           <div key={i} style={{ background:c.bg, border:"2px solid "+c.bc, borderRadius:16,
-            padding: isPC ? "20px 18px" : "14px 12px" }}>
-            <div style={{ fontSize: isPC ? 26 : 22, marginBottom:4 }}>{c.icon}</div>
-            <div style={{ fontSize: isPC ? 32 : (c.sub?24:18), fontWeight:900, color:c.cl, lineHeight:1.1 }}>
-              {c.value}{c.sub ? <span style={{fontSize: isPC?16:13}}> {c.sub}</span> : ""}
+            padding: bp==="mobile" ? "14px 12px" : "20px 18px" }}>
+            <div style={{ fontSize: bp==="mobile" ? 22 : 26, marginBottom:4 }}>{c.icon}</div>
+            <div style={{ fontSize: bp==="mobile" ? (c.sub?24:18) : 32, fontWeight:900, color:c.cl, lineHeight:1.1 }}>
+              {c.value}{c.sub ? <span style={{fontSize: bp==="mobile"?13:16}}> {c.sub}</span> : ""}
             </div>
-            <div style={{ fontSize: isPC?13:11, color:"#6b7280", marginTop:5, fontWeight:600 }}>{c.label}</div>
+            <div style={{ fontSize: bp==="mobile"?11:13, color:"#6b7280", marginTop:5, fontWeight:600 }}>{c.label}</div>
           </div>
         ))}
       </div>
@@ -157,7 +170,7 @@ function OverviewTab({ repairOrders, saleOrders, spareParts, ledgerSummary=[] })
       {/* === PC: Chart 60% | Đơn mới 40% | Mobile: dọc === */}
       <div style={{
         display:"grid",
-        gridTemplateColumns: isPC ? "3fr 2fr" : "1fr",
+        gridTemplateColumns: bp==="mobile" ? "1fr" : "3fr 2fr",
         gap:16,
         marginBottom:16,
         alignItems:"start",
@@ -165,7 +178,7 @@ function OverviewTab({ repairOrders, saleOrders, spareParts, ledgerSummary=[] })
         {/* Chart */}
         <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", padding:16 }}>
           <div style={{ fontWeight:800, fontSize:14, color:"#374151", marginBottom:14 }}>📈 Doanh thu 7 ngày gần nhất</div>
-          <BarChart data={chartData} />
+          <BarChart data={chartData} height={bp==="mobile"?100:140} />
         </div>
 
         {/* Đơn mới nhất */}
@@ -201,9 +214,9 @@ function OverviewTab({ repairOrders, saleOrders, spareParts, ledgerSummary=[] })
         ) : (
           <div style={{
             display:"grid",
-            gridTemplateColumns: isPC ? "repeat(3,1fr)" : "1fr",
+            gridTemplateColumns: bp==="mobile" ? "1fr" : bp==="tablet" ? "1fr 1fr" : "repeat(3,1fr)",
           }}>
-            {lowStock.slice(0, isPC?12:8).map(p => (
+            {lowStock.slice(0, bp==="mobile"?8:12).map(p => (
               <div key={p.id} style={{ padding:"10px 16px", borderBottom:"1px solid #f3f4f6",
                 display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                 <div>
@@ -840,6 +853,7 @@ const NAV_TABS = [
 ];
 
 export default function ManagerDashboard({ user }) {
+  const bp = useBreakpoint();
   const [tab,          setTab]          = useState("overview");
   const [loading,      setLoading]      = useState(true);
   const [repairOrders, setRepairOrders] = useState([]);
@@ -905,14 +919,63 @@ export default function ManagerDashboard({ user }) {
 
   const activeTab = NAV_TABS.find(t=>t.key===tab);
 
+  // PC layout — sidebar trái
+  if (bp === "pc") return (
+    <div style={{ height:"100vh", display:"flex", background:"#f9fafb" }}>
+      {/* Sidebar */}
+      <div style={{ width:220, background:"#fff", borderRight:"1.5px solid #e5e7eb",
+        display:"flex", flexDirection:"column", flexShrink:0 }}>
+        <div style={{ background:"linear-gradient(135deg,#1e1b4b,#4f46e5)", color:"#fff",
+          padding:"20px 16px 16px" }}>
+          <div style={{ fontWeight:900, fontSize:15 }}>📊 Manager</div>
+          <div style={{ fontSize:11, opacity:0.8, marginTop:2 }}>{user.full_name||user.name}</div>
+        </div>
+        <nav style={{ flex:1, padding:"12px 8px", display:"flex", flexDirection:"column", gap:4 }}>
+          {NAV_TABS.map(n => {
+            const active = tab===n.key;
+            return (
+              <button key={n.key} onClick={()=>setTab(n.key)}
+                style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px",
+                  borderRadius:10, border:"none", background:active?"#ede9fe":"none",
+                  color:active?"#4f46e5":"#374151", cursor:"pointer", fontWeight:active?700:500,
+                  fontSize:14, textAlign:"left" }}>
+                <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,lineHeight:1}}>
+                  {n.icon}
+                </span>
+                {n.label}
+              </button>
+            );
+          })}
+        </nav>
+        <div style={{ padding:"12px 8px", borderTop:"1px solid #e5e7eb", fontSize:11, color:"#9ca3af", textAlign:"center" }}>
+          {todayStr()}
+        </div>
+      </div>
+      {/* Content */}
+      <div style={{ flex:1, overflowY:"auto" }}>
+        {loading ? <div style={{textAlign:"center",padding:64,color:"#9ca3af"}}>⏳ Đang tải...</div> : (
+          <>
+            {tab==="overview"     && <OverviewTab repairOrders={repairOrders} saleOrders={saleOrders} spareParts={spareParts} ledgerSummary={ledgerSummary} />}
+            {tab==="revenue"      && <RevenueTab repairOrders={repairOrders} saleOrders={saleOrders} expenses={expenses} />}
+            {tab==="staff_kpi"    && <StaffKpiTab staff={staff} repairOrders={repairOrders} />}
+            {tab==="settings_mgr" && <SettingsMgrTab user={user} staff={staff} repairOrders={repairOrders}
+                customers={customers} spareParts={spareParts} ledgerSummary={ledgerSummary} onStaffUpdate={handleStaffUpdate} />}
+          </>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div style={{ height:"100vh", display:"flex", flexDirection:"column", background:"#f9fafb" }}>
       {/* Header */}
       <div style={{ background:"linear-gradient(135deg,#1e1b4b,#4f46e5)",
-        color:"#fff", padding:"14px 16px 12px", flexShrink:0 }}>
-        <div style={{ fontWeight:900, fontSize:17 }}>📊 Manager Dashboard</div>
-        <div style={{ fontSize:12, opacity:0.8, marginTop:2 }}>
-          {user.full_name||user.name} · {todayStr()}
+        color:"#fff", padding: bp==="pc" ? "16px 32px 14px" : "14px 16px 12px", flexShrink:0 }}>
+        <div style={{ maxWidth:1400, margin:"0 auto" }}>
+          <div style={{ fontWeight:900, fontSize: bp==="mobile"?16:18 }}>📊 Manager Dashboard</div>
+          <div style={{ fontSize:12, opacity:0.8, marginTop:2 }}>
+            {user.full_name||user.name} · {todayStr()}
+          </div>
         </div>
       </div>
 
@@ -943,7 +1006,7 @@ export default function ManagerDashboard({ user }) {
           return (
             <button key={n.key} onClick={()=>setTab(n.key)}
               style={{ flex:1, border:"none", background:"none", cursor:"pointer",
-                padding:"10px 2px 8px", display:"flex", flexDirection:"column",
+                padding: bp==="tablet" ? "12px 4px 10px" : "10px 2px 8px", display:"flex", flexDirection:"column",
                 alignItems:"center", gap:3, position:"relative",
                 color:active?"#4f46e5":"#9ca3af" }}>
               {active && <div style={{ position:"absolute",top:0,left:"50%",transform:"translateX(-50%)",
@@ -952,7 +1015,7 @@ export default function ManagerDashboard({ user }) {
                 style={{ fontFamily:"Material Icons",fontSize:22,lineHeight:1,color:active?"#4f46e5":"#9ca3af" }}>
                 {n.icon}
               </span>
-              <span style={{ fontSize:9,fontWeight:active?800:500 }}>{n.label}</span>
+              <span style={{ fontSize: bp==="tablet"?11:9, fontWeight:active?800:500 }}>{n.label}</span>
             </button>
           );
         })}
