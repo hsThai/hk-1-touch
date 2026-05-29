@@ -1,6 +1,6 @@
 /* v1774860462-5573 */
 import { useState, useEffect } from "react";
-import { Staff, Warehouse, Role, ActionLog, RepairOrder } from "./pb.jsx";
+import { Staff, Warehouse, Role, ActionLog, RepairOrder, Department } from "./pb.jsx";
 import { ROLE_DEFINITIONS } from "./seedRoles.js";
 
 // Fallback tĩnh — dùng khi DB chưa có dữ liệu
@@ -14,7 +14,7 @@ const ROLES_FALLBACK = ROLE_DEFINITIONS.map(r => ({
 
 function simpleHash(str) { return btoa(unescape(encodeURIComponent(str))); }
 
-const EMPTY = { full_name:"", phone:"", username:"", role:"technician", password:"", note:"", is_active:true, warehouse_ids:[] };
+const EMPTY = { full_name:"", phone:"", username:"", role:"technician", password:"", note:"", is_active:true, warehouse_ids:[], department_id:"", is_leader:false };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // StaffKpiTab — KPI nhân viên + Log thao tác
@@ -28,6 +28,8 @@ function StaffKpiTab({ currentUser }) {
   const [selStaff, setSelStaff] = useState("");
 
   useEffect(() => { load(); }, [period]);
+
+  useEffect(() => { Department.list({ sort:"sort_order", limit:50 }).then(d => setDepts(d||[])).catch(()=>{}); }, []);
 
   async function load() {
     setLoading(true);
@@ -165,12 +167,13 @@ export default function StaffManager({ currentStaff }) {
   const [toast, setToast]   = useState("");
   const [warehouses, setWarehouses] = useState([]);
   const [roles, setRoles]           = useState(ROLES_FALLBACK);
+  const [depts, setDepts]           = useState([]);
 
   function roleInfo(roleKey) {
     return roles.find(r => r.value===roleKey) || ROLES_FALLBACK.find(r=>r.value===roleKey) || ROLES_FALLBACK[0];
   }
 
-  useEffect(() => { load(); loadWarehouses(); loadRoles(); }, []);
+  useEffect(() => { load(); loadWarehouses(); loadRoles(); loadDepts(); }, []);
 
   async function loadWarehouses() {
     try {
@@ -197,6 +200,13 @@ export default function StaffManager({ currentStaff }) {
     }
   }
 
+  async function loadDepts() {
+    try {
+      const ds = await Department.list({ sort:"sort_order", limit:50 });
+      setDepts(ds||[]);
+    } catch {}
+  }
+
   async function load() {
     setLoading(true);
     try { const d = await Staff.list(); setList(d); } catch {}
@@ -207,7 +217,7 @@ export default function StaffManager({ currentStaff }) {
   function openEdit(s) {
     let wids = s.warehouse_ids || [];
     if (typeof wids === "string") { try { wids = JSON.parse(wids); } catch { wids = []; } }
-    setForm({ ...s, password:"", warehouse_ids: Array.isArray(wids) ? wids : [] });
+    setForm({ ...s, password:"", warehouse_ids: Array.isArray(wids) ? wids : [], department_id: s.department_id||"" , is_leader: s.is_leader||false });
     setErr("");
     setModal({ mode:"edit", id:s.id });
   }
@@ -235,6 +245,8 @@ export default function StaffManager({ currentStaff }) {
           kpi_score: 100,
           note: form.note,
           warehouse_ids: form.warehouse_ids || [],
+          department_id: form.department_id || "",
+          is_leader: form.is_leader || false,
         });
         showToast("✅ Đã tạo tài khoản " + form.full_name);
       } else {
@@ -246,6 +258,8 @@ export default function StaffManager({ currentStaff }) {
           is_active: form.is_active,
           note: form.note,
           warehouse_ids: form.warehouse_ids || [],
+          department_id: form.department_id || "",
+          is_leader: form.is_leader || false,
         };
         if (form.password) { patch.password_hash = simpleHash(form.password); patch.must_change_password = true; }
         await Staff.update(modal.id, patch);
@@ -400,6 +414,25 @@ export default function StaffManager({ currentStaff }) {
                 style={{ width:"100%", height:44, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:14, outline:"none", boxSizing:"border-box" }} />
               {modal.mode==="add" && <div style={{ fontSize:11, color:"#6b7280", marginTop:4 }}>⚠️ Nhân viên sẽ bị yêu cầu đổi mật khẩu khi đăng nhập lần đầu.</div>}
             </div>
+            {/* ── Phòng ban + Tổ trưởng ── */}
+            <div style={{ marginBottom:16, display:"flex", gap:10, alignItems:"flex-end" }}>
+              <div style={{ flex:1 }}>
+                <label style={{ fontSize:12, fontWeight:700, color:"#374151", display:"block", marginBottom:6 }}>🏢 Phòng ban</label>
+                <select value={form.department_id||""} onChange={e=>setForm(f=>({...f,department_id:e.target.value}))}
+                  style={{ width:"100%", height:40, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 10px", fontSize:14, background:"#fff" }}>
+                  <option value="">-- Chưa xếp phòng --</option>
+                  {depts.map(d=>(
+                    <option key={d.id} value={d.id}>{d.icon||"🏢"} {d.name}</option>
+                  ))}
+                </select>
+              </div>
+              <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", paddingBottom:8, whiteSpace:"nowrap" }}>
+                <input type="checkbox" checked={!!form.is_leader} onChange={e=>setForm(f=>({...f,is_leader:e.target.checked}))}
+                  style={{ width:18, height:18, accentColor:"#f59e0b" }}/>
+                <span style={{ fontSize:13, fontWeight:700, color:"#92400e" }}>🔭 Tổ trưởng</span>
+              </label>
+            </div>
+
             {/* ── Phân quyền kho ── */}
             <div style={{ marginBottom:20, background:"#f8fafc", borderRadius:14, padding:"14px 16px", border:"1.5px solid #e5e7eb" }}>
               <div style={{ fontSize:13, fontWeight:700, color:"#374151", marginBottom:4 }}>🏭 Kho được phép truy cập</div>

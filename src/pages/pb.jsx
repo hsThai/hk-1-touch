@@ -231,6 +231,7 @@ export const Role               = makeCollection("roles");
 export const RolePermission     = makeCollection("role_permissions");
 export const MediaPost          = makeCollection("media_posts");
 export const ActionLog          = makeCollection("action_logs");
+export const Department         = makeCollection("departments");
 export const KpiRecord          = makeCollection("kpi_records");
 
 // ── Helper: ghi log lịch sử đơn ──────────────────────────

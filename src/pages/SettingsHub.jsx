@@ -9,6 +9,7 @@ import { usePermission } from "./PermissionContext.jsx";
 // Lazy load heavy tabs
 const RolePermissionPage = lazy(() => import("./RolePermissionPage.jsx"));
 const SettingsPage       = lazy(() => import("./Settings.jsx"));
+const DepartmentPage     = lazy(() => import("./DepartmentPage.jsx"));
 
 // ── Tích hợp placeholder ────────────────────────────────────
 function IntegrationsTab() {
@@ -74,6 +75,12 @@ function IntegrationsTab() {
 // ── Tabs config ─────────────────────────────────────────────
 const TABS = [
   {
+    key:   "departments",
+    label: "Phòng ban",
+    icon:  "account_tree",
+    adminOnly: true,
+  },
+  {
     key:   "roles",
     label: "Vai trò & Quyền",
     icon:  "admin_panel_settings",
@@ -136,6 +143,7 @@ export default function SettingsHub({ user }) {
       <Suspense fallback={
         <div style={{ padding:40, textAlign:"center", color:"#9ca3af" }}>⏳ Đang tải...</div>
       }>
+        {tab === "departments"  && <DepartmentPage user={user} />}
         {tab === "roles"        && <RolePermissionPage />}
         {tab === "settings"     && <SettingsPage user={user} />}
         {tab === "integrations" && <IntegrationsTab />}
