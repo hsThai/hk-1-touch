@@ -247,6 +247,8 @@ const DebtPage             = lazy(() => import("./DebtPage").catch(() => ({ defa
 const CashJournalPage      = lazy(() => import("./CashJournalPage").catch(() => ({ default: () => (
   <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>Đang tải Sổ quỹ...</div>
 ) })));
+const DepartmentPageLazy     = lazy(() => import("./DepartmentPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Phòng ban</div> })));
+const RolePermissionPageLazy = lazy(() => import("./RolePermissionPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Phân quyền</div> })));
 const RoleHomePlaceholder  = lazy(() => import("./RoleHomePlaceholder").catch(() => ({ default: () => (
   <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang chủ</div>
 ) })));
@@ -256,6 +258,15 @@ const MGR_SUB_ITEMS = [
   { key:"business",  icon:"bar_chart",   label:"Kinh doanh" },
   { key:"staff",     icon:"people",      label:"Nhân viên" },
   { key:"inventory", icon:"inventory_2", label:"Kho & KT" },
+];
+
+const SETUP_SUB_ITEMS = [
+  { key:"staff",      icon:"badge",                  label:"Nhân viên" },
+  { key:"customers",  icon:"group",                  label:"Khách hàng" },
+  { key:"suppliers",  icon:"storefront",              label:"Nhà cung cấp" },
+  { key:"debts",      icon:"account_balance_wallet",  label:"Công nợ" },
+  { key:"department", icon:"account_tree",            label:"Phòng ban" },
+  { key:"role_perm",  icon:"admin_panel_settings",    label:"Vai trò & Quyền" },
 ];
 
 function MainAppContent({ onUserChange }) {
@@ -348,6 +359,7 @@ function MainAppContent({ onUserChange }) {
   const [page, setPage] = useState("board");
   const [mgrAccordionOpen, setMgrAccordionOpen] = useState(false);
   const [mgrTab, setMgrTab] = useState("overview");
+  const [setupOpen, setSetupOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [dashboardFilter, setDashboardFilter] = useState(null); // "active"|"done"|"needs_reassign"|null
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -365,8 +377,17 @@ function MainAppContent({ onUserChange }) {
 
   // ── Auto mở/đóng accordion theo page ──────────────────────
   useEffect(() => {
-    if (page === "dashboard") setMgrAccordionOpen(true);
-    else setMgrAccordionOpen(false);
+    const SETUP_PAGES = ["staff","customers","suppliers","debts","department","role_perm"];
+    if (page === "dashboard") {
+      setMgrAccordionOpen(true);
+      setSetupOpen(false);
+    } else if (SETUP_PAGES.includes(page)) {
+      setSetupOpen(true);
+      setMgrAccordionOpen(false);
+    } else {
+      setMgrAccordionOpen(false);
+      setSetupOpen(false);
+    }
   }, [page]);
 
   // ── Global: chặn chọn chữ toàn app ──────────────────────
@@ -1226,11 +1247,11 @@ function MainAppContent({ onUserChange }) {
     if (can("sale_order","view"))
       items.push({ key:"cashier_home", icon:"point_of_sale", label:"Bán hàng" });
 
-    // ── 6. KHÁCH HÀNG — receptionist, cashier, marketing, manager ──
-    if (can("customer","view") && !isKtv)
+    // ── 6. KHÁCH HÀNG — receptionist, cashier, marketing (không phải manager)
+    if (can("customer","view") && !isKtv && !isManager)
       items.push({ key:"customers",    icon:"group",       label:"Khách hàng" });
 
-    // ── 6b. NHÀ CUNG CẤP + CÔNG NỢ — chỉ cashier/accountant (manager dùng tab Kinh doanh)
+    // ── 6b. NHÀ CUNG CẤP + CÔNG NỢ — chỉ cashier/accountant (manager dùng accordion Thiết Lập)
     if (can("supplier","view") && !isManager)
       items.push({ key:"suppliers",    icon:"storefront",             label:"Nhà cung cấp" });
     if (can("debt","view") && !isManager)
@@ -1242,7 +1263,7 @@ function MainAppContent({ onUserChange }) {
     if (can("stock_count","view") && !isManager && !isRoleHome)
       items.push({ key:"stock_count",  icon:"fact_check",  label:"Kiểm kho" });
 
-    // ── 8. NHÂN VIÊN — admin/owner/manager/hr (manager dùng tab Nhân viên trong Dashboard)
+    // ── 8. NHÂN VIÊN — chỉ non-manager (manager dùng accordion Thiết Lập)
     if (can("staff","view") && !isManager)
       items.push({ key:"staff",        icon:"person",      label:"Nhân viên" });
 
@@ -1303,6 +1324,76 @@ function MainAppContent({ onUserChange }) {
                   onClick={() => {
                     setPage("dashboard");
                     setMgrTab(sub.key);
+                    setSidebarOpen(false);
+                    setDashboardFilter(null);
+                  }}
+                  style={{
+                    width:"100%", textAlign:"left",
+                    padding:"9px 12px", borderRadius:10, border:"none",
+                    background: isActive ? "#ede9fe" : "transparent",
+                    color:      isActive ? "#4f46e5" : "#6b7280",
+                    fontWeight: isActive ? 700 : 400,
+                    fontSize:13, cursor:"pointer",
+                    display:"flex", alignItems:"center", gap:8, marginBottom:2,
+                  }}>
+                  <div style={{
+                    width:2, height:14, borderRadius:2, flexShrink:0,
+                    background: isActive ? "#4f46e5" : "#e5e7eb",
+                  }} />
+                  <span className="material-icons"
+                    style={{fontSize:15,fontFamily:"Material Icons",lineHeight:1}}>
+                    {sub.icon}
+                  </span>
+                  {sub.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── Accordion Thiết Lập ─────────────────────────────────
+  function renderSetupAccordion() {
+    const SETUP_PAGES = ["staff","customers","suppliers","debts","department","role_perm"];
+    const isSetupActive = SETUP_PAGES.includes(page);
+    return (
+      <div style={{ marginBottom:2 }}>
+        <button
+          onClick={() => setSetupOpen(v => !v)}
+          style={{
+            width:"100%", textAlign:"left", padding:"14px 16px", borderRadius:12,
+            border:"none",
+            background: isSetupActive ? "#eef2ff" : "transparent",
+            color:      isSetupActive ? "#4f46e5" : "#374151",
+            fontWeight: isSetupActive ? 800 : 500,
+            fontSize:15, cursor:"pointer",
+            display:"flex", alignItems:"center", gap:10,
+          }}>
+          <span className="material-icons"
+            style={{fontSize:20,fontFamily:"Material Icons",verticalAlign:"middle",lineHeight:1}}>
+            manage_accounts
+          </span>
+          <span style={{ flex:1 }}>Thiết Lập</span>
+          <span className="material-icons"
+            style={{
+              fontSize:18, fontFamily:"Material Icons", lineHeight:1,
+              transition:"transform .2s",
+              transform: setupOpen ? "rotate(180deg)" : "rotate(0deg)",
+              color:"#9ca3af",
+            }}>
+            expand_more
+          </span>
+        </button>
+        {setupOpen && (
+          <div style={{ paddingLeft:14, marginTop:2, marginBottom:4 }}>
+            {SETUP_SUB_ITEMS.map(sub => {
+              const isActive = page === sub.key;
+              return (
+                <button key={sub.key}
+                  onClick={() => {
+                    setPage(sub.key);
                     setSidebarOpen(false);
                     setDashboardFilter(null);
                   }}
@@ -1726,6 +1817,45 @@ function MainAppContent({ onUserChange }) {
                 )}
               </div>
             )}
+            {/* Accordion Thiết Lập PC */}
+            {isManager && (
+              <div style={{ marginBottom:2 }}>
+                <button
+                  onClick={() => setSetupOpen(v => !v)}
+                  style={{ width:"100%", display:"flex", alignItems:"center", gap:10, padding:"10px 14px",
+                    borderRadius:10, border:"none", textAlign:"left", cursor:"pointer",
+                    background: ["staff","customers","suppliers","debts","department","role_perm"].includes(page) ? "rgba(255,255,255,.2)" : "transparent",
+                    color: ["staff","customers","suppliers","debts","department","role_perm"].includes(page) ? "#fff" : "rgba(255,255,255,.7)",
+                    fontWeight: ["staff","customers","suppliers","debts","department","role_perm"].includes(page) ? 700 : 400, fontSize:14 }}>
+                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,lineHeight:1}}>manage_accounts</span>
+                  <span style={{ flex:1 }}>Thiết Lập</span>
+                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,lineHeight:1,
+                    transition:"transform .2s", transform:setupOpen?"rotate(180deg)":"rotate(0deg)",
+                    color:"rgba(255,255,255,.4)"}}>expand_more</span>
+                </button>
+                {setupOpen && (
+                  <div style={{ paddingLeft:12, marginTop:2 }}>
+                    {SETUP_SUB_ITEMS.map(sub => {
+                      const isActive = page === sub.key;
+                      return (
+                        <button key={sub.key}
+                          onClick={() => { setPage(sub.key); setDashboardFilter(null); }}
+                          style={{ width:"100%", display:"flex", alignItems:"center", gap:8, padding:"8px 10px",
+                            borderRadius:8, border:"none", textAlign:"left", cursor:"pointer", marginBottom:2,
+                            background: isActive ? "rgba(255,255,255,.15)" : "transparent",
+                            color: isActive ? "#fff" : "rgba(255,255,255,.55)",
+                            fontWeight: isActive ? 700 : 400, fontSize:13 }}>
+                          <div style={{ width:2, height:12, borderRadius:2, flexShrink:0,
+                            background: isActive ? "#a5b4fc" : "rgba(255,255,255,.2)" }} />
+                          <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:14,lineHeight:1}}>{sub.icon}</span>
+                          {sub.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
             {navItems.map(item => {
               const active = page === item.key;
               return (
@@ -1733,6 +1863,7 @@ function MainAppContent({ onUserChange }) {
                   onClick={() => {
                     setPage(item.key);
                     setMgrAccordionOpen(false);
+                    setSetupOpen(false);
                     if(["board","tasks","ktv_home","rec_home"].includes(item.key)) setDashboardFilter(null);
                   }}
                   style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px",
@@ -1794,6 +1925,8 @@ function MainAppContent({ onUserChange }) {
               {page==="cashier_home" && <CashierApp user={user} />}
               {page==="suppliers" && user && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><SupplierPage user={user} /></Suspense>}
               {page==="debts" && user && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><DebtPage user={user} /></Suspense>}
+              {page==="department" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><DepartmentPageLazy user={user} /></Suspense>}
+              {page==="role_perm" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><RolePermissionPageLazy /></Suspense>}
               {page==="cash_journal" && user && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><CashJournalPage user={user} /></Suspense>}
               {page==="stock_count" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><StockCountPage user={user} /></Suspense>}
               {page==="role_home" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><RoleHomePlaceholder user={user} setPage={setPage} orders={orders} /></Suspense>}
@@ -1830,10 +1963,13 @@ function MainAppContent({ onUserChange }) {
             <div style={{ flex:1, overflowY:"auto", padding:8 }}>
               {/* Accordion Tổng quan — chỉ với isManager */}
               {isManager && renderMgrAccordion()}
+              {/* Accordion Thiết Lập — chỉ với isManager */}
+              {isManager && renderSetupAccordion()}
               {navItems.map(n => (
                 <button key={n.key} onClick={() => {
                     setPage(n.key); setSidebarOpen(false);
                     setMgrAccordionOpen(false);
+                    setSetupOpen(false);
                     if(["board","tasks","ktv_home","rec_home"].includes(n.key)) setDashboardFilter(null);
                   }}
                   style={{ width:"100%", textAlign:"left", padding:"14px 16px", borderRadius:12, border:"none",
@@ -2037,6 +2173,16 @@ function MainAppContent({ onUserChange }) {
         {page==="debts" && user && (
           <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
             <DebtPage user={user} />
+          </Suspense>
+        )}
+        {page==="department" && (
+          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
+            <DepartmentPageLazy user={user} />
+          </Suspense>
+        )}
+        {page==="role_perm" && (
+          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
+            <RolePermissionPageLazy />
           </Suspense>
         )}
         {page==="cash_journal" && user && (

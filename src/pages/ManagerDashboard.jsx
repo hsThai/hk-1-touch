@@ -916,17 +916,15 @@ function StaffListSubTab({ staff: staffList, onStaffUpdate }) {
   );
 }
 
-function StaffTab({ staff, repairOrders, onStaffUpdate }) {
-  const [sub, setSub] = useState("kpi");
-  const SUB_TABS = [
-    { key:"kpi",  label:"🏆 KPI" },
-    { key:"list", label:"👥 Danh sách" },
-  ];
+function StaffTab({ staff, repairOrders }) {
+  // Chỉ hiển thị KPI — quản lý nhân viên đã chuyển sang menu Thiết Lập
   return (
     <div style={{ padding:"16px 14px 40px" }}>
-      <PillTabs tabs={SUB_TABS} active={sub} onChange={setSub} />
-      {sub==="kpi"  && <StaffKpiTab staff={staff} repairOrders={repairOrders} />}
-      {sub==="list" && <StaffListSubTab staff={staff} onStaffUpdate={onStaffUpdate} />}
+      <div style={{ background:"#fff3cd", border:"1px solid #ffc107", borderRadius:10,
+        padding:"10px 14px", marginBottom:16, fontSize:13, color:"#856404" }}>
+        💡 Để tạo/sửa nhân viên → vào <strong>Thiết Lập → Nhân viên</strong> trong sidebar
+      </div>
+      <StaffKpiTab staff={staff} repairOrders={repairOrders} />
     </div>
   );
 }
@@ -1206,9 +1204,9 @@ export default function ManagerDashboard({ user, initialTab = "overview", onTabC
     switch(tab) {
       case "overview":  return <OverviewTab repairOrders={repairOrders} saleOrders={saleOrders} spareParts={spareParts} ledgerSummary={ledgerSummary} />;
       case "business":  return <BusinessTab repairOrders={repairOrders} saleOrders={saleOrders} expenses={expenses} />;
-      case "staff":     return <StaffTab staff={staff} repairOrders={repairOrders} onStaffUpdate={handleStaffUpdate} />;
+      case "staff":     return <StaffTab staff={staff} repairOrders={repairOrders} />;
       case "inventory": return <InventoryWrapTab spareParts={spareParts} stockImports={stockImports} ledgerSummary={ledgerSummary} sparePartUsages={sparePartUsages} onApproveUsage={handleApproveUsage} />;
-      case "settings":  return <SettingsLiteTab user={user} repairOrders={repairOrders} customers={customers} spareParts={spareParts} ledgerSummary={ledgerSummary} onRefresh={loadData} />;
+      // settings tab removed
       default: return null;
     }
   };
