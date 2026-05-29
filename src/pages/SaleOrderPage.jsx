@@ -1,6 +1,6 @@
 /* SaleOrderPage.jsx — POS bán hàng lẻ */
 import React, { useState, useEffect, useRef } from "react";
-import { SparePart, SaleOrder, SaleOrderItem, StockMovement, AppSettings, Customer } from "./pb.jsx";
+import { SparePart, SaleOrder, SaleOrderItem, StockMovement, AppSettings, Customer , DebtVoucher, CashJournal } from "./pb.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 function padZ(n) { return String(n).padStart(4,"0"); }
@@ -25,8 +25,8 @@ function fmtDateTime(dateStr) {
   return String(d.getDate()).padStart(2,"0") + "/" + String(d.getMonth()+1).padStart(2,"0") + "/" + d.getFullYear() + " " + fmtTime(dateStr);
 }
 
-const PM_LABELS = { cash:"Tiền mặt", transfer:"Chuyển khoản", combo:"Kết hợp" };
-const PM_COLORS = { cash:"#059669", transfer:"#2563eb", combo:"#7c3aed" };
+const PM_LABELS = { cash:"Tiền mặt", transfer:"Chuyển khoản", combo:"Kết hợp", credit:"Bán chịu" };
+const PM_COLORS = { cash:"#059669", transfer:"#2563eb", combo:"#7c3aed", credit:"#dc2626" };
 
 const RECEIPT_STYLE = `
 @media print {
@@ -171,6 +171,30 @@ export default function SaleOrderPage({ user }) {
           });
         } catch {}
       }));
+      // KT-2: auto ghi debt_voucher / cash_journal
+      try {
+        if (payMethod === "credit") {
+          await DebtVoucher.create({
+            voucher_code:  "PT-BL-" + String(Date.now()).slice(-6),
+            voucher_type:  "receivable", party_type: "customer",
+            party_id:      custPhone || "",
+            party_name:    custName  || "Khách lẻ",
+            origin_type:   "sale_order", origin_id: so.id, origin_code: orderCode,
+            total_amount:  total, paid_amount: 0, remaining: total, status: "open",
+            created_by_id: user.id, created_by_name: user.full_name || user.name || "",
+          });
+        }
+        if (payMethod === "cash") {
+          await CashJournal.create({
+            journal_date:    new Date().toISOString().slice(0,10),
+            entry_type:      "receipt", amount: total,
+            ref_type:        "sale_order", ref_id: so.id, ref_code: orderCode,
+            description:     "Bán lẻ: " + (custName || "Khách lẻ"),
+            payment_method:  "cash",
+            created_by_id:   user.id, created_by_name: user.full_name || user.name || "",
+          });
+        }
+      } catch(e) { console.error("KT-2 sale debt/cash:", e); }
       setLastOrder({...so, order_code:orderCode, items, subtotal, discount:discount||0, total,
         payment_method:payMethod, customer_name:custName, customer_phone:custPhone});
       setCart([]); setCustName(""); setCustPhone(""); setDiscount(0); setPayMethod(""); setCashAmt(0); setTransferAmt(0);
@@ -348,7 +372,7 @@ export default function SaleOrderPage({ user }) {
       <div style={{ marginBottom:16 }}>
         <label style={{ fontSize:12, fontWeight:700, color:"#374151", display:"block", marginBottom:8 }}>Hình thức thanh toán</label>
         <div style={{ display:"flex", gap:8 }}>
-          {["cash","transfer","combo"].map(pm => (
+          {["cash","transfer","combo","credit"].map(pm => (
             <button key={pm} onClick={()=>setPayMethod(pm)}
               style={{ flex:1, height:44, borderRadius:12,
                 border:"2px solid " + (payMethod===pm ? PM_COLORS[pm] : "#e5e7eb"),

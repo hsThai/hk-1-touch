@@ -13,7 +13,7 @@ const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ defa
     </div>
   </div>
 )})));
-import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage, StockExportRequest, ActionLog, subscribeCollection, getPbUrl, getAuth, logHistory, pbSettings } from "./pb.jsx";
+import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage, StockExportRequest, ActionLog, subscribeCollection, getPbUrl, getAuth, logHistory, pbSettings, DebtVoucher, DebtPayment, CashJournal } from "./pb.jsx";
 import { getNotifSound } from "./Settings";
 import { uploadFile } from "./pb.jsx";
 
@@ -69,6 +69,87 @@ async function logAction(user, action, target_type, target_id="", detail="") {
   } catch(e) { console.warn("logAction:", e.message); }
 }
 
+
+
+// ── Auto ghi công nợ + sổ quỹ khi thu tiền đơn sửa ────────────────────────
+async function autoCreateOrUpdateDebt(order, finalCost, deposit, payMethod, currentUser) {
+  try {
+    const existing = await DebtVoucher.filter({ origin_id: order.id });
+    const totalAmt   = finalCost || order.final_cost || 0;
+    const depositAmt = deposit   || order.deposit    || 0;
+    const remaining  = Math.max(0, totalAmt - depositAmt);
+    const pmKey      = payMethod === "Tiền mặt" ? "cash" : "transfer";
+
+    if (existing && existing.length > 0) {
+      const v = existing[0];
+      await DebtVoucher.update(v.id, {
+        total_amount: totalAmt, paid_amount: totalAmt, remaining: 0, status: "paid",
+      });
+      if (remaining > 0) {
+        await DebtPayment.create({
+          voucher_id: v.id, voucher_code: v.voucher_code,
+          party_name: order.customer_name, amount: remaining,
+          payment_method: pmKey, paid_at: new Date().toISOString(),
+          note: "Thu lần cuối khi giao máy",
+          created_by_id: currentUser.id, created_by_name: currentUser.full_name || currentUser.name || "",
+        });
+      }
+    } else {
+      const voucherCode = "PT-" + String(Date.now()).slice(-6);
+      const v = await DebtVoucher.create({
+        voucher_code: voucherCode, voucher_type: "receivable",
+        party_type: "customer", party_id: order.customer_phone || "",
+        party_name: order.customer_name || "",
+        origin_type: "repair_order", origin_id: order.id,
+        origin_code: order.order_code || order.id,
+        total_amount: totalAmt, paid_amount: totalAmt, remaining: 0, status: "paid",
+        created_by_id: currentUser.id, created_by_name: currentUser.full_name || currentUser.name || "",
+      });
+      if (depositAmt > 0) {
+        await DebtPayment.create({
+          voucher_id: v.id, voucher_code: voucherCode,
+          party_name: order.customer_name, amount: depositAmt,
+          payment_method: "cash",
+          paid_at: order.received_date || new Date().toISOString(),
+          note: "Đặt cọc khi tiếp nhận",
+          created_by_id: currentUser.id, created_by_name: currentUser.full_name || currentUser.name || "",
+        });
+      }
+      if (remaining > 0) {
+        await DebtPayment.create({
+          voucher_id: v.id, voucher_code: voucherCode,
+          party_name: order.customer_name, amount: remaining,
+          payment_method: pmKey, paid_at: new Date().toISOString(),
+          note: "Thu lần cuối khi giao máy",
+          created_by_id: currentUser.id, created_by_name: currentUser.full_name || currentUser.name || "",
+        });
+      }
+    }
+
+    if (pmKey === "cash" && remaining > 0) {
+      await CashJournal.create({
+        journal_date:    new Date().toISOString().slice(0, 10),
+        entry_type:      "receipt",
+        amount:          remaining,
+        ref_type:        "repair_order",
+        ref_id:          order.id,
+        ref_code:        order.order_code || order.id,
+        description:     "Thu tiền sửa: " + (order.customer_name || "") + " - " + (order.device_model || ""),
+        payment_method:  "cash",
+        created_by_id:   currentUser.id,
+        created_by_name: currentUser.full_name || currentUser.name || "",
+      });
+    }
+
+    await RepairOrder.update(order.id, {
+      payment_status: "paid",
+      paid_at:        new Date().toISOString(),
+      paid_final:     remaining,
+    });
+  } catch(e) {
+    console.error("autoCreateOrUpdateDebt error:", e);
+  }
+}
 
 function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, onGoToPendingAccept }) {
   const [chatInput, setChatInput] = useState("");
@@ -1633,6 +1714,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 final_cost: handoverData.final_cost,
               }, null);
               updateCustomerStats({ ...order, final_cost: handoverData.final_cost, status:"Đã Giao" });
+              autoCreateOrUpdateDebt(order, handoverData.final_cost, order.deposit, handoverData.payment_method || "Tiền mặt", currentUser);
               logHistory({
                 order_id: order._id||order.id,
                 order_code: order.order_code||order.id,

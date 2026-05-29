@@ -1,7 +1,7 @@
 /* REBUILD_20260406_1408 */
 /* v4-loginv2-real-db */
 import React, { lazy, Suspense, useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
-import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, StockExportRequest, StockImport, StockImportItem, StockLedger, ActionLog, getPbUrl, getAuth, logHistory } from "./pb.jsx";
+import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, StockExportRequest, StockImport, StockImportItem, StockLedger, ActionLog, getPbUrl, getAuth, logHistory, DebtVoucher, CashJournal } from "./pb.jsx";
 import { uploadFile } from "./pb.jsx";
 import { getNotifSound } from "./Settings";
 const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ default: ({ onClose }) => (
@@ -2464,6 +2464,8 @@ function WarehouseImport({ user }) {
   const [importType, setImportType]       = React.useState("spare_part");
   const [supplier, setSupplier]           = React.useState("");
   const [supplierPhone, setSupplierPhone] = React.useState("");
+  const [impPaidAmt,  setImpPaidAmt]      = React.useState(0);
+  const [impPayMethod,setImpPayMethod]    = React.useState("cash");
   const [note, setNote]                   = React.useState("");
   const [items, setItems]                 = React.useState([]);
   const [saving, setSaving]               = React.useState(false);
@@ -2623,10 +2625,37 @@ function WarehouseImport({ user }) {
           } catch {}
         }
       }
+      // KT-2: ghi debt_voucher + cash_journal nếu có nợ NCC
+      const __totalVal = items.reduce((s,i)=>s+(i.qty*(i.unit_price||0)),0);
+      try {
+        if (impPaidAmt > 0 && impPayMethod === "cash") {
+          await CashJournal.create({
+            journal_date:    new Date().toISOString().slice(0,10),
+            entry_type:      "payment", amount: impPaidAmt,
+            ref_type:        "stock_import", ref_id: imp.id, ref_code: code,
+            description:     "Nhập hàng: " + (supplier || "NCC"),
+            payment_method:  "cash",
+            created_by_id:   user.id, created_by_name: user.name || "",
+          });
+        }
+        const __remaining = Math.max(0, __totalVal - impPaidAmt);
+        if (__remaining > 0) {
+          await DebtVoucher.create({
+            voucher_code:  "PP-" + String(Date.now()).slice(-6),
+            voucher_type:  "payable", party_type: "supplier",
+            party_name:    supplier || "Nhà cung cấp",
+            origin_type:   "stock_import", origin_id: imp.id, origin_code: code,
+            total_amount:  __totalVal, paid_amount: impPaidAmt,
+            remaining:     __remaining,
+            status:        impPaidAmt > 0 ? "partial" : "open",
+            created_by_id: user.id, created_by_name: user.name || "",
+          });
+        }
+      } catch(e) { console.error("KT-2 debt/cash error:", e); }
       showToast("✅ Đã tạo phiếu nhập "+code);
       setShowForm(false); setItems([]);
       setSupplier(""); setSupplierPhone(""); setNote("");
-      setImportType("spare_part");
+      setImportType("spare_part"); setImpPaidAmt(0); setImpPayMethod("cash");
       loadImports();
     } catch(e){ showToast("Lỗi: "+e.message); }
     setSaving(false);
@@ -2742,6 +2771,22 @@ function WarehouseImport({ user }) {
                 <div style={{ fontSize:13, fontWeight:700, marginBottom:6 }}>Số điện thoại</div>
                 <input value={supplierPhone} onChange={e=>setSupplierPhone(e.target.value)} placeholder="SĐT nhà cung cấp..."
                   style={{ width:"100%", height:42, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:14 }}>
+                <div>
+                  <div style={{ fontSize:13, fontWeight:700, marginBottom:6 }}>💵 Đã trả ngay (đ)</div>
+                  <input type="number" min={0} value={impPaidAmt} onChange={e=>setImpPaidAmt(Number(e.target.value)||0)}
+                    placeholder="0"
+                    style={{ width:"100%", height:42, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+                </div>
+                <div>
+                  <div style={{ fontSize:13, fontWeight:700, marginBottom:6 }}>Hình thức</div>
+                  <select value={impPayMethod} onChange={e=>setImpPayMethod(e.target.value)}
+                    style={{ width:"100%", height:42, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:14, outline:"none", boxSizing:"border-box", background:"#fff" }}>
+                    <option value="cash">💵 Tiền mặt</option>
+                    <option value="transfer">🏦 Chuyển khoản</option>
+                  </select>
+                </div>
               </div>
 
               {/* Danh sách mặt hàng */}
