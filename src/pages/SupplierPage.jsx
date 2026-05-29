@@ -39,21 +39,24 @@ function SupplierModal({ init, onSave, onClose }) {
     setSaving(false);
   }
 
-  const F = ({ label, field, type="text", placeholder="" }) => (
-    <div style={{ marginBottom:12 }}>
-      <label style={{ fontSize:12, fontWeight:700, color:"#374151", display:"block", marginBottom:4 }}>{label}</label>
-      <input type={type} value={form[field]||""} onChange={e => set(field, e.target.value)}
-        placeholder={placeholder} style={INP} />
-    </div>
-  );
+  // KHÔNG dùng inline component F — gây mất focus mỗi lần gõ
+  function field(label, key, type="text", placeholder="") {
+    return (
+      <div style={{ marginBottom:12 }}>
+        <label style={{ fontSize:12, fontWeight:700, color:"#374151", display:"block", marginBottom:4 }}>{label}</label>
+        <input type={type} value={form[key]||""} onChange={e => set(key, e.target.value)}
+          placeholder={placeholder} style={INP} />
+      </div>
+    );
+  }
 
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.45)", zIndex:9999, display:"flex", alignItems:"flex-end", justifyContent:"center" }} onClick={onClose}>
       <div style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:"24px 16px 40px", width:"100%", maxWidth:540, maxHeight:"92vh", overflowY:"auto" }} onClick={e=>e.stopPropagation()}>
         <div style={{ fontWeight:800, fontSize:16, marginBottom:18 }}>{init ? "✏️ Sửa nhà cung cấp" : "➕ Thêm nhà cung cấp"}</div>
 
-        <F label="Tên nhà cung cấp *" field="name" placeholder="Công ty ABC..." />
-        <F label="Mã NCC" field="code" placeholder="NCC-001" />
+        {field("Tên nhà cung cấp *", "name", "text", "Công ty ABC...")}
+        {field("Mã NCC", "code", "text", "NCC-001")}
 
         <div style={{ marginBottom:12 }}>
           <label style={{ fontSize:12, fontWeight:700, color:"#374151", display:"block", marginBottom:4 }}>Loại</label>
@@ -63,14 +66,14 @@ function SupplierModal({ init, onSave, onClose }) {
         </div>
 
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-          <F label="SĐT" field="phone" type="tel" placeholder="0901234567" />
-          <F label="Email" field="email" type="email" placeholder="..." />
+          {field("SĐT", "phone", "tel", "0901234567")}
+          {field("Email", "email", "email", "...")}
         </div>
-        <F label="Người liên hệ" field="contact_name" placeholder="Nguyễn Văn A" />
-        <F label="Địa chỉ" field="address" placeholder="123 đường..." />
-        <F label="Số tài khoản" field="bank_account" placeholder="0123456789" />
-        <F label="Ngân hàng" field="bank_name" placeholder="VCB, TCB..." />
-        <F label="Ghi chú" field="note" />
+        {field("Người liên hệ", "contact_name", "text", "Nguyễn Văn A")}
+        {field("Địa chỉ", "address", "text", "123 đường...")}
+        {field("Số tài khoản", "bank_account", "text", "0123456789")}
+        {field("Ngân hàng", "bank_name", "text", "VCB, TCB...")}
+        {field("Ghi chú", "note")}
 
         <label style={{ display:"flex", alignItems:"center", gap:8, marginBottom:16, cursor:"pointer" }}>
           <input type="checkbox" checked={!!form.is_active} onChange={e => set("is_active", e.target.checked)}
