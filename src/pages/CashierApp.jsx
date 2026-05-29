@@ -1,6 +1,6 @@
 /* CashierApp.jsx — App 3: Kế toán & Bán hàng lẻ */
 import React, { useState, useEffect } from "react";
-import { RepairOrder, SaleOrder, SaleOrderItem, Expense } from "./pb.jsx";
+import { RepairOrder, SaleOrder, SaleOrderItem, Expense , CashJournal } from "./pb.jsx";
 
 const ALLOWED_ROLES = ["accountant", "cashier", "manager", "admin"];
 const DONE_STATUS   = ["Hoàn Thành", "Đã Giao", "Đã Thanh Toán"];
@@ -94,15 +94,19 @@ function ShiftReconcile({ user }) {
       const end   = new Date(date); end.setHours(23,59,59,999);
       const inDay = d => d && new Date(d) >= start && new Date(d) <= end;
 
-      const [repairs, sales, exps] = await Promise.all([
+      const [repairs, sales, exps, journals] = await Promise.all([
         RepairOrder.list({ limit:500 }),
         SaleOrder.list({ limit:500 }),
         Expense.list({ limit:200 }),
+        CashJournal.list({ limit:500 }),
       ]);
+      const dayJournals = (journals||[]).filter(j => (j.journal_date||"").startsWith(date));
+      const cashIn  = dayJournals.filter(j=>j.entry_type==="receipt" &&j.payment_method==="cash").reduce((s,j)=>s+(j.amount||0),0);
+      const cashOut = dayJournals.filter(j=>j.entry_type==="payment" &&j.payment_method==="cash").reduce((s,j)=>s+(j.amount||0),0);
 
       const doneRepairs = (repairs||[]).filter(o =>
         ["Đã Thanh Toán","Hoàn Thành","Đã Giao"].includes(o.status) &&
-        inDay(o.done_date || o.updated_date || o.updated));
+        inDay(o.paid_at || o.done_date || o.updated_date || o.updated));
       const paidSales   = (sales||[]).filter(o => o.status==="paid" && inDay(o.created||o.created_date));
       const dayExp      = (exps||[]).filter(e => inDay(e.expense_date||e.created_date||e.created));
 
@@ -120,6 +124,7 @@ function ShiftReconcile({ user }) {
         totalCash: repairCash+saleCash, totalBank: repairBank+saleBank,
         repairCash, repairBank, saleCash, saleBank,
         deposits: doneRepairs.reduce((s,o)=>s+(o.deposit||0),0),
+        cashIn, cashOut, cashNet: cashIn-cashOut,
       });
     } catch(e){ alert("Lỗi: "+e.message); }
     setLoading(false);
@@ -143,6 +148,8 @@ function ShiftReconcile({ user }) {
       ...(data.paidSales.map(o=>[o.order_code||o.id,o.note||"",o.total||0,o.payment_method||"TM"])),
       [], ["CHI PHÍ"], ["Loại","Mô tả","Số tiền"],
       ...(data.dayExp.map(e=>[e.category||"Khác",e.description||"",e.amount||0])),
+      [], ["SỔ QUỸ TIỀN MẶT CA"],
+      ["Thu TM",data.cashIn,"Chi TM",data.cashOut,"Chênh lệch",data.cashNet],
     ];
     const blob = new Blob([BOM+rows.map(r=>r.join(",")).join("\n")],{type:"text/csv;charset=utf-8"});
     const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
@@ -192,6 +199,22 @@ function ShiftReconcile({ user }) {
             <span>Tổng tiền mặt thực nhận</span><span>{fmt(data.totalCash)}</span>
           </div>
           {data.deposits>0 && <div style={{fontSize:12,color:"#9ca3af"}}>* Bao gồm cọc: {fmt(data.deposits)}</div>}
+        </div>
+        <div style={{background:"#fff",borderRadius:12,padding:14,marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,.06)"}}>
+          <div style={{fontWeight:700,fontSize:14,marginBottom:10}}>💰 Tồn quỹ ca này (tiền mặt)</div>
+          {[
+            {label:"Thu tiền mặt",  v:data.cashIn,  color:"#059669"},
+            {label:"Chi tiền mặt",  v:data.cashOut, color:"#dc2626"},
+          ].map(r=>(
+            <div key={r.label} style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"5px 0",borderBottom:"1px solid #f3f4f6"}}>
+              <span style={{color:"#6b7280"}}>{r.label}</span>
+              <span style={{fontWeight:700,color:r.color}}>{fmt(r.v)}</span>
+            </div>
+          ))}
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:14,padding:"8px 0 0",fontWeight:800,color:data.cashNet>=0?"#059669":"#dc2626"}}>
+            <span>Chênh lệch</span>
+            <span>{data.cashNet>=0?"+":""}{fmt(data.cashNet)}</span>
+          </div>
         </div>
         <div style={{background:"#fff",borderRadius:12,padding:14,boxShadow:"0 1px 4px rgba(0,0,0,.06)"}}>
           <div style={{fontWeight:700,fontSize:14,marginBottom:8}}>🔧 Đơn sửa hoàn thành ({data.doneRepairs.length})</div>

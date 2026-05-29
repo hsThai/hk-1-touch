@@ -1,6 +1,6 @@
 /* RevenueReportPage.jsx — Báo cáo doanh thu */
 import React, { useState, useEffect, useMemo } from "react";
-import { RepairOrder, SaleOrder, Expense, StockImport, StockExportRequest } from "./pb.jsx";
+import { RepairOrder, SaleOrder, Expense, StockImport, StockExportRequest, CashJournal } from "./pb.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 function fmtDate(dateStr) {
@@ -134,6 +134,212 @@ function TabDebt({ orders }) {
           ))}
         </div>
       ))}
+    </div>
+  );
+}
+
+// ── Tab Sổ quỹ ───────────────────────────────────────────
+function CashJournalTab() {
+  const [month,    setMonth]   = useState(new Date().toISOString().slice(0,7));
+  const [journals, setJournals]= useState([]);
+  const [loading,  setLoading] = useState(true);
+  const [filter,   setFilter]  = useState("all"); // all | receipt | payment
+
+  useEffect(() => {
+    setLoading(true);
+    CashJournal.list({ limit:500, sort:"-journal_date" })
+      .then(d => setJournals(d||[]))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const monthData = journals.filter(j => (j.journal_date||"").startsWith(month));
+  const totalIn   = monthData.filter(j=>j.entry_type==="receipt").reduce((s,j)=>s+(j.amount||0),0);
+  const totalOut  = monthData.filter(j=>j.entry_type==="payment").reduce((s,j)=>s+(j.amount||0),0);
+  const net       = totalIn - totalOut;
+  const display   = filter==="all" ? monthData : monthData.filter(j=>j.entry_type===filter);
+
+  return (
+    <div style={{ padding:16 }}>
+      {/* Filter */}
+      <div style={{ display:"flex", gap:8, marginBottom:14, flexWrap:"wrap", alignItems:"center" }}>
+        <input type="month" value={month} onChange={e=>setMonth(e.target.value)}
+          style={{ border:"1.5px solid #e5e7eb", borderRadius:8, padding:"6px 10px", fontSize:13 }}/>
+        {[["all","Tất cả"],["receipt","🟢 Thu"],["payment","🔴 Chi"]].map(([k,l])=>(
+          <button key={k} onClick={()=>setFilter(k)}
+            style={{ padding:"5px 12px", borderRadius:99, border:"1.5px solid", fontSize:12, fontWeight:700, cursor:"pointer",
+              borderColor:filter===k?"#4f46e5":"#e5e7eb", background:filter===k?"#eef2ff":"#fff", color:filter===k?"#4f46e5":"#6b7280" }}>
+            {l}
+          </button>
+        ))}
+      </div>
+      {/* Summary cards */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom:16 }}>
+        {[
+          { label:"Tổng thu", val:totalIn,  color:"#059669", bg:"#f0fdf4" },
+          { label:"Tổng chi", val:totalOut, color:"#dc2626", bg:"#fef2f2" },
+          { label:"Chênh lệch", val:net,   color:net>=0?"#059669":"#dc2626", bg:net>=0?"#dcfce7":"#fee2e2" },
+        ].map(c=>(
+          <div key={c.label} style={{ background:c.bg, borderRadius:12, padding:"10px 12px" }}>
+            <div style={{ fontSize:10, color:c.color, fontWeight:700 }}>{c.label}</div>
+            <div style={{ fontSize:14, fontWeight:900, color:c.color, marginTop:2 }}>{fmtMoney(c.val)}</div>
+          </div>
+        ))}
+      </div>
+      {/* Table */}
+      {loading ? <div style={{textAlign:"center",color:"#9ca3af",padding:20}}>⏳ Đang tải...</div> :
+      display.length === 0 ? <div style={{textAlign:"center",color:"#9ca3af",padding:20}}>Không có dữ liệu</div> :
+      <div style={{ overflowX:"auto" }}>
+        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+          <thead>
+            <tr>
+              <th style={TH}>Ngày</th><th style={TH}>Loại</th>
+              <th style={TH}>Mô tả</th><th style={TH}>H.thức</th>
+              <th style={{...TH,textAlign:"right"}}>Số tiền</th>
+            </tr>
+          </thead>
+          <tbody>
+            {display.map((j,i)=>(
+              <tr key={j.id||i} style={{ background:j.entry_type==="receipt"?"#f0fdf4":"#fef2f2" }}>
+                <td style={TD}>{j.journal_date||"—"}</td>
+                <td style={TD}>
+                  {j.entry_type==="receipt"
+                    ? <span style={{background:"#dcfce7",color:"#059669",borderRadius:99,padding:"2px 8px",fontSize:11,fontWeight:700}}>🟢 Thu</span>
+                    : <span style={{background:"#fee2e2",color:"#dc2626",borderRadius:99,padding:"2px 8px",fontSize:11,fontWeight:700}}>🔴 Chi</span>}
+                </td>
+                <td style={TD}>{j.description||j.ref_code||"—"}</td>
+                <td style={TD}>{j.payment_method==="cash"?"💵 TM":"🏦 CK"}</td>
+                <td style={{...TD,textAlign:"right",fontWeight:800,color:j.entry_type==="receipt"?"#059669":"#dc2626"}}>{fmtMoney(j.amount)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>}
+    </div>
+  );
+}
+
+// ── Tab Lãi lỗ (P&L) ─────────────────────────────────────
+function ProfitLossTab({ repairOrders, saleOrders, expenses }) {
+  const [period, setPeriod] = useState("month");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd,   setCustomEnd]   = useState("");
+  const [stockExps,   setStockExps]   = useState([]);
+
+  useEffect(() => {
+    StockExportRequest.list({ limit:500, sort:"-updated" })
+      .then(d => setStockExps(d||[])).catch(()=>{});
+  }, []);
+
+  function inP(dateStr) {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    if (isNaN(d)) return false;
+    const now = new Date();
+    if (period === "today") {
+      return d.toDateString() === now.toDateString();
+    } else if (period === "week") {
+      const w = new Date(now); w.setDate(now.getDate()-7);
+      return d >= w;
+    } else if (period === "month") {
+      const m = new Date(now.getFullYear(), now.getMonth(), 1);
+      return d >= m;
+    } else if (period === "prev_month") {
+      const s = new Date(now.getFullYear(), now.getMonth()-1, 1);
+      const e = new Date(now.getFullYear(), now.getMonth(), 0, 23,59,59);
+      return d >= s && d <= e;
+    } else if (period === "custom" && customStart && customEnd) {
+      return d >= new Date(customStart) && d <= new Date(customEnd+"T23:59:59");
+    }
+    return true;
+  }
+
+  const DONE_ST = ["Đã Thanh Toán","Hoàn Thành","Đã Giao"];
+  const repairRev = repairOrders.filter(o=>DONE_ST.includes(o.status)&&inP(o.paid_at||o.done_date)).reduce((s,o)=>s+(o.final_cost||0),0);
+  const saleRev   = saleOrders.filter(o=>o.status==="paid"&&inP(o.created||o.created_date)).reduce((s,o)=>s+(o.total||0),0);
+  const totalRev  = repairRev + saleRev;
+
+  const partsCost = stockExps.filter(x=>x.status==="approved"&&inP(x.updated_date||x.updated)).reduce((s,x)=>s+(x.total_value||0),0);
+  const grossProfit = totalRev - partsCost;
+
+  const approvedExp = expenses.filter(e=>e.status==="approved"&&inP(e.expense_date||e.created));
+  const EXP_CATS = ["salary","rent","utilities","supplies","other"];
+  const EXP_LBL  = { salary:"Lương", rent:"Thuê MB", utilities:"Điện nước", supplies:"Vật tư", other:"Khác" };
+  const expByCat = EXP_CATS.map(cat=>({
+    cat, label:EXP_LBL[cat]||cat,
+    total: approvedExp.filter(e=>(e.category||"other")===cat).reduce((s,e)=>s+(e.amount||0),0),
+  })).filter(x=>x.total>0);
+  const totalOpEx = approvedExp.reduce((s,e)=>s+(e.amount||0),0);
+  const netProfit = grossProfit - totalOpEx;
+
+  const PERIOD_OPTS = [
+    {v:"today",label:"Hôm nay"},{v:"week",label:"7 ngày"},
+    {v:"month",label:"Tháng này"},{v:"prev_month",label:"Tháng trước"},
+    {v:"custom",label:"Tùy chỉnh"},
+  ];
+
+  const ROW = ({label,val,indent=false,bold=false,big=false,color}) => (
+    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
+      padding:indent?"6px 8px 6px 24px":"8px 8px",
+      borderBottom:"1px solid #f3f4f6",
+    }}>
+      <span style={{ fontSize:indent?12:13, color:color||"#374151", fontWeight:bold?800:indent?500:600 }}>{label}</span>
+      <span style={{ fontSize:big?18:indent?12:14, fontWeight:bold||big?900:600, color:color||(val>=0?"#1e1b4b":"#dc2626") }}>
+        {fmtMoney(val)}
+      </span>
+    </div>
+  );
+
+  return (
+    <div style={{ padding:16 }}>
+      {/* Period filter */}
+      <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:14 }}>
+        {PERIOD_OPTS.map(o=>(
+          <button key={o.v} onClick={()=>setPeriod(o.v)}
+            style={{ padding:"5px 12px", borderRadius:99, border:"1.5px solid", fontSize:12, fontWeight:700, cursor:"pointer",
+              borderColor:period===o.v?"#4f46e5":"#e5e7eb", background:period===o.v?"#eef2ff":"#fff", color:period===o.v?"#4f46e5":"#6b7280" }}>
+            {o.label}
+          </button>
+        ))}
+      </div>
+      {period==="custom" && (
+        <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+          <input type="date" value={customStart} onChange={e=>setCustomStart(e.target.value)}
+            style={{ flex:1, border:"1.5px solid #e5e7eb", borderRadius:8, padding:"6px 10px", fontSize:12 }}/>
+          <input type="date" value={customEnd} onChange={e=>setCustomEnd(e.target.value)}
+            style={{ flex:1, border:"1.5px solid #e5e7eb", borderRadius:8, padding:"6px 10px", fontSize:12 }}/>
+        </div>
+      )}
+
+      {/* P&L Table */}
+      <div style={{ background:"#fff", borderRadius:14, border:"1.5px solid #e5e7eb", overflow:"hidden", marginBottom:10 }}>
+        <div style={{ background:"#1e1b4b", padding:"10px 12px", color:"#fff", fontWeight:800, fontSize:13 }}>📊 BÁO CÁO LÃI LỖ</div>
+        {/* Doanh thu */}
+        <div style={{ background:"#f0fdf4", padding:"6px 8px 2px", fontSize:11, fontWeight:800, color:"#059669", textTransform:"uppercase", letterSpacing:1 }}>DOANH THU</div>
+        <ROW label="Sửa chữa" val={repairRev} indent color="#374151"/>
+        <ROW label="Bán lẻ"   val={saleRev}   indent color="#374151"/>
+        <ROW label="Tổng doanh thu" val={totalRev} bold color="#059669"/>
+        {/* Giá vốn */}
+        <div style={{ background:"#fef2f2", padding:"6px 8px 2px", fontSize:11, fontWeight:800, color:"#dc2626", textTransform:"uppercase", letterSpacing:1 }}>GIÁ VỐN</div>
+        <ROW label="Linh kiện xuất dùng" val={partsCost} indent color="#374151"/>
+        <ROW label="Tổng giá vốn" val={partsCost} bold color="#dc2626"/>
+        {/* LN gộp */}
+        <div style={{ display:"flex", justifyContent:"space-between", padding:"10px 8px", background:grossProfit>=0?"#dcfce7":"#fee2e2", borderBottom:"1px solid #e5e7eb" }}>
+          <span style={{ fontWeight:800, fontSize:14, color:grossProfit>=0?"#059669":"#dc2626" }}>LỢI NHUẬN GỘP</span>
+          <span style={{ fontWeight:900, fontSize:16, color:grossProfit>=0?"#059669":"#dc2626" }}>{fmtMoney(grossProfit)}</span>
+        </div>
+        {/* Chi phí */}
+        <div style={{ background:"#fffbeb", padding:"6px 8px 2px", fontSize:11, fontWeight:800, color:"#d97706", textTransform:"uppercase", letterSpacing:1 }}>CHI PHÍ HOẠT ĐỘNG</div>
+        {expByCat.map(x=><ROW key={x.cat} label={x.label} val={x.total} indent color="#374151"/>)}
+        {expByCat.length===0 && <div style={{padding:"8px 24px",fontSize:12,color:"#9ca3af"}}>Chưa có chi phí được duyệt</div>}
+        <ROW label="Tổng chi phí" val={totalOpEx} bold color="#d97706"/>
+        {/* LN ròng */}
+        <div style={{ display:"flex", justifyContent:"space-between", padding:"14px 8px", background:netProfit>=0?"#f0fdf4":"#fef2f2" }}>
+          <span style={{ fontWeight:900, fontSize:15, color:netProfit>=0?"#065f46":"#991b1b" }}>LỢI NHUẬN RÒNG</span>
+          <span style={{ fontWeight:900, fontSize:20, color:netProfit>=0?"#059669":"#dc2626" }}>{fmtMoney(netProfit)}</span>
+        </div>
+      </div>
+      <div style={{ fontSize:11, color:"#9ca3af", textAlign:"center" }}>* Chi phí chỉ tính các khoản đã được duyệt</div>
     </div>
   );
 }
@@ -279,10 +485,11 @@ export default function RevenueReportPage({ user }) {
     { key:"repair",       label:"🔧 Đơn sửa" },
     { key:"sale",         label:"🛒 Bán lẻ" },
     { key:"expense",      label:"💸 Chi phí" },
-    { key:"by_ktv",       label:"👨‍🔧 Theo KTV" },
-    { key:"services",     label:"🏆 Dịch vụ PB" },
-    { key:"debt",         label:"⚠️ Công nợ" },
-    { key:"stock_report", label:"📦 LK nhập/xuất" },
+    { key:"by_ktv",       label:"👨‍🔧 KTV" },
+    { key:"services",     label:"🏆 Dịch vụ" },
+    { key:"pl",           label:"📊 Lãi lỗ" },
+    { key:"cash_journal", label:"💰 Sổ quỹ" },
+    { key:"stock_report", label:"📦 LK" },
   ];
 
   if (loading) return <div style={{ textAlign:"center", padding:48, color:"#9ca3af" }}>⏳ Đang tải...</div>;
@@ -435,7 +642,8 @@ export default function RevenueReportPage({ user }) {
 
         {detailTab==="by_ktv"       && <div style={{padding:16}}><TabByKTV orders={repairOrders} period={period} inPeriod={inPeriod} DONE_STATUS={DONE_STATUS}/></div>}
         {detailTab==="services"     && <div style={{padding:16}}><TabServices orders={repairOrders} period={period} inPeriod={inPeriod} DONE_STATUS={DONE_STATUS}/></div>}
-        {detailTab==="debt"         && <div style={{padding:16}}><TabDebt orders={repairOrders}/></div>}
+        {detailTab==="pl"           && <ProfitLossTab repairOrders={repairOrders} saleOrders={saleOrders} expenses={expenses}/>}
+        {detailTab==="cash_journal" && <CashJournalTab/>}
         {detailTab==="stock_report" && <div style={{padding:16}}><TabStockReport period={period} startOf={startOf}/></div>}
       </div>
     </div>

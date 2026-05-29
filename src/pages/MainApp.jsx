@@ -226,6 +226,9 @@ const SupplierPage         = lazy(() => import("./SupplierPage").catch(() => ({ 
 const DebtPage             = lazy(() => import("./DebtPage").catch(() => ({ default: () => (
   <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>Đang tải Công nợ...</div>
 ) })));
+const CashJournalPage      = lazy(() => import("./CashJournalPage").catch(() => ({ default: () => (
+  <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>Đang tải Sổ quỹ...</div>
+) })));
 const RoleHomePlaceholder  = lazy(() => import("./RoleHomePlaceholder").catch(() => ({ default: () => (
   <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang chủ</div>
 ) })));
@@ -1198,6 +1201,7 @@ function MainAppContent({ onUserChange }) {
     if (["owner","admin","manager","accountant","cashier"].includes(user?.role)) {
       items.push({ key:"suppliers", icon:"storefront",           label:"Nhà cung cấp" });
       items.push({ key:"debts",     icon:"account_balance_wallet", label:"Công nợ" });
+      items.push({ key:"cash_journal", icon:"menu_book", label:"Sổ quỹ" });
     }
 
     // ── 7. KIỂM KHO — warehouse, manager, technician ───────
@@ -1780,6 +1784,11 @@ function MainAppContent({ onUserChange }) {
         {page==="debts" && currentUser && (
           <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
             <DebtPage user={currentUser} />
+          </Suspense>
+        )}
+        {page==="cash_journal" && currentUser && (
+          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
+            <CashJournalPage user={currentUser} />
           </Suspense>
         )}
         {page==="stock_count" && (
