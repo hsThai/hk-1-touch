@@ -28,6 +28,10 @@ const RESOURCE_META = {
   media_post:         { label:"Bài đăng / Media",   module:"Quản trị",   icon:"campaign" },
   notification:       { label:"Thông báo",           module:"Quản trị",   icon:"notifications" },
   warehouse_mgr:      { label:"Quản lý kho (config)",module:"Quản trị",  icon:"warehouse" },
+  supplier:           { label:"Nhà cung cấp",         module:"Kế toán",   icon:"storefront" },
+  debt:               { label:"Công nợ",               module:"Kế toán",   icon:"account_balance_wallet" },
+  cash_journal:       { label:"Sổ quỹ",                module:"Kế toán",   icon:"menu_book" },
+  department:         { label:"Phòng ban",              module:"Quản trị",  icon:"corporate_fare" },
 };
 
 // Group resources by module

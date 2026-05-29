@@ -1197,12 +1197,13 @@ function MainAppContent({ onUserChange }) {
     if (can("customer","view") && !isKtv)
       items.push({ key:"customers",    icon:"group",       label:"Khách hàng" });
 
-    // ── 6b. NHÀ CUNG CẤP + CÔNG NỢ — accountant, cashier, manager, admin ──
-    if (["owner","admin","manager","accountant","cashier"].includes(user?.role)) {
-      items.push({ key:"suppliers", icon:"storefront",           label:"Nhà cung cấp" });
-      items.push({ key:"debts",     icon:"account_balance_wallet", label:"Công nợ" });
-      items.push({ key:"cash_journal", icon:"menu_book", label:"Sổ quỹ" });
-    }
+    // ── 6b. NHÀ CUNG CẤP + CÔNG NỢ — theo can() permission matrix ──
+    if (can("supplier","view"))
+      items.push({ key:"suppliers",    icon:"storefront",             label:"Nhà cung cấp" });
+    if (can("debt","view"))
+      items.push({ key:"debts",        icon:"account_balance_wallet", label:"Công nợ" });
+    if (can("cash_journal","view"))
+      items.push({ key:"cash_journal", icon:"menu_book",             label:"Sổ quỹ" });
 
     // ── 7. KIỂM KHO — warehouse, manager, technician ───────
     if (can("stock_count","view") && !isManager && !isRoleHome)

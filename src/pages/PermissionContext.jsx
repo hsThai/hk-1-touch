@@ -36,6 +36,10 @@ const RESOURCES = [
   "media_post",        // Bài đăng / media
   "notification",      // Thông báo
   "warehouse_mgr",     // Quản lý kho (cấu hình)
+  "supplier",          // Nhà cung cấp
+  "debt",              // Công nợ phải thu / phải trả
+  "cash_journal",      // Sổ quỹ tiền mặt
+  "department",        // Phòng ban
 ];
 
 // Actions chuẩn
@@ -67,6 +71,10 @@ const STATIC_MATRIX = {
     media_post:         p(1,1,1,1,1,1),
     notification:       p(1,1,0,1,0,0),
     warehouse_mgr:      p(1,1,1,1,1,0),
+    supplier:          p(1,1,1,1,1,1),
+    debt:              p(1,1,1,1,1,1),
+    cash_journal:      p(1,1,1,1,1,1),
+    department:        p(1,1,1,1,1,0),
   },
 
   // ── ADMIN: giống owner, trừ một vài setting nhạy cảm ──
@@ -89,6 +97,10 @@ const STATIC_MATRIX = {
     media_post:         p(1,1,1,1,0,1),
     notification:       p(1,1,0,1,0,0),
     warehouse_mgr:      p(1,1,1,1,1,0),
+    supplier:          p(1,1,1,1,1,1),
+    debt:              p(1,1,1,1,1,1),
+    cash_journal:      p(1,1,1,1,1,1),
+    department:        p(1,1,1,1,1,0),
   },
 
   // ── MANAGER: quản lý tổng ──────────────────────────────
@@ -111,6 +123,10 @@ const STATIC_MATRIX = {
     media_post:         p(1,1,1,0,0,1),
     notification:       p(1,1,0,0,0,0),
     warehouse_mgr:      p(1,1,1,0,0,0),
+    supplier:          p(1,1,1,0,1,1),
+    debt:              p(1,1,1,0,1,1),
+    cash_journal:      p(1,1,0,0,1,1),
+    department:        p(1,1,1,0,0,0),
   },
 
   // ── RECEPTIONIST: tiếp tân ─────────────────────────────
@@ -133,6 +149,10 @@ const STATIC_MATRIX = {
     media_post:         p(1,0,0,0,0,0),
     notification:       p(1,0,0,0,0,0),
     warehouse_mgr:      p(0,0,0,0,0,0),
+    supplier:          p(0,0,0,0,0,0),
+    debt:              p(0,0,0,0,0,0),
+    cash_journal:      p(0,0,0,0,0,0),
+    department:        p(0,0,0,0,0,0),
   },
 
   // ── TECHNICIAN: kỹ thuật viên ─────────────────────────
@@ -155,7 +175,37 @@ const STATIC_MATRIX = {
     media_post:         p(1,0,0,0,0,0),
     notification:       p(1,0,0,0,0,0),
     warehouse_mgr:      p(0,0,0,0,0,0),
+    supplier:          p(0,0,0,0,0,0),
+    debt:              p(0,0,0,0,0,0),
+    cash_journal:      p(0,0,0,0,0,0),
+    department:        p(0,0,0,0,0,0),
   },
+
+  mm_tech: {
+    repair_order:       p(1,0,1,0,0,0), // chỉ xem đơn được assign
+    repair_order_price: p(1,1,0,0,0,0), // nhập giá, không duyệt
+    spare_part:         p(1,0,0,0,0,0),
+    stock_export:       p(1,1,0,0,0,0), // yêu cầu xuất kho
+    stock_import:       p(0,0,0,0,0,0),
+    stock_transfer:     p(0,0,0,0,0,0),
+    stock_count:        p(1,0,1,0,0,0), // tham gia kiểm kho
+    stock_ledger:       p(1,0,0,0,0,0),
+    customer:           p(1,0,0,0,0,0),
+    sale_order:         p(0,0,0,0,0,0),
+    expense:            p(0,0,0,0,0,0),
+    revenue_report:     p(0,0,0,0,0,0),
+    staff:              p(0,0,0,0,0,0),
+    kpi:                p(1,0,0,0,0,0), // xem KPI của mình
+    settings:           p(0,0,0,0,0,0),
+    media_post:         p(1,0,0,0,0,0),
+    notification:       p(1,0,0,0,0,0),
+    warehouse_mgr:      p(0,0,0,0,0,0),
+    supplier:          p(0,0,0,0,0,0),
+    debt:              p(0,0,0,0,0,0),
+    cash_journal:      p(0,0,0,0,0,0),
+    department:        p(0,0,0,0,0,0),
+  },
+
 
   // ── WAREHOUSE: thủ kho ────────────────────────────────
   warehouse: {
@@ -177,6 +227,10 @@ const STATIC_MATRIX = {
     media_post:         p(1,0,0,0,0,0),
     notification:       p(1,0,0,0,0,0),
     warehouse_mgr:      p(1,0,0,0,0,0),
+    supplier:          p(1,1,1,0,0,1),
+    debt:              p(0,0,0,0,0,0),
+    cash_journal:      p(0,0,0,0,0,0),
+    department:        p(0,0,0,0,0,0),
   },
 
   // ── CASHIER: thu ngân ────────────────────────────────
@@ -199,6 +253,10 @@ const STATIC_MATRIX = {
     media_post:         p(1,0,0,0,0,0),
     notification:       p(1,0,0,0,0,0),
     warehouse_mgr:      p(0,0,0,0,0,0),
+    supplier:          p(0,0,0,0,0,0),
+    debt:              p(1,1,1,0,0,1),
+    cash_journal:      p(1,0,0,0,0,1),
+    department:        p(0,0,0,0,0,0),
   },
 
   // ── ACCOUNTANT: kế toán ──────────────────────────────
@@ -221,6 +279,10 @@ const STATIC_MATRIX = {
     media_post:         p(1,0,0,0,0,0),
     notification:       p(1,0,0,0,0,0),
     warehouse_mgr:      p(0,0,0,0,0,0),
+    supplier:          p(1,1,1,0,0,1),
+    debt:              p(1,1,1,0,1,1),
+    cash_journal:      p(1,1,0,0,0,1),
+    department:        p(0,0,0,0,0,0),
   },
 
   // ── VIEWER: chỉ xem ──────────────────────────────────
@@ -243,6 +305,10 @@ const STATIC_MATRIX = {
     media_post:         p(1,0,0,0,0,0),
     notification:       p(0,0,0,0,0,0),
     warehouse_mgr:      p(0,0,0,0,0,0),
+    supplier:          p(1,0,0,0,0,0),
+    debt:              p(1,0,0,0,0,0),
+    cash_journal:      p(1,0,0,0,0,0),
+    department:        p(1,0,0,0,0,0),
   },
 
   // ── SUPPORT: hỗ trợ kỹ thuật ─────────────────────────
@@ -265,6 +331,10 @@ const STATIC_MATRIX = {
     media_post:         p(1,1,0,0,0,0),
     notification:       p(1,0,0,0,0,0),
     warehouse_mgr:      p(0,0,0,0,0,0),
+    supplier:          p(0,0,0,0,0,0),
+    debt:              p(0,0,0,0,0,0),
+    cash_journal:      p(0,0,0,0,0,0),
+    department:        p(0,0,0,0,0,0),
   },
 
   // ── DELIVERY: giao nhận ───────────────────────────────
@@ -287,6 +357,10 @@ const STATIC_MATRIX = {
     media_post:         p(0,0,0,0,0,0),
     notification:       p(1,0,0,0,0,0),
     warehouse_mgr:      p(0,0,0,0,0,0),
+    supplier:          p(0,0,0,0,0,0),
+    debt:              p(0,0,0,0,0,0),
+    cash_journal:      p(0,0,0,0,0,0),
+    department:        p(0,0,0,0,0,0),
   },
 
   // ── MARKETING: marketing ─────────────────────────────
@@ -309,6 +383,10 @@ const STATIC_MATRIX = {
     media_post:         p(1,1,1,1,0,1),
     notification:       p(1,1,0,0,0,0),
     warehouse_mgr:      p(0,0,0,0,0,0),
+    supplier:          p(0,0,0,0,0,0),
+    debt:              p(0,0,0,0,0,0),
+    cash_journal:      p(0,0,0,0,0,0),
+    department:        p(0,0,0,0,0,0),
   },
 
   // ── SUPERVISOR: giám sát ─────────────────────────────
@@ -331,6 +409,10 @@ const STATIC_MATRIX = {
     media_post:         p(1,0,0,0,0,1),
     notification:       p(1,1,0,0,0,0),
     warehouse_mgr:      p(1,0,0,0,0,0),
+    supplier:          p(1,0,0,0,0,1),
+    debt:              p(1,0,0,0,1,1),
+    cash_journal:      p(1,0,0,0,0,1),
+    department:        p(1,0,0,0,0,0),
   },
 
   // ── QA: kiểm soát chất lượng ──────────────────────────
@@ -353,6 +435,10 @@ const STATIC_MATRIX = {
     media_post:         p(1,1,0,0,0,0),
     notification:       p(1,0,0,0,0,0),
     warehouse_mgr:      p(0,0,0,0,0,0),
+    supplier:          p(0,0,0,0,0,0),
+    debt:              p(0,0,0,0,0,0),
+    cash_journal:      p(0,0,0,0,0,0),
+    department:        p(0,0,0,0,0,0),
   },
 
   // ── HR: nhân sự ──────────────────────────────────────
@@ -375,6 +461,10 @@ const STATIC_MATRIX = {
     media_post:         p(1,1,0,0,0,0),
     notification:       p(1,1,0,0,0,0),
     warehouse_mgr:      p(0,0,0,0,0,0),
+    supplier:          p(0,0,0,0,0,0),
+    debt:              p(0,0,0,0,0,0),
+    cash_journal:      p(0,0,0,0,0,0),
+    department:        p(1,1,1,0,0,0),
   },
 
   // ── IT: IT/dev nội bộ ────────────────────────────────
@@ -397,6 +487,10 @@ const STATIC_MATRIX = {
     media_post:         p(1,1,1,0,0,0),
     notification:       p(1,1,0,0,0,0),
     warehouse_mgr:      p(1,1,1,0,0,0),
+    supplier:          p(1,0,0,0,0,0),
+    debt:              p(1,0,0,0,0,0),
+    cash_journal:      p(1,0,0,0,0,0),
+    department:        p(1,0,0,0,0,0),
   },
 
   // ── GUEST: khách ─────────────────────────────────────
@@ -419,6 +513,10 @@ const STATIC_MATRIX = {
     media_post:         p(1,0,0,0,0,0),
     notification:       p(0,0,0,0,0,0),
     warehouse_mgr:      p(0,0,0,0,0,0),
+    supplier:          p(0,0,0,0,0,0),
+    debt:              p(0,0,0,0,0,0),
+    cash_journal:      p(0,0,0,0,0,0),
+    department:        p(0,0,0,0,0,0),
   },
 };
 
