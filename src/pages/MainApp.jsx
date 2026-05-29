@@ -2370,6 +2370,54 @@ function WarehouseExport({ user }) {
   );
 }
 
+// ─── PartNameInput — Autocomplete tên hàng ──────────────────────────────────
+function PartNameInput({ value, onChange, parts=[], placeholder="Tên hàng...", style={} }) {
+  const [open, setOpen] = React.useState(false);
+  const [q, setQ] = React.useState(value||"");
+
+  React.useEffect(() => { setQ(value||""); }, [value]);
+
+  const filtered = (parts||[]).filter(p =>
+    !q || p.name?.toLowerCase().includes(q.toLowerCase()) || (p.sku||"").toLowerCase().includes(q.toLowerCase())
+  ).slice(0, 15);
+
+  return (
+    <div style={{ position:"relative" }}>
+      <input
+        value={q}
+        onChange={e => { setQ(e.target.value); onChange(e.target.value, null); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 180)}
+        placeholder={placeholder}
+        autoComplete="off"
+        style={{ width:"100%", height:38, borderRadius:8, border:"1.5px solid #e5e7eb", padding:"0 10px", fontSize:13, outline:"none", boxSizing:"border-box", ...style }}
+      />
+      {open && filtered.length > 0 && (
+        <div style={{
+          position:"absolute", top:"100%", left:0, right:0, zIndex:10000,
+          background:"#fff", border:"1.5px solid #e5e7eb", borderRadius:10,
+          boxShadow:"0 8px 24px rgba(0,0,0,.12)", maxHeight:220, overflowY:"auto", marginTop:2,
+        }}>
+          {filtered.map((p,i) => (
+            <div key={i}
+              onMouseDown={() => { setQ(p.name); onChange(p.name, p); setOpen(false); }}
+              style={{ padding:"9px 14px", cursor:"pointer", borderBottom:"1px solid #f3f4f6" }}
+              onMouseEnter={e=>e.currentTarget.style.background="#f5f3ff"}
+              onMouseLeave={e=>e.currentTarget.style.background="#fff"}
+            >
+              <div style={{ fontWeight:600, fontSize:13 }}>{p.name}</div>
+              <div style={{ fontSize:11, color:"#9ca3af" }}>
+                {p.sku ? `SKU: ${p.sku}` : ""}
+                {p.cost_price ? `  •  ${(p.cost_price||0).toLocaleString("vi")}đ` : ""}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Warehouse: Nhập hàng ────────────────────────────────
 function WarehouseImport({ user }) {
   const [imports, setImports]         = React.useState([]);
@@ -2390,8 +2438,18 @@ function WarehouseImport({ user }) {
   const [note, setNote]                   = React.useState("");
   const [items, setItems]                 = React.useState([]);
   const [saving, setSaving]               = React.useState(false);
+  const [allParts, setAllParts]           = React.useState([]);
 
   React.useEffect(() => { loadImports(); }, []);
+
+  // Load catalog khi mở form nhập kho
+  React.useEffect(() => {
+    if (showForm) {
+      SparePart.list({ limit:1000 }).then(r=>setAllParts(
+        (r||[]).map(p=>({ name:p.name, sku:p.sku||"", cost_price:p.price||0, id:p.id }))
+      )).catch(()=>{});
+    }
+  }, [showForm]);
 
   // Dọn stream khi unmount
   React.useEffect(() => () => stopScan(), []);
@@ -2415,10 +2473,11 @@ function WarehouseImport({ user }) {
     }]);
   }
 
-  function updateItem(id, field, val) {
+  function updateItem(id, field, val, part=null) {
     setItems(prev=>prev.map(it=>{
       if (it.id!==id) return it;
       const updated = {...it, [field]:val};
+      if (part) { updated.sku = part.sku||it.sku; }
       if (field==="qty"||field==="unit_price")
         updated.total_price = updated.qty * updated.unit_price;
       return updated;
@@ -2683,8 +2742,13 @@ function WarehouseImport({ user }) {
                     </div>
 
                     {/* Tên hàng */}
-                    <input value={it.name} onChange={e=>updateItem(it.id,"name",e.target.value)} placeholder="Tên hàng *"
-                      style={{ width:"100%", height:38, borderRadius:8, border:"1.5px solid #e5e7eb", padding:"0 10px", fontSize:13, outline:"none", marginBottom:8, boxSizing:"border-box" }}/>
+                    <PartNameInput
+                      value={it.name}
+                      parts={allParts}
+                      placeholder="Tên hàng *"
+                      onChange={(name, part) => updateItem(it.id, "name", name, part)}
+                      style={{ marginBottom:8 }}
+                    />
 
                     {/* SKU + Serial/IMEI với nút quét */}
                     <div style={{ display:"flex", gap:8, marginBottom:8 }}>

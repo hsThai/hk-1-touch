@@ -947,6 +947,54 @@ function TransferTab({ user, toast }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // DefectTab — LK lỗi / Trả NCC
 // ─────────────────────────────────────────────────────────────────────────────
+// ─── PartNameInput — Autocomplete tên linh kiện ─────────────────────────────
+function PartNameInput({ value, onChange, parts=[], placeholder="Tên linh kiện...", style={} }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState(value||"");
+
+  useEffect(() => { setQ(value||""); }, [value]);
+
+  const filtered = (parts||[]).filter(p =>
+    !q || p.name?.toLowerCase().includes(q.toLowerCase()) || (p.sku||"").toLowerCase().includes(q.toLowerCase())
+  ).slice(0, 15);
+
+  return (
+    <div style={{ position:"relative" }}>
+      <input
+        value={q}
+        onChange={e => { setQ(e.target.value); onChange(e.target.value, null); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 180)}
+        placeholder={placeholder}
+        autoComplete="off"
+        style={{ width:"100%", height:38, borderRadius:8, border:"1.5px solid #e5e7eb", padding:"0 10px", fontSize:13, outline:"none", boxSizing:"border-box", ...style }}
+      />
+      {open && filtered.length > 0 && (
+        <div style={{
+          position:"absolute", top:"100%", left:0, right:0, zIndex:10000,
+          background:"#fff", border:"1.5px solid #e5e7eb", borderRadius:10,
+          boxShadow:"0 8px 24px rgba(0,0,0,.12)", maxHeight:200, overflowY:"auto", marginTop:2,
+        }}>
+          {filtered.map((p,i) => (
+            <div key={i}
+              onMouseDown={() => { setQ(p.name); onChange(p.name, p); setOpen(false); }}
+              style={{ padding:"9px 14px", cursor:"pointer", borderBottom:"1px solid #f3f4f6" }}
+              onMouseEnter={e=>e.currentTarget.style.background="#f5f3ff"}
+              onMouseLeave={e=>e.currentTarget.style.background="#fff"}
+            >
+              <div style={{ fontWeight:600, fontSize:13 }}>{p.name}</div>
+              <div style={{ fontSize:11, color:"#9ca3af" }}>
+                {p.sku ? `SKU: ${p.sku}` : ""}
+                {p.cost_price ? `  •  ${(p.cost_price||0).toLocaleString("vi")}đ` : ""}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DefectTab({ user, warehouses }) {
   const [list,    setList]    = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1016,12 +1064,22 @@ function DefectTab({ user, warehouses }) {
             <option value="">-- Chọn kho --</option>
             {warehouses.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}
           </select>
+          <PartNameInput
+            value={form.part_name}
+            parts={parts}
+            placeholder="Tên linh kiện *"
+            onChange={(name, part) => setForm(v => ({
+              ...v,
+              part_name: name,
+              sku: part?.sku || v.sku,
+            }))}
+            style={{ marginBottom:8 }}
+          />
           {[
-            {ph:"Tên linh kiện *", key:"part_name"},
-            {ph:"SKU",             key:"sku"},
-            {ph:"Lý do lỗi",       key:"reason"},
-            {ph:"Nhà cung cấp",    key:"supplier_name"},
-            {ph:"Ghi chú",         key:"note"},
+            {ph:"SKU",          key:"sku"},
+            {ph:"Lý do lỗi",    key:"reason"},
+            {ph:"Nhà cung cấp", key:"supplier_name"},
+            {ph:"Ghi chú",      key:"note"},
           ].map(f=>(
             <input key={f.key} placeholder={f.ph} value={form[f.key]}
               onChange={e=>setForm(v=>({...v,[f.key]:e.target.value}))}
