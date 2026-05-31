@@ -722,7 +722,7 @@ function PillTabs({ tabs, active, onChange }) {
   );
 }
 
-// ── TAB 2: Kinh doanh (Business) ──────────────────────────────
+// ── TAB 2: Tài chính (Business) ──────────────────────────────
 function DebtSubTab({ repairOrders }) {
   const debtMap = {};
   repairOrders
@@ -820,7 +820,7 @@ function CashflowSubTab({ repairOrders, expenses, saleOrders }) {
 function BusinessTab({ repairOrders, saleOrders, expenses }) {
   const [sub, setSub] = useState("revenue");
   const SUB_TABS = [
-    { key:"revenue",  label:"💰 Doanh thu" },
+    { key:"revenue",  label:"📈 Doanh thu" },
     { key:"debt",     label:"📋 Công nợ" },
     { key:"cashflow", label:"💵 Sổ quỹ" },
   ];
@@ -1104,7 +1104,7 @@ function SettingsLiteTab({ user, repairOrders, customers, spareParts, ledgerSumm
 
 const NAV_TABS = [
   { key:"overview",   icon:"dashboard",    label:"Tổng quan" },
-  { key:"business",   icon:"bar_chart",    label:"Kinh doanh" },
+  { key:"business",   icon:"account_balance", label:"Tài chính" },
   { key:"staff",      icon:"people",       label:"Nhân viên" },
   { key:"inventory",  icon:"inventory_2",  label:"Kho & KT" },
 ];
