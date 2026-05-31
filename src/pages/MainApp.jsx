@@ -270,6 +270,7 @@ const MGR_SUB_ITEMS = [
   { key:"business",  icon:"account_balance", label:"Tài chính" },
   { key:"staff",     icon:"people",          label:"Nhân viên" },
   { key:"inventory", icon:"inventory_2",     label:"Kho & KT" },
+  { key:"stock_nxt", icon:"assessment",      label:"Báo cáo NXT" },
 ];
 
 const SETUP_SUB_ITEMS = [
@@ -389,6 +390,15 @@ function MainAppContent({ onUserChange }) {
   };
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // ── Set initial page khi user login lần đầu ──────────────
+  useEffect(() => {
+    if (!user) return;
+    const isManagerRole = ["manager","admin","owner","supervisor"].includes(user.role);
+    if (isManagerRole && page === "board") {
+      setPage("dashboard");
+    }
+  }, [user]);
 
   // ── Auto mở/đóng accordion theo page ──────────────────────
   useEffect(() => {
@@ -1248,9 +1258,7 @@ function MainAppContent({ onUserChange }) {
 
     // ── 2. BẢNG THEO DÕI — chỉ manager/supervisor ──────────
     if (can("repair_order","view") && isManager)
-      items.push({ key:"board",        icon:"assignment",  label:"Bảng theo dõi" });
-    if (isManager)
-      items.push({ key:"stock_nxt",    icon:"inventory_2", label:"Báo cáo NXT" });
+      items.push({ key:"board",        icon:"assignment",  label:"Bảng điều phối" });
 
     // ── 3. TẠO ĐƠN — manager, receptionist ─────────────────
     if (can("repair_order","create") && !isKtv)
@@ -1258,7 +1266,7 @@ function MainAppContent({ onUserChange }) {
 
     // ── 4. DANH SÁCH ĐƠN — hầu hết roles ──────────────────
     if (can("repair_order","view"))
-      items.push({ key:"tasks",        icon:"assignment",  label:"Danh sách đơn" });
+      items.push({ key:"tasks",        icon:"assignment",  label:"Danh sách & Lịch sử đơn" });
 
     // ── 5. BÁN HÀNG — cashier, accountant, receptionist, manager ──
     if (can("sale_order","view"))
@@ -1278,7 +1286,7 @@ function MainAppContent({ onUserChange }) {
 
     // ── 7. KIỂM KHO — warehouse, manager, technician ───────
     if (can("stock_count","view") && !isManager && !isRoleHome)
-      items.push({ key:"stock_count",  icon:"fact_check",  label:"Kiểm kho" });
+      items.push({ key:"stock_count",  icon:"fact_check",  label:"Kiểm kê kho" });
 
     // ── 8. NHÂN VIÊN — chỉ non-manager (manager dùng accordion Thiết Lập)
     if (can("staff","view") && !isManager)
@@ -1873,12 +1881,26 @@ function MainAppContent({ onUserChange }) {
                 )}
               </div>
             )}
-            {navItems.map((item, idx) => {
-              const dividerLabel =
-                item.key === "board"        ? "── Dịch vụ" :
-                item.key === "cashier_home" ? "── Bán hàng" :
-                item.key === "wh_home"      ? "── Kho" :
-                null;
+            {(() => {
+              const shownDividers = new Set();
+              return navItems.map((item, idx) => {
+              const dividerLabel = (() => {
+                const groups = {
+                  "new":          "🔧 Dịch vụ Sửa chữa",
+                  "board":        "🔧 Dịch vụ Sửa chữa",
+                  "cashier_home": "🛒 Bán hàng",
+                  "wh_home":      "📦 Kho & Vật tư",
+                  "stock_count":  "📦 Kho & Vật tư",
+                  "customers":    "👥 Đối tác",
+                  "cash_journal": "💰 Kế toán",
+                };
+                const label = groups[item.key];
+                if (label && !shownDividers.has(label)) {
+                  shownDividers.add(label);
+                  return label;
+                }
+                return null;
+              })();
               const active = page === item.key;
               return (
                 <React.Fragment key={item.key}>
@@ -1910,7 +1932,8 @@ function MainAppContent({ onUserChange }) {
                   </button>
                 </React.Fragment>
               );
-            })}
+            });
+            })()}
           </nav>
           <button onClick={doLogout}
             style={{ margin:"12px 8px", padding:"10px 14px", borderRadius:10, border:"none",
@@ -2013,12 +2036,26 @@ function MainAppContent({ onUserChange }) {
               {isManager && renderMgrAccordion()}
               {/* Accordion Thiết Lập — chỉ với isManager */}
               {isManager && renderSetupAccordion()}
-              {navItems.map((n, idx) => {
-                const dividerLabel =
-                  n.key === "board"        ? "── Dịch vụ" :
-                  n.key === "cashier_home" ? "── Bán hàng" :
-                  n.key === "wh_home"      ? "── Kho" :
-                  null;
+              {(() => {
+                const shownDividers = new Set();
+                return navItems.map((n, idx) => {
+                const dividerLabel = (() => {
+                  const groups = {
+                    "new":          "🔧 Dịch vụ Sửa chữa",
+                    "board":        "🔧 Dịch vụ Sửa chữa",
+                    "cashier_home": "🛒 Bán hàng",
+                    "wh_home":      "📦 Kho & Vật tư",
+                    "stock_count":  "📦 Kho & Vật tư",
+                    "customers":    "👥 Đối tác",
+                    "cash_journal": "💰 Kế toán",
+                  };
+                  const label = groups[n.key];
+                  if (label && !shownDividers.has(label)) {
+                    shownDividers.add(label);
+                    return label;
+                  }
+                  return null;
+                })();
                 const active = page === n.key;
                 return (
                   <React.Fragment key={n.key}>
@@ -2047,7 +2084,8 @@ function MainAppContent({ onUserChange }) {
                     </button>
                   </React.Fragment>
                 );
-              })}
+              });
+              })()}
             </div>
             <div style={{ padding:16, borderTop:"1px solid #f3f4f6", display:"flex", flexDirection:"column", gap:8 }}>
               <button onClick={doLogout} style={{ width:"100%", padding:14, background:"#fef2f2", border:"none", borderRadius:12, color:"#dc2626", fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>logout</span> Đăng xuất</button>
