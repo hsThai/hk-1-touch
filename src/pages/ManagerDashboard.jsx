@@ -1,7 +1,8 @@
 /* ManagerDashboard.jsx — App 4: Manager Dashboard (5 tabs) */
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Staff, RepairOrder, SparePart, SaleOrder, Expense,
-         StockLedger, Warehouse, Customer, AppSettings, StockImport, SparePartUsage } from "./pb.jsx";
+         StockLedger, Warehouse, Customer, AppSettings, StockImport, SparePartUsage,
+         DebtVoucher, CashJournal } from "./pb.jsx";
 
 // ── Constants ──────────────────────────────────────────────
 const ALLOWED = ["manager","admin","owner"];
@@ -241,6 +242,27 @@ function OverviewTab({ repairOrders, saleOrders, spareParts, ledgerSummary=[] })
 // ── TAB 2: Revenue ─────────────────────────────────────────
 function RevenueTab({ repairOrders, saleOrders, expenses }) {
   const [period, setPeriod] = useState("today");
+  const [topProducts, setTopProducts] = useState([]);
+
+  useEffect(() => {
+    const now = new Date();
+    const fromDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    SaleOrder.list({ filter: `created>="${fromDate}"`, limit: 500 }).then(orders => {
+      const map = {};
+      for (const o of orders) {
+        const items = o.items || o.products || [];
+        if (!Array.isArray(items)) continue;
+        for (const item of items) {
+          const key = item.sku || item.name || item.product_name;
+          if (!key) continue;
+          if (!map[key]) map[key] = { name: item.name || item.product_name || key, sku: item.sku||"", qty:0, revenue:0 };
+          map[key].qty     += item.qty || item.quantity || 1;
+          map[key].revenue += (item.price || 0) * (item.qty || item.quantity || 1);
+        }
+      }
+      setTopProducts(Object.values(map).sort((a,b) => b.qty - a.qty));
+    }).catch(() => {});
+  }, []);
 
   const pRepair = useMemo(() =>
     repairOrders.filter(o=>DONE_ST.includes(o.status)&&inPeriod(o.done_date||o.updated,period)),
@@ -356,6 +378,37 @@ function RevenueTab({ repairOrders, saleOrders, expenses }) {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+      </div>
+
+      {/* === TOP SẢN PHẨM BÁN CHẠY === */}
+      <div style={{ marginTop:24, borderTop:"1px solid #f3f4f6", paddingTop:20 }}>
+        <div style={{ fontWeight:800, fontSize:14, color:"#374151", marginBottom:14 }}>
+          🏆 Top sản phẩm bán chạy (tháng này)
+        </div>
+        {topProducts.length === 0 ? (
+          <div style={{textAlign:"center",color:"#9ca3af",padding:24}}>Chưa có dữ liệu bán hàng</div>
+        ) : (
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {topProducts.slice(0,10).map((p, i) => (
+              <div key={i} style={{ display:"flex", alignItems:"center", gap:12,
+                background:"#f9fafb", borderRadius:10, padding:"10px 14px" }}>
+                <div style={{ width:24, height:24, borderRadius:"50%", background: i<3?"#fbbf24":"#e5e7eb",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  fontWeight:800, fontSize:12, color: i<3?"#fff":"#6b7280", flexShrink:0 }}>
+                  {i+1}
+                </div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontWeight:600, fontSize:13, color:"#1f2937" }}>{p.name}</div>
+                  <div style={{ fontSize:11, color:"#9ca3af" }}>{p.sku}</div>
+                </div>
+                <div style={{ textAlign:"right" }}>
+                  <div style={{ fontWeight:700, fontSize:13, color:"#4f46e5" }}>{p.qty} sp</div>
+                  <div style={{ fontSize:11, color:"#9ca3af" }}>{(p.revenue||0).toLocaleString("vi-VN")}đ</div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -723,7 +776,84 @@ function PillTabs({ tabs, active, onChange }) {
 }
 
 // ── TAB 2: Tài chính (Business) ──────────────────────────────
+function DebtPayableContent() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    DebtVoucher.list({
+      filter: `type="payable"&&status!="paid"`,
+      sort: "-created",
+    }).then(setItems).catch(()=>setItems([])).finally(()=>setLoading(false));
+  }, []);
+  if (loading) return <div style={{textAlign:"center",padding:20}}>⏳</div>;
+  if (items.length === 0) return (
+    <div style={{textAlign:"center",padding:24,color:"#9ca3af"}}>Không có công nợ NCC</div>
+  );
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+      {items.map(item => (
+        <div key={item.id} style={{ background:"#fff", border:"1px solid #e5e7eb", borderRadius:10, padding:"12px 14px" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+            <div>
+              <div style={{ fontWeight:700, fontSize:13, color:"#1f2937" }}>{item.partner_name || "NCC"}</div>
+              <div style={{ fontSize:11, color:"#9ca3af", marginTop:2 }}>{item.description || ""}</div>
+            </div>
+            <div style={{ textAlign:"right" }}>
+              <div style={{ fontWeight:800, fontSize:14, color:"#dc2626" }}>
+                {(item.amount||0).toLocaleString("vi-VN")}đ
+              </div>
+              <div style={{ fontSize:11, color: item.due_date && new Date(item.due_date)<new Date() ? "#ef4444" : "#9ca3af", marginTop:2 }}>
+                Hạn: {item.due_date ? new Date(item.due_date).toLocaleDateString("vi-VN") : "—"}
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DebtOverdueContent() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const today = new Date().toISOString().slice(0,10);
+  useEffect(() => {
+    DebtVoucher.list({
+      filter: `status!="paid"&&due_date<="${today}"`,
+      sort: "due_date",
+    }).then(setItems).catch(()=>setItems([])).finally(()=>setLoading(false));
+  }, []);
+  if (loading) return <div style={{textAlign:"center",padding:20}}>⏳</div>;
+  if (items.length === 0) return (
+    <div style={{textAlign:"center",padding:24,color:"#059669"}}>
+      <span style={{fontFamily:"Material Icons",fontSize:40,display:"block",marginBottom:8}}>check_circle</span>
+      Không có công nợ quá hạn 🎉
+    </div>
+  );
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+      {items.map(item => {
+        const days = Math.floor((new Date()-new Date(item.due_date))/(1000*60*60*24));
+        return (
+          <div key={item.id} style={{ background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:10, padding:"12px 14px" }}>
+            <div style={{ display:"flex", justifyContent:"space-between" }}>
+              <div>
+                <div style={{ fontWeight:700, fontSize:13, color:"#991b1b" }}>{item.partner_name || "—"}</div>
+                <div style={{ fontSize:11, color:"#ef4444", marginTop:2 }}>Quá hạn {days} ngày</div>
+              </div>
+              <div style={{ fontWeight:800, fontSize:14, color:"#dc2626" }}>
+                {(item.amount||0).toLocaleString("vi-VN")}đ
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function DebtSubTab({ repairOrders }) {
+  const [debtTab, setDebtTab] = useState("receivable");
   const debtMap = {};
   repairOrders
     .filter(o => (o.balance||0) > 0 && !["Huỷ"].includes(o.status))
@@ -735,40 +865,78 @@ function DebtSubTab({ repairOrders }) {
     });
   const list = Object.values(debtMap).sort((a,b) => b.total - a.total);
 
-  if (list.length === 0) return (
-    <div style={{ textAlign:"center", padding:40, color:"#9ca3af" }}>
-      <div style={{ fontSize:32, marginBottom:8 }}>✅</div>
-      <div>Không có công nợ khách hàng</div>
-    </div>
-  );
-
   return (
-    <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-      {list.map((c,i) => (
-        <div key={i} style={{ background:"#fff", border:"1.5px solid #fca5a5", borderRadius:14, padding:"14px 16px",
-          display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-          <div>
-            <div style={{ fontWeight:800, fontSize:15 }}>{c.name}</div>
-            <div style={{ fontSize:12, color:"#6b7280", marginTop:2 }}>{c.orders} đơn nợ</div>
+    <div>
+      {/* Sub-toggle Công nợ */}
+      <div style={{ display:"flex", gap:6, marginBottom:16, flexWrap:"wrap" }}>
+        {[
+          { key:"receivable", label:"Phải thu (KH)" },
+          { key:"payable",    label:"Phải trả (NCC)" },
+          { key:"overdue",    label:"⚠️ Quá hạn" },
+        ].map(t => (
+          <button key={t.key}
+            onClick={() => setDebtTab(t.key)}
+            style={{ padding:"6px 12px", borderRadius:20, border:"none", cursor:"pointer", fontSize:12, fontWeight:600,
+              background: debtTab===t.key ? "#4f46e5" : "#f3f4f6",
+              color:      debtTab===t.key ? "#fff" : "#6b7280" }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Phải thu KH */}
+      {debtTab === "receivable" && (
+        list.length === 0 ? (
+          <div style={{ textAlign:"center", padding:40, color:"#9ca3af" }}>
+            <div style={{ fontSize:32, marginBottom:8 }}>✅</div>
+            <div>Không có công nợ khách hàng</div>
           </div>
-          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-            <div style={{ fontWeight:900, fontSize:16, color:"#dc2626" }}>{fmtMoney(c.total)}</div>
-            {c.phone && (
-              <a href={"tel:"+c.phone}
-                style={{ background:"#4f46e5", color:"#fff", borderRadius:10, padding:"7px 14px",
-                  fontSize:13, fontWeight:700, textDecoration:"none" }}>
-                📞
-              </a>
-            )}
+        ) : (
+          <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+            {list.map((c,i) => (
+              <div key={i} style={{ background:"#fff", border:"1.5px solid #fca5a5", borderRadius:14, padding:"14px 16px",
+                display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <div>
+                  <div style={{ fontWeight:800, fontSize:15 }}>{c.name}</div>
+                  <div style={{ fontSize:12, color:"#6b7280", marginTop:2 }}>{c.orders} đơn nợ</div>
+                </div>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ fontWeight:900, fontSize:16, color:"#dc2626" }}>{fmtMoney(c.total)}</div>
+                  {c.phone && (
+                    <a href={"tel:"+c.phone}
+                      style={{ background:"#4f46e5", color:"#fff", borderRadius:10, padding:"7px 14px",
+                        fontSize:13, fontWeight:700, textDecoration:"none" }}>
+                      📞
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
-      ))}
+        )
+      )}
+
+      {debtTab === "payable"    && <DebtPayableContent />}
+      {debtTab === "overdue"    && <DebtOverdueContent />}
     </div>
   );
 }
 
 function CashflowSubTab({ repairOrders, expenses, saleOrders }) {
   const now = new Date();
+  const [cashSummary, setCashSummary] = useState({ totalIn:0, totalOut:0, balance:0 });
+
+  useEffect(() => {
+    const today = new Date().toISOString().slice(0,10);
+    CashJournal.list({
+      filter: `date>="${today}"`,
+      limit: 500,
+    }).then(entries => {
+      const totalIn  = entries.filter(e=>e.type==="in" ||e.entry_type==="in" ).reduce((s,e)=>s+(e.amount||0),0);
+      const totalOut = entries.filter(e=>e.type==="out"||e.entry_type==="out").reduce((s,e)=>s+(e.amount||0),0);
+      setCashSummary({ totalIn, totalOut, balance: totalIn - totalOut });
+    }).catch(()=>{});
+  }, []);
   const thisMonth = (d) => {
     const dt = new Date(d);
     return dt.getMonth()===now.getMonth() && dt.getFullYear()===now.getFullYear();
@@ -794,6 +962,25 @@ function CashflowSubTab({ repairOrders, expenses, saleOrders }) {
 
   return (
     <div>
+      {/* Số dư live hôm nay */}
+      <div style={{ display:"flex", gap:12, marginBottom:20, flexWrap:"wrap" }}>
+        <div style={{ flex:1, minWidth:120, background:"#f0fdf4", borderRadius:12, padding:"14px 16px", textAlign:"center" }}>
+          <div style={{ fontSize:20 }}>📥</div>
+          <div style={{ fontWeight:800, fontSize:18, color:"#059669" }}>{fmtMoney(cashSummary.totalIn)}</div>
+          <div style={{ fontSize:11, color:"#6b7280" }}>Tổng thu hôm nay</div>
+        </div>
+        <div style={{ flex:1, minWidth:120, background:"#fef2f2", borderRadius:12, padding:"14px 16px", textAlign:"center" }}>
+          <div style={{ fontSize:20 }}>📤</div>
+          <div style={{ fontWeight:800, fontSize:18, color:"#dc2626" }}>{fmtMoney(cashSummary.totalOut)}</div>
+          <div style={{ fontSize:11, color:"#6b7280" }}>Tổng chi hôm nay</div>
+        </div>
+        <div style={{ flex:1, minWidth:120, background:"#eff6ff", borderRadius:12, padding:"14px 16px", textAlign:"center" }}>
+          <div style={{ fontSize:20 }}>💰</div>
+          <div style={{ fontWeight:800, fontSize:18, color:"#1d4ed8" }}>{fmtMoney(cashSummary.balance)}</div>
+          <div style={{ fontSize:11, color:"#6b7280" }}>Số dư hiện tại</div>
+        </div>
+      </div>
+
       <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", overflow:"hidden", marginBottom:16 }}>
         <div style={{ padding:"12px 16px", borderBottom:"1px solid #f3f4f6", fontWeight:800, fontSize:14 }}>
           📅 Tháng {now.getMonth()+1}/{now.getFullYear()}
