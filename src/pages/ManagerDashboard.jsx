@@ -3,6 +3,8 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Staff, RepairOrder, SparePart, SaleOrder, Expense,
          StockLedger, Warehouse, Customer, AppSettings, StockImport, SparePartUsage,
          DebtVoucher, CashJournal } from "./pb.jsx";
+import RevenueReportPage from "./RevenueReportPage.jsx";
+import StockReportNXT    from "./StockReportNXT.jsx";
 
 // ── Constants ──────────────────────────────────────────────
 const ALLOWED = ["manager","admin","owner"];
@@ -118,16 +120,19 @@ function BarChart({ data, height=100 }) {
 }
 
 // ── TAB 1: Overview ────────────────────────────────────────
-function OverviewTab({ repairOrders, saleOrders, spareParts, ledgerSummary=[] }) {
+function OverviewTab({ repairOrders, saleOrders, spareParts, ledgerSummary=[], cashJournals=[], staff=[] }) {
   const now = new Date();
   const bp = useBreakpoint();
+  const [expandedCard, setExpandedCard] = React.useState(null);
 
+  // ── KPI Cards ─────────────────────────────────────────
   const active    = repairOrders.filter(o => !SKIP_ST.includes(o.status));
   const doneToday = repairOrders.filter(o => DONE_ST.includes(o.status) && isToday(o.done_date||o.updated));
   const saleToday = saleOrders.filter(o => o.status==="paid" && isToday(o.created||o.created_date));
   const revenue   = doneToday.reduce((s,o)=>s+(o.final_cost||0),0) + saleToday.reduce((s,o)=>s+(o.total||0),0);
   const overdue   = repairOrders.filter(o => !SKIP_ST.includes(o.status) && o.estimated_done_date && new Date(o.estimated_done_date) < now);
 
+  // ── Chart ─────────────────────────────────────────────
   const days7 = last7Days();
   const chartData = days7.map(day => {
     const lbl = String(day.getDate()).padStart(2,"0")+"/"+String(day.getMonth()+1).padStart(2,"0");
@@ -139,7 +144,40 @@ function OverviewTab({ repairOrders, saleOrders, spareParts, ledgerSummary=[] })
   const lowStock = ledgerSummary.filter(p => p.total_qty <= Math.max(p.min_qty, 2));
   const recent5  = [...repairOrders].sort((a,b)=>new Date(b.created||b.received_date)-new Date(a.created||a.received_date)).slice(0,5);
 
-  const CARDS = [
+  // ── Section 2: Việc cần làm hôm nay ──────────────────
+  const waitingRepair  = repairOrders.filter(o => ["Chờ Khám","Chờ Linh Kiện"].includes(o.status));
+  const overdueOrders  = repairOrders.filter(o => !SKIP_ST.includes(o.status) && o.estimated_done_date && new Date(o.estimated_done_date) < now);
+  const readyToDeliver = repairOrders.filter(o => o.status === "Hoàn Thành");
+  const TODO_CARDS = [
+    { key:"waiting",  icon:"📋", label:"Chờ xử lý",       count:waitingRepair.length,  items:waitingRepair,  color:"#f59e0b" },
+    { key:"overdue",  icon:"⚠️", label:"Trễ hạn",          count:overdueOrders.length,  items:overdueOrders,  color:"#ef4444" },
+    { key:"ready",    icon:"📦", label:"Sẵn sàng giao",    count:readyToDeliver.length, items:readyToDeliver, color:"#059669" },
+    { key:"export",   icon:"🔩", label:"Chờ xuất vật tư",  count:0,                     items:[],             color:"#6b7280" },
+  ];
+
+  // ── Section 3: Dịch vụ & Bán hàng ────────────────────
+  const pendingPackage = repairOrders.filter(o => {
+    if (o.status !== "Hoàn Thành") return false;
+    const doneDate = o.done_date ? new Date(o.done_date) : null;
+    return doneDate && (new Date() - doneDate) > 86400000;
+  });
+  const pendingSales = saleOrders.filter(o => o.status === "pending");
+
+  // ── Section 4: Tài chính nhanh ────────────────────────
+  const balance  = (cashJournals||[]).reduce((s,j) => j.type==="thu"||j.entry_type==="in" ? s+(j.amount||0) : s-(j.amount||0), 0);
+  const todayThu = (cashJournals||[]).filter(j => (j.type==="thu"||j.entry_type==="in")  && isToday(j.date||j.created)).reduce((s,j)=>s+(j.amount||0),0);
+  const todayChi = (cashJournals||[]).filter(j => (j.type==="chi"||j.entry_type==="out") && isToday(j.date||j.created)).reduce((s,j)=>s+(j.amount||0),0);
+
+  // ── Section 5: KTV idle ───────────────────────────────
+  const idleKtv = (staff||[]).filter(s =>
+    ["technician","mm_tech","team_leader"].includes(s.role) &&
+    !repairOrders.some(o =>
+      o.assigned_to === s.id &&
+      !SKIP_ST.includes(o.status)
+    )
+  );
+
+  const KPICARDS = [
     { icon:"🔧", label:"Đơn đang sửa",       value:active.length,     sub:"đơn", bg:"#eff6ff", bc:"#bfdbfe", cl:"#1d4ed8" },
     { icon:"✅", label:"Hoàn thành hôm nay",  value:doneToday.length,  sub:"đơn", bg:"#f0fdf4", bc:"#86efac", cl:"#059669" },
     { icon:"💰", label:"Doanh thu hôm nay",   value:fmtMoney(revenue), sub:"",    bg:"#fefce8", bc:"#fde68a", cl:"#ca8a04" },
@@ -147,39 +185,109 @@ function OverviewTab({ repairOrders, saleOrders, spareParts, ledgerSummary=[] })
   ];
 
   return (
-    <div style={{ padding: bp==="pc" ? "24px 32px 40px" : bp==="tablet" ? "20px 24px 80px" : "16px 14px 80px", maxWidth:1400, margin:"0 auto" }}>
+    <div style={{ padding: bp==="pc" ? "24px 32px 40px" : "16px 14px 40px", maxWidth:1400, margin:"0 auto" }}>
 
-      {/* === CARDS === */}
-      <div style={{
-        display:"grid",
-        gridTemplateColumns: bp==="mobile" ? "1fr 1fr" : "repeat(4,1fr)",
-        gap: bp==="mobile" ? 12 : 16,
-        marginBottom: bp==="pc" ? 20 : 16,
-      }}>
-        {CARDS.map((c,i) => (
-          <div key={i} style={{ background:c.bg, border:"2px solid "+c.bc, borderRadius:16,
-            padding: bp==="mobile" ? "14px 12px" : "20px 18px" }}>
-            <div style={{ fontSize: bp==="mobile" ? 22 : 26, marginBottom:4 }}>{c.icon}</div>
-            <div style={{ fontSize: bp==="mobile" ? (c.sub?24:18) : 32, fontWeight:900, color:c.cl, lineHeight:1.1 }}>
-              {c.value}{c.sub ? <span style={{fontSize: bp==="mobile"?13:16}}> {c.sub}</span> : ""}
+      {/* === S1: KPI Cards === */}
+      <div style={{ display:"grid", gridTemplateColumns: bp==="mobile"?"1fr 1fr":"repeat(4,1fr)", gap:bp==="mobile"?12:16, marginBottom:16 }}>
+        {KPICARDS.map((c,i) => (
+          <div key={i} style={{ background:c.bg, border:"2px solid "+c.bc, borderRadius:16, padding:bp==="mobile"?"14px 12px":"20px 18px" }}>
+            <div style={{ fontSize:bp==="mobile"?22:26, marginBottom:4 }}>{c.icon}</div>
+            <div style={{ fontSize:bp==="mobile"?(c.sub?24:18):32, fontWeight:900, color:c.cl, lineHeight:1.1 }}>
+              {c.value}{c.sub ? <span style={{fontSize:bp==="mobile"?13:16}}> {c.sub}</span> : ""}
             </div>
-            <div style={{ fontSize: bp==="mobile"?11:13, color:"#6b7280", marginTop:5, fontWeight:600 }}>{c.label}</div>
+            <div style={{ fontSize:bp==="mobile"?11:13, color:"#6b7280", marginTop:5, fontWeight:600 }}>{c.label}</div>
           </div>
         ))}
       </div>
 
-      {/* === PC: Chart 60% | Đơn mới 40% | Mobile: dọc === */}
-      <div style={{
-        display:"grid",
-        gridTemplateColumns: bp==="mobile" ? "1fr" : "3fr 2fr",
-        gap:16,
-        marginBottom:16,
-        alignItems:"start",
-      }}>
-        {/* Chart */}
+      {/* === S2: Việc cần làm === */}
+      <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", padding:16, marginBottom:16 }}>
+        <div style={{ fontWeight:800, fontSize:14, color:"#374151", marginBottom:12 }}>📌 Việc cần làm hôm nay</div>
+        <div style={{ display:"grid", gridTemplateColumns:bp==="mobile"?"1fr 1fr":"repeat(4,1fr)", gap:8 }}>
+          {TODO_CARDS.map(c => (
+            <div key={c.key}>
+              <button onClick={() => setExpandedCard(expandedCard===c.key ? null : c.key)}
+                style={{ width:"100%", background:c.count>0 ? c.color+"15" : "#f9fafb",
+                  border:"1.5px solid "+(c.count>0 ? c.color+"44" : "#e5e7eb"),
+                  borderRadius:12, padding:"10px 12px", cursor:"pointer", textAlign:"left" }}>
+                <div style={{ fontSize:18 }}>{c.icon}</div>
+                <div style={{ fontSize:20, fontWeight:900, color:c.count>0?c.color:"#9ca3af" }}>{c.count}</div>
+                <div style={{ fontSize:11, color:"#6b7280", marginTop:2 }}>{c.label}</div>
+              </button>
+              {expandedCard===c.key && c.items.length>0 && (
+                <div style={{ marginTop:4, background:"#f9fafb", borderRadius:8, border:"1px solid #e5e7eb", maxHeight:180, overflowY:"auto" }}>
+                  {c.items.slice(0,10).map(o => (
+                    <div key={o.id} style={{ padding:"7px 10px", borderBottom:"1px solid #f3f4f6", fontSize:12 }}>
+                      <span style={{ fontWeight:700 }}>{o.order_code}</span>
+                      <span style={{ color:"#6b7280", marginLeft:6 }}>{o.customer_name||"—"} · {o.device_model||"—"}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* === S3 + S4: 2 cột === */}
+      <div style={{ display:"grid", gridTemplateColumns:bp==="mobile"?"1fr":"1fr 1fr", gap:16, marginBottom:16 }}>
+
+        {/* S3: Dịch vụ & Bán hàng */}
+        <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", overflow:"hidden" }}>
+          <div style={{ padding:"12px 16px", borderBottom:"1px solid #f3f4f6", fontWeight:800, fontSize:14 }}>🚚 Máy chờ giao ({'>'} 1 ngày)</div>
+          {pendingPackage.length===0
+            ? <div style={{padding:"16px",color:"#059669",fontSize:13,fontWeight:600}}>✅ Không có máy chờ giao</div>
+            : pendingPackage.slice(0,5).map(o => (
+              <div key={o.id} style={{ padding:"9px 16px", borderBottom:"1px solid #f3f4f6", fontSize:12 }}>
+                <span style={{fontWeight:700}}>{o.order_code}</span>
+                <span style={{color:"#6b7280",marginLeft:6}}>{o.customer_name||"—"}</span>
+              </div>
+            ))
+          }
+        </div>
+
+        {/* S4: Tài chính nhanh */}
         <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", padding:16 }}>
-          <div style={{ fontWeight:800, fontSize:14, color:"#374151", marginBottom:14 }}>📈 Doanh thu 7 ngày gần nhất</div>
-          <BarChart data={chartData} height={bp==="mobile"?100:140} />
+          <div style={{ fontWeight:800, fontSize:14, color:"#374151", marginBottom:10 }}>💰 Tài chính nhanh</div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom:14 }}>
+            {[
+              { icon:"💵", label:"Số dư quỹ",   value:fmtMoney(balance),   color:"#1d4ed8" },
+              { icon:"📈", label:"Thu hôm nay",  value:fmtMoney(todayThu),  color:"#059669" },
+              { icon:"📉", label:"Chi hôm nay",  value:fmtMoney(todayChi),  color:"#dc2626" },
+            ].map((c,i) => (
+              <div key={i} style={{ textAlign:"center", background:"#f9fafb", borderRadius:10, padding:"8px 4px" }}>
+                <div style={{fontSize:16}}>{c.icon}</div>
+                <div style={{fontSize:12,fontWeight:800,color:c.color,marginTop:2}}>{c.value}</div>
+                <div style={{fontSize:10,color:"#6b7280",marginTop:1}}>{c.label}</div>
+              </div>
+            ))}
+          </div>
+          <BarChart data={chartData} height={bp==="mobile"?80:110} />
+        </div>
+      </div>
+
+      {/* === S5: KTV + Đơn mới === */}
+      <div style={{ display:"grid", gridTemplateColumns:bp==="mobile"?"1fr":"1fr 1fr", gap:16, marginBottom:16 }}>
+
+        {/* KTV idle alert */}
+        <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", overflow:"hidden" }}>
+          <div style={{ padding:"12px 16px", borderBottom:"1px solid #f3f4f6", fontWeight:800, fontSize:14, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <span>👨‍🔧 KPI Nhân viên</span>
+            {idleKtv.length > 0 && (
+              <span style={{ fontSize:12, background:"#fef9c3", color:"#b45309", borderRadius:8, padding:"3px 10px", fontWeight:700 }}>
+                ⚡ {idleKtv.length} KTV chưa có đơn
+              </span>
+            )}
+          </div>
+          {idleKtv.length === 0
+            ? <div style={{padding:"16px",color:"#059669",fontSize:13,fontWeight:600}}>✅ Tất cả KTV đều có đơn</div>
+            : idleKtv.slice(0,5).map(s => (
+              <div key={s.id} style={{ padding:"9px 16px", borderBottom:"1px solid #f3f4f6", fontSize:12 }}>
+                <span style={{fontWeight:700}}>{s.full_name||s.name||"—"}</span>
+                <span style={{color:"#9ca3af",marginLeft:6,fontSize:11}}>{s.role}</span>
+              </div>
+            ))
+          }
         </div>
 
         {/* Đơn mới nhất */}
@@ -191,9 +299,7 @@ function OverviewTab({ repairOrders, saleOrders, spareParts, ledgerSummary=[] })
               display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <div style={{ minWidth:0 }}>
                 <div style={{ fontWeight:700, fontSize:13 }}>{o.order_code}</div>
-                <div style={{ fontSize:11, color:"#6b7280", marginTop:1 }}>
-                  {o.customer_name||"—"} · {o.device_model||"—"}
-                </div>
+                <div style={{ fontSize:11, color:"#6b7280", marginTop:1 }}>{o.customer_name||"—"} · {o.device_model||"—"}</div>
               </div>
               <div style={{ textAlign:"right", flexShrink:0, marginLeft:8 }}>
                 <div style={{ fontSize:11, background:(STATUS_COLORS[o.status]||"#6b7280")+"22",
@@ -207,32 +313,27 @@ function OverviewTab({ repairOrders, saleOrders, spareParts, ledgerSummary=[] })
         </div>
       </div>
 
-      {/* === Tồn kho sắp hết — full width === */}
+      {/* === Tồn kho sắp hết === */}
       <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", overflow:"hidden" }}>
         <div style={{ padding:"12px 16px", borderBottom:"1px solid #f3f4f6", fontWeight:800, fontSize:14 }}>⚠️ Tồn kho sắp hết</div>
-        {lowStock.length === 0 ? (
-          <div style={{ padding:"20px 16px", color:"#059669", fontSize:13, fontWeight:600 }}>✅ Tồn kho ổn định</div>
-        ) : (
-          <div style={{
-            display:"grid",
-            gridTemplateColumns: bp==="mobile" ? "1fr" : bp==="tablet" ? "1fr 1fr" : "repeat(3,1fr)",
-          }}>
-            {lowStock.slice(0, bp==="mobile"?8:12).map(p => (
-              <div key={p.id} style={{ padding:"10px 16px", borderBottom:"1px solid #f3f4f6",
-                display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                <div>
-                  <div style={{ fontWeight:700, fontSize:13 }}>{p.name}</div>
-                  <div style={{ fontSize:11, color:"#6b7280" }}>{p.sku||"—"}</div>
+        {lowStock.length === 0
+          ? <div style={{ padding:"20px 16px", color:"#059669", fontSize:13, fontWeight:600 }}>✅ Tồn kho ổn định</div>
+          : <div style={{ display:"grid", gridTemplateColumns:bp==="mobile"?"1fr":bp==="tablet"?"1fr 1fr":"repeat(3,1fr)" }}>
+              {lowStock.slice(0, bp==="mobile"?8:12).map(p => (
+                <div key={p.id} style={{ padding:"10px 16px", borderBottom:"1px solid #f3f4f6",
+                  display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <div>
+                    <div style={{ fontWeight:700, fontSize:13 }}>{p.name}</div>
+                    <div style={{ fontSize:11, color:"#6b7280" }}>{p.sku||"—"}</div>
+                  </div>
+                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                    <span style={{ fontWeight:800, fontSize:14, color:"#dc2626" }}>{p.stock_qty||0}</span>
+                    <span style={{ fontSize:11, background:"#fee2e2", color:"#dc2626", borderRadius:99, padding:"2px 8px", fontWeight:700 }}>Sắp hết</span>
+                  </div>
                 </div>
-                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                  <span style={{ fontWeight:800, fontSize:14, color:"#dc2626" }}>{p.stock_qty||0}</span>
-                  <span style={{ fontSize:11, background:"#fee2e2", color:"#dc2626",
-                    borderRadius:99, padding:"2px 8px", fontWeight:700 }}>Sắp hết</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+        }
       </div>
 
     </div>
@@ -1004,7 +1105,7 @@ function CashflowSubTab({ repairOrders, expenses, saleOrders }) {
   );
 }
 
-function BusinessTab({ repairOrders, saleOrders, expenses }) {
+function BusinessTab({ repairOrders, saleOrders, expenses, cashJournals=[] }) {
   const [sub, setSub] = useState("revenue");
   const SUB_TABS = [
     { key:"revenue",  label:"📈 Doanh thu" },
@@ -1198,16 +1299,28 @@ function ExportSubTab({ sparePartUsages, onApprove }) {
 function InventoryWrapTab({ spareParts, stockImports, ledgerSummary, sparePartUsages, onApproveUsage }) {
   const [sub, setSub] = useState("stock");
   const SUB_TABS = [
-    { key:"stock",  label:"📦 Tồn kho" },
-    { key:"import", label:"📥 Nhập kho" },
-    { key:"export", label:"📤 Xuất kho" },
+    { key:"stock",      label:"📦 Tồn kho"         },
+    { key:"import",     label:"📥 Nhập kho"         },
+    { key:"export",     label:"📤 Xuất kho"         },
+    { key:"count_hist", label:"📋 Lịch sử kiểm kê"  },
   ];
   return (
     <div style={{ padding:"16px 14px 40px" }}>
       <PillTabs tabs={SUB_TABS} active={sub} onChange={setSub} />
-      {sub==="stock"  && <InventoryTab spareParts={spareParts} stockImports={stockImports} ledgerSummary={ledgerSummary} />}
-      {sub==="import" && <ImportSubTab stockImports={stockImports} />}
-      {sub==="export" && <ExportSubTab sparePartUsages={sparePartUsages} onApprove={onApproveUsage} />}
+      {sub==="stock"      && <InventoryTab spareParts={spareParts} stockImports={stockImports} ledgerSummary={ledgerSummary} />}
+      {sub==="import"     && <ImportSubTab stockImports={stockImports} />}
+      {sub==="export"     && <ExportSubTab sparePartUsages={sparePartUsages} onApprove={onApproveUsage} />}
+      {sub==="count_hist" && <StockCountHistoryTab />}
+    </div>
+  );
+}
+
+function StockCountHistoryTab() {
+  return (
+    <div style={{ padding:24, textAlign:"center", color:"#6b7280" }}>
+      <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:48, display:"block", marginBottom:8 }}>history</span>
+      <div style={{ fontSize:15, fontWeight:600 }}>Lịch sử kiểm kê</div>
+      <div style={{ fontSize:13, marginTop:4 }}>Tính năng đang phát triển</div>
     </div>
   );
 }
@@ -1290,11 +1403,39 @@ function SettingsLiteTab({ user, repairOrders, customers, spareParts, ledgerSumm
 // ══════════════════════════════════════════════════════════════
 
 const NAV_TABS = [
-  { key:"overview",   icon:"dashboard",    label:"Tổng quan" },
+  { key:"overview",   icon:"dashboard",       label:"Tổng quan" },
   { key:"business",   icon:"account_balance", label:"Tài chính" },
-  { key:"staff",      icon:"people",       label:"Nhân viên" },
-  { key:"inventory",  icon:"inventory_2",  label:"Kho & KT" },
+  { key:"staff",      icon:"people",          label:"Nhân viên" },
+  { key:"inventory",  icon:"inventory_2",     label:"Kho & KT" },
+  { key:"reports",    icon:"bar_chart",       label:"Báo cáo" },
 ];
+
+
+// ── TAB 5: Báo cáo ───────────────────────────────────────────
+function ReportsTab({ user, repairOrders, saleOrders, spareParts, ledgerSummary }) {
+  const [sub, setSub] = React.useState("revenue");
+  const SUB_TABS = [
+    { key:"revenue", label:"📈 Doanh thu"     },
+    { key:"nxt",     label:"📦 Nhập-Xuất-Tồn" },
+    { key:"profit",  label:"💹 Lợi nhuận"     },
+    { key:"ktv",     label:"👨‍🔧 Báo cáo KTV" },
+  ];
+  return (
+    <div style={{ padding:"16px 14px 40px" }}>
+      <PillTabs tabs={SUB_TABS} active={sub} onChange={setSub} />
+      {sub==="revenue" && <RevenueReportPage user={user} embedded />}
+      {sub==="nxt"     && <StockReportNXT    user={user} embedded />}
+      {sub==="profit"  && (
+        <div style={{ padding:32, textAlign:"center", color:"#6b7280" }}>
+          <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:48, display:"block", marginBottom:8 }}>trending_up</span>
+          <div style={{ fontSize:15, fontWeight:600 }}>Báo cáo Lợi nhuận</div>
+          <div style={{ fontSize:13, marginTop:4 }}>Tính năng đang phát triển</div>
+        </div>
+      )}
+      {sub==="ktv" && <StaffKpiTab staff={[]} repairOrders={repairOrders} />}
+    </div>
+  );
+}
 
 export default function ManagerDashboard({ user, initialTab = "overview", onTabChange }) {
   const bp = useBreakpoint();
@@ -1319,6 +1460,7 @@ export default function ManagerDashboard({ user, initialTab = "overview", onTabC
   const [stockImports,   setStockImports]   = useState([]);
   const [ledgerSummary,  setLedgerSummary]  = useState([]);
   const [sparePartUsages,setSparePartUsages]= useState([]);
+  const [cashJournals,   setCashJournals]   = useState([]);
 
   if (!user) return null;
   if (!ALLOWED.includes(user.role)) return (
@@ -1331,7 +1473,7 @@ export default function ManagerDashboard({ user, initialTab = "overview", onTabC
   const loadData = useCallback(async () => {
     setLoading(true);
     const safe = (p) => p.catch(e => { console.warn("MD fetch warn:", e?.message); return []; });
-    const [orders, sales, exps, parts, staffList, custs, imports, ledger, usages] = await Promise.all([
+    const [orders, sales, exps, parts, staffList, custs, imports, ledger, usages, journals] = await Promise.all([
       safe(RepairOrder.list({ limit:500, sort:"-received_date" })),
       safe(SaleOrder.list({ limit:200, sort:"-created" })),
       safe(Expense.list({ limit:200, sort:"-expense_date" })),
@@ -1341,6 +1483,7 @@ export default function ManagerDashboard({ user, initialTab = "overview", onTabC
       safe(StockImport.list({ limit:50, sort:"-created" })),
       safe(StockLedger.list({ limit:500 })),
       safe(SparePartUsage.list({ limit:100, sort:"-created" })),
+      safe(CashJournal.list({ limit:500, sort:"-created" })),
     ]);
 
     // Aggregate ledger
@@ -1361,6 +1504,7 @@ export default function ManagerDashboard({ user, initialTab = "overview", onTabC
     setStockImports(imports||[]);
     setLedgerSummary(Object.values(ledgerMap));
     setSparePartUsages(usages||[]);
+    setCashJournals(journals||[]);
     setLoading(false);
   }, []);
 
@@ -1389,11 +1533,11 @@ export default function ManagerDashboard({ user, initialTab = "overview", onTabC
       </div>
     );
     switch(tab) {
-      case "overview":  return <OverviewTab repairOrders={repairOrders} saleOrders={saleOrders} spareParts={spareParts} ledgerSummary={ledgerSummary} />;
-      case "business":  return <BusinessTab repairOrders={repairOrders} saleOrders={saleOrders} expenses={expenses} />;
+      case "overview":  return <OverviewTab repairOrders={repairOrders} saleOrders={saleOrders} spareParts={spareParts} ledgerSummary={ledgerSummary} cashJournals={cashJournals} staff={staff} />;
+      case "business":  return <BusinessTab repairOrders={repairOrders} saleOrders={saleOrders} expenses={expenses} cashJournals={cashJournals} />;
       case "staff":     return <StaffTab staff={staff} repairOrders={repairOrders} />;
       case "inventory": return <InventoryWrapTab spareParts={spareParts} stockImports={stockImports} ledgerSummary={ledgerSummary} sparePartUsages={sparePartUsages} onApproveUsage={handleApproveUsage} />;
-      // settings tab removed
+      case "reports":   return <ReportsTab user={user} repairOrders={repairOrders} saleOrders={saleOrders} spareParts={spareParts} ledgerSummary={ledgerSummary} />;
       default: return null;
     }
   };
