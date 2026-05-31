@@ -258,24 +258,28 @@ const CashJournalPage      = lazy(() => import("./CashJournalPage").catch(() => 
 ) })));
 const DepartmentPageLazy     = lazy(() => import("./DepartmentPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Phòng ban</div> })));
 const RolePermissionPageLazy = lazy(() => import("./RolePermissionPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Phân quyền</div> })));
+const IntegrationsPage = lazy(() => import("./IntegrationsPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Tích hợp đang phát triển</div> })));
 const RoleHomePlaceholder  = lazy(() => import("./RoleHomePlaceholder").catch(() => ({ default: () => (
   <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang chủ</div>
 ) })));
 
 const MGR_SUB_ITEMS = [
-  { key:"overview",  icon:"dashboard",   label:"Tổng quan" },
-  { key:"business",  icon:"bar_chart",   label:"Kinh doanh" },
-  { key:"staff",     icon:"people",      label:"Nhân viên" },
-  { key:"inventory", icon:"inventory_2", label:"Kho & KT" },
+  { key:"overview",  icon:"dashboard",       label:"Tổng quan" },
+  { key:"business",  icon:"account_balance", label:"Tài chính" },
+  { key:"staff",     icon:"people",          label:"Nhân viên" },
+  { key:"inventory", icon:"inventory_2",     label:"Kho & KT" },
 ];
 
 const SETUP_SUB_ITEMS = [
-  { key:"staff",      icon:"badge",                  label:"Nhân viên" },
-  { key:"customers",  icon:"group",                  label:"Khách hàng" },
-  { key:"suppliers",  icon:"storefront",              label:"Nhà cung cấp" },
-  { key:"debts",      icon:"account_balance_wallet",  label:"Công nợ" },
-  { key:"department", icon:"account_tree",            label:"Phòng ban" },
-  { key:"role_perm",  icon:"admin_panel_settings",    label:"Vai trò & Quyền" },
+  { key:"staff",        icon:"badge",                  label:"Nhân viên" },
+  { key:"customers",    icon:"group",                  label:"Khách hàng" },
+  { key:"suppliers",    icon:"storefront",             label:"Nhà cung cấp" },
+  { key:"debts",        icon:"account_balance_wallet", label:"Công nợ" },
+  { key:"department",   icon:"account_tree",           label:"Phòng ban" },
+  { key:"role_perm",    icon:"admin_panel_settings",   label:"Vai trò & Quyền" },
+  { key:"settings",     icon:"store",                  label:"Cài đặt shop" },
+  { key:"integrations", icon:"cable",                  label:"Tích hợp" },
+  { key:"action_log",   icon:"history",                label:"Nhật ký thao tác" },
 ];
 
 function MainAppContent({ onUserChange }) {
@@ -386,7 +390,7 @@ function MainAppContent({ onUserChange }) {
 
   // ── Auto mở/đóng accordion theo page ──────────────────────
   useEffect(() => {
-    const SETUP_PAGES = ["staff","customers","suppliers","debts","department","role_perm"];
+    const SETUP_PAGES = ["staff","customers","suppliers","debts","department","role_perm","settings","integrations","action_log"];
     if (page === "dashboard") {
       setMgrAccordionOpen(true);
       setSetupOpen(false);
@@ -1281,7 +1285,7 @@ function MainAppContent({ onUserChange }) {
       items.push({ key:"wh_manager",   icon:"warehouse",   label:"Quản lý kho" });
 
     // ── 11. CÀI ĐẶT — admin/owner/it ────────────────────────
-    if (can("settings","view"))
+    if (can("settings","view") && !isManager)
       items.push({ key:"settings",     icon:"settings",    label:"Cài đặt" });
 
     return items;
@@ -1365,7 +1369,7 @@ function MainAppContent({ onUserChange }) {
 
   // ── Accordion Thiết Lập ─────────────────────────────────
   function renderSetupAccordion() {
-    const SETUP_PAGES = ["staff","customers","suppliers","debts","department","role_perm"];
+    const SETUP_PAGES = ["staff","customers","suppliers","debts","department","role_perm","settings","integrations","action_log"];
     const isSetupActive = SETUP_PAGES.includes(page);
     return (
       <div style={{ marginBottom:2 }}>
@@ -1833,9 +1837,9 @@ function MainAppContent({ onUserChange }) {
                   onClick={() => setSetupOpen(v => !v)}
                   style={{ width:"100%", display:"flex", alignItems:"center", gap:10, padding:"10px 14px",
                     borderRadius:10, border:"none", textAlign:"left", cursor:"pointer",
-                    background: ["staff","customers","suppliers","debts","department","role_perm"].includes(page) ? "rgba(255,255,255,.2)" : "transparent",
-                    color: ["staff","customers","suppliers","debts","department","role_perm"].includes(page) ? "#fff" : "rgba(255,255,255,.7)",
-                    fontWeight: ["staff","customers","suppliers","debts","department","role_perm"].includes(page) ? 700 : 400, fontSize:14 }}>
+                    background: ["staff","customers","suppliers","debts","department","role_perm","settings","integrations","action_log"].includes(page) ? "rgba(255,255,255,.2)" : "transparent",
+                    color: ["staff","customers","suppliers","debts","department","role_perm","settings","integrations","action_log"].includes(page) ? "#fff" : "rgba(255,255,255,.7)",
+                    fontWeight: ["staff","customers","suppliers","debts","department","role_perm","settings","integrations","action_log"].includes(page) ? 700 : 400, fontSize:14 }}>
                   <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,lineHeight:1}}>manage_accounts</span>
                   <span style={{ flex:1 }}>Thiết Lập</span>
                   <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,lineHeight:1,
@@ -1865,26 +1869,42 @@ function MainAppContent({ onUserChange }) {
                 )}
               </div>
             )}
-            {navItems.map(item => {
+            {navItems.map((item, idx) => {
+              const dividerLabel =
+                item.key === "board"        ? "── Dịch vụ" :
+                item.key === "cashier_home" ? "── Bán hàng" :
+                item.key === "wh_home"      ? "── Kho" :
+                null;
               const active = page === item.key;
               return (
-                <button key={item.key}
-                  onClick={() => {
-                    setPage(item.key);
-                    setMgrAccordionOpen(false);
-                    setSetupOpen(false);
-                    if(["board","tasks","ktv_home","rec_home"].includes(item.key)) setDashboardFilter(null);
-                  }}
-                  style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px",
-                    borderRadius:10, border:"none", textAlign:"left", cursor:"pointer",
-                    background: active ? "rgba(255,255,255,.15)" : "transparent",
-                    color: active ? "#fff" : "rgba(255,255,255,.7)",
-                    fontWeight: active ? 700 : 400, fontSize:14 }}>
-                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,lineHeight:1}}>
-                    {item.icon}
-                  </span>
-                  {item.label}
-                </button>
+                <React.Fragment key={item.key}>
+                  {dividerLabel && (
+                    <div style={{
+                      fontSize:10, fontWeight:700, color:"rgba(255,255,255,.35)",
+                      padding:"12px 14px 4px", letterSpacing:"0.1em",
+                      textTransform:"uppercase", userSelect:"none",
+                    }}>
+                      {dividerLabel}
+                    </div>
+                  )}
+                  <button
+                    onClick={() => {
+                      setPage(item.key);
+                      setMgrAccordionOpen(false);
+                      setSetupOpen(false);
+                      if(["board","tasks","ktv_home","rec_home"].includes(item.key)) setDashboardFilter(null);
+                    }}
+                    style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px",
+                      borderRadius:10, border:"none", textAlign:"left", cursor:"pointer",
+                      background: active ? "rgba(255,255,255,.15)" : "transparent",
+                      color: active ? "#fff" : "rgba(255,255,255,.7)",
+                      fontWeight: active ? 700 : 400, fontSize:14 }}>
+                    <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,lineHeight:1}}>
+                      {item.icon}
+                    </span>
+                    {item.label}
+                  </button>
+                </React.Fragment>
               );
             })}
           </nav>
@@ -1936,6 +1956,18 @@ function MainAppContent({ onUserChange }) {
               {page==="debts" && user && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><DebtPage user={user} /></Suspense>}
               {page==="department" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><DepartmentPageLazy user={user} /></Suspense>}
               {page==="role_perm" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><RolePermissionPageLazy /></Suspense>}
+              {page==="integrations" && (
+                <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
+                  <IntegrationsPage user={user} />
+                </Suspense>
+              )}
+              {page==="action_log" && (
+                <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>
+                  <span className="material-icons" style={{fontSize:48,display:"block",marginBottom:12,fontFamily:"Material Icons"}}>history</span>
+                  <div style={{fontWeight:700,fontSize:16,color:"#374151",marginBottom:8}}>Nhật ký thao tác</div>
+                  <div style={{fontSize:13}}>Tính năng đang phát triển</div>
+                </div>
+              )}
               {page==="cash_journal" && user && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><CashJournalPage user={user} /></Suspense>}
               {page==="stock_count" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><StockCountPage user={user} /></Suspense>}
               {page==="role_home" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><RoleHomePlaceholder user={user} setPage={setPage} orders={orders} /></Suspense>}
@@ -1974,22 +2006,41 @@ function MainAppContent({ onUserChange }) {
               {isManager && renderMgrAccordion()}
               {/* Accordion Thiết Lập — chỉ với isManager */}
               {isManager && renderSetupAccordion()}
-              {navItems.map(n => (
-                <button key={n.key} onClick={() => {
-                    setPage(n.key); setSidebarOpen(false);
-                    setMgrAccordionOpen(false);
-                    setSetupOpen(false);
-                    if(["board","tasks","ktv_home","rec_home"].includes(n.key)) setDashboardFilter(null);
-                  }}
-                  style={{ width:"100%", textAlign:"left", padding:"14px 16px", borderRadius:12, border:"none",
-                    background:page===n.key?"#eef2ff":"transparent",
-                    color:page===n.key?"#4f46e5":"#374151",
-                    fontWeight:page===n.key?800:500,
-                    fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", gap:10, marginBottom:2 }}>
-                  <span className="material-icons" style={{fontSize:20,fontFamily:"Material Icons",verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>{n.icon}</span>
-                  {n.label}
-                </button>
-              ))}
+              {navItems.map((n, idx) => {
+                const dividerLabel =
+                  n.key === "board"        ? "── Dịch vụ" :
+                  n.key === "cashier_home" ? "── Bán hàng" :
+                  n.key === "wh_home"      ? "── Kho" :
+                  null;
+                const active = page === n.key;
+                return (
+                  <React.Fragment key={n.key}>
+                    {dividerLabel && (
+                      <div style={{
+                        fontSize:10, fontWeight:700, color:"#9ca3af",
+                        padding:"12px 16px 4px", letterSpacing:"0.1em",
+                        textTransform:"uppercase", userSelect:"none",
+                      }}>
+                        {dividerLabel}
+                      </div>
+                    )}
+                    <button onClick={() => {
+                        setPage(n.key); setSidebarOpen(false);
+                        setMgrAccordionOpen(false);
+                        setSetupOpen(false);
+                        if(["board","tasks","ktv_home","rec_home"].includes(n.key)) setDashboardFilter(null);
+                      }}
+                      style={{ width:"100%", textAlign:"left", padding:"14px 16px", borderRadius:12, border:"none",
+                        background: active ? "#eef2ff" : "transparent",
+                        color:      active ? "#4f46e5" : "#374151",
+                        fontWeight: active ? 800 : 500,
+                        fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", gap:10, marginBottom:2 }}>
+                      <span className="material-icons" style={{fontSize:20,fontFamily:"Material Icons",verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>{n.icon}</span>
+                      {n.label}
+                    </button>
+                  </React.Fragment>
+                );
+              })}
             </div>
             <div style={{ padding:16, borderTop:"1px solid #f3f4f6", display:"flex", flexDirection:"column", gap:8 }}>
               <button onClick={doLogout} style={{ width:"100%", padding:14, background:"#fef2f2", border:"none", borderRadius:12, color:"#dc2626", fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>logout</span> Đăng xuất</button>
@@ -2193,6 +2244,18 @@ function MainAppContent({ onUserChange }) {
           <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
             <RolePermissionPageLazy />
           </Suspense>
+        )}
+        {page==="integrations" && (
+          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
+            <IntegrationsPage user={user} />
+          </Suspense>
+        )}
+        {page==="action_log" && (
+          <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>
+            <span className="material-icons" style={{fontSize:48,display:"block",marginBottom:12,fontFamily:"Material Icons"}}>history</span>
+            <div style={{fontWeight:700,fontSize:16,color:"#374151",marginBottom:8}}>Nhật ký thao tác</div>
+            <div style={{fontSize:13}}>Tính năng đang phát triển</div>
+          </div>
         )}
         {page==="cash_journal" && user && (
           <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
