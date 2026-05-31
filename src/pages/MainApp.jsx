@@ -259,6 +259,8 @@ const CashJournalPage      = lazy(() => import("./CashJournalPage").catch(() => 
 const DepartmentPageLazy     = lazy(() => import("./DepartmentPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Phòng ban</div> })));
 const RolePermissionPageLazy = lazy(() => import("./RolePermissionPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Phân quyền</div> })));
 const IntegrationsPage = lazy(() => import("./IntegrationsPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Tích hợp đang phát triển</div> })));
+const ActionLogPage  = lazy(() => import("./ActionLogPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Nhật ký</div> })));
+const StockReportNXT = lazy(() => import("./StockReportNXT.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Báo cáo NXT</div> })));
 const RoleHomePlaceholder  = lazy(() => import("./RoleHomePlaceholder").catch(() => ({ default: () => (
   <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang chủ</div>
 ) })));
@@ -1247,6 +1249,8 @@ function MainAppContent({ onUserChange }) {
     // ── 2. BẢNG THEO DÕI — chỉ manager/supervisor ──────────
     if (can("repair_order","view") && isManager)
       items.push({ key:"board",        icon:"assignment",  label:"Bảng theo dõi" });
+    if (isManager)
+      items.push({ key:"stock_nxt",    icon:"inventory_2", label:"Báo cáo NXT" });
 
     // ── 3. TẠO ĐƠN — manager, receptionist ─────────────────
     if (can("repair_order","create") && !isKtv)
@@ -1962,11 +1966,14 @@ function MainAppContent({ onUserChange }) {
                 </Suspense>
               )}
               {page==="action_log" && (
-                <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>
-                  <span className="material-icons" style={{fontSize:48,display:"block",marginBottom:12,fontFamily:"Material Icons"}}>history</span>
-                  <div style={{fontWeight:700,fontSize:16,color:"#374151",marginBottom:8}}>Nhật ký thao tác</div>
-                  <div style={{fontSize:13}}>Tính năng đang phát triển</div>
-                </div>
+                <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
+                  <ActionLogPage user={user} />
+                </Suspense>
+              )}
+              {page==="stock_nxt" && (
+                <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
+                  <StockReportNXT user={user} />
+                </Suspense>
               )}
               {page==="cash_journal" && user && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><CashJournalPage user={user} /></Suspense>}
               {page==="stock_count" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><StockCountPage user={user} /></Suspense>}
@@ -2251,11 +2258,14 @@ function MainAppContent({ onUserChange }) {
           </Suspense>
         )}
         {page==="action_log" && (
-          <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>
-            <span className="material-icons" style={{fontSize:48,display:"block",marginBottom:12,fontFamily:"Material Icons"}}>history</span>
-            <div style={{fontWeight:700,fontSize:16,color:"#374151",marginBottom:8}}>Nhật ký thao tác</div>
-            <div style={{fontSize:13}}>Tính năng đang phát triển</div>
-          </div>
+          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
+            <ActionLogPage user={user} />
+          </Suspense>
+        )}
+        {page==="stock_nxt" && (
+          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
+            <StockReportNXT user={user} />
+          </Suspense>
         )}
         {page==="cash_journal" && user && (
           <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
