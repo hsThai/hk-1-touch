@@ -66,7 +66,7 @@ export default function ExpensePage({ user }) {
     if (!fAmt || Number(fAmt)<=0) { showToast("⚠️ Vui lòng nhập số tiền hợp lệ"); return; }
     setSubmitting(true);
     try {
-      await Expense.create({
+      const savedExp = await Expense.create({
         expense_code:    genCode(),
         category:        fCat,
         amount:          Number(fAmt),
@@ -79,6 +79,23 @@ export default function ExpensePage({ user }) {
       showToast("✅ Đã thêm chi phí thành công!");
       setFAmt(""); setFDesc(""); setFDate(todayISO());
       loadExpenses();
+      // Hỏi có ghi sổ quỹ ngay không
+      const ok = window.confirm(
+        `✅ Đã lưu chi phí "${fDesc||fCat}" — ${Number(fAmt).toLocaleString("vi-VN")}đ\n\nGhi vào Sổ quỹ ngay không?`
+      );
+      if (ok) {
+        CashJournal.create({
+          journal_date:    fDate,
+          entry_type:      "payment",
+          amount:          Number(fAmt),
+          description:     fDesc || fCat,
+          ref_type:        "expense",
+          ref_code:        savedExp?.expense_code || savedExp?.id?.slice(-6) || "",
+          payment_method:  "cash",
+          created_by_id:   user.id || "",
+          created_by_name: user.full_name || user.name || "",
+        }).catch(() => {}); // KHÔNG crash nếu lỗi
+      }
     } catch(e) { showToast("❌ Lỗi: "+e.message); }
     setSubmitting(false);
   }

@@ -35,6 +35,7 @@ function ManualEntryModal({ user, onSave, onClose }) {
         entry_type:      form.entry_type,
         amount:          Number(form.amount),
         ref_type:        "other",
+        ref_code:        form.ref_code || "",
         description:     form.description,
         payment_method:  form.payment_method,
         created_by_id:   user.id,
@@ -93,6 +94,16 @@ function ManualEntryModal({ user, onSave, onClose }) {
           </select>
         </div>
 
+        <div style={{ marginBottom:12 }}>
+          <label style={{ fontSize:12, fontWeight:600, color:"#6b7280", display:"block", marginBottom:4 }}>Mã đơn liên kết (tùy chọn)</label>
+          <input
+            placeholder="VD: SC-001 hoặc BH-001"
+            value={form.ref_code || ""}
+            onChange={e => setForm(f=>({...f, ref_code: e.target.value}))}
+            style={{ width:"100%", height:40, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:13, outline:"none", boxSizing:"border-box", marginTop:0 }}
+          />
+        </div>
+
         {err && <div style={{ color:"#dc2626", fontSize:13, marginBottom:10 }}>⚠️ {err}</div>}
         <div style={{ display:"flex", gap:10 }}>
           <button onClick={onClose} style={{ flex:1, height:44, borderRadius:12, border:"1.5px solid #e5e7eb", background:"#f9fafb", fontSize:14, fontWeight:700, cursor:"pointer" }}>Hủy</button>
@@ -114,6 +125,7 @@ export default function CashJournalPage({ user }) {
   const [loading, setLoading] = useState(true);
   const [modal,   setModal]   = useState(false);
   const [toast,   setToast]   = useState("");
+  const [mainTab, setMainTab] = useState("all");
 
   async function load() {
     setLoading(true);
@@ -138,6 +150,13 @@ export default function CashJournalPage({ user }) {
   const balance  = totalIn - totalOut;
 
   // Tính số dư lũy kế
+  // Filter theo tab
+  const displayData = useMemo(() => {
+    if (mainTab === "thu") return monthData.filter(j => j.entry_type === "receipt");
+    if (mainTab === "chi") return monthData.filter(j => j.entry_type === "payment");
+    return monthData;
+  }, [monthData, mainTab]);
+
   const rowsWithBalance = useMemo(()=>{
     let running = 0;
     // Sort asc để tính lũy kế
@@ -204,6 +223,38 @@ export default function CashJournalPage({ user }) {
         </button>
       </div>
 
+      {/* Tab pills: Sổ quỹ / Phiếu Thu / Phiếu Chi */}
+      <div style={{ display:"flex", gap:8, marginBottom:16, flexWrap:"wrap" }}>
+        {[
+          { key:"all", label:"📒 Sổ quỹ"    },
+          { key:"thu", label:"📥 Phiếu Thu"  },
+          { key:"chi", label:"📤 Phiếu Chi"  },
+        ].map(t => (
+          <button key={t.key} onClick={() => setMainTab(t.key)} style={{
+            padding:"6px 18px", borderRadius:20, border:"none", cursor:"pointer", fontWeight:700, fontSize:13,
+            background: mainTab===t.key ? "#4f46e5" : "#f3f4f6",
+            color:      mainTab===t.key ? "#fff"    : "#374151",
+          }}>{t.label}</button>
+        ))}
+      </div>
+
+      {/* Tổng kết riêng cho tab Thu/Chi */}
+      {mainTab !== "all" && (
+        <div style={{
+          padding:"12px 16px", marginBottom:16, borderRadius:12,
+          background: mainTab==="thu" ? "#f0fdf4" : "#fef2f2",
+          border: `1.5px solid ${mainTab==="thu" ? "#86efac" : "#fca5a5"}`,
+          display:"flex", justifyContent:"space-between", alignItems:"center",
+        }}>
+          <div style={{ fontWeight:700, color: mainTab==="thu"?"#059669":"#dc2626" }}>
+            {mainTab==="thu" ? "📥 Tổng thu tháng này" : "📤 Tổng chi tháng này"}
+          </div>
+          <div style={{ fontWeight:900, fontSize:18, color: mainTab==="thu"?"#059669":"#dc2626" }}>
+            {displayData.reduce((s,j)=>s+(j.amount||0),0).toLocaleString("vi-VN")}đ
+          </div>
+        </div>
+      )}
+
       {/* Summary */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:20 }}>
         {[
@@ -221,8 +272,10 @@ export default function CashJournalPage({ user }) {
       {/* Table */}
       {loading ? (
         <div style={{ textAlign:"center", padding:40, color:"#9ca3af" }}>⏳ Đang tải...</div>
-      ) : rowsWithBalance.length === 0 ? (
-        <div style={{ textAlign:"center", padding:40, color:"#9ca3af" }}>Chưa có bút toán nào trong tháng</div>
+      ) : displayData.length === 0 ? (
+        <div style={{ textAlign:"center", padding:40, color:"#9ca3af" }}>
+          {mainTab==="thu" ? "Chưa có phiếu thu nào trong tháng" : mainTab==="chi" ? "Chưa có phiếu chi nào trong tháng" : "Chưa có bút toán nào trong tháng"}
+        </div>
       ) : (
         <div style={{ overflowX:"auto", borderRadius:14, border:"1.5px solid #e5e7eb" }}>
           <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
@@ -235,7 +288,7 @@ export default function CashJournalPage({ user }) {
               </tr>
             </thead>
             <tbody>
-              {rowsWithBalance.map((j,i)=>(
+              {(mainTab==="all" ? rowsWithBalance : displayData.map((j,i2)=>({...j, balance:null}))).map((j,i)=>(
                 <tr key={j.id||i} style={{ background:j.entry_type==="receipt"?"#f0fdf408":"#fef2f208" }}>
                   <td style={{ padding:"8px", color:"#9ca3af", borderBottom:"1px solid #f3f4f6" }}>{i+1}</td>
                   <td style={{ padding:"8px", borderBottom:"1px solid #f3f4f6", whiteSpace:"nowrap" }}>{j.journal_date||"—"}</td>

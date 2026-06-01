@@ -260,6 +260,7 @@ const DepartmentPageLazy     = lazy(() => import("./DepartmentPage.jsx").catch((
 const RolePermissionPageLazy = lazy(() => import("./RolePermissionPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Phân quyền</div> })));
 const IntegrationsPage = lazy(() => import("./IntegrationsPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Tích hợp đang phát triển</div> })));
 const ActionLogPage  = lazy(() => import("./ActionLogPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Nhật ký</div> })));
+const PrintTemplatePage = lazy(() => import("./PrintTemplatePage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang</div> })));
 const StockReportNXT = lazy(() => import("./StockReportNXT.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Báo cáo NXT</div> })));
 const RoleHomePlaceholder  = lazy(() => import("./RoleHomePlaceholder").catch(() => ({ default: () => (
   <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang chủ</div>
@@ -283,6 +284,7 @@ const SETUP_SUB_ITEMS = [
   { key:"settings",     icon:"store",                  label:"Cài đặt shop" },
   { key:"integrations", icon:"cable",                  label:"Tích hợp" },
   { key:"action_log",   icon:"history",                label:"Nhật ký thao tác" },
+  { key:"print_template", icon:"print",                label:"Mẫu in ấn" },
 ];
 
 function MainAppContent({ onUserChange }) {
@@ -402,7 +404,7 @@ function MainAppContent({ onUserChange }) {
 
   // ── Auto mở/đóng accordion theo page ──────────────────────
   useEffect(() => {
-    const SETUP_PAGES = ["staff","customers","suppliers","debts","department","role_perm","settings","integrations","action_log"];
+    const SETUP_PAGES = ["staff","customers","suppliers","debts","department","role_perm","settings","integrations","action_log","print_template"];
     if (page === "dashboard") {
       setMgrAccordionOpen(true);
       setSetupOpen(false);
@@ -1381,7 +1383,7 @@ function MainAppContent({ onUserChange }) {
 
   // ── Accordion Thiết Lập ─────────────────────────────────
   function renderSetupAccordion() {
-    const SETUP_PAGES = ["staff","customers","suppliers","debts","department","role_perm","settings","integrations","action_log"];
+    const SETUP_PAGES = ["staff","customers","suppliers","debts","department","role_perm","settings","integrations","action_log","print_template"];
     const isSetupActive = SETUP_PAGES.includes(page);
     return (
       <div style={{ marginBottom:2 }}>
@@ -1849,9 +1851,9 @@ function MainAppContent({ onUserChange }) {
                   onClick={() => setSetupOpen(v => !v)}
                   style={{ width:"100%", display:"flex", alignItems:"center", gap:10, padding:"10px 14px",
                     borderRadius:10, border:"none", textAlign:"left", cursor:"pointer",
-                    background: ["staff","customers","suppliers","debts","department","role_perm","settings","integrations","action_log"].includes(page) ? "rgba(255,255,255,.2)" : "transparent",
-                    color: ["staff","customers","suppliers","debts","department","role_perm","settings","integrations","action_log"].includes(page) ? "#fff" : "rgba(255,255,255,.7)",
-                    fontWeight: ["staff","customers","suppliers","debts","department","role_perm","settings","integrations","action_log"].includes(page) ? 700 : 400, fontSize:14 }}>
+                    background: ["staff","customers","suppliers","debts","department","role_perm","settings","integrations","action_log","print_template"].includes(page) ? "rgba(255,255,255,.2)" : "transparent",
+                    color: ["staff","customers","suppliers","debts","department","role_perm","settings","integrations","action_log","print_template"].includes(page) ? "#fff" : "rgba(255,255,255,.7)",
+                    fontWeight: ["staff","customers","suppliers","debts","department","role_perm","settings","integrations","action_log","print_template"].includes(page) ? 700 : 400, fontSize:14 }}>
                   <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,lineHeight:1}}>manage_accounts</span>
                   <span style={{ flex:1 }}>Thiết Lập</span>
                   <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,lineHeight:1,
@@ -1993,6 +1995,7 @@ function MainAppContent({ onUserChange }) {
                   <ActionLogPage user={user} />
                 </Suspense>
               )}
+              {page==="print_template" && currentUser && <PrintTemplatePage user={currentUser} />}
               {page==="stock_nxt" && (
                 <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
                   <StockReportNXT user={user} />
@@ -2300,6 +2303,7 @@ function MainAppContent({ onUserChange }) {
             <ActionLogPage user={user} />
           </Suspense>
         )}
+              {page==="print_template" && currentUser && <PrintTemplatePage user={currentUser} />}
         {page==="stock_nxt" && (
           <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
             <StockReportNXT user={user} />
