@@ -1406,16 +1406,7 @@ function MainAppContent({ onUserChange }) {
               {/* Header accordion */}
               <button
                 onClick={() => {
-                  // Mở accordion + navigate tới sub-item đầu tiên
-                  setOpenAccordion(acc.key);
-                  if (acc.items.length > 0) {
-                    const defaultPage = acc.items[0].key;
-                    const [basePage, subTab] = defaultPage.split("__");
-                    setPage(basePage);
-                    if (subTab) setDashboardTab(subTab); else setDashboardTab("overview");
-                    setSidebarOpen(false);
-                    setDashboardFilter(null);
-                  }
+                  setOpenAccordion(isOpen ? null : acc.key);
                 }}
                 style={{
                   width:"100%", textAlign:"left", padding:"11px 14px", borderRadius:10,
