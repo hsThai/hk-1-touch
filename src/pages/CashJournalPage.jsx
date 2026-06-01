@@ -198,6 +198,27 @@ export default function CashJournalPage({ user }) {
 
   return (
     <div style={{ padding:"16px 14px 100px" }}>
+      {/* Card số dư tiền mặt live */}
+      <div style={{background:"linear-gradient(135deg,#4f46e5,#7c3aed)",borderRadius:16,
+        padding:"18px 20px",marginBottom:16,color:"#fff"}}>
+        <div style={{fontSize:13,opacity:.85,marginBottom:4}}>💰 Số dư hiện tại (tháng {month})</div>
+        <div style={{fontWeight:900,fontSize:28,letterSpacing:".5px",lineHeight:1}}>
+          {balance >= 0
+            ? balance.toLocaleString("vi-VN") + "đ"
+            : "−" + Math.abs(balance).toLocaleString("vi-VN") + "đ"
+          }
+        </div>
+        <div style={{display:"flex",gap:16,marginTop:8}}>
+          <div style={{fontSize:12,opacity:.8}}>
+            ↑ Thu: {totalIn.toLocaleString("vi-VN")}đ
+          </div>
+          <div style={{fontSize:12,opacity:.8}}>
+            ↓ Chi: {totalOut.toLocaleString("vi-VN")}đ
+          </div>
+        </div>
+        <div style={{fontSize:10,opacity:.6,marginTop:6}}>Tổng thu − Tổng chi · Chưa đối soát ngân hàng</div>
+      </div>
+
       {/* Header */}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
         <div>

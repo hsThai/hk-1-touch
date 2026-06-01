@@ -347,12 +347,94 @@ function TabContent({ vtype, user }) {
   );
 }
 
+
+// ── Tab Quá hạn ──────────────────────────────────────────
+function OverdueTab({ user }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        const data = await DebtVoucher.filter({ status_neq: "paid" }, { sort: "due_date", limit: 500 });
+        // Lọc thêm due_date < today ở frontend (filter API không hỗ trợ date compare đầy đủ)
+        const overdue = (data || []).filter(i =>
+          i.due_date && i.due_date < today && i.status !== "paid"
+        );
+        setItems(overdue);
+      } catch(e) { setItems([]); }
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  if (loading) return <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>;
+  if (!items.length) return (
+    <div style={{textAlign:"center",padding:60}}>
+      <div style={{fontSize:40,marginBottom:8}}>✅</div>
+      <div style={{color:"#6b7280",fontSize:15,fontWeight:600}}>Không có khoản nợ quá hạn</div>
+    </div>
+  );
+
+  const totalOverdue = items.reduce((a, i) => a + (i.amount||0) - (i.paid_amount||0), 0);
+
+  return (
+    <div style={{ paddingBottom: 80 }}>
+      <div style={{background:"#fee2e2",borderRadius:12,padding:"12px 16px",marginBottom:16,
+        display:"flex",alignItems:"center",gap:10}}>
+        <span style={{fontSize:20}}>⚠️</span>
+        <div>
+          <div style={{fontWeight:800,color:"#dc2626",fontSize:14}}>{items.length} khoản nợ quá hạn</div>
+          <div style={{fontSize:12,color:"#991b1b"}}>
+            Tổng còn lại: {totalOverdue.toLocaleString("vi-VN")}đ
+          </div>
+        </div>
+      </div>
+      {items.map(it => {
+        const daysOver = it.due_date
+          ? Math.floor((new Date() - new Date(it.due_date)) / (1000*60*60*24))
+          : 0;
+        const remain = (it.amount||0) - (it.paid_amount||0);
+        return (
+          <div key={it.id} style={{background:"#fff",borderRadius:12,padding:"14px 16px",
+            marginBottom:10,boxShadow:"0 1px 4px rgba(0,0,0,.08)",
+            borderLeft:"4px solid #dc2626"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12}}>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:800,fontSize:14,color:"#1e1b4b"}}>
+                  {it.partner_name || it.partner_id || "—"}
+                </div>
+                <div style={{fontSize:12,color:"#6b7280",marginTop:3}}>
+                  {it.voucher_type==="receivable" ? "📥 Phải thu" : "📤 Phải trả"} ·{" "}
+                  Hạn: {it.due_date ? new Date(it.due_date).toLocaleDateString("vi-VN") : "—"}
+                </div>
+                {it.note && <div style={{fontSize:12,color:"#374151",marginTop:4}}>{it.note}</div>}
+              </div>
+              <div style={{textAlign:"right",flexShrink:0}}>
+                <div style={{fontWeight:900,fontSize:16,color:"#dc2626"}}>
+                  {remain.toLocaleString("vi-VN")}đ
+                </div>
+                <div style={{fontSize:11,color:"#dc2626",background:"#fee2e2",
+                  borderRadius:6,padding:"2px 8px",marginTop:4,fontWeight:700,display:"inline-block"}}>
+                  Trễ {daysOver} ngày
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Main ─────────────────────────────────────────────────
 export default function DebtPage({ user }) {
   const [tab, setTab] = useState("receivable");
   const TABS = [
     { key:"receivable", label:"💰 Phải thu" },
     { key:"payable",    label:"💸 Phải trả" },
+    { key:"overdue",    label:"🔴 Quá hạn" },
   ];
   return (
     <div style={{ padding:"16px 14px 0" }}>
@@ -374,7 +456,8 @@ export default function DebtPage({ user }) {
         ))}
       </div>
 
-      <TabContent key={tab} vtype={tab} user={user} />
+      {tab !== "overdue" && <TabContent key={tab} vtype={tab} user={user} />}
+      {tab === "overdue" && <OverdueTab user={user} />}
     </div>
   );
 }

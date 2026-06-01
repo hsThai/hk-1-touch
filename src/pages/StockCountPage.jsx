@@ -851,8 +851,101 @@ function ReviewScreen({ count, user, onBack, onRefresh }) {
 // ══════════════════════════════════════════════════════════
 // ROOT: StockCountPage
 // ══════════════════════════════════════════════════════════
+
+// ── Lịch sử kiểm kê ────────────────────────────────────────
+function StockCountHistory({ user }) {
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(null);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const data = await StockLedger.list({
+          filter: 'txn_type="count"',
+          sort: "-created",
+          limit: 500,
+        });
+        const items = data || [];
+        // Group theo ngày tạo (YYYY-MM-DD)
+        const groups = {};
+        items.forEach(l => {
+          const day = (l.created || "").slice(0, 10);
+          if (!groups[day]) groups[day] = { date: day, items: [], creator: l.created_by_name || l.created_by || "—" };
+          groups[day].items.push(l);
+        });
+        setRecords(Object.values(groups).sort((a, b) => b.date.localeCompare(a.date)));
+      } catch(e) { setRecords([]); }
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  if (loading) return <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>;
+  if (!records.length) return (
+    <div style={{textAlign:"center",padding:60}}>
+      <div style={{fontSize:40,marginBottom:8}}>📭</div>
+      <div style={{color:"#6b7280",fontSize:15}}>Chưa có lịch sử kiểm kê</div>
+    </div>
+  );
+
+  return (
+    <div style={{ padding:"0 14px 80px" }}>
+      {records.map(r => (
+        <div key={r.date} style={{background:"#fff",borderRadius:12,marginBottom:10,
+          border:"1.5px solid #e5e7eb",overflow:"hidden"}}>
+          <div onClick={() => setExpanded(expanded===r.date ? null : r.date)}
+            style={{padding:"14px 16px",display:"flex",justifyContent:"space-between",
+              alignItems:"center",cursor:"pointer"}}>
+            <div>
+              <div style={{fontWeight:800,fontSize:14,color:"#1e1b4b"}}>
+                📋 Kiểm kê ngày {new Date(r.date).toLocaleDateString("vi-VN")}
+              </div>
+              <div style={{fontSize:12,color:"#6b7280",marginTop:2}}>
+                {r.items.length} mặt hàng · Người tạo: {r.creator}
+              </div>
+            </div>
+            <span className="material-icons" style={{fontSize:18,color:"#9ca3af",fontFamily:"Material Icons",userSelect:"none"}}>
+              {expanded===r.date ? "expand_less" : "expand_more"}
+            </span>
+          </div>
+          {expanded===r.date && (
+            <div style={{padding:"0 16px 12px",borderTop:"1px solid #f3f4f6"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",marginTop:8,fontSize:13}}>
+                <thead>
+                  <tr style={{background:"#f8fafc"}}>
+                    {["Linh kiện","SKU","SL thực tế","Chênh lệch","Ghi chú"].map(h => (
+                      <th key={h} style={{padding:"8px 10px",fontSize:12,fontWeight:700,
+                        color:"#374151",textAlign:"left",borderBottom:"1px solid #e5e7eb"}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {r.items.map(l => (
+                    <tr key={l.id} style={{borderBottom:"1px solid #f3f4f6"}}>
+                      <td style={{padding:"8px 10px"}}>{l.part_name || "—"}</td>
+                      <td style={{padding:"8px 10px",color:"#9ca3af",fontFamily:"monospace",fontSize:12}}>{l.sku || "—"}</td>
+                      <td style={{padding:"8px 10px",fontWeight:700}}>{l.qty || 0}</td>
+                      <td style={{padding:"8px 10px",fontWeight:700,
+                        color:(l.qty_change||l.diff||0)>0?"#059669":(l.qty_change||l.diff||0)<0?"#dc2626":"#6b7280"}}>
+                        {(l.qty_change||l.diff||0)>0?"+":""}{l.qty_change||l.diff||0}
+                      </td>
+                      <td style={{padding:"8px 10px",fontSize:12,color:"#6b7280"}}>{l.note || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function StockCountPage({ user }) {
   const [screen,    setScreen]    = useState("list");   // list / counting / review
+  const [countTab,  setCountTab]  = useState("create"); // "create" | "history"
   const [activeCount, setActiveCount] = useState(null);
   const [showCreate,  setShowCreate]  = useState(false);
   const [refreshKey,  setRefreshKey]  = useState(0);
@@ -889,38 +982,59 @@ export default function StockCountPage({ user }) {
   }
 
   return (
-    <>
-      {screen==="list" && (
-        <CountList
-          key={refreshKey}
-          user={user}
-          onOpen={handleOpenCount}
-          onNew={()=>setShowCreate(true)}
-        />
+    <div style={{ padding:"16px 14px 80px" }}>
+      {/* Tab pills */}
+      <div style={{display:"flex",background:"#f1f5f9",borderRadius:12,padding:4,marginBottom:16}}>
+        {[{key:"create",label:"📋 Tạo / Kiểm kê"},{key:"history",label:"🕐 Lịch sử"}].map(t => (
+          <button key={t.key} onClick={() => setCountTab(t.key)}
+            style={{flex:1,height:40,borderRadius:10,border:"none",
+              background:countTab===t.key?"#fff":"transparent",
+              color:countTab===t.key?"#4f46e5":"#6b7280",
+              fontWeight:countTab===t.key?800:600,fontSize:13,cursor:"pointer",
+              boxShadow:countTab===t.key?"0 1px 4px rgba(0,0,0,.1)":"none",
+              transition:"all .15s"}}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {countTab === "create" && (
+        <>
+          {screen==="list" && (
+            <CountList
+              key={refreshKey}
+              user={user}
+              onOpen={handleOpenCount}
+              onNew={()=>setShowCreate(true)}
+            />
+          )}
+          {screen==="counting" && activeCount && (
+            <CountingScreen
+              count={activeCount}
+              user={user}
+              onBack={handleBack}
+              onRefresh={handleRefresh}
+            />
+          )}
+          {screen==="review" && activeCount && (
+            <ReviewScreen
+              count={activeCount}
+              user={user}
+              onBack={handleBack}
+              onRefresh={handleRefresh}
+            />
+          )}
+          {showCreate && (
+            <CreateCountModal
+              user={user}
+              onClose={()=>setShowCreate(false)}
+              onCreated={handleCreated}
+            />
+          )}
+        </>
       )}
-      {screen==="counting" && activeCount && (
-        <CountingScreen
-          count={activeCount}
-          user={user}
-          onBack={handleBack}
-          onRefresh={handleRefresh}
-        />
-      )}
-      {screen==="review" && activeCount && (
-        <ReviewScreen
-          count={activeCount}
-          user={user}
-          onBack={handleBack}
-          onRefresh={handleRefresh}
-        />
-      )}
-      {showCreate && (
-        <CreateCountModal
-          user={user}
-          onClose={()=>setShowCreate(false)}
-          onCreated={handleCreated}
-        />
-      )}
-    </>
+
+      {countTab === "history" && <StockCountHistory user={user} />}
+    </div>
   );
 }

@@ -219,6 +219,89 @@ function CashJournalTab() {
   );
 }
 
+
+// ── Tab Top sản phẩm bán chạy ─────────────────────────────
+function TopProductsTab({ repairOrders, saleOrders }) {
+  // Phân tích từ repair_orders + sale_orders
+  const productMap = {};
+
+  (repairOrders || []).forEach(o => {
+    const name = o.device_model || o.device_name || "Không rõ";
+    if (!productMap[name]) productMap[name] = { name, countRepair:0, countSale:0, revenue:0 };
+    productMap[name].countRepair++;
+    productMap[name].revenue += (o.final_cost || o.estimated_cost || 0);
+  });
+
+  (saleOrders || []).forEach(o => {
+    const name = o.product_name || o.item_name || o.name || "Không rõ";
+    if (!productMap[name]) productMap[name] = { name, countRepair:0, countSale:0, revenue:0 };
+    productMap[name].countSale++;
+    productMap[name].revenue += (o.total || o.total_amount || o.price || 0);
+  });
+
+  const sorted = Object.values(productMap)
+    .map(p => ({ ...p, count: p.countRepair + p.countSale }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 20);
+
+  if (!sorted.length) return (
+    <div style={{textAlign:"center",padding:60,color:"#9ca3af",fontSize:15}}>
+      📭 Chưa có dữ liệu
+    </div>
+  );
+
+  const maxCount = sorted[0]?.count || 1;
+
+  return (
+    <div style={{ padding:16 }}>
+      <div style={{fontWeight:800,fontSize:15,color:"#1e1b4b",marginBottom:12}}>
+        🏅 Top 20 sản phẩm / dịch vụ bán chạy
+      </div>
+      {sorted.map((p, i) => (
+        <div key={p.name} style={{background:"#fff",borderRadius:12,padding:"12px 16px",
+          marginBottom:8,border:"1.5px solid #e5e7eb",
+          display:"flex",alignItems:"center",gap:14}}>
+          {/* Rank badge */}
+          <div style={{width:32,height:32,borderRadius:10,flexShrink:0,
+            background: i===0?"#fbbf24":i===1?"#9ca3af":i===2?"#cd7c3c":"#f3f4f6",
+            color: i<3?"#fff":"#374151",
+            display:"flex",alignItems:"center",justifyContent:"center",
+            fontWeight:900,fontSize:14}}>
+            {i+1}
+          </div>
+          {/* Info */}
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontWeight:700,fontSize:14,color:"#1e1b4b",
+              overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+              {p.name}
+            </div>
+            {/* Progress bar */}
+            <div style={{height:4,background:"#f3f4f6",borderRadius:99,marginTop:6,overflow:"hidden"}}>
+              <div style={{height:"100%",borderRadius:99,
+                background:i===0?"#fbbf24":i===1?"#9ca3af":i===2?"#cd7c3c":"#4f46e5",
+                width:`${Math.round(p.count/maxCount*100)}%`,transition:"width .3s"}} />
+            </div>
+            <div style={{fontSize:11,color:"#6b7280",marginTop:3}}>
+              {p.countRepair > 0 && `🔧 ${p.countRepair} sửa `}
+              {p.countSale   > 0 && `🛒 ${p.countSale} bán`}
+            </div>
+          </div>
+          {/* Stats */}
+          <div style={{textAlign:"right",flexShrink:0}}>
+            <div style={{fontWeight:900,fontSize:18,color:"#4f46e5"}}>{p.count}</div>
+            <div style={{fontSize:11,color:"#9ca3af"}}>lượt</div>
+            {p.revenue > 0 && (
+              <div style={{fontSize:11,color:"#059669",marginTop:2,fontWeight:600}}>
+                {p.revenue.toLocaleString("vi-VN")}đ
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Tab Lãi lỗ (P&L) ─────────────────────────────────────
 function ProfitLossTab({ repairOrders, saleOrders, expenses }) {
   const [period, setPeriod] = useState("month");
@@ -487,6 +570,7 @@ export default function RevenueReportPage({ user }) {
     { key:"expense",      label:"💸 Chi phí" },
     { key:"by_ktv",       label:"👨‍🔧 KTV" },
     { key:"services",     label:"🏆 Dịch vụ" },
+    { key:"top_products", label:"🏅 SP bán chạy" },
     { key:"pl",           label:"📊 Lãi lỗ" },
     { key:"cash_journal", label:"💰 Sổ quỹ" },
     { key:"stock_report", label:"📦 LK" },
@@ -642,6 +726,7 @@ export default function RevenueReportPage({ user }) {
 
         {detailTab==="by_ktv"       && <div style={{padding:16}}><TabByKTV orders={repairOrders} period={period} inPeriod={inPeriod} DONE_STATUS={DONE_STATUS}/></div>}
         {detailTab==="services"     && <div style={{padding:16}}><TabServices orders={repairOrders} period={period} inPeriod={inPeriod} DONE_STATUS={DONE_STATUS}/></div>}
+        {detailTab==="top_products" && <TopProductsTab repairOrders={repairOrders} saleOrders={saleOrders} />}
         {detailTab==="pl"           && <ProfitLossTab repairOrders={repairOrders} saleOrders={saleOrders} expenses={expenses}/>}
         {detailTab==="cash_journal" && <CashJournalTab/>}
         {detailTab==="stock_report" && <div style={{padding:16}}><TabStockReport period={period} startOf={startOf}/></div>}
