@@ -280,7 +280,7 @@ const MGR_ACCORDIONS = [
   {
     key: "acc_overview",
     icon: "dashboard",
-    label: "📊 Tổng quan",
+    label: "Tổng quan",
     pages: ["dashboard"],
     items: [
       { key:"dashboard",   icon:"home",           label:"Tổng quan & việc cần làm" },
@@ -293,7 +293,7 @@ const MGR_ACCORDIONS = [
   {
     key: "acc_service",
     icon: "build",
-    label: "🔧 Dịch vụ Sửa chữa",
+    label: "Dịch vụ Sửa chữa",
     pages: ["new","tasks","stock_export"],
     items: [
       { key:"new",          icon:"add_circle",  label:"Tạo đơn" },
@@ -305,7 +305,7 @@ const MGR_ACCORDIONS = [
   {
     key: "acc_sales",
     icon: "point_of_sale",
-    label: "🛒 Bán hàng & Phân phối",
+    label: "Bán hàng",
     pages: ["cashier_home","return_order","price_policy"],
     items: [
       { key:"cashier_home", icon:"point_of_sale", label:"Bán hàng tại quầy" },
@@ -316,7 +316,7 @@ const MGR_ACCORDIONS = [
   {
     key: "acc_warehouse",
     icon: "warehouse",
-    label: "📦 Kho & Vật tư",
+    label: "Kho & Vật tư",
     pages: ["wh_manager","wh_import","wh_export","wh_transfer","stock_nxt","stock_count","purchase_forecast","rma"],
     items: [
       { key:"wh_manager",        icon:"warehouse",         label:"Danh mục hàng & dịch vụ" },
@@ -332,7 +332,7 @@ const MGR_ACCORDIONS = [
   {
     key: "acc_partner",
     icon: "group",
-    label: "👥 Khách hàng & Đối tác",
+    label: "Đối tác",
     pages: ["customers","suppliers"],
     items: [
       { key:"customers", icon:"group",      label:"Danh sách khách hàng" },
@@ -342,7 +342,7 @@ const MGR_ACCORDIONS = [
   {
     key: "acc_accounting",
     icon: "account_balance",
-    label: "💰 Sổ quỹ & Kế toán",
+    label: "Kế toán",
     pages: ["cash_journal","debts"],
     items: [
       { key:"cash_journal", icon:"menu_book",              label:"Sổ quỹ" },
@@ -352,7 +352,7 @@ const MGR_ACCORDIONS = [
   {
     key: "acc_report",
     icon: "bar_chart",
-    label: "📈 Báo cáo & Thống kê",
+    label: "Báo cáo",
     pages: ["revenue","stock_nxt"],
     items: [
       { key:"revenue",   icon:"bar_chart",   label:"Báo cáo Doanh thu" },
@@ -362,7 +362,7 @@ const MGR_ACCORDIONS = [
   {
     key: "acc_setup",
     icon: "manage_accounts",
-    label: "⚙️ Thiết lập & Hệ thống",
+    label: "Thiết lập",
     pages: ["staff","department","role_perm","settings","integrations","action_log","print_template"],
     items: [
       { key:"staff",          icon:"badge",                label:"Nhân viên" },
@@ -1834,16 +1834,16 @@ function MainAppContent({ onUserChange }) {
               return navItems.map((item, idx) => {
               const dividerLabel = (() => {
                 const groups = {
-                  "new":               "🔧 Dịch vụ Sửa chữa",
-                  "board":             "🔧 Dịch vụ Sửa chữa",
-                  "tasks":             "🔧 Dịch vụ Sửa chữa",
+                  "new":               "Dịch vụ Sửa chữa",
+                  "board":             "Dịch vụ Sửa chữa",
+                  "tasks":             "Dịch vụ Sửa chữa",
                   "cashier_home":      "🛒 Bán hàng",
                   "return_order":      "🛒 Bán hàng",
                   "price_policy":      "🛒 Bán hàng",
-                  "wh_manager":        "📦 Kho & Vật tư",
-                  "stock_count":       "📦 Kho & Vật tư",
-                  "purchase_forecast": "📦 Kho & Vật tư",
-                  "rma":               "📦 Kho & Vật tư",
+                  "wh_manager":        "Kho & Vật tư",
+                  "stock_count":       "Kho & Vật tư",
+                  "purchase_forecast": "Kho & Vật tư",
+                  "rma":               "Kho & Vật tư",
                   "customers":         "👥 Đối tác",
                   "suppliers":         "👥 Đối tác",
                   "cash_journal":      "💰 Kế toán",
@@ -2013,16 +2013,16 @@ function MainAppContent({ onUserChange }) {
                 return navItems.map((n, idx) => {
                 const dividerLabel = (() => {
                   const groups = {
-                    "new":               "🔧 Dịch vụ Sửa chữa",
-                    "board":             "🔧 Dịch vụ Sửa chữa",
-                    "tasks":             "🔧 Dịch vụ Sửa chữa",
+                    "new":               "Dịch vụ Sửa chữa",
+                    "board":             "Dịch vụ Sửa chữa",
+                    "tasks":             "Dịch vụ Sửa chữa",
                     "cashier_home":      "🛒 Bán hàng",
                     "return_order":      "🛒 Bán hàng",
                     "price_policy":      "🛒 Bán hàng",
-                    "wh_manager":        "📦 Kho & Vật tư",
-                    "stock_count":       "📦 Kho & Vật tư",
-                    "purchase_forecast": "📦 Kho & Vật tư",
-                    "rma":               "📦 Kho & Vật tư",
+                    "wh_manager":        "Kho & Vật tư",
+                    "stock_count":       "Kho & Vật tư",
+                    "purchase_forecast": "Kho & Vật tư",
+                    "rma":               "Kho & Vật tư",
                     "customers":         "👥 Đối tác",
                     "suppliers":         "👥 Đối tác",
                     "cash_journal":      "💰 Kế toán",
