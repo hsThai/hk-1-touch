@@ -481,6 +481,12 @@ function MainAppContent({ onUserChange }) {
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const isWarehouse  = user.role === "warehouse";
+  const isManager    = ["manager","admin","owner","supervisor"].includes(user.role);
+  const isKtv        = user.role === "technician";
+  const isReception  = user.role === "receptionist";
+  const isRoleHome   = ["cashier","accountant","hr","marketing","qa","support","delivery","it","viewer","supervisor"].includes(user.role);
+
   // ── Set initial page khi user login lần đầu ──────────────
   useEffect(() => {
     if (!user) return;
@@ -1310,12 +1316,6 @@ function MainAppContent({ onUserChange }) {
     return nameMatch || phoneMatch || deviceMatch || idMatch || qrMatch || imeiMatch || noteMatch;
   });
   const pendingAccepts = orders.filter(o => o.assigned_to===user.id && ["Chờ KTV","Chờ KTV Sửa"].includes(o.status));
-
-  const isWarehouse  = user.role === "warehouse";
-  const isManager    = ["manager","admin","owner","supervisor"].includes(user.role);
-  const isKtv        = user.role === "technician";
-  const isReception  = user.role === "receptionist";
-  const isRoleHome   = ["cashier","accountant","hr","marketing","qa","support","delivery","it","viewer","supervisor"].includes(user.role);
 
   // navItems dùng can() để lọc quyền
   const navItems = (() => {
