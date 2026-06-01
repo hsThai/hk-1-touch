@@ -70,6 +70,8 @@ const RMAPage = lazy(() => import("./RMAPage.jsx").catch(() => ({
   default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải RMA</div>
 })));
 const StockReportNXT = lazy(() => import("./StockReportNXT.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Báo cáo NXT</div> })));
+const RevenueReportPage = lazy(() => import("./RevenueReportPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Báo cáo doanh thu</div> })));
+const SaleOrderPage = lazy(() => import("./SaleOrderPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Bán hàng</div> })));
 const RoleHomePlaceholder  = lazy(() => import("./RoleHomePlaceholder").catch(() => ({ default: () => (
   <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang chủ</div>
 ) })));
@@ -281,13 +283,13 @@ const MGR_ACCORDIONS = [
     key: "acc_overview",
     icon: "dashboard",
     label: "Tổng quan",
-    pages: ["dashboard"],
+    pages: ["dashboard", "dashboard__board", "dashboard__business", "dashboard__inventory", "dashboard__staff"],
     items: [
-      { key:"dashboard",   icon:"home",           label:"Tổng quan & việc cần làm" },
-      { key:"board",       icon:"view_kanban",    label:"Dịch vụ / Bán hàng" },
-      { key:"finance_kpi", icon:"account_balance",label:"Tài chính" },
-      { key:"stock_kpi",   icon:"inventory_2",    label:"Kho / Vật tư" },
-      { key:"staff_kpi",   icon:"people",         label:"KPI Nhân viên" },
+      { key:"dashboard",            icon:"home",           label:"Tổng quan" },
+      { key:"dashboard__board",     icon:"view_kanban",    label:"Dịch vụ / Bán hàng" },
+      { key:"dashboard__business",  icon:"account_balance",label:"Tài chính" },
+      { key:"dashboard__inventory", icon:"inventory_2",    label:"Kho / Vật tư" },
+      { key:"dashboard__staff",     icon:"people",         label:"KPI Nhân viên" },
     ],
   },
   {
@@ -306,9 +308,10 @@ const MGR_ACCORDIONS = [
     key: "acc_sales",
     icon: "point_of_sale",
     label: "Bán hàng",
-    pages: ["cashier_home","return_order","price_policy"],
+    pages: ["cashier_home","sale_order","return_order","price_policy"],
     items: [
       { key:"cashier_home", icon:"point_of_sale", label:"Bán hàng tại quầy" },
+      { key:"sale_order",   icon:"receipt_long",  label:"Đơn bán hàng" },
       { key:"return_order", icon:"swap_horiz",    label:"Xử lý Đổi trả" },
       { key:"price_policy", icon:"price_change",  label:"Chính sách giá" },
     ],
@@ -317,12 +320,11 @@ const MGR_ACCORDIONS = [
     key: "acc_warehouse",
     icon: "warehouse",
     label: "Kho & Vật tư",
-    pages: ["wh_manager","wh_import","wh_export","wh_transfer","stock_nxt","stock_count","purchase_forecast","rma"],
+    pages: ["wh_manager","wh_import","wh_export","stock_nxt","stock_count","purchase_forecast","rma"],
     items: [
       { key:"wh_manager",        icon:"warehouse",         label:"Danh mục hàng & dịch vụ" },
       { key:"wh_import",         icon:"move_to_inbox",     label:"Nhập kho" },
       { key:"wh_export",         icon:"outbox",            label:"Xuất kho" },
-      { key:"wh_transfer",       icon:"swap_horiz",        label:"Điều chuyển kho" },
       { key:"stock_nxt",         icon:"assessment",        label:"Thẻ kho (Lịch sử)" },
       { key:"stock_count",       icon:"fact_check",        label:"Kiểm kê kho" },
       { key:"purchase_forecast", icon:"shopping_cart",     label:"Mua hàng & Dự báo" },
@@ -467,6 +469,7 @@ function MainAppContent({ onUserChange }) {
   const [page, setPage] = useState("board");
   // openAccordion: key của accordion đang mở, hoặc null
   const [openAccordion, setOpenAccordion] = useState("acc_overview");
+  const [dashboardTab, setDashboardTab] = useState("overview");
   const [search, setSearch] = useState("");
   const [dashboardFilter, setDashboardFilter] = useState(null); // "active"|"done"|"needs_reassign"|null
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -1404,7 +1407,9 @@ function MainAppContent({ onUserChange }) {
                   setOpenAccordion(isOpen ? null : acc.key);
                   if (!isOpen && acc.items.length > 0) {
                     const defaultPage = acc.items[0].key;
-                    setPage(defaultPage);
+                    const [basePage, subTab] = defaultPage.split("__");
+                    setPage(basePage);
+                    if (subTab) setDashboardTab(subTab);
                     setSidebarOpen(false);
                     setDashboardFilter(null);
                   }
@@ -1442,7 +1447,9 @@ function MainAppContent({ onUserChange }) {
                     return (
                       <button key={`${acc.key}-${sub.key}`}
                         onClick={() => {
-                          setPage(sub.key);
+                          const [basePg, subT] = sub.key.split("__");
+                          setPage(basePg);
+                          if (subT) setDashboardTab(subT);
                           setSidebarOpen(false);
                           setDashboardFilter(null);
                         }}
@@ -1923,7 +1930,7 @@ function MainAppContent({ onUserChange }) {
               {page==="tasks" && <TaskList />}
               {page==="new" && <div style={{padding:24}}><button onClick={() => setShowNewOrder(true)} style={{ width:"100%", height:52, background:"linear-gradient(135deg,#4f46e5,#7c3aed)", color:"#fff", border:"none", borderRadius:14, fontWeight:800, fontSize:16, cursor:"pointer" }}>+ Tạo Đơn Mới</button></div>}
               {page==="customers" && <Suspense fallback={<div style={{padding:32,textAlign:"center"}}>⏳</div>}><CustomerManagerPage /></Suspense>}
-              {page==="dashboard" && (user.role==="manager"||user.role==="admin" ? <Suspense fallback={<div style={{padding:32}}>⏳</div>}><ManagerDashboard user={user} /></Suspense> : <Dashboard />)}
+              {page==="dashboard" && (user.role==="manager"||user.role==="admin" ? <Suspense fallback={<div style={{padding:32}}>⏳</div>}><ManagerDashboard user={user} initialTab={dashboardTab} /></Suspense> : <Dashboard />)}
               {page==="staff" && <StaffManagerPage currentStaff={user} />}
               {page==="settings" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><SettingsHub user={user} /></Suspense>}
               {page==="wh_home" && <WarehouseHome user={user} setPage={setPage} />}
@@ -1955,6 +1962,16 @@ function MainAppContent({ onUserChange }) {
               {page==="stock_nxt" && (
                 <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
                   <StockReportNXT user={user} />
+                </Suspense>
+              )}
+              {page==="revenue" && (
+                <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
+                  <RevenueReportPage user={user} />
+                </Suspense>
+              )}
+              {page==="sale_order" && (
+                <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
+                  <SaleOrderPage user={user} />
                 </Suspense>
               )}
               {page==="price_policy" && user && (
@@ -2235,7 +2252,7 @@ function MainAppContent({ onUserChange }) {
         )}
         {page==="dashboard" && (
           user.role==="manager" || user.role==="admin"
-            ? <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><ManagerDashboard user={user} /></Suspense>
+            ? <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><ManagerDashboard user={user} initialTab={dashboardTab} /></Suspense>
             : <Dashboard />
         )}
         {page==="staff"      && <StaffManagerPage currentStaff={user} />}
@@ -2281,6 +2298,16 @@ function MainAppContent({ onUserChange }) {
         {page==="stock_nxt" && (
           <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
             <StockReportNXT user={user} />
+          </Suspense>
+        )}
+        {page==="revenue" && (
+          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
+            <RevenueReportPage user={user} />
+          </Suspense>
+        )}
+        {page==="sale_order" && (
+          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
+            <SaleOrderPage user={user} />
           </Suspense>
         )}
         {page==="return_order" && user && (
