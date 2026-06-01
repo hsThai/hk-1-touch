@@ -2018,13 +2018,13 @@ function MainAppContent({ onUserChange }) {
       {sidebarOpen && (
         <div style={{ position:"fixed", inset:0, zIndex:200 }}>
           <div style={{ position:"absolute", inset:0, background:"rgba(0,0,0,.4)" }} onClick={() => setSidebarOpen(false)} />
-          <div style={{ position:"absolute", left:0, top:0, bottom:0, width: bp==="tablet" ? 340 : 290, background:"#fff", boxShadow:"4px 0 20px rgba(0,0,0,.15)", display:"flex", flexDirection:"column" }}>
+          <div style={{ position:"absolute", left:0, top:0, bottom:0, width: bp==="tablet" ? 340 : 290, background:"#1e1b4b", boxShadow:"4px 0 20px rgba(0,0,0,.15)", display:"flex", flexDirection:"column" }}>
             <div style={{ background:"#1e1b4b", padding:24, color:"#fff" }}>
               <div style={{ fontSize:40 }}>{user.avatar_url ? <img src={user.avatar_url} style={{width:48,height:48,borderRadius:"50%"}} alt="" /> : <span className="material-icons" style={{fontSize:48,fontFamily:"Material Icons",color:"#9ca3af"}}>person</span>}</div>
-              <div style={{ fontWeight:800, fontSize:16, marginTop:8 }}>{user.name}</div>
+              <div style={{ fontWeight:800, fontSize:16, marginTop:8, color:"#fff" }}>{user.name}</div>
               <div style={{ fontSize:12, color:"#c7d2fe", marginTop:2 }}>{user.role}{(user.role==="technician"||user.role==="manager")?" · KPI: "+user.kpi:""}</div>
             </div>
-            <div style={{ flex:1, overflowY:"auto", padding:8 }}>
+            <div style={{ flex:1, overflowY:"auto", padding:8, background:"#1e1b4b" }}>
               {/* Accordion Tổng quan — chỉ với isManager */}
               {isManager && renderManagerSidebar()}
               {!isManager && (() => {
@@ -2083,9 +2083,9 @@ function MainAppContent({ onUserChange }) {
               });
               })()}
             </div>
-            <div style={{ padding:16, borderTop:"1px solid #f3f4f6", display:"flex", flexDirection:"column", gap:8 }}>
-              <button onClick={doLogout} style={{ width:"100%", padding:14, background:"#fef2f2", border:"none", borderRadius:12, color:"#dc2626", fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>logout</span> Đăng xuất</button>
-              <button onClick={doLogout} style={{ width:"100%", padding:12, background:"#f1f5f9", border:"none", borderRadius:12, color:"#475569", fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>power_settings_new</span> Thoát</button>
+            <div style={{ padding:16, borderTop:"1px solid rgba(255,255,255,.15)", display:"flex", flexDirection:"column", gap:8 }}>
+              <button onClick={doLogout} style={{ width:"100%", padding:14, background:"rgba(239,68,68,.2)", border:"none", borderRadius:12, color:"#fca5a5", fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>logout</span> Đăng xuất</button>
+              <button onClick={doLogout} style={{ width:"100%", padding:12, background:"rgba(255,255,255,.1)", border:"none", borderRadius:12, color:"rgba(255,255,255,.7)", fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>power_settings_new</span> Thoát</button>
             </div>
           </div>
         </div>
