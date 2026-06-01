@@ -25,6 +25,9 @@ export default function StockReportNXT({ user }) {
   const [summary, setSummary]         = useState({ in:0, out:0, stock:0 });
   const [loading, setLoading]         = useState(true);
   const [search, setSearch]           = useState("");
+  const [selectedItem,  setSelectedItem]  = useState(null);
+  const [itemHistory,   setItemHistory]   = useState([]);
+  const [histLoading,   setHistLoading]   = useState(false);
 
   useEffect(() => {
     Warehouse.list({ sort:"name", limit:50 })
@@ -95,6 +98,21 @@ export default function StockReportNXT({ user }) {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function loadItemHistory(item) {
+    setSelectedItem(item);
+    setItemHistory([]);
+    setHistLoading(true);
+    try {
+      const hist = await StockMovement.list({
+        filter: `part_id="${item.part_id||item.spare_part_id||item.id}"`,
+        sort: "-created",
+        limit: 200,
+      });
+      setItemHistory(hist || []);
+    } catch { setItemHistory([]); }
+    setHistLoading(false);
   }
 
   const displayed = rows.filter(r =>
@@ -177,7 +195,7 @@ export default function StockReportNXT({ user }) {
                 {[
                   ["SKU","left"],["Tên hàng","left"],["ĐV","center"],
                   ["Nhập tháng","right"],["Xuất tháng","right"],["Tồn hiện tại","right"],
-                  ["Đơn giá","right"],
+                  ["Đơn giá","right"],["Thẻ kho","center"],
                 ].map(([h, align]) => (
                   <th key={h} style={{ padding:"10px 12px", textAlign:align,
                     fontWeight:700, color:"#374151", borderBottom:"1px solid #e5e7eb",
@@ -220,6 +238,13 @@ export default function StockReportNXT({ user }) {
                   <td style={{ padding:"9px 12px", textAlign:"right", color:"#6b7280" }}>
                     {r.unit_price ? fmtMoney(r.unit_price) : "—"}
                   </td>
+                  <td style={{ padding:"9px 12px", textAlign:"center" }}>
+                    <button onClick={() => loadItemHistory(r)} style={{
+                      padding:"4px 10px", borderRadius:8, border:"1.5px solid #e0e7ff",
+                      background: selectedItem?.part_id===r.part_id ? "#e0e7ff" : "#f5f3ff",
+                      color:"#7c3aed", fontSize:11, fontWeight:600, cursor:"pointer"
+                    }}>📋 Thẻ kho</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -238,9 +263,74 @@ export default function StockReportNXT({ user }) {
                   {displayed.reduce((s,r)=>s+r.stock_now,0)}
                 </td>
                 <td />
+                <td />
               </tr>
             </tfoot>
           </table>
+        </div>
+      )}
+
+      {/* Panel Thẻ kho */}
+      {selectedItem && (
+        <div style={{ marginTop:16, background:"#fff", borderRadius:16, border:"1.5px solid #6366f1", padding:20 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+            <div>
+              <div style={{ fontWeight:800, fontSize:15 }}>📋 Thẻ kho: {selectedItem.name}</div>
+              <div style={{ fontSize:12, color:"#6b7280" }}>SKU: {selectedItem.sku || "—"}</div>
+            </div>
+            <button onClick={() => setSelectedItem(null)} style={{
+              width:32, height:32, borderRadius:"50%", border:"none",
+              background:"#f3f4f6", cursor:"pointer", fontSize:16
+            }}>✕</button>
+          </div>
+
+          {histLoading && <div style={{ textAlign:"center", padding:16, color:"#6b7280" }}>⏳ Đang tải...</div>}
+
+          {!histLoading && itemHistory.length === 0 && (
+            <div style={{ textAlign:"center", padding:24, color:"#9ca3af" }}>Chưa có lịch sử giao dịch</div>
+          )}
+
+          {!histLoading && itemHistory.length > 0 && (
+            <div style={{ overflowX:"auto" }}>
+              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+                <thead>
+                  <tr style={{ background:"#f3f4f6" }}>
+                    <th style={{ padding:"8px 10px", textAlign:"left" }}>Ngày</th>
+                    <th style={{ padding:"8px 10px", textAlign:"left" }}>Loại</th>
+                    <th style={{ padding:"8px 10px", textAlign:"left" }}>Ghi chú</th>
+                    <th style={{ padding:"8px 10px", textAlign:"right" }}>SL thay đổi</th>
+                    <th style={{ padding:"8px 10px", textAlign:"right" }}>Tồn sau</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {itemHistory.map(h => (
+                    <tr key={h.id} style={{ borderBottom:"1px solid #f3f4f6" }}>
+                      <td style={{ padding:"8px 10px" }}>
+                        {new Date(h.created||h.created_date).toLocaleDateString("vi-VN")}
+                      </td>
+                      <td style={{ padding:"8px 10px" }}>
+                        <span style={{
+                          padding:"2px 8px", borderRadius:12, fontSize:11, fontWeight:700,
+                          background: h.movement_type==="in"?"#dcfce7": h.movement_type==="out"?"#fee2e2":"#fef9c3",
+                          color:      h.movement_type==="in"?"#059669": h.movement_type==="out"?"#dc2626":"#ca8a04",
+                        }}>
+                          {h.movement_type==="in"?"📥 Nhập": h.movement_type==="out"?"📤 Xuất":"🔄 Điều chuyển"}
+                        </span>
+                      </td>
+                      <td style={{ padding:"8px 10px", color:"#6b7280" }}>{h.note || h.reason || "—"}</td>
+                      <td style={{ padding:"8px 10px", textAlign:"right", fontWeight:700,
+                        color: h.movement_type==="in"?"#059669":"#dc2626" }}>
+                        {h.movement_type==="in"?"+":"-"}{Math.abs(h.qty_change||h.quantity||0)}
+                      </td>
+                      <td style={{ padding:"8px 10px", textAlign:"right", fontWeight:600 }}>
+                        {h.qty_after ?? "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>

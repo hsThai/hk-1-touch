@@ -3,7 +3,7 @@
  * @version 2026-05-29-v1
  */
 import React, { useState, useEffect } from "react";
-import { DebtVoucher, DebtPayment, CashJournal } from "./pb.jsx";
+import { DebtVoucher, DebtPayment, CashJournal, Supplier } from "./pb.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 function fmtDate(s) {
@@ -242,10 +242,11 @@ function VoucherRow({ v, onClick }) {
 
 // ── Tab content ───────────────────────────────────────────
 function TabContent({ vtype, user }) {
-  const [list,   setList]   = useState([]);
-  const [loading,setLoading]= useState(true);
-  const [detail, setDetail] = useState(null);
-  const [filter, setFilter] = useState("all");
+  const [list,      setList]      = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [detail,    setDetail]    = useState(null);
+  const [filter,    setFilter]    = useState("all");
+  const [suppliers, setSuppliers] = useState([]);
 
   async function load() {
     setLoading(true);
@@ -253,16 +254,69 @@ function TabContent({ vtype, user }) {
       const data = await DebtVoucher.filter({ voucher_type: vtype });
       setList((data||[]).sort((a,b) => new Date(b.created||0) - new Date(a.created||0)));
     } catch {}
+    if (vtype === "payable") {
+      try {
+        const sups = await Supplier.list({ limit:200 });
+        setSuppliers(sups || []);
+      } catch {}
+    }
     setLoading(false);
   }
 
   useEffect(() => { load(); }, [vtype]);
 
   const filtered = filter === "all" ? list : list.filter(v => v.status === filter);
+  const suppliersWithDebt = suppliers.filter(s => (s.total_debt||0) > 0);
 
   return (
     <div style={{ padding:"12px 0 80px" }}>
       <SummaryCards list={list} vtype={vtype} />
+
+      {/* Bảng tổng nợ NCC — chỉ hiện ở tab payable */}
+      {vtype === "payable" && suppliersWithDebt.length > 0 && (
+        <div style={{ marginBottom:16, background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", overflow:"hidden" }}>
+          <div style={{ padding:"12px 16px", background:"#fef3c7", borderBottom:"1px solid #fde68a", fontWeight:700, fontSize:14, color:"#92400e" }}>
+            📊 Tổng hợp công nợ Nhà cung cấp
+          </div>
+          <div style={{ overflowX:"auto" }}>
+            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+              <thead>
+                <tr style={{ background:"#fafafa" }}>
+                  <th style={{ padding:"8px 12px", textAlign:"left", fontWeight:700 }}>Nhà cung cấp</th>
+                  <th style={{ padding:"8px 12px", textAlign:"left", fontWeight:700 }}>Loại</th>
+                  <th style={{ padding:"8px 12px", textAlign:"right", fontWeight:700 }}>Tổng nợ</th>
+                  <th style={{ padding:"8px 12px", textAlign:"center", fontWeight:700 }}>Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody>
+                {suppliersWithDebt.map(s => (
+                  <tr key={s.id} style={{ borderBottom:"1px solid #f3f4f6" }}>
+                    <td style={{ padding:"8px 12px", fontWeight:600 }}>{s.name}</td>
+                    <td style={{ padding:"8px 12px", color:"#6b7280" }}>{s.supplier_type || "—"}</td>
+                    <td style={{ padding:"8px 12px", textAlign:"right", fontWeight:800, color:"#dc2626" }}>
+                      {(s.total_debt||0).toLocaleString("vi-VN")}đ
+                    </td>
+                    <td style={{ padding:"8px 12px", textAlign:"center" }}>
+                      <span style={{ padding:"2px 10px", borderRadius:20, fontSize:11, fontWeight:700, background:"#fee2e2", color:"#dc2626" }}>
+                        Còn nợ
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Không có nợ NCC */}
+      {vtype === "payable" && !loading && list.length === 0 && suppliersWithDebt.length === 0 && (
+        <div style={{ textAlign:"center", padding:40, color:"#22c55e", marginBottom:16 }}>
+          <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:48, display:"block", marginBottom:8 }}>check_circle</span>
+          <div style={{ fontWeight:700, fontSize:15 }}>Không có công nợ NCC</div>
+          <div style={{ fontSize:13, color:"#6b7280", marginTop:4 }}>Tất cả đã thanh toán đúng hạn</div>
+        </div>
+      )}
 
       {/* Status filter */}
       <div style={{ display:"flex", gap:6, overflowX:"auto", marginBottom:14, WebkitOverflowScrolling:"touch" }}>
@@ -277,7 +331,7 @@ function TabContent({ vtype, user }) {
 
       {loading ? (
         <div style={{ textAlign:"center", padding:32, color:"#9ca3af" }}>⏳ Đang tải...</div>
-      ) : filtered.length === 0 ? (
+      ) : filtered.length === 0 && !(vtype==="payable") ? (
         <div style={{ textAlign:"center", padding:32, color:"#9ca3af" }}>Không có phiếu nào</div>
       ) : filtered.map(v => (
         <VoucherRow key={v.id} v={v} onClick={() => setDetail(v)} />

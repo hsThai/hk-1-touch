@@ -3,7 +3,7 @@
  * @version 2026-05-29-v1
  */
 import React, { useState, useEffect } from "react";
-import { Supplier } from "./pb.jsx";
+import { Supplier, StockImport } from "./pb.jsx";
 
 const TYPES = {
   goods:    { label:"🏭 Hàng hóa",   color:"#d97706", bg:"#fef3c7" },
@@ -97,11 +97,14 @@ function SupplierModal({ init, onSave, onClose }) {
 // ── Main ─────────────────────────────────────────────────
 export default function SupplierPage({ user }) {
   const isAdmin = ADMIN.includes(user?.role);
-  const [list,    setList]    = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [modal,   setModal]   = useState(null); // null | false | supplier
-  const [filter,  setFilter]  = useState("");
-  const [toast,   setToast]   = useState("");
+  const [list,            setList]            = useState([]);
+  const [loading,         setLoading]         = useState(true);
+  const [modal,           setModal]           = useState(null); // null | false | supplier
+  const [filter,          setFilter]          = useState("");
+  const [toast,           setToast]           = useState("");
+  const [selectedSupplier,setSelectedSupplier]= useState(null);
+  const [purchaseHistory, setPurchaseHistory] = useState([]);
+  const [histLoading,     setHistLoading]     = useState(false);
 
   useEffect(() => { load(); }, []);
 
@@ -115,6 +118,21 @@ export default function SupplierPage({ user }) {
   }
 
   function showToast(msg) { setToast(msg); setTimeout(() => setToast(""), 3000); }
+
+  async function loadHistory(supplier) {
+    setSelectedSupplier(supplier);
+    setPurchaseHistory([]);
+    setHistLoading(true);
+    try {
+      const imports = await StockImport.list({
+        filter: `supplier_name="${supplier.name}"`,
+        sort: "-created",
+        limit: 100,
+      });
+      setPurchaseHistory(imports || []);
+    } catch { setPurchaseHistory([]); }
+    setHistLoading(false);
+  }
 
   async function del(s) {
     if (!window.confirm(`Xóa nhà cung cấp "${s.name}"?`)) return;
@@ -195,18 +213,103 @@ export default function SupplierPage({ user }) {
                       </div>
                     )}
                   </div>
-                  {isAdmin && (
-                    <div style={{ display:"flex", gap:6, flexShrink:0 }}>
+                  <div style={{ display:"flex", gap:6, flexShrink:0, alignItems:"center" }}>
+                    <button onClick={() => loadHistory(s)} style={{
+                      padding:"5px 10px", borderRadius:8, border:"1.5px solid #e0e7ff",
+                      background: selectedSupplier?.id===s.id ? "#e0e7ff" : "#f5f3ff",
+                      color:"#7c3aed", fontSize:12, fontWeight:600, cursor:"pointer"
+                    }}>📋 Lịch sử</button>
+                    {isAdmin && <>
                       <button onClick={() => setModal(s)}
                         style={{ background:"#e0e7ff", border:"none", borderRadius:8, width:32, height:32, cursor:"pointer", fontSize:14 }}>✏️</button>
                       <button onClick={() => del(s)}
                         style={{ background:"#fee2e2", border:"none", borderRadius:8, width:32, height:32, cursor:"pointer", fontSize:14 }}>🗑️</button>
-                    </div>
-                  )}
+                    </>}
+                  </div>
                 </div>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Panel lịch sử NCC */}
+      {selectedSupplier && (
+        <div style={{ marginTop:20, background:"#fff", borderRadius:16, border:"1.5px solid #6366f1", padding:20 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+            <div>
+              <div style={{ fontWeight:800, fontSize:16 }}>📦 Lịch sử mua hàng</div>
+              <div style={{ fontSize:13, color:"#6b7280", marginTop:2 }}>{selectedSupplier.name}</div>
+            </div>
+            <button onClick={() => setSelectedSupplier(null)} style={{
+              width:32, height:32, borderRadius:"50%", border:"none",
+              background:"#f3f4f6", cursor:"pointer", fontSize:16
+            }}>✕</button>
+          </div>
+
+          {histLoading && <div style={{ textAlign:"center", padding:24, color:"#6b7280" }}>⏳ Đang tải...</div>}
+
+          {!histLoading && purchaseHistory.length === 0 && (
+            <div style={{ textAlign:"center", padding:32, color:"#9ca3af" }}>
+              <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:40, display:"block", marginBottom:8 }}>inbox</span>
+              Chưa có lịch sử nhập hàng từ NCC này
+            </div>
+          )}
+
+          {!histLoading && purchaseHistory.length > 0 && (
+            <>
+              {/* Tổng kết */}
+              <div style={{ display:"flex", gap:12, marginBottom:16, flexWrap:"wrap" }}>
+                {[
+                  { label:"Số lần nhập", val: purchaseHistory.length + " lần", color:"#4f46e5" },
+                  { label:"Tổng giá trị", val: purchaseHistory.reduce((s,i)=>s+(i.total_value||i.total_amount||0),0).toLocaleString("vi-VN")+"đ", color:"#059669" },
+                ].map((c,i) => (
+                  <div key={i} style={{ flex:1, minWidth:140, background:"#f8fafc", borderRadius:12, padding:"12px 16px", borderLeft:`4px solid ${c.color}` }}>
+                    <div style={{ fontSize:12, color:"#6b7280" }}>{c.label}</div>
+                    <div style={{ fontSize:16, fontWeight:800, color:c.color, marginTop:4 }}>{c.val}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Bảng lịch sử */}
+              <div style={{ overflowX:"auto" }}>
+                <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+                  <thead>
+                    <tr style={{ background:"#f3f4f6" }}>
+                      <th style={{ padding:"8px 10px", textAlign:"left" }}>Ngày nhập</th>
+                      <th style={{ padding:"8px 10px", textAlign:"left" }}>Mã phiếu</th>
+                      <th style={{ padding:"8px 10px", textAlign:"right" }}>Tổng tiền</th>
+                      <th style={{ padding:"8px 10px", textAlign:"center" }}>Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {purchaseHistory.map(imp => (
+                      <tr key={imp.id} style={{ borderBottom:"1px solid #f3f4f6" }}>
+                        <td style={{ padding:"8px 10px", color:"#374151" }}>
+                          {new Date(imp.import_date||imp.created||imp.created_date).toLocaleDateString("vi-VN")}
+                        </td>
+                        <td style={{ padding:"8px 10px", color:"#6366f1", fontWeight:600 }}>
+                          {imp.import_code || imp.code || imp.id?.slice(-6)}
+                        </td>
+                        <td style={{ padding:"8px 10px", textAlign:"right", fontWeight:700, color:"#059669" }}>
+                          {(imp.total_value||imp.total_amount||0).toLocaleString("vi-VN")}đ
+                        </td>
+                        <td style={{ padding:"8px 10px", textAlign:"center" }}>
+                          <span style={{
+                            padding:"2px 10px", borderRadius:20, fontSize:11, fontWeight:700,
+                            background: imp.status==="confirmed"||imp.status==="completed"?"#dcfce7": imp.status==="pending"?"#fef9c3":"#f3f4f6",
+                            color:      imp.status==="confirmed"||imp.status==="completed"?"#059669": imp.status==="pending"?"#ca8a04":"#6b7280",
+                          }}>
+                            {imp.status==="confirmed"||imp.status==="completed"?"✅ Xong": imp.status==="pending"?"⏳ Chờ":"—"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </div>
       )}
 
