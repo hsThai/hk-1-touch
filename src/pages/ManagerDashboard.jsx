@@ -343,6 +343,7 @@ function OverviewTab({ repairOrders, saleOrders, spareParts, ledgerSummary=[], c
 // ── TAB 2: Revenue ─────────────────────────────────────────
 function RevenueTab({ repairOrders, saleOrders, expenses }) {
   const [period, setPeriod] = useState("today");
+  const [showCompare, setShowCompare] = useState(false);
   const [topProducts, setTopProducts] = useState([]);
 
   useEffect(() => {
@@ -380,6 +381,34 @@ function RevenueTab({ repairOrders, saleOrders, expenses }) {
   const totalRev  = repairRev+saleRev;
   const totalExp  = pExp.reduce((s,e)=>s+(e.amount||0),0);
   const profit    = totalRev-totalExp;
+
+  // ── So sánh kỳ trước ─────────────────────────────────
+  const prevRevenue = useMemo(() => {
+    const now = new Date();
+    let prevFrom, prevTo;
+    if (period === "today") {
+      prevFrom = new Date(now); prevFrom.setDate(prevFrom.getDate()-1); prevFrom.setHours(0,0,0,0);
+      prevTo   = new Date(prevFrom); prevTo.setHours(23,59,59,999);
+    } else if (period === "7days") {
+      prevTo   = new Date(now); prevTo.setDate(prevTo.getDate()-7); prevTo.setHours(23,59,59,999);
+      prevFrom = new Date(prevTo); prevFrom.setDate(prevFrom.getDate()-6); prevFrom.setHours(0,0,0,0);
+    } else if (period === "30days") {
+      prevTo   = new Date(now); prevTo.setDate(prevTo.getDate()-30); prevTo.setHours(23,59,59,999);
+      prevFrom = new Date(prevTo); prevFrom.setDate(prevFrom.getDate()-29); prevFrom.setHours(0,0,0,0);
+    } else {
+      prevFrom = new Date(now.getFullYear(), now.getMonth()-1, 1);
+      prevTo   = new Date(now.getFullYear(), now.getMonth(), 0, 23,59,59,999);
+    }
+    const pr = repairOrders
+      .filter(o => DONE_ST.includes(o.status) && o.done_date && new Date(o.done_date)>=prevFrom && new Date(o.done_date)<=prevTo)
+      .reduce((s,o)=>s+(o.final_cost||0),0);
+    const ps = saleOrders
+      .filter(o => o.status==="paid" && (o.created||o.created_date) && new Date(o.created||o.created_date)>=prevFrom && new Date(o.created||o.created_date)<=prevTo)
+      .reduce((s,o)=>s+(o.total||0),0);
+    return pr + ps;
+  }, [period, repairOrders, saleOrders]);
+
+  const growthPct = prevRevenue > 0 ? Math.round((totalRev - prevRevenue) / prevRevenue * 100) : null;
 
   const CARDS = [
     { icon:"💰", label:"DT Sửa chữa",     value:fmtMoney(repairRev),  bg:"#eff6ff", bc:"#bfdbfe", cl:"#1d4ed8" },
@@ -419,8 +448,8 @@ function RevenueTab({ repairOrders, saleOrders, expenses }) {
 
   return (
     <div style={{ padding:"16px 14px 40px" }}>
-      {/* Period */}
-      <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap" }}>
+      {/* Period + Compare toggle */}
+      <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap", alignItems:"center" }}>
         {["today","7days","30days","thismonth"].map((p,i)=>(
           <button key={p} onClick={()=>setPeriod(p)}
             style={{ padding:"8px 16px", borderRadius:99, border:"none", cursor:"pointer",
@@ -430,6 +459,14 @@ function RevenueTab({ repairOrders, saleOrders, expenses }) {
             {["Hôm nay","7 ngày","30 ngày","Tháng này"][i]}
           </button>
         ))}
+        <button onClick={() => setShowCompare(v => !v)}
+          style={{ marginLeft:4, padding:"7px 14px", borderRadius:20,
+            border:"1.5px solid "+(showCompare?"#6366f1":"#d1d5db"),
+            background:showCompare?"#ede9fe":"#f9fafb",
+            color:showCompare?"#6366f1":"#6b7280",
+            fontWeight:600, fontSize:12, cursor:"pointer" }}>
+          {showCompare ? "📊 Đang so sánh" : "📊 So sánh kỳ trước"}
+        </button>
       </div>
 
       {/* Cards */}
@@ -442,6 +479,25 @@ function RevenueTab({ repairOrders, saleOrders, expenses }) {
           </div>
         ))}
       </div>
+
+      {/* So sánh kỳ trước */}
+      {showCompare && (
+        <div style={{
+          marginBottom:16, padding:"10px 16px",
+          background:growthPct==null?"#f9fafb":growthPct>=0?"#f0fdf4":"#fef2f2",
+          borderRadius:10, fontSize:13,
+          color:growthPct==null?"#6b7280":growthPct>=0?"#059669":"#dc2626",
+          fontWeight:600, display:"flex", alignItems:"center", gap:8,
+        }}>
+          {growthPct == null
+            ? "📊 Không có dữ liệu kỳ trước để so sánh"
+            : <>
+                {growthPct >= 0 ? "▲" : "▼"} {Math.abs(growthPct)}% so với kỳ trước
+                &nbsp;<span style={{fontWeight:400,color:"inherit"}}>({prevRevenue.toLocaleString("vi-VN")}đ)</span>
+              </>
+          }
+        </div>
+      )}
 
       {/* Chart */}
       <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", padding:"16px", marginBottom:20 }}>
@@ -955,70 +1011,123 @@ function DebtOverdueContent() {
 
 function DebtSubTab({ repairOrders }) {
   const [debtTab, setDebtTab] = useState("receivable");
-  const debtMap = {};
-  repairOrders
-    .filter(o => (o.balance||0) > 0 && !["Huỷ"].includes(o.status))
-    .forEach(o => {
-      const k = o.customer_id || o.customer_name || "Không rõ";
-      if (!debtMap[k]) debtMap[k] = { name: o.customer_name||k, phone: o.customer_phone||"", total:0, orders:0 };
-      debtMap[k].total  += (o.balance||0);
-      debtMap[k].orders += 1;
-    });
-  const list = Object.values(debtMap).sort((a,b) => b.total - a.total);
+
+  // ── Tính receivable với daysDebt ─────────────────────
+  const receivable = repairOrders
+    .filter(o => !["Đã Huỷ","Huỷ"].includes(o.status) && (o.remaining_amount || o.balance || 0) > 0)
+    .map(o => ({
+      ...o,
+      _remaining: o.remaining_amount || o.balance || 0,
+      daysDebt: o.done_date
+        ? Math.floor((new Date() - new Date(o.done_date)) / 86400000)
+        : (o.created ? Math.floor((new Date() - new Date(o.created)) / 86400000) : null),
+    }))
+    .sort((a, b) => (b.daysDebt||0) - (a.daysDebt||0));
+
+  const overdue = receivable.filter(o => (o.daysDebt || 0) > 30);
+
+  const TH = { padding:"8px 10px", background:"#f9fafb", fontWeight:700, fontSize:12, color:"#374151",
+    borderBottom:"1.5px solid #e5e7eb", textAlign:"left" };
+  const TD = { padding:"8px 10px", fontSize:13, borderBottom:"1px solid #f3f4f6" };
 
   return (
     <div>
-      {/* Sub-toggle Công nợ */}
+      {/* Pills */}
       <div style={{ display:"flex", gap:6, marginBottom:16, flexWrap:"wrap" }}>
         {[
           { key:"receivable", label:"Phải thu (KH)" },
           { key:"payable",    label:"Phải trả (NCC)" },
-          { key:"overdue",    label:"⚠️ Quá hạn" },
+          { key:"overdue",    label:`⚠️ Quá hạn (${overdue.length})` },
         ].map(t => (
-          <button key={t.key}
-            onClick={() => setDebtTab(t.key)}
-            style={{ padding:"6px 12px", borderRadius:20, border:"none", cursor:"pointer", fontSize:12, fontWeight:600,
+          <button key={t.key} onClick={() => setDebtTab(t.key)}
+            style={{ padding:"6px 14px", borderRadius:20, border:"none", cursor:"pointer", fontSize:12, fontWeight:600,
               background: debtTab===t.key ? "#4f46e5" : "#f3f4f6",
-              color:      debtTab===t.key ? "#fff" : "#6b7280" }}>
+              color:      debtTab===t.key ? "#fff"    : "#6b7280" }}>
             {t.label}
           </button>
         ))}
       </div>
 
-      {/* Phải thu KH */}
+      {/* Tab: Phải thu KH — bảng có cột Ngày nợ */}
       {debtTab === "receivable" && (
-        list.length === 0 ? (
+        receivable.length === 0 ? (
           <div style={{ textAlign:"center", padding:40, color:"#9ca3af" }}>
             <div style={{ fontSize:32, marginBottom:8 }}>✅</div>
             <div>Không có công nợ khách hàng</div>
           </div>
         ) : (
-          <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-            {list.map((c,i) => (
-              <div key={i} style={{ background:"#fff", border:"1.5px solid #fca5a5", borderRadius:14, padding:"14px 16px",
-                display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                <div>
-                  <div style={{ fontWeight:800, fontSize:15 }}>{c.name}</div>
-                  <div style={{ fontSize:12, color:"#6b7280", marginTop:2 }}>{c.orders} đơn nợ</div>
-                </div>
-                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                  <div style={{ fontWeight:900, fontSize:16, color:"#dc2626" }}>{fmtMoney(c.total)}</div>
-                  {c.phone && (
-                    <a href={"tel:"+c.phone}
-                      style={{ background:"#4f46e5", color:"#fff", borderRadius:10, padding:"7px 14px",
-                        fontSize:13, fontWeight:700, textDecoration:"none" }}>
-                      📞
-                    </a>
-                  )}
-                </div>
-              </div>
-            ))}
+          <div style={{ overflowX:"auto" }}>
+            <table style={{ width:"100%", borderCollapse:"collapse" }}>
+              <thead>
+                <tr>
+                  <th style={TH}>Khách hàng</th>
+                  <th style={TH}>Mã đơn</th>
+                  <th style={{...TH, textAlign:"right"}}>Còn nợ</th>
+                  <th style={{...TH, textAlign:"right"}}>Ngày nợ</th>
+                  <th style={TH}>SĐT</th>
+                </tr>
+              </thead>
+              <tbody>
+                {receivable.map(o => (
+                  <tr key={o.id}>
+                    <td style={{...TD, fontWeight:700}}>{o.customer_name || "—"}</td>
+                    <td style={TD}>{o.order_code || "—"}</td>
+                    <td style={{...TD, textAlign:"right", fontWeight:800, color:"#dc2626"}}>
+                      {fmtMoney(o._remaining)}
+                    </td>
+                    <td style={{
+                      ...TD, textAlign:"right", fontWeight:(o.daysDebt||0)>30?700:400,
+                      color:(o.daysDebt||0)>30?"#dc2626":(o.daysDebt||0)>7?"#f59e0b":"#374151",
+                    }}>
+                      {o.daysDebt != null ? `${o.daysDebt} ngày` : "—"}
+                    </td>
+                    <td style={TD}>
+                      {o.customer_phone
+                        ? <a href={"tel:"+o.customer_phone} style={{color:"#4f46e5",fontWeight:700,textDecoration:"none"}}>📞 {o.customer_phone}</a>
+                        : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )
       )}
 
-      {debtTab === "payable"    && <DebtPayableContent />}
-      {debtTab === "overdue"    && <DebtOverdueContent />}
+      {/* Tab: Phải trả NCC */}
+      {debtTab === "payable" && <DebtPayableContent />}
+
+      {/* Tab: Quá hạn > 30 ngày */}
+      {debtTab === "overdue" && (
+        overdue.length === 0
+          ? <div style={{padding:24, textAlign:"center", color:"#22c55e", fontWeight:600}}>✅ Không có nợ quá hạn</div>
+          : <div style={{ overflowX:"auto" }}>
+              <table style={{ width:"100%", borderCollapse:"collapse", marginTop:4 }}>
+                <thead>
+                  <tr style={{ background:"#fef2f2" }}>
+                    <th style={{...TH, color:"#dc2626"}}>Khách hàng</th>
+                    <th style={{...TH, color:"#dc2626"}}>Model máy</th>
+                    <th style={{...TH, textAlign:"right", color:"#dc2626"}}>Còn nợ</th>
+                    <th style={{...TH, textAlign:"right", color:"#dc2626"}}>Ngày quá hạn</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {overdue.map(o => (
+                    <tr key={o.id} style={{ borderBottom:"1px solid #fecaca", background:"#fff5f5" }}>
+                      <td style={{...TD, fontWeight:600}}>{o.customer_name || "—"}</td>
+                      <td style={TD}>{o.device_model || o.device_name || "—"}</td>
+                      <td style={{...TD, textAlign:"right", color:"#dc2626", fontWeight:700}}>
+                        {(o._remaining).toLocaleString("vi-VN")}đ
+                      </td>
+                      <td style={{...TD, textAlign:"right", color:"#dc2626", fontWeight:700}}>
+                        {o.daysDebt} ngày ⚠️
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+      )}
     </div>
   );
 }
@@ -1412,7 +1521,7 @@ const NAV_TABS = [
 
 
 // ── TAB 5: Báo cáo ───────────────────────────────────────────
-function ReportsTab({ user, repairOrders, saleOrders, spareParts, ledgerSummary }) {
+function ReportsTab({ user, repairOrders, saleOrders, spareParts, ledgerSummary, staff=[] }) {
   const [sub, setSub] = React.useState("revenue");
   const SUB_TABS = [
     { key:"revenue", label:"📈 Doanh thu"     },
@@ -1432,7 +1541,7 @@ function ReportsTab({ user, repairOrders, saleOrders, spareParts, ledgerSummary 
           <div style={{ fontSize:13, marginTop:4 }}>Tính năng đang phát triển</div>
         </div>
       )}
-      {sub==="ktv" && <StaffKpiTab staff={[]} repairOrders={repairOrders} />}
+      {sub==="ktv" && <StaffKpiTab staff={staff} repairOrders={repairOrders} />}
     </div>
   );
 }
@@ -1537,7 +1646,7 @@ export default function ManagerDashboard({ user, initialTab = "overview", onTabC
       case "business":  return <BusinessTab repairOrders={repairOrders} saleOrders={saleOrders} expenses={expenses} cashJournals={cashJournals} />;
       case "staff":     return <StaffTab staff={staff} repairOrders={repairOrders} />;
       case "inventory": return <InventoryWrapTab spareParts={spareParts} stockImports={stockImports} ledgerSummary={ledgerSummary} sparePartUsages={sparePartUsages} onApproveUsage={handleApproveUsage} />;
-      case "reports":   return <ReportsTab user={user} repairOrders={repairOrders} saleOrders={saleOrders} spareParts={spareParts} ledgerSummary={ledgerSummary} />;
+      case "reports":   return <ReportsTab user={user} repairOrders={repairOrders} saleOrders={saleOrders} spareParts={spareParts} ledgerSummary={ledgerSummary} staff={staff} />;
       default: return null;
     }
   };
