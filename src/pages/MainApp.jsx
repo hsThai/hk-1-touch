@@ -283,10 +283,10 @@ const MGR_ACCORDIONS = [
     key: "acc_overview",
     icon: "dashboard",
     label: "Tổng quan",
-    pages: ["dashboard", "dashboard__board", "dashboard__business", "dashboard__inventory", "dashboard__staff"],
+    pages: ["dashboard", "board", "dashboard__business", "dashboard__inventory", "dashboard__staff"],
     items: [
       { key:"dashboard",            icon:"home",           label:"Tổng quan" },
-      { key:"dashboard__board",     icon:"view_kanban",    label:"Dịch vụ / Bán hàng" },
+      { key:"board",                icon:"view_kanban",    label:"Dịch vụ / Bán hàng" },
       { key:"dashboard__business",  icon:"account_balance",label:"Tài chính" },
       { key:"dashboard__inventory", icon:"inventory_2",    label:"Kho / Vật tư" },
       { key:"dashboard__staff",     icon:"people",         label:"KPI Nhân viên" },
@@ -1405,11 +1405,12 @@ function MainAppContent({ onUserChange }) {
               <button
                 onClick={() => {
                   setOpenAccordion(isOpen ? null : acc.key);
-                  if (!isOpen && acc.items.length > 0) {
+                  // Luôn navigate tới trang đầu tiên của accordion khi click header
+                  if (acc.items.length > 0) {
                     const defaultPage = acc.items[0].key;
                     const [basePage, subTab] = defaultPage.split("__");
                     setPage(basePage);
-                    if (subTab) setDashboardTab(subTab);
+                    if (subTab) setDashboardTab(subTab); else setDashboardTab("overview");
                     setSidebarOpen(false);
                     setDashboardFilter(null);
                   }
@@ -1450,6 +1451,7 @@ function MainAppContent({ onUserChange }) {
                           const [basePg, subT] = sub.key.split("__");
                           setPage(basePg);
                           if (subT) setDashboardTab(subT);
+                          else if (basePg === "dashboard") setDashboardTab("overview");
                           setSidebarOpen(false);
                           setDashboardFilter(null);
                         }}

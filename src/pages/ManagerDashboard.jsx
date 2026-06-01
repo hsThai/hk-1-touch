@@ -1528,7 +1528,7 @@ function ReportsTab({ user, repairOrders, saleOrders, spareParts, ledgerSummary,
     { key:"revenue", label:"📈 Doanh thu"     },
     { key:"nxt",     label:"📦 Nhập-Xuất-Tồn" },
     { key:"profit",  label:"💹 Lợi nhuận"     },
-    { key:"ktv",     label:"👨‍🔧 Báo cáo KTV" },
+    { key:"ktv",     label:"📊 Hiệu suất Nhân viên" },
   ];
   return (
     <div style={{ padding:"16px 14px 40px" }}>
