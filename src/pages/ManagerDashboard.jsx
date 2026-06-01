@@ -1517,7 +1517,6 @@ const NAV_TABS = [
   { key:"business",   icon:"account_balance", label:"Tài chính" },
   { key:"staff",      icon:"people",          label:"Nhân viên" },
   { key:"inventory",  icon:"inventory_2",     label:"Kho & KT" },
-  { key:"reports",    icon:"bar_chart",       label:"Báo cáo" },
 ];
 
 
@@ -1662,7 +1661,7 @@ export default function ManagerDashboard({ user, initialTab = "overview", onTabC
         padding: bp==="pc" ? "16px 32px 0" : "14px 16px 0" }}>
         <div style={{ fontWeight:900, color:"#1e1b4b",
           fontSize: bp==="pc" ? 20 : 17 }}>
-          {NAV_TABS.find(t=>t.key===tab)?.label || "Tổng quan"}
+          Tổng quan
         </div>
         <div style={{ fontSize:12, color:"#9ca3af", marginTop:2, marginBottom:12 }}>{todayStr()}</div>
 
