@@ -264,6 +264,9 @@ const PrintTemplatePage = lazy(() => import("./PrintTemplatePage.jsx").catch(() 
 const ReturnOrderPage  = lazy(() => import("./ReturnOrderPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang Đổi trả</div> })));
 const PricePolicyPage      = lazy(() => import("./PricePolicyPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Chính sách giá</div> })));
 const PurchaseForecastPage = lazy(() => import("./PurchaseForecastPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Mua hàng</div> })));
+const RMAPage = lazy(() => import("./RMAPage.jsx").catch(() => ({
+  default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải RMA</div>
+})));
 const StockReportNXT = lazy(() => import("./StockReportNXT.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Báo cáo NXT</div> })));
 const RoleHomePlaceholder  = lazy(() => import("./RoleHomePlaceholder").catch(() => ({ default: () => (
   <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang chủ</div>
@@ -1298,6 +1301,8 @@ function MainAppContent({ onUserChange }) {
       items.push({ key:"stock_count",  icon:"fact_check",  label:"Kiểm kê kho" });
     if (["owner","admin","manager","warehouse","team_leader"].includes(user?.role) && !isManager)
       items.push({ key:"purchase_forecast", icon:"shopping_cart", label:"Mua hàng & Dự báo" });
+    if (["owner","admin","manager","warehouse","team_leader"].includes(user?.role) && !isManager)
+      items.push({ key:"rma", icon:"assignment_return", label:"Trả hàng NCC (RMA)" });
 
     // ── 8. NHÂN VIÊN — chỉ non-manager (manager dùng accordion Thiết Lập)
     if (can("staff","view") && !isManager)
@@ -1903,6 +1908,7 @@ function MainAppContent({ onUserChange }) {
                    "return_order": "🔄 Đổi trả & Bảo hành",
                   "price_policy": "💰 Chính sách giá",
                   "purchase_forecast": "🛒 Mua hàng & Dự báo",
+                  "rma": "📦 Trả hàng NCC (RMA)",
                   "wh_home":      "📦 Kho & Vật tư",
                   "stock_count":  "📦 Kho & Vật tư",
                   "customers":    "👥 Đối tác",
@@ -2026,6 +2032,11 @@ function MainAppContent({ onUserChange }) {
               {page==="purchase_forecast" && currentUser && (
                 <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
                   <PurchaseForecastPage user={currentUser} />
+                </Suspense>
+              )}
+              {page==="rma" && currentUser && (
+                <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
+                  <RMAPage user={currentUser} />
                 </Suspense>
               )}
               {page==="cash_journal" && user && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><CashJournalPage user={user} /></Suspense>}
@@ -2334,6 +2345,26 @@ function MainAppContent({ onUserChange }) {
         {page==="stock_nxt" && (
           <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
             <StockReportNXT user={user} />
+          </Suspense>
+        )}
+        {page==="return_order" && currentUser && (
+          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
+            <ReturnOrderPage user={currentUser} />
+          </Suspense>
+        )}
+        {page==="price_policy" && currentUser && (
+          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
+            <PricePolicyPage user={currentUser} />
+          </Suspense>
+        )}
+        {page==="purchase_forecast" && currentUser && (
+          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
+            <PurchaseForecastPage user={currentUser} />
+          </Suspense>
+        )}
+        {page==="rma" && currentUser && (
+          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
+            <RMAPage user={currentUser} />
           </Suspense>
         )}
         {page==="cash_journal" && user && (
