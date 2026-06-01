@@ -381,6 +381,7 @@ function MainAppContent({ onUserChange }) {
   const bp = useBreakpoint();
   const isPC = bp === "pc";
   const [user, setUser] = useState(null);
+  const role = user?.role || "";
   const ordersRef = useRef([]); // luôn giữ latest orders snapshot
   const usersRef  = useRef([]); // luôn giữ latest users snapshot
   const kanbanScrollRef = useRef(null); // persist scroll qua re-render
@@ -481,16 +482,16 @@ function MainAppContent({ onUserChange }) {
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const isWarehouse  = user.role === "warehouse";
-  const isManager    = ["manager","admin","owner","supervisor"].includes(user.role);
-  const isKtv        = user.role === "technician";
-  const isReception  = user.role === "receptionist";
-  const isRoleHome   = ["cashier","accountant","hr","marketing","qa","support","delivery","it","viewer","supervisor"].includes(user.role);
+  const isWarehouse  = role === "warehouse";
+  const isManager    = ["manager","admin","owner","supervisor"].includes(role);
+  const isKtv        = role === "technician";
+  const isReception  = role === "receptionist";
+  const isRoleHome   = ["cashier","accountant","hr","marketing","qa","support","delivery","it","viewer","supervisor"].includes(role);
 
   // ── Set initial page khi user login lần đầu ──────────────
   useEffect(() => {
     if (!user) return;
-    const isManagerRole = ["manager","admin","owner","supervisor"].includes(user.role);
+    const isManagerRole = ["manager","admin","owner","supervisor"].includes(role);
     if (isManagerRole && page === "board") {
       setPage("dashboard");
     }
@@ -810,7 +811,7 @@ function MainAppContent({ onUserChange }) {
   // Chạy mỗi 5 phút, chỉ khi user là warehouse hoặc manager
   useEffect(() => {
     if (!user?.id) return;
-    const isWHorMgr = ["warehouse","manager","admin"].includes(user.role);
+    const isWHorMgr = ["warehouse","manager","admin"].includes(role);
     if (!isWHorMgr) return;
 
     async function checkExportDeadlines() {
