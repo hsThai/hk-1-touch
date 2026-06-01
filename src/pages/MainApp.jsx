@@ -1406,8 +1406,8 @@ function MainAppContent({ onUserChange }) {
               {/* Header accordion */}
               <button
                 onClick={() => {
-                  setOpenAccordion(isOpen ? null : acc.key);
-                  // Luôn navigate tới trang đầu tiên của accordion khi click header
+                  // Mở accordion + navigate tới sub-item đầu tiên
+                  setOpenAccordion(acc.key);
                   if (acc.items.length > 0) {
                     const defaultPage = acc.items[0].key;
                     const [basePage, subTab] = defaultPage.split("__");
