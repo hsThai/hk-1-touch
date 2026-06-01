@@ -1258,63 +1258,57 @@ function MainAppContent({ onUserChange }) {
 
     // ── 1. TRANG CHỦ / TỔNG QUAN ───────────────────────────
     if (isKtv)
-      items.push({ key:"ktv_home",     icon:"home",        label:"Trang chủ" });
+      items.push({ key:"ktv_home",  icon:"home", label:"Trang chủ" });
     else if (isReception)
-      items.push({ key:"rec_home",     icon:"home",        label:"Trang chủ" });
+      items.push({ key:"rec_home",  icon:"home", label:"Trang chủ" });
     else if (isRoleHome)
-      items.push({ key:"role_home",    icon:"home",        label:"Trang chủ" });
+      items.push({ key:"role_home", icon:"home", label:"Trang chủ" });
 
-    // ── 2. BẢNG THEO DÕI — chỉ manager/supervisor ──────────
-    if (can("repair_order","view") && isManager)
-      items.push({ key:"board",        icon:"assignment",  label:"Bảng điều phối" });
-
-    // ── 3. TẠO ĐƠN — manager, receptionist ─────────────────
+    // ── 2. DỊCH VỤ SỬA CHỮA (thứ tự đúng: Tạo → Bảng → Danh sách)
     if (can("repair_order","create") && !isKtv)
-      items.push({ key:"new",          icon:"add_circle",  label:"Tạo đơn" });
-
-    // ── 4. DANH SÁCH ĐƠN — hầu hết roles ──────────────────
+      items.push({ key:"new",   icon:"add_circle",  label:"Tạo đơn" });
+    if (can("repair_order","view") && isManager)
+      items.push({ key:"board", icon:"assignment",  label:"Bảng điều phối" });
     if (can("repair_order","view"))
-      items.push({ key:"tasks",        icon:"assignment",  label:"Danh sách & Lịch sử đơn" });
+      items.push({ key:"tasks", icon:"assignment",  label:"Danh sách & Lịch sử đơn" });
 
-    // ── 5. BÁN HÀNG — cashier, accountant, receptionist, manager ──
+    // ── 3. BÁN HÀNG (Bán hàng → Đổi trả → Chính sách giá — cùng 1 nhóm)
     if (can("sale_order","view"))
       items.push({ key:"cashier_home", icon:"point_of_sale", label:"Bán hàng" });
     if (["owner","admin","manager","team_leader","cashier"].includes(user?.role))
-      items.push({ key:"return_order", icon:"swap_horiz", label:"Đổi trả & BH" });
+      items.push({ key:"return_order", icon:"swap_horiz",    label:"Đổi trả & BH" });
     if (["owner","admin","manager","team_leader"].includes(user?.role))
-      items.push({ key:"price_policy", icon:"price_change", label:"Chính sách giá" });
+      items.push({ key:"price_policy", icon:"price_change",  label:"Chính sách giá" });
 
-    // ── 6. KHÁCH HÀNG — receptionist, cashier, marketing (không phải manager)
+    // ── 4. KHO & VẬT TƯ (Quản lý kho → Kiểm kê → Mua hàng → RMA)
+    if (can("warehouse_mgr","view") && !isManager)
+      items.push({ key:"wh_manager",        icon:"warehouse",        label:"Quản lý kho" });
+    if (can("stock_count","view") && !isManager && !isRoleHome)
+      items.push({ key:"stock_count",       icon:"fact_check",       label:"Kiểm kê kho" });
+    if (["owner","admin","manager","warehouse","team_leader"].includes(user?.role) && !isManager)
+      items.push({ key:"purchase_forecast", icon:"shopping_cart",    label:"Mua hàng & Dự báo" });
+    if (["owner","admin","manager","warehouse","team_leader"].includes(user?.role) && !isManager)
+      items.push({ key:"rma",               icon:"assignment_return", label:"Trả hàng NCC (RMA)" });
+
+    // ── 5. ĐỐI TÁC (Khách hàng → NCC)
     if (can("customer","view") && !isKtv && !isManager)
-      items.push({ key:"customers",    icon:"group",       label:"Khách hàng" });
-
-    // ── 6b. NHÀ CUNG CẤP + CÔNG NỢ — chỉ cashier/accountant (manager dùng accordion Thiết Lập)
+      items.push({ key:"customers",  icon:"group",      label:"Khách hàng" });
     if (can("supplier","view") && !isManager)
-      items.push({ key:"suppliers",    icon:"storefront",             label:"Nhà cung cấp" });
-    if (can("debt","view") && !isManager)
-      items.push({ key:"debts",        icon:"account_balance_wallet", label:"Công nợ" });
+      items.push({ key:"suppliers",  icon:"storefront", label:"Nhà cung cấp" });
+
+    // ── 6. KẾ TOÁN (Sổ quỹ → Công nợ)
     if (can("cash_journal","view") && !isManager)
       items.push({ key:"cash_journal", icon:"menu_book",             label:"Sổ quỹ" });
+    if (can("debt","view") && !isManager)
+      items.push({ key:"debts",        icon:"account_balance_wallet", label:"Công nợ" });
 
-    // ── 7. KIỂM KHO — warehouse, manager, technician ───────
-    if (can("stock_count","view") && !isManager && !isRoleHome)
-      items.push({ key:"stock_count",  icon:"fact_check",  label:"Kiểm kê kho" });
-    if (["owner","admin","manager","warehouse","team_leader"].includes(user?.role) && !isManager)
-      items.push({ key:"purchase_forecast", icon:"shopping_cart", label:"Mua hàng & Dự báo" });
-    if (["owner","admin","manager","warehouse","team_leader"].includes(user?.role) && !isManager)
-      items.push({ key:"rma", icon:"assignment_return", label:"Trả hàng NCC (RMA)" });
-
-    // ── 8. NHÂN VIÊN — chỉ non-manager (manager dùng accordion Thiết Lập)
+    // ── 7. NHÂN VIÊN — non-manager (manager dùng accordion Thiết Lập)
     if (can("staff","view") && !isManager)
-      items.push({ key:"staff",        icon:"person",      label:"Nhân viên" });
+      items.push({ key:"staff",    icon:"person",   label:"Nhân viên" });
 
-    // ── 9. QUẢN LÝ KHO — manager, it (manager dùng tab Kho & KT trong Dashboard)
-    if (can("warehouse_mgr","view") && !isManager)
-      items.push({ key:"wh_manager",   icon:"warehouse",   label:"Quản lý kho" });
-
-    // ── 11. CÀI ĐẶT — admin/owner/it ────────────────────────
+    // ── 8. CÀI ĐẶT — admin/owner
     if (can("settings","view") && !isManager)
-      items.push({ key:"settings",     icon:"settings",    label:"Cài đặt" });
+      items.push({ key:"settings", icon:"settings", label:"Cài đặt" });
 
     return items;
   })();
@@ -1902,17 +1896,20 @@ function MainAppContent({ onUserChange }) {
               return navItems.map((item, idx) => {
               const dividerLabel = (() => {
                 const groups = {
-                  "new":          "🔧 Dịch vụ Sửa chữa",
-                  "board":        "🔧 Dịch vụ Sửa chữa",
-                  "cashier_home": "🛒 Bán hàng",
-                   "return_order": "🔄 Đổi trả & Bảo hành",
-                  "price_policy": "💰 Chính sách giá",
-                  "purchase_forecast": "🛒 Mua hàng & Dự báo",
-                  "rma": "📦 Trả hàng NCC (RMA)",
-                  "wh_home":      "📦 Kho & Vật tư",
-                  "stock_count":  "📦 Kho & Vật tư",
-                  "customers":    "👥 Đối tác",
-                  "cash_journal": "💰 Kế toán",
+                  "new":               "🔧 Dịch vụ Sửa chữa",
+                  "board":             "🔧 Dịch vụ Sửa chữa",
+                  "tasks":             "🔧 Dịch vụ Sửa chữa",
+                  "cashier_home":      "🛒 Bán hàng",
+                  "return_order":      "🛒 Bán hàng",
+                  "price_policy":      "🛒 Bán hàng",
+                  "wh_manager":        "📦 Kho & Vật tư",
+                  "stock_count":       "📦 Kho & Vật tư",
+                  "purchase_forecast": "📦 Kho & Vật tư",
+                  "rma":               "📦 Kho & Vật tư",
+                  "customers":         "👥 Đối tác",
+                  "suppliers":         "👥 Đối tác",
+                  "cash_journal":      "💰 Kế toán",
+                  "debts":             "💰 Kế toán",
                 };
                 const label = groups[item.key];
                 if (label && !shownDividers.has(label)) {
@@ -2082,13 +2079,20 @@ function MainAppContent({ onUserChange }) {
                 return navItems.map((n, idx) => {
                 const dividerLabel = (() => {
                   const groups = {
-                    "new":          "🔧 Dịch vụ Sửa chữa",
-                    "board":        "🔧 Dịch vụ Sửa chữa",
-                    "cashier_home": "🛒 Bán hàng",
-                    "wh_home":      "📦 Kho & Vật tư",
-                    "stock_count":  "📦 Kho & Vật tư",
-                    "customers":    "👥 Đối tác",
-                    "cash_journal": "💰 Kế toán",
+                    "new":               "🔧 Dịch vụ Sửa chữa",
+                    "board":             "🔧 Dịch vụ Sửa chữa",
+                    "tasks":             "🔧 Dịch vụ Sửa chữa",
+                    "cashier_home":      "🛒 Bán hàng",
+                    "return_order":      "🛒 Bán hàng",
+                    "price_policy":      "🛒 Bán hàng",
+                    "wh_manager":        "📦 Kho & Vật tư",
+                    "stock_count":       "📦 Kho & Vật tư",
+                    "purchase_forecast": "📦 Kho & Vật tư",
+                    "rma":               "📦 Kho & Vật tư",
+                    "customers":         "👥 Đối tác",
+                    "suppliers":         "👥 Đối tác",
+                    "cash_journal":      "💰 Kế toán",
+                    "debts":             "💰 Kế toán",
                   };
                   const label = groups[n.key];
                   if (label && !shownDividers.has(label)) {
