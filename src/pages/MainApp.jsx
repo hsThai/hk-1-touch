@@ -283,13 +283,12 @@ const MGR_ACCORDIONS = [
     key: "acc_overview",
     icon: "dashboard",
     label: "Tổng quan",
-    pages: ["dashboard", "board", "dashboard__business", "dashboard__inventory", "dashboard__staff"],
+    pages: ["dashboard", "board", "dashboard__business", "dashboard__inventory"],
     items: [
       { key:"dashboard",            icon:"home",           label:"Tổng quan" },
       { key:"board",                icon:"view_kanban",    label:"Dịch vụ / Bán hàng" },
       { key:"dashboard__business",  icon:"account_balance",label:"Tài chính" },
       { key:"dashboard__inventory", icon:"inventory_2",    label:"Kho / Vật tư" },
-      { key:"dashboard__staff",     icon:"people",         label:"KPI Nhân viên" },
     ],
   },
   {
@@ -355,10 +354,12 @@ const MGR_ACCORDIONS = [
     key: "acc_report",
     icon: "bar_chart",
     label: "Báo cáo",
-    pages: ["revenue","stock_nxt"],
+    pages: ["revenue","stock_nxt","dashboard__staff","dashboard__reports"],
     items: [
-      { key:"revenue",   icon:"bar_chart",   label:"Báo cáo Doanh thu" },
-      { key:"stock_nxt", icon:"inventory_2", label:"Báo cáo Nhập-Xuất-Tồn" },
+      { key:"revenue",              icon:"bar_chart",      label:"Báo cáo Doanh thu" },
+      { key:"stock_nxt",            icon:"inventory_2",    label:"Báo cáo Nhập-Xuất-Tồn" },
+      { key:"dashboard__staff",     icon:"people",         label:"Hiệu suất Nhân viên" },
+      { key:"dashboard__reports",   icon:"trending_up",    label:"Lợi nhuận" },
     ],
   },
   {
