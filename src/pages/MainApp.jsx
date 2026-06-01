@@ -1999,9 +1999,9 @@ function MainAppContent({ onUserChange }) {
               {page==="wh_import" && <WarehouseImport user={user} />}
               {page==="wh_manager" && <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"dashboard")} />}
               {page==="cashier_home" && <CashierApp user={user} />}
-              {page==="return_order" && currentUser && (
+              {page==="return_order" && user && (
                 <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
-                  <ReturnOrderPage user={currentUser} />
+                  <ReturnOrderPage user={user} />
                 </Suspense>
               )}
               {page==="suppliers" && user && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><SupplierPage user={user} /></Suspense>}
@@ -2018,25 +2018,25 @@ function MainAppContent({ onUserChange }) {
                   <ActionLogPage user={user} />
                 </Suspense>
               )}
-              {page==="print_template" && currentUser && <PrintTemplatePage user={currentUser} />}
+              {page==="print_template" && user && <PrintTemplatePage user={user} />}
               {page==="stock_nxt" && (
                 <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
                   <StockReportNXT user={user} />
                 </Suspense>
               )}
-              {page==="price_policy" && currentUser && (
+              {page==="price_policy" && user && (
                 <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
-                  <PricePolicyPage user={currentUser} />
+                  <PricePolicyPage user={user} />
                 </Suspense>
               )}
-              {page==="purchase_forecast" && currentUser && (
+              {page==="purchase_forecast" && user && (
                 <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
-                  <PurchaseForecastPage user={currentUser} />
+                  <PurchaseForecastPage user={user} />
                 </Suspense>
               )}
-              {page==="rma" && currentUser && (
+              {page==="rma" && user && (
                 <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
-                  <RMAPage user={currentUser} />
+                  <RMAPage user={user} />
                 </Suspense>
               )}
               {page==="cash_journal" && user && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><CashJournalPage user={user} /></Suspense>}
@@ -2341,30 +2341,30 @@ function MainAppContent({ onUserChange }) {
             <ActionLogPage user={user} />
           </Suspense>
         )}
-              {page==="print_template" && currentUser && <PrintTemplatePage user={currentUser} />}
+              {page==="print_template" && user && <PrintTemplatePage user={user} />}
         {page==="stock_nxt" && (
           <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
             <StockReportNXT user={user} />
           </Suspense>
         )}
-        {page==="return_order" && currentUser && (
+        {page==="return_order" && user && (
           <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
-            <ReturnOrderPage user={currentUser} />
+            <ReturnOrderPage user={user} />
           </Suspense>
         )}
-        {page==="price_policy" && currentUser && (
+        {page==="price_policy" && user && (
           <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
-            <PricePolicyPage user={currentUser} />
+            <PricePolicyPage user={user} />
           </Suspense>
         )}
-        {page==="purchase_forecast" && currentUser && (
+        {page==="purchase_forecast" && user && (
           <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
-            <PurchaseForecastPage user={currentUser} />
+            <PurchaseForecastPage user={user} />
           </Suspense>
         )}
-        {page==="rma" && currentUser && (
+        {page==="rma" && user && (
           <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
-            <RMAPage user={currentUser} />
+            <RMAPage user={user} />
           </Suspense>
         )}
         {page==="cash_journal" && user && (
