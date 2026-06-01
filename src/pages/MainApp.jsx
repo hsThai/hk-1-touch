@@ -1415,7 +1415,7 @@ function MainAppContent({ onUserChange }) {
                   background: isAccActive ? "rgba(255,255,255,.15)" : "transparent",
                   color:      isAccActive ? "#fff" : "rgba(255,255,255,.75)",
                   fontWeight: isAccActive ? 800 : 600,
-                  fontSize:13, cursor:"pointer",
+                  fontSize:13, cursor:"pointer", fontFamily:"inherit",
                   display:"flex", alignItems:"center", gap:9,
                 }}>
                 <span className="material-icons"
@@ -1452,7 +1452,7 @@ function MainAppContent({ onUserChange }) {
                           background: isActive ? "rgba(255,255,255,.2)" : "transparent",
                           color:      isActive ? "#fff" : "rgba(255,255,255,.6)",
                           fontWeight: isActive ? 700 : 400,
-                          fontSize:12, cursor:"pointer",
+                          fontSize:12, cursor:"pointer", fontFamily:"inherit",
                           display:"flex", alignItems:"center", gap:7, marginBottom:1,
                         }}>
                         <div style={{
