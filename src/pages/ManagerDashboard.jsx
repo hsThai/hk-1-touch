@@ -1,10 +1,11 @@
 /* ManagerDashboard.jsx — App 4: Manager Dashboard (5 tabs) */
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+const RevenueReportPage = React.lazy(() => import("./RevenueReportPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center"}}>⚠️ Lỗi tải</div> })));
+const StockReportNXT    = React.lazy(() => import("./StockReportNXT.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center"}}>⚠️ Lỗi tải</div> })));
+
 import { Staff, RepairOrder, SparePart, SaleOrder, Expense,
          StockLedger, Warehouse, Customer, AppSettings, StockImport, SparePartUsage,
          DebtVoucher, CashJournal } from "./pb.jsx";
-import RevenueReportPage from "./RevenueReportPage.jsx";
-import StockReportNXT    from "./StockReportNXT.jsx";
 
 // ── Constants ──────────────────────────────────────────────
 const ALLOWED = ["manager","admin","owner"];
@@ -1532,8 +1533,8 @@ function ReportsTab({ user, repairOrders, saleOrders, spareParts, ledgerSummary,
   return (
     <div style={{ padding:"16px 14px 40px" }}>
       <PillTabs tabs={SUB_TABS} active={sub} onChange={setSub} />
-      {sub==="revenue" && <RevenueReportPage user={user} embedded />}
-      {sub==="nxt"     && <StockReportNXT    user={user} embedded />}
+      {sub==="revenue" && <React.Suspense fallback={<div style={{padding:24,textAlign:"center"}}>⏳</div>}><RevenueReportPage user={user} embedded /></React.Suspense>}
+      {sub==="nxt"     && <React.Suspense fallback={<div style={{padding:24,textAlign:"center"}}>⏳</div>}><StockReportNXT    user={user} embedded /></React.Suspense>}
       {sub==="profit"  && (
         <div style={{ padding:32, textAlign:"center", color:"#6b7280" }}>
           <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:48, display:"block", marginBottom:8 }}>trending_up</span>
