@@ -154,7 +154,6 @@ function QRScanModal({ onClose, onFound, orders = [], mode = "search" }) {
     // Dùng async check — wrap trong async IIFE
     (async () => {
       try {
-        const { SparePart } = await import("./pb.jsx");
         const stockItems = await SparePart.filter({ sku: raw, category: "device_stock" });
         if (stockItems && stockItems.length > 0) {
           const sp = stockItems[0];

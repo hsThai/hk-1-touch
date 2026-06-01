@@ -14,7 +14,7 @@ const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ defa
   </div>
 )})));
 import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage, StockExportRequest, ActionLog, subscribeCollection, getPbUrl, getAuth, logHistory, pbSettings, DebtVoucher, DebtPayment, CashJournal } from "./pb.jsx";
-import { getNotifSound } from "./Settings";
+import { getNotifSound } from "./notifUtils.js";
 import { uploadFile } from "./pb.jsx";
 
 import { QRScanModal, QRPrintModal, QRCanvas, getQRDataUrl, loadQRLib } from "./QRComponents";

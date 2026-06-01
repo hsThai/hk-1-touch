@@ -3,7 +3,7 @@
 import React, { lazy, Suspense, useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, StockExportRequest, StockImport, StockImportItem, StockLedger, ActionLog, getPbUrl, getAuth, logHistory, DebtVoucher, CashJournal } from "./pb.jsx";
 import { uploadFile } from "./pb.jsx";
-import { getNotifSound } from "./Settings";
+import { getNotifSound } from "./notifUtils.js";
 const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ default: ({ onClose }) => (
   <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}}>
     <div style={{background:"#fff",borderRadius:16,padding:32,textAlign:"center"}}>
