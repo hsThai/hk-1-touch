@@ -278,7 +278,6 @@ export default function ExpensePage({ user }) {
                           </button>
                         )}
                         </div>
-                        )}
                       </td>
                     </tr>
                   );

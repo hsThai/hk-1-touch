@@ -1900,10 +1900,9 @@ function MainAppContent({ onUserChange }) {
                   "new":          "🔧 Dịch vụ Sửa chữa",
                   "board":        "🔧 Dịch vụ Sửa chữa",
                   "cashier_home": "🛒 Bán hàng",
-                    "return_order": "🔄 Đổi trả & Bảo hành",
+                   "return_order": "🔄 Đổi trả & Bảo hành",
                   "price_policy": "💰 Chính sách giá",
                   "purchase_forecast": "🛒 Mua hàng & Dự báo",
-                  "return_order": "🔄 Đổi trả & Bảo hành",
                   "wh_home":      "📦 Kho & Vật tư",
                   "stock_count":  "📦 Kho & Vật tư",
                   "customers":    "👥 Đối tác",
@@ -1994,11 +1993,6 @@ function MainAppContent({ onUserChange }) {
               {page==="wh_import" && <WarehouseImport user={user} />}
               {page==="wh_manager" && <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"dashboard")} />}
               {page==="cashier_home" && <CashierApp user={user} />}
-        {page==="return_order" && currentUser && (
-          <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
-            <ReturnOrderPage user={currentUser} />
-          </Suspense>
-        )}
               {page==="return_order" && currentUser && (
                 <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
                   <ReturnOrderPage user={currentUser} />

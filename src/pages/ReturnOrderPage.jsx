@@ -3,7 +3,7 @@
  * @version 2026-06-01-v1
  */
 import React, { useState, useEffect } from "react";
-import { CashJournal } from "./pb.jsx";
+import { CashJournal, getPbUrl, getAuth } from "./pb.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 function fmtDate(s) {
@@ -65,7 +65,6 @@ function ReturnForm({ user, onSave, onClose }) {
     if (!form.product_name.trim())  { alert("Nhập tên sản phẩm/dịch vụ"); return; }
     setSaving(true);
     try {
-      const { getPbUrl, getAuth } = await import("./pb.jsx");
       const { token } = getAuth();
       const res = await fetch(`${getPbUrl()}/api/collections/return_orders/records`, {
         method: "POST",
@@ -213,7 +212,6 @@ export default function ReturnOrderPage({ user }) {
   async function load() {
     setLoading(true);
     try {
-      const { getPbUrl, getAuth } = await import("./pb.jsx");
       const { token } = getAuth();
       const res = await fetch(
         `${getPbUrl()}/api/collections/return_orders/records?sort=-created&perPage=200`,
