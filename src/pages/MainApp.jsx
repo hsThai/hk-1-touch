@@ -283,10 +283,10 @@ const MGR_ACCORDIONS = [
     key: "acc_overview",
     icon: "dashboard",
     label: "Tổng quan",
-    pages: ["dashboard", "board", "dashboard__business", "dashboard__inventory", "dashboard__staff"],
+    pages: ["dashboard", "dashboard__board", "dashboard__business", "dashboard__inventory", "dashboard__staff"],
     items: [
       { key:"dashboard",            icon:"home",           label:"Tổng quan" },
-      { key:"board",                icon:"view_kanban",    label:"Dịch vụ / Bán hàng" },
+      { key:"dashboard__board",     icon:"storefront",     label:"Dịch vụ / Bán hàng" },
       { key:"dashboard__business",  icon:"account_balance",label:"Tài chính" },
       { key:"dashboard__inventory", icon:"inventory_2",    label:"Kho / Vật tư" },
       { key:"dashboard__staff",     icon:"people",         label:"KPI Nhân viên" },

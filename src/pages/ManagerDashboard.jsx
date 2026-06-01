@@ -1512,8 +1512,95 @@ function SettingsLiteTab({ user, repairOrders, customers, spareParts, ledgerSumm
 // MAIN COMPONENT
 // ══════════════════════════════════════════════════════════════
 
+
+// ── TAB: Dịch vụ & Bán hàng ──────────────────────────────────
+function ServiceOverviewTab({ repairOrders=[], saleOrders=[] }) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const isToday = d => { const dd=new Date(d); dd.setHours(0,0,0,0); return dd.getTime()===today.getTime(); };
+
+  // === Bán hàng ===
+  const salesToday   = saleOrders.filter(o => isToday(o.created_date||o.sale_date));
+  const saleRevToday = salesToday.reduce((s,o) => s+(o.total_amount||o.final_amount||0), 0);
+
+  // === Sửa chữa ===
+  const repairToday  = repairOrders.filter(o => isToday(o.received_date||o.created_date));
+  const doneToday    = repairOrders.filter(o => isToday(o.done_date) && ["Hoàn Thành","Đã Giao","Đã Thanh Toán"].includes(o.status));
+  const repairRevToday = doneToday.reduce((s,o) => s+(o.final_cost||0), 0);
+  const totalRev     = saleRevToday + repairRevToday;
+
+  // Đơn sửa đang xử lý theo trạng thái
+  const activeStatuses = ["Mới Nhận","Chờ KTV","KTV Đang Kiểm","Chờ Báo Giá","Chờ Xác Nhận","Chờ KTV Sửa","Đang Sửa","Chờ Linh Kiện"];
+  const activeOrders   = repairOrders.filter(o => activeStatuses.includes(o.status));
+  const statusCount    = {};
+  activeOrders.forEach(o => { statusCount[o.status] = (statusCount[o.status]||0)+1; });
+
+  const CARD = (emoji, value, label, bg, color) => (
+    <div style={{ background:bg, borderRadius:14, padding:"16px 14px", flex:1, minWidth:0 }}>
+      <div style={{ fontSize:24 }}>{emoji}</div>
+      <div style={{ fontSize:22, fontWeight:900, color, marginTop:4 }}>{value}</div>
+      <div style={{ fontSize:12, color:"#6b7280", marginTop:2 }}>{label}</div>
+    </div>
+  );
+
+  return (
+    <div style={{ padding:"14px 14px 40px", display:"flex", flexDirection:"column", gap:14 }}>
+
+      {/* === PHẦN 1: BÁN HÀNG === */}
+      <div style={{ background:"#fff", borderRadius:16, padding:"14px 14px 10px", boxShadow:"0 1px 4px rgba(0,0,0,.06)" }}>
+        <div style={{ fontWeight:800, fontSize:15, color:"#1e1b4b", marginBottom:12 }}>📊 Tổng quan hôm nay</div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+          {CARD("🔧", doneToday.length+" đơn", "Đơn sửa hoàn thành", "#eff6ff", "#2563eb")}
+          {CARD("💰", fmtMoney(repairRevToday), "Doanh thu sửa chữa", "#f0fdf4", "#059669")}
+          {CARD("🛒", salesToday.length+" đơn", "Đơn bán lẻ hôm nay", "#fefce8", "#ca8a04")}
+          {CARD("💵", fmtMoney(saleRevToday), "Doanh thu bán lẻ", "#fdf4ff", "#7c3aed")}
+        </div>
+        <div style={{ marginTop:10, padding:"10px 12px", background:"#f0fdf4", borderRadius:12 }}>
+          <div style={{ fontSize:12, color:"#6b7280" }}>💡 Tổng doanh thu hôm nay</div>
+          <div style={{ fontSize:22, fontWeight:900, color:"#059669" }}>{fmtMoney(totalRev)}</div>
+          <div style={{ fontSize:11, color:"#9ca3af" }}>Sửa chữa + Bán lẻ</div>
+        </div>
+      </div>
+
+      {/* === PHẦN 2: DỊCH VỤ SỬA CHỮA === */}
+      <div style={{ background:"#fff", borderRadius:16, padding:"14px 14px 10px", boxShadow:"0 1px 4px rgba(0,0,0,.06)" }}>
+        <div style={{ fontWeight:800, fontSize:15, color:"#1e1b4b", marginBottom:4 }}>🔧 Dịch vụ Sửa chữa</div>
+        <div style={{ fontSize:12, color:"#9ca3af", marginBottom:12 }}>{activeOrders.length} đơn đang xử lý</div>
+
+        {/* Thống kê theo trạng thái */}
+        <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+          {Object.entries(statusCount).sort((a,b)=>b[1]-a[1]).map(([st,cnt]) => {
+            const color = STATUS_COLORS[st]||"#6b7280";
+            const pct   = Math.round(cnt/activeOrders.length*100)||0;
+            return (
+              <div key={st} style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <div style={{ width:90, fontSize:12, color:"#374151", flexShrink:0 }}>{st}</div>
+                <div style={{ flex:1, background:"#f3f4f6", borderRadius:99, height:8, overflow:"hidden" }}>
+                  <div style={{ width:pct+"%", height:"100%", background:color, borderRadius:99, transition:"width .3s" }} />
+                </div>
+                <div style={{ width:28, textAlign:"right", fontSize:12, fontWeight:700, color }}>{cnt}</div>
+              </div>
+            );
+          })}
+          {activeOrders.length === 0 && (
+            <div style={{ textAlign:"center", color:"#9ca3af", padding:"16px 0", fontSize:13 }}>✅ Không có đơn đang xử lý</div>
+          )}
+        </div>
+
+        {/* Thêm vào hôm nay */}
+        {repairToday.length > 0 && (
+          <div style={{ marginTop:12, padding:"8px 10px", background:"#eff6ff", borderRadius:10 }}>
+            <span style={{ fontSize:12, color:"#2563eb", fontWeight:700 }}>📥 Tiếp nhận hôm nay: {repairToday.length} đơn</span>
+          </div>
+        )}
+      </div>
+
+    </div>
+  );
+}
+
 const NAV_TABS = [
   { key:"overview",   icon:"dashboard",       label:"Tổng quan" },
+  { key:"board",      icon:"storefront",      label:"Dịch vụ & BH" },
   { key:"business",   icon:"account_balance", label:"Tài chính" },
   { key:"staff",      icon:"people",          label:"Nhân viên" },
   { key:"inventory",  icon:"inventory_2",     label:"Kho & KT" },
@@ -1642,6 +1729,7 @@ export default function ManagerDashboard({ user, initialTab = "overview", onTabC
       </div>
     );
     switch(tab) {
+      case "board":     return <ServiceOverviewTab repairOrders={repairOrders} saleOrders={saleOrders} />;
       case "overview":  return <OverviewTab repairOrders={repairOrders} saleOrders={saleOrders} spareParts={spareParts} ledgerSummary={ledgerSummary} cashJournals={cashJournals} staff={staff} />;
       case "business":  return <BusinessTab repairOrders={repairOrders} saleOrders={saleOrders} expenses={expenses} cashJournals={cashJournals} />;
       case "staff":     return <StaffTab staff={staff} repairOrders={repairOrders} />;
