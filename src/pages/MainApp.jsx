@@ -45,6 +45,36 @@ const StockCountPage = lazy(() => import("./StockCountPage").catch(() => ({ defa
   <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải kiểm kho</div>
 ) })));
 
+// — lazy pages (top-level to prevent TDZ) —
+const SettingsHub          = lazy(() => import("./SettingsHub").catch(() => ({ default: () => (
+  <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải SettingsHub</div>
+) })));
+const SupplierPage         = lazy(() => import("./SupplierPage").catch(() => ({ default: () => (
+  <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>Đang tải Nhà cung cấp...</div>
+) })));
+const DebtPage             = lazy(() => import("./DebtPage").catch(() => ({ default: () => (
+  <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>Đang tải Công nợ...</div>
+) })));
+const CashJournalPage      = lazy(() => import("./CashJournalPage").catch(() => ({ default: () => (
+  <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>Đang tải Sổ quỹ...</div>
+) })));
+const DepartmentPageLazy     = lazy(() => import("./DepartmentPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Phòng ban</div> })));
+const RolePermissionPageLazy = lazy(() => import("./RolePermissionPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Phân quyền</div> })));
+const IntegrationsPage = lazy(() => import("./IntegrationsPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Tích hợp đang phát triển</div> })));
+const ActionLogPage  = lazy(() => import("./ActionLogPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Nhật ký</div> })));
+const PrintTemplatePage = lazy(() => import("./PrintTemplatePage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang</div> })));
+const ReturnOrderPage  = lazy(() => import("./ReturnOrderPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang Đổi trả</div> })));
+const PricePolicyPage      = lazy(() => import("./PricePolicyPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Chính sách giá</div> })));
+const PurchaseForecastPage = lazy(() => import("./PurchaseForecastPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Mua hàng</div> })));
+const RMAPage = lazy(() => import("./RMAPage.jsx").catch(() => ({
+  default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải RMA</div>
+})));
+const StockReportNXT = lazy(() => import("./StockReportNXT.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Báo cáo NXT</div> })));
+const RoleHomePlaceholder  = lazy(() => import("./RoleHomePlaceholder").catch(() => ({ default: () => (
+  <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang chủ</div>
+) })));
+
+
 
 // Components loaded from OrderComponents
 import { QRScanModal, IMEIScanModal } from"./QRComponents";
@@ -225,9 +255,6 @@ function SwipeableNotif({ notif: n, onDelete, onClick }) {
   );
 }
 
-const SettingsHub          = lazy(() => import("./SettingsHub").catch(() => ({ default: () => (
-  <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải SettingsHub</div>
-) })));
 
 export function useBreakpoint() {
   const [bp, setBp] = React.useState(() => {
@@ -247,50 +274,106 @@ export function useBreakpoint() {
   return bp;
 }
 
-const SupplierPage         = lazy(() => import("./SupplierPage").catch(() => ({ default: () => (
-  <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>Đang tải Nhà cung cấp...</div>
-) })));
-const DebtPage             = lazy(() => import("./DebtPage").catch(() => ({ default: () => (
-  <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>Đang tải Công nợ...</div>
-) })));
-const CashJournalPage      = lazy(() => import("./CashJournalPage").catch(() => ({ default: () => (
-  <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>Đang tải Sổ quỹ...</div>
-) })));
-const DepartmentPageLazy     = lazy(() => import("./DepartmentPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Phòng ban</div> })));
-const RolePermissionPageLazy = lazy(() => import("./RolePermissionPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Phân quyền</div> })));
-const IntegrationsPage = lazy(() => import("./IntegrationsPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Tích hợp đang phát triển</div> })));
-const ActionLogPage  = lazy(() => import("./ActionLogPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Nhật ký</div> })));
-const PrintTemplatePage = lazy(() => import("./PrintTemplatePage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang</div> })));
-const ReturnOrderPage  = lazy(() => import("./ReturnOrderPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang Đổi trả</div> })));
-const PricePolicyPage      = lazy(() => import("./PricePolicyPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Chính sách giá</div> })));
-const PurchaseForecastPage = lazy(() => import("./PurchaseForecastPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Mua hàng</div> })));
-const RMAPage = lazy(() => import("./RMAPage.jsx").catch(() => ({
-  default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải RMA</div>
-})));
-const StockReportNXT = lazy(() => import("./StockReportNXT.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Báo cáo NXT</div> })));
-const RoleHomePlaceholder  = lazy(() => import("./RoleHomePlaceholder").catch(() => ({ default: () => (
-  <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang chủ</div>
-) })));
 
-const MGR_SUB_ITEMS = [
-  { key:"overview",  icon:"dashboard",       label:"Tổng quan" },
-  { key:"business",  icon:"account_balance", label:"Tài chính" },
-  { key:"staff",     icon:"people",          label:"Nhân viên" },
-  { key:"inventory", icon:"inventory_2",     label:"Kho & KT" },
-  { key:"stock_nxt", icon:"assessment",      label:"Báo cáo NXT" },
-];
-
-const SETUP_SUB_ITEMS = [
-  { key:"staff",        icon:"badge",                  label:"Nhân viên" },
-  { key:"customers",    icon:"group",                  label:"Khách hàng" },
-  { key:"suppliers",    icon:"storefront",             label:"Nhà cung cấp" },
-  { key:"debts",        icon:"account_balance_wallet", label:"Công nợ" },
-  { key:"department",   icon:"account_tree",           label:"Phòng ban" },
-  { key:"role_perm",    icon:"admin_panel_settings",   label:"Vai trò & Quyền" },
-  { key:"settings",     icon:"store",                  label:"Cài đặt shop" },
-  { key:"integrations", icon:"cable",                  label:"Tích hợp" },
-  { key:"action_log",   icon:"history",                label:"Nhật ký thao tác" },
-  { key:"print_template", icon:"print",                label:"Mẫu in ấn" },
+// ── 8 accordion Manager theo Excel ──────────────────────
+const MGR_ACCORDIONS = [
+  {
+    key: "acc_overview",
+    icon: "dashboard",
+    label: "📊 Tổng quan",
+    pages: ["dashboard"],
+    items: [
+      { key:"dashboard",   icon:"home",           label:"Tổng quan & việc cần làm" },
+      { key:"board",       icon:"view_kanban",    label:"Dịch vụ / Bán hàng" },
+      { key:"finance_kpi", icon:"account_balance",label:"Tài chính" },
+      { key:"stock_kpi",   icon:"inventory_2",    label:"Kho / Vật tư" },
+      { key:"staff_kpi",   icon:"people",         label:"KPI Nhân viên" },
+    ],
+  },
+  {
+    key: "acc_service",
+    icon: "build",
+    label: "🔧 Dịch vụ Sửa chữa",
+    pages: ["new","tasks","stock_export"],
+    items: [
+      { key:"new",          icon:"add_circle",  label:"Tạo đơn" },
+      { key:"board",        icon:"view_kanban", label:"Bảng điều phối (Kanban)" },
+      { key:"tasks",        icon:"list_alt",    label:"Danh sách & Lịch sử đơn" },
+      { key:"stock_export", icon:"output",      label:"Phiếu xuất vật tư" },
+    ],
+  },
+  {
+    key: "acc_sales",
+    icon: "point_of_sale",
+    label: "🛒 Bán hàng & Phân phối",
+    pages: ["cashier_home","return_order","price_policy"],
+    items: [
+      { key:"cashier_home", icon:"point_of_sale", label:"Bán hàng tại quầy" },
+      { key:"return_order", icon:"swap_horiz",    label:"Xử lý Đổi trả" },
+      { key:"price_policy", icon:"price_change",  label:"Chính sách giá" },
+    ],
+  },
+  {
+    key: "acc_warehouse",
+    icon: "warehouse",
+    label: "📦 Kho & Vật tư",
+    pages: ["wh_manager","wh_import","wh_export","wh_transfer","stock_nxt","stock_count","purchase_forecast","rma"],
+    items: [
+      { key:"wh_manager",        icon:"warehouse",         label:"Danh mục hàng & dịch vụ" },
+      { key:"wh_import",         icon:"move_to_inbox",     label:"Nhập kho" },
+      { key:"wh_export",         icon:"outbox",            label:"Xuất kho" },
+      { key:"wh_transfer",       icon:"swap_horiz",        label:"Điều chuyển kho" },
+      { key:"stock_nxt",         icon:"assessment",        label:"Thẻ kho (Lịch sử)" },
+      { key:"stock_count",       icon:"fact_check",        label:"Kiểm kê kho" },
+      { key:"purchase_forecast", icon:"shopping_cart",     label:"Mua hàng & Dự báo" },
+      { key:"rma",               icon:"assignment_return", label:"Trả hàng NCC (RMA)" },
+    ],
+  },
+  {
+    key: "acc_partner",
+    icon: "group",
+    label: "👥 Khách hàng & Đối tác",
+    pages: ["customers","suppliers"],
+    items: [
+      { key:"customers", icon:"group",      label:"Danh sách khách hàng" },
+      { key:"suppliers", icon:"storefront", label:"Nhà cung cấp" },
+    ],
+  },
+  {
+    key: "acc_accounting",
+    icon: "account_balance",
+    label: "💰 Sổ quỹ & Kế toán",
+    pages: ["cash_journal","debts"],
+    items: [
+      { key:"cash_journal", icon:"menu_book",              label:"Sổ quỹ" },
+      { key:"debts",        icon:"account_balance_wallet", label:"Công nợ khách hàng" },
+    ],
+  },
+  {
+    key: "acc_report",
+    icon: "bar_chart",
+    label: "📈 Báo cáo & Thống kê",
+    pages: ["revenue","stock_nxt"],
+    items: [
+      { key:"revenue",   icon:"bar_chart",   label:"Báo cáo Doanh thu" },
+      { key:"stock_nxt", icon:"inventory_2", label:"Báo cáo Nhập-Xuất-Tồn" },
+    ],
+  },
+  {
+    key: "acc_setup",
+    icon: "manage_accounts",
+    label: "⚙️ Thiết lập & Hệ thống",
+    pages: ["staff","department","role_perm","settings","integrations","action_log","print_template"],
+    items: [
+      { key:"staff",          icon:"badge",                label:"Nhân viên" },
+      { key:"department",     icon:"account_tree",         label:"Phòng ban" },
+      { key:"role_perm",      icon:"admin_panel_settings", label:"Vai trò & Quyền" },
+      { key:"settings",       icon:"store",                label:"Cài đặt cửa hàng" },
+      { key:"integrations",   icon:"cable",                label:"Tích hợp" },
+      { key:"print_template", icon:"print",                label:"Mẫu in ấn" },
+      { key:"action_log",     icon:"history",              label:"Nhật ký thao tác" },
+    ],
+  },
 ];
 
 function MainAppContent({ onUserChange }) {
@@ -381,9 +464,8 @@ function MainAppContent({ onUserChange }) {
   const users = users_raw;
   const [dataLoading, setDataLoading] = useState(true);
   const [page, setPage] = useState("board");
-  const [mgrAccordionOpen, setMgrAccordionOpen] = useState(false);
-  const [mgrTab, setMgrTab] = useState("overview");
-  const [setupOpen, setSetupOpen] = useState(false);
+  // openAccordion: key của accordion đang mở, hoặc null
+  const [openAccordion, setOpenAccordion] = useState("acc_overview");
   const [search, setSearch] = useState("");
   const [dashboardFilter, setDashboardFilter] = useState(null); // "active"|"done"|"needs_reassign"|null
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -408,19 +490,11 @@ function MainAppContent({ onUserChange }) {
     }
   }, [user]);
 
-  // ── Auto mở/đóng accordion theo page ──────────────────────
+  // Auto mở accordion chứa page hiện tại
   useEffect(() => {
-    const SETUP_PAGES = ["staff","customers","suppliers","debts","department","role_perm","settings","integrations","action_log","print_template"];
-    if (page === "dashboard") {
-      setMgrAccordionOpen(true);
-      setSetupOpen(false);
-    } else if (SETUP_PAGES.includes(page)) {
-      setSetupOpen(true);
-      setMgrAccordionOpen(false);
-    } else {
-      setMgrAccordionOpen(false);
-      setSetupOpen(false);
-    }
+    if (!isManager) return;
+    const found = MGR_ACCORDIONS.find(acc => acc.pages.includes(page));
+    if (found) setOpenAccordion(found.key);
   }, [page]);
 
   // ── Global: chặn chọn chữ toàn app ──────────────────────
@@ -1314,150 +1388,93 @@ function MainAppContent({ onUserChange }) {
   })();
 
   // ── Accordion Manager ───────────────────────────────────
-  function renderMgrAccordion() {
+  // ── Render toàn bộ 8 accordion Manager ─────────────────
+  function renderManagerSidebar() {
     return (
-      <div style={{ marginBottom:2 }}>
-        <button
-          onClick={() => {
-            const willOpen = !mgrAccordionOpen;
-            setMgrAccordionOpen(willOpen);
-            if (page !== "dashboard") {
-              setPage("dashboard");
-              setDashboardFilter(null);
-            }
-          }}
-          style={{
-            width:"100%", textAlign:"left", padding:"14px 16px", borderRadius:12,
-            border:"none",
-            background: page==="dashboard" ? "#eef2ff" : "transparent",
-            color:       page==="dashboard" ? "#4f46e5" : "#374151",
-            fontWeight:  page==="dashboard" ? 800 : 500,
-            fontSize:15, cursor:"pointer",
-            display:"flex", alignItems:"center", gap:10,
-          }}>
-          <span className="material-icons"
-            style={{fontSize:20,fontFamily:"Material Icons",verticalAlign:"middle",lineHeight:1}}>
-            dashboard
-          </span>
-          <span style={{ flex:1 }}>Tổng quan</span>
-          <span className="material-icons"
-            style={{
-              fontSize:18, fontFamily:"Material Icons", lineHeight:1,
-              transition:"transform .2s",
-              transform: mgrAccordionOpen ? "rotate(180deg)" : "rotate(0deg)",
-              color:"#9ca3af",
-            }}>
-            expand_more
-          </span>
-        </button>
-        {mgrAccordionOpen && (
-          <div style={{ paddingLeft:14, marginTop:2, marginBottom:4 }}>
-            {MGR_SUB_ITEMS.map(sub => {
-              const isActive = page==="dashboard" && mgrTab===sub.key;
-              return (
-                <button key={sub.key}
-                  onClick={() => {
-                    setPage("dashboard");
-                    setMgrTab(sub.key);
+      <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
+        {MGR_ACCORDIONS.map(acc => {
+          const isOpen = openAccordion === acc.key;
+          const isAccActive = acc.pages.includes(page);
+          return (
+            <div key={acc.key} style={{ marginBottom:1 }}>
+              {/* Header accordion */}
+              <button
+                onClick={() => {
+                  setOpenAccordion(isOpen ? null : acc.key);
+                  if (!isOpen && acc.items.length > 0) {
+                    const defaultPage = acc.items[0].key;
+                    setPage(defaultPage);
                     setSidebarOpen(false);
                     setDashboardFilter(null);
-                  }}
+                  }
+                }}
+                style={{
+                  width:"100%", textAlign:"left", padding:"11px 14px", borderRadius:10,
+                  border:"none",
+                  background: isAccActive ? "rgba(255,255,255,.15)" : "transparent",
+                  color:      isAccActive ? "#fff" : "rgba(255,255,255,.75)",
+                  fontWeight: isAccActive ? 800 : 600,
+                  fontSize:13, cursor:"pointer",
+                  display:"flex", alignItems:"center", gap:9,
+                }}>
+                <span className="material-icons"
+                  style={{fontSize:18,fontFamily:"Material Icons",verticalAlign:"middle",lineHeight:1}}>
+                  {acc.icon}
+                </span>
+                <span style={{ flex:1 }}>{acc.label}</span>
+                <span className="material-icons"
                   style={{
-                    width:"100%", textAlign:"left",
-                    padding:"9px 12px", borderRadius:10, border:"none",
-                    background: isActive ? "#ede9fe" : "transparent",
-                    color:      isActive ? "#4f46e5" : "#6b7280",
-                    fontWeight: isActive ? 700 : 400,
-                    fontSize:13, cursor:"pointer",
-                    display:"flex", alignItems:"center", gap:8, marginBottom:2,
+                    fontSize:16, fontFamily:"Material Icons", lineHeight:1,
+                    transition:"transform .2s",
+                    transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+                    color:"rgba(255,255,255,.4)",
                   }}>
-                  <div style={{
-                    width:2, height:14, borderRadius:2, flexShrink:0,
-                    background: isActive ? "#4f46e5" : "#e5e7eb",
-                  }} />
-                  <span className="material-icons"
-                    style={{fontSize:15,fontFamily:"Material Icons",lineHeight:1}}>
-                    {sub.icon}
-                  </span>
-                  {sub.label}
-                </button>
-              );
-            })}
-          </div>
-        )}
+                  expand_more
+                </span>
+              </button>
+
+              {/* Sub-items */}
+              {isOpen && (
+                <div style={{ paddingLeft:12, marginTop:1, marginBottom:2 }}>
+                  {acc.items.map(sub => {
+                    const isActive = page === sub.key;
+                    return (
+                      <button key={`${acc.key}-${sub.key}`}
+                        onClick={() => {
+                          setPage(sub.key);
+                          setSidebarOpen(false);
+                          setDashboardFilter(null);
+                        }}
+                        style={{
+                          width:"100%", textAlign:"left",
+                          padding:"8px 10px", borderRadius:8, border:"none",
+                          background: isActive ? "rgba(255,255,255,.2)" : "transparent",
+                          color:      isActive ? "#fff" : "rgba(255,255,255,.6)",
+                          fontWeight: isActive ? 700 : 400,
+                          fontSize:12, cursor:"pointer",
+                          display:"flex", alignItems:"center", gap:7, marginBottom:1,
+                        }}>
+                        <div style={{
+                          width:2, height:12, borderRadius:2, flexShrink:0,
+                          background: isActive ? "#fff" : "rgba(255,255,255,.2)",
+                        }} />
+                        <span className="material-icons"
+                          style={{fontSize:14,fontFamily:"Material Icons",lineHeight:1}}>
+                          {sub.icon}
+                        </span>
+                        {sub.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     );
   }
 
-  // ── Accordion Thiết Lập ─────────────────────────────────
-  function renderSetupAccordion() {
-    const SETUP_PAGES = ["staff","customers","suppliers","debts","department","role_perm","settings","integrations","action_log","print_template"];
-    const isSetupActive = SETUP_PAGES.includes(page);
-    return (
-      <div style={{ marginBottom:2 }}>
-        <button
-          onClick={() => setSetupOpen(v => !v)}
-          style={{
-            width:"100%", textAlign:"left", padding:"14px 16px", borderRadius:12,
-            border:"none",
-            background: isSetupActive ? "#eef2ff" : "transparent",
-            color:      isSetupActive ? "#4f46e5" : "#374151",
-            fontWeight: isSetupActive ? 800 : 500,
-            fontSize:15, cursor:"pointer",
-            display:"flex", alignItems:"center", gap:10,
-          }}>
-          <span className="material-icons"
-            style={{fontSize:20,fontFamily:"Material Icons",verticalAlign:"middle",lineHeight:1}}>
-            manage_accounts
-          </span>
-          <span style={{ flex:1 }}>Thiết Lập</span>
-          <span className="material-icons"
-            style={{
-              fontSize:18, fontFamily:"Material Icons", lineHeight:1,
-              transition:"transform .2s",
-              transform: setupOpen ? "rotate(180deg)" : "rotate(0deg)",
-              color:"#9ca3af",
-            }}>
-            expand_more
-          </span>
-        </button>
-        {setupOpen && (
-          <div style={{ paddingLeft:14, marginTop:2, marginBottom:4 }}>
-            {SETUP_SUB_ITEMS.map(sub => {
-              const isActive = page === sub.key;
-              return (
-                <button key={sub.key}
-                  onClick={() => {
-                    setPage(sub.key);
-                    setSidebarOpen(false);
-                    setDashboardFilter(null);
-                  }}
-                  style={{
-                    width:"100%", textAlign:"left",
-                    padding:"9px 12px", borderRadius:10, border:"none",
-                    background: isActive ? "#ede9fe" : "transparent",
-                    color:      isActive ? "#4f46e5" : "#6b7280",
-                    fontWeight: isActive ? 700 : 400,
-                    fontSize:13, cursor:"pointer",
-                    display:"flex", alignItems:"center", gap:8, marginBottom:2,
-                  }}>
-                  <div style={{
-                    width:2, height:14, borderRadius:2, flexShrink:0,
-                    background: isActive ? "#4f46e5" : "#e5e7eb",
-                  }} />
-                  <span className="material-icons"
-                    style={{fontSize:15,fontFamily:"Material Icons",lineHeight:1}}>
-                    {sub.icon}
-                  </span>
-                  {sub.label}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    );
-  }
 
   // ── Kanban Board ─────────────────────────────────────────
   const COLUMNS = ["Chờ KTV","KTV Đang Kiểm","Chờ Báo Giá","Chờ Xác Nhận","Chờ KTV Sửa","Đang Sửa","Chờ Linh Kiện","Hoàn Thành","Đã Giao"];
@@ -1809,89 +1826,9 @@ function MainAppContent({ onUserChange }) {
             </div>
           </div>
           <nav style={{ flex:1, padding:"12px 8px", display:"flex", flexDirection:"column", gap:2 }}>
-            {/* Accordion Tổng quan PC — chỉ với isManager */}
-            {isManager && (
-              <div style={{ marginBottom:2 }}>
-                <button
-                  onClick={() => {
-                    const willOpen = !mgrAccordionOpen;
-                    setMgrAccordionOpen(willOpen);
-                    if (page !== "dashboard") { setPage("dashboard"); setDashboardFilter(null); }
-                  }}
-                  style={{ width:"100%", display:"flex", alignItems:"center", gap:10, padding:"10px 14px",
-                    borderRadius:10, border:"none", textAlign:"left", cursor:"pointer",
-                    background: page==="dashboard" ? "rgba(255,255,255,.2)" : "transparent",
-                    color: page==="dashboard" ? "#fff" : "rgba(255,255,255,.7)",
-                    fontWeight: page==="dashboard" ? 700 : 400, fontSize:14 }}>
-                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,lineHeight:1}}>dashboard</span>
-                  <span style={{ flex:1 }}>Tổng quan</span>
-                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,lineHeight:1,
-                    transition:"transform .2s", transform:mgrAccordionOpen?"rotate(180deg)":"rotate(0deg)",
-                    color:"rgba(255,255,255,.4)"}}>expand_more</span>
-                </button>
-                {mgrAccordionOpen && (
-                  <div style={{ paddingLeft:12, marginTop:2 }}>
-                    {MGR_SUB_ITEMS.map(sub => {
-                      const isActive = page==="dashboard" && mgrTab===sub.key;
-                      return (
-                        <button key={sub.key}
-                          onClick={() => { setPage("dashboard"); setMgrTab(sub.key); setDashboardFilter(null); }}
-                          style={{ width:"100%", display:"flex", alignItems:"center", gap:8, padding:"8px 10px",
-                            borderRadius:8, border:"none", textAlign:"left", cursor:"pointer", marginBottom:2,
-                            background: isActive ? "rgba(255,255,255,.15)" : "transparent",
-                            color: isActive ? "#fff" : "rgba(255,255,255,.55)",
-                            fontWeight: isActive ? 700 : 400, fontSize:13 }}>
-                          <div style={{ width:2, height:12, borderRadius:2, flexShrink:0,
-                            background: isActive ? "#a5b4fc" : "rgba(255,255,255,.2)" }} />
-                          <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:14,lineHeight:1}}>{sub.icon}</span>
-                          {sub.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-            {/* Accordion Thiết Lập PC */}
-            {isManager && (
-              <div style={{ marginBottom:2 }}>
-                <button
-                  onClick={() => setSetupOpen(v => !v)}
-                  style={{ width:"100%", display:"flex", alignItems:"center", gap:10, padding:"10px 14px",
-                    borderRadius:10, border:"none", textAlign:"left", cursor:"pointer",
-                    background: ["staff","customers","suppliers","debts","department","role_perm","settings","integrations","action_log","print_template"].includes(page) ? "rgba(255,255,255,.2)" : "transparent",
-                    color: ["staff","customers","suppliers","debts","department","role_perm","settings","integrations","action_log","print_template"].includes(page) ? "#fff" : "rgba(255,255,255,.7)",
-                    fontWeight: ["staff","customers","suppliers","debts","department","role_perm","settings","integrations","action_log","print_template"].includes(page) ? 700 : 400, fontSize:14 }}>
-                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,lineHeight:1}}>manage_accounts</span>
-                  <span style={{ flex:1 }}>Thiết Lập</span>
-                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,lineHeight:1,
-                    transition:"transform .2s", transform:setupOpen?"rotate(180deg)":"rotate(0deg)",
-                    color:"rgba(255,255,255,.4)"}}>expand_more</span>
-                </button>
-                {setupOpen && (
-                  <div style={{ paddingLeft:12, marginTop:2 }}>
-                    {SETUP_SUB_ITEMS.map(sub => {
-                      const isActive = page === sub.key;
-                      return (
-                        <button key={sub.key}
-                          onClick={() => { setPage(sub.key); setDashboardFilter(null); }}
-                          style={{ width:"100%", display:"flex", alignItems:"center", gap:8, padding:"8px 10px",
-                            borderRadius:8, border:"none", textAlign:"left", cursor:"pointer", marginBottom:2,
-                            background: isActive ? "rgba(255,255,255,.15)" : "transparent",
-                            color: isActive ? "#fff" : "rgba(255,255,255,.55)",
-                            fontWeight: isActive ? 700 : 400, fontSize:13 }}>
-                          <div style={{ width:2, height:12, borderRadius:2, flexShrink:0,
-                            background: isActive ? "#a5b4fc" : "rgba(255,255,255,.2)" }} />
-                          <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:14,lineHeight:1}}>{sub.icon}</span>
-                          {sub.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-            {(() => {
+            {/* 8 Accordion Manager */}
+            {isManager && renderManagerSidebar()}
+            {!isManager && (() => {
               const shownDividers = new Set();
               return navItems.map((item, idx) => {
               const dividerLabel = (() => {
@@ -1933,8 +1870,6 @@ function MainAppContent({ onUserChange }) {
                   <button
                     onClick={() => {
                       setPage(item.key);
-                      setMgrAccordionOpen(false);
-                      setSetupOpen(false);
                       if(["board","tasks","ktv_home","rec_home"].includes(item.key)) setDashboardFilter(null);
                     }}
                     style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px",
@@ -1987,7 +1922,7 @@ function MainAppContent({ onUserChange }) {
               {page==="tasks" && <TaskList />}
               {page==="new" && <div style={{padding:24}}><button onClick={() => setShowNewOrder(true)} style={{ width:"100%", height:52, background:"linear-gradient(135deg,#4f46e5,#7c3aed)", color:"#fff", border:"none", borderRadius:14, fontWeight:800, fontSize:16, cursor:"pointer" }}>+ Tạo Đơn Mới</button></div>}
               {page==="customers" && <Suspense fallback={<div style={{padding:32,textAlign:"center"}}>⏳</div>}><CustomerManagerPage /></Suspense>}
-              {page==="dashboard" && (user.role==="manager"||user.role==="admin" ? <Suspense fallback={<div style={{padding:32}}>⏳</div>}><ManagerDashboard user={user} initialTab={mgrTab} onTabChange={setMgrTab} /></Suspense> : <Dashboard />)}
+              {page==="dashboard" && (user.role==="manager"||user.role==="admin" ? <Suspense fallback={<div style={{padding:32}}>⏳</div>}><ManagerDashboard user={user} /></Suspense> : <Dashboard />)}
               {page==="staff" && <StaffManagerPage currentStaff={user} />}
               {page==="settings" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><SettingsHub user={user} /></Suspense>}
               {page==="wh_home" && <WarehouseHome user={user} setPage={setPage} />}
@@ -2071,10 +2006,8 @@ function MainAppContent({ onUserChange }) {
             </div>
             <div style={{ flex:1, overflowY:"auto", padding:8 }}>
               {/* Accordion Tổng quan — chỉ với isManager */}
-              {isManager && renderMgrAccordion()}
-              {/* Accordion Thiết Lập — chỉ với isManager */}
-              {isManager && renderSetupAccordion()}
-              {(() => {
+              {isManager && renderManagerSidebar()}
+              {!isManager && (() => {
                 const shownDividers = new Set();
                 return navItems.map((n, idx) => {
                 const dividerLabel = (() => {
@@ -2115,8 +2048,6 @@ function MainAppContent({ onUserChange }) {
                     )}
                     <button onClick={() => {
                         setPage(n.key); setSidebarOpen(false);
-                        setMgrAccordionOpen(false);
-                        setSetupOpen(false);
                         if(["board","tasks","ktv_home","rec_home"].includes(n.key)) setDashboardFilter(null);
                       }}
                       style={{ width:"100%", textAlign:"left", padding:"14px 16px", borderRadius:12, border:"none",
@@ -2303,7 +2234,7 @@ function MainAppContent({ onUserChange }) {
         )}
         {page==="dashboard" && (
           user.role==="manager" || user.role==="admin"
-            ? <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><ManagerDashboard user={user} initialTab={mgrTab} onTabChange={setMgrTab} /></Suspense>
+            ? <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><ManagerDashboard user={user} /></Suspense>
             : <Dashboard />
         )}
         {page==="staff"      && <StaffManagerPage currentStaff={user} />}
