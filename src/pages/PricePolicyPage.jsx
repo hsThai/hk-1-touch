@@ -1,0 +1,231 @@
+/**
+ * PricePolicyPage.jsx — Chính sách giá hàng hóa & dịch vụ
+ * @version 2026-06-01-v1
+ */
+import React, { useState, useEffect, useMemo } from "react";
+import { SparePart } from "./pb.jsx";
+
+function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
+
+const ADMIN_ROLES = ["owner","admin","manager"];
+const CATEGORY_LABELS = {
+  screen:    "📱 Màn hình",
+  battery:   "🔋 Pin",
+  ic:        "🔩 IC / Bo mạch",
+  speaker:   "🔊 Loa / Mic",
+  camera:    "📷 Camera",
+  housing:   "🖼️ Vỏ máy",
+  cable:     "🔌 Cáp / Sạc",
+  accessory: "🎧 Phụ kiện",
+  service:   "🔧 Dịch vụ",
+  other:     "📦 Khác",
+};
+
+function EditPriceModal({ item, onSave, onClose }) {
+  const [retail,    setRetail]    = useState(item.retail_price  || item.price || 0);
+  const [wholesale, setWholesale] = useState(item.wholesale_price || 0);
+  const [cost,      setCost]      = useState(item.cost_price    || 0);
+  const [saving,    setSaving]    = useState(false);
+
+  async function save() {
+    setSaving(true);
+    try {
+      await SparePart.update(item.id, {
+        retail_price:    Number(retail),
+        wholesale_price: Number(wholesale),
+        cost_price:      Number(cost),
+        price:           Number(retail),
+      });
+      onSave();
+    } catch(e) { alert("Lỗi: " + e.message); }
+    setSaving(false);
+  }
+
+  const INP = {
+    width:"100%", height:44, borderRadius:10, border:"1.5px solid #e5e7eb",
+    padding:"0 12px", fontSize:14, outline:"none", boxSizing:"border-box",
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.5)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <div style={{ background:"#fff", borderRadius:20, padding:28, width:"min(420px,95vw)" }}>
+        <div style={{ fontWeight:900, fontSize:16, marginBottom:4 }}>✏️ Chỉnh giá</div>
+        <div style={{ fontSize:13, color:"#6b7280", marginBottom:20 }}>
+          {item.name} — SKU: {item.sku || "—"}
+        </div>
+
+        {[
+          { label:"Giá bán lẻ (đ) *",  val:retail,    set:setRetail,    color:"#059669" },
+          { label:"Giá bán sỉ (đ)",     val:wholesale, set:setWholesale, color:"#2563eb" },
+          { label:"Giá vốn / nhập (đ)", val:cost,      set:setCost,      color:"#6b7280" },
+        ].map(f => (
+          <div key={f.label} style={{ marginBottom:14 }}>
+            <label style={{ fontSize:12, color:f.color, fontWeight:700 }}>{f.label}</label>
+            <input type="number" min={0} value={f.val} onChange={e=>f.set(e.target.value)}
+              style={{ ...INP, marginTop:4, borderColor: f.color==="#059669"?"#86efac":"#e5e7eb" }} />
+            <div style={{ fontSize:11, color:"#9ca3af", marginTop:2 }}>= {fmtMoney(f.val)}</div>
+          </div>
+        ))}
+
+        {Number(cost)>0 && Number(retail)>0 && (
+          <div style={{ padding:"8px 14px", background:"#f0fdf4", borderRadius:10, marginBottom:16, fontSize:12 }}>
+            💹 Biên lợi nhuận lẻ:{" "}
+            <strong style={{ color:"#059669" }}>
+              {Math.round((Number(retail)-Number(cost))/Number(retail)*100)}%
+            </strong>
+            {" "}({fmtMoney(Number(retail)-Number(cost))})
+          </div>
+        )}
+
+        <div style={{ display:"flex", gap:10 }}>
+          <button onClick={onClose} style={{ flex:1, height:44, borderRadius:12, border:"1.5px solid #e5e7eb", background:"#fff", fontWeight:700, cursor:"pointer" }}>Huỷ</button>
+          <button onClick={save} disabled={saving} style={{ flex:2, height:44, borderRadius:12, border:"none", background:"#059669", color:"#fff", fontWeight:800, cursor:"pointer" }}>
+            {saving ? "Đang lưu..." : "💾 Lưu giá"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function PricePolicyPage({ user }) {
+  const [items,    setItems]    = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [search,   setSearch]   = useState("");
+  const [category, setCategory] = useState("all");
+  const [editing,  setEditing]  = useState(null);
+
+  const isAdmin = ADMIN_ROLES.includes(user?.role);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const data = await SparePart.list({ limit:500, sort:"category,name" });
+      setItems(data || []);
+    } catch { setItems([]); }
+    setLoading(false);
+  }
+
+  useEffect(() => { load(); }, []);
+
+  const categories = useMemo(() => {
+    const set = new Set(items.map(i => i.category || "other"));
+    return ["all", ...Array.from(set)];
+  }, [items]);
+
+  const displayed = useMemo(() => items.filter(i => {
+    const matchSearch = !search || [i.name, i.sku, i.category]
+      .some(v => (v||"").toLowerCase().includes(search.toLowerCase()));
+    const matchCat = category === "all" || i.category === category;
+    return matchSearch && matchCat;
+  }), [items, search, category]);
+
+  return (
+    <div style={{ padding:"20px 16px 80px", maxWidth:1200, margin:"0 auto" }}>
+      <div style={{ fontWeight:900, fontSize:20, color:"#1e1b4b", marginBottom:4 }}>💰 Chính sách giá</div>
+      <div style={{ fontSize:13, color:"#6b7280", marginBottom:20 }}>
+        Quản lý bảng giá lẻ, giá sỉ và giá vốn từng sản phẩm/dịch vụ
+      </div>
+
+      {/* Filter */}
+      <div style={{ display:"flex", gap:10, marginBottom:16, flexWrap:"wrap" }}>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Tìm tên, SKU..."
+          style={{ flex:1, minWidth:180, height:40, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 14px", fontSize:13, outline:"none" }} />
+        <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+          {categories.map(c => (
+            <button key={c} onClick={() => setCategory(c)} style={{
+              padding:"0 12px", height:40, borderRadius:10, border:"1.5px solid",
+              borderColor: category===c ? "#059669" : "#e5e7eb",
+              background:  category===c ? "#f0fdf4"  : "#fff",
+              color:       category===c ? "#059669"  : "#6b7280",
+              fontWeight:700, fontSize:12, cursor:"pointer",
+            }}>
+              {c === "all" ? "Tất cả" : (CATEGORY_LABELS[c] || c)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading && <div style={{ textAlign:"center", padding:40, color:"#6b7280" }}>⏳ Đang tải...</div>}
+
+      {!loading && displayed.length === 0 && (
+        <div style={{ textAlign:"center", padding:60, color:"#9ca3af" }}>
+          <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:48, display:"block", marginBottom:8 }}>price_change</span>
+          <div>Không tìm thấy sản phẩm nào</div>
+        </div>
+      )}
+
+      {!loading && displayed.length > 0 && (
+        <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", overflow:"hidden", overflowX:"auto" }}>
+          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+            <thead>
+              <tr style={{ background:"#f8fafc" }}>
+                <th style={{ padding:"10px 14px", textAlign:"left", fontWeight:700, color:"#374151" }}>Tên sản phẩm / dịch vụ</th>
+                <th style={{ padding:"10px 14px", textAlign:"left", fontWeight:700, color:"#374151" }}>SKU</th>
+                <th style={{ padding:"10px 14px", textAlign:"left", fontWeight:700, color:"#374151" }}>Danh mục</th>
+                <th style={{ padding:"10px 14px", textAlign:"right", fontWeight:700, color:"#6b7280" }}>Giá vốn</th>
+                <th style={{ padding:"10px 14px", textAlign:"right", fontWeight:700, color:"#2563eb" }}>Giá sỉ</th>
+                <th style={{ padding:"10px 14px", textAlign:"right", fontWeight:700, color:"#059669" }}>Giá lẻ</th>
+                <th style={{ padding:"10px 14px", textAlign:"right", fontWeight:700, color:"#059669" }}>Lãi</th>
+                {isAdmin && <th style={{ padding:"10px 14px", textAlign:"center", fontWeight:700, color:"#374151" }}>Thao tác</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {displayed.map(item => {
+                const retail    = item.retail_price    || item.price || 0;
+                const wholesale = item.wholesale_price || 0;
+                const cost      = item.cost_price      || 0;
+                const margin    = retail > 0 && cost > 0
+                  ? Math.round((retail - cost) / retail * 100)
+                  : null;
+                return (
+                  <tr key={item.id} style={{ borderBottom:"1px solid #f3f4f6" }}>
+                    <td style={{ padding:"10px 14px", fontWeight:600, color:"#1f2937" }}>{item.name}</td>
+                    <td style={{ padding:"10px 14px", color:"#9ca3af", fontFamily:"monospace" }}>{item.sku || "—"}</td>
+                    <td style={{ padding:"10px 14px", color:"#6b7280" }}>
+                      {CATEGORY_LABELS[item.category] || item.category || "—"}
+                    </td>
+                    <td style={{ padding:"10px 14px", textAlign:"right", color:"#9ca3af" }}>
+                      {cost > 0 ? fmtMoney(cost) : "—"}
+                    </td>
+                    <td style={{ padding:"10px 14px", textAlign:"right", color:"#2563eb" }}>
+                      {wholesale > 0 ? fmtMoney(wholesale) : "—"}
+                    </td>
+                    <td style={{ padding:"10px 14px", textAlign:"right", fontWeight:700, color:"#059669" }}>
+                      {fmtMoney(retail)}
+                    </td>
+                    <td style={{ padding:"10px 14px", textAlign:"right" }}>
+                      {margin != null ? (
+                        <span style={{
+                          padding:"2px 8px", borderRadius:10, fontSize:11, fontWeight:700,
+                          background: margin>=30 ? "#f0fdf4" : margin>=10 ? "#fef9c3" : "#fef2f2",
+                          color:      margin>=30 ? "#059669" : margin>=10 ? "#ca8a04" : "#dc2626",
+                        }}>{margin}%</span>
+                      ) : "—"}
+                    </td>
+                    {isAdmin && (
+                      <td style={{ padding:"10px 14px", textAlign:"center" }}>
+                        <button onClick={() => setEditing(item)} style={{
+                          padding:"4px 12px", borderRadius:8, border:"1.5px solid #e0e7ff",
+                          background:"#ede9fe", color:"#6366f1", fontSize:12, fontWeight:700, cursor:"pointer",
+                        }}>✏️ Sửa giá</button>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {editing && (
+        <EditPriceModal
+          item={editing}
+          onSave={() => { setEditing(null); load(); }}
+          onClose={() => setEditing(null)}
+        />
+      )}
+    </div>
+  );
+}

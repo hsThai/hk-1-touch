@@ -262,6 +262,8 @@ const IntegrationsPage = lazy(() => import("./IntegrationsPage.jsx").catch(() =>
 const ActionLogPage  = lazy(() => import("./ActionLogPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Nhật ký</div> })));
 const PrintTemplatePage = lazy(() => import("./PrintTemplatePage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang</div> })));
 const ReturnOrderPage  = lazy(() => import("./ReturnOrderPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang Đổi trả</div> })));
+const PricePolicyPage      = lazy(() => import("./PricePolicyPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Chính sách giá</div> })));
+const PurchaseForecastPage = lazy(() => import("./PurchaseForecastPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Mua hàng</div> })));
 const StockReportNXT = lazy(() => import("./StockReportNXT.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Báo cáo NXT</div> })));
 const RoleHomePlaceholder  = lazy(() => import("./RoleHomePlaceholder").catch(() => ({ default: () => (
   <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang chủ</div>
@@ -1276,6 +1278,8 @@ function MainAppContent({ onUserChange }) {
       items.push({ key:"cashier_home", icon:"point_of_sale", label:"Bán hàng" });
     if (["owner","admin","manager","team_leader","cashier"].includes(user?.role))
       items.push({ key:"return_order", icon:"swap_horiz", label:"Đổi trả & BH" });
+    if (["owner","admin","manager","team_leader"].includes(user?.role))
+      items.push({ key:"price_policy", icon:"price_change", label:"Chính sách giá" });
 
     // ── 6. KHÁCH HÀNG — receptionist, cashier, marketing (không phải manager)
     if (can("customer","view") && !isKtv && !isManager)
@@ -1292,6 +1296,8 @@ function MainAppContent({ onUserChange }) {
     // ── 7. KIỂM KHO — warehouse, manager, technician ───────
     if (can("stock_count","view") && !isManager && !isRoleHome)
       items.push({ key:"stock_count",  icon:"fact_check",  label:"Kiểm kê kho" });
+    if (["owner","admin","manager","warehouse","team_leader"].includes(user?.role) && !isManager)
+      items.push({ key:"purchase_forecast", icon:"shopping_cart", label:"Mua hàng & Dự báo" });
 
     // ── 8. NHÂN VIÊN — chỉ non-manager (manager dùng accordion Thiết Lập)
     if (can("staff","view") && !isManager)
@@ -1895,6 +1901,8 @@ function MainAppContent({ onUserChange }) {
                   "board":        "🔧 Dịch vụ Sửa chữa",
                   "cashier_home": "🛒 Bán hàng",
                     "return_order": "🔄 Đổi trả & Bảo hành",
+                  "price_policy": "💰 Chính sách giá",
+                  "purchase_forecast": "🛒 Mua hàng & Dự báo",
                   "return_order": "🔄 Đổi trả & Bảo hành",
                   "wh_home":      "📦 Kho & Vật tư",
                   "stock_count":  "📦 Kho & Vật tư",
@@ -2014,6 +2022,16 @@ function MainAppContent({ onUserChange }) {
               {page==="stock_nxt" && (
                 <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
                   <StockReportNXT user={user} />
+                </Suspense>
+              )}
+              {page==="price_policy" && currentUser && (
+                <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
+                  <PricePolicyPage user={currentUser} />
+                </Suspense>
+              )}
+              {page==="purchase_forecast" && currentUser && (
+                <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
+                  <PurchaseForecastPage user={currentUser} />
                 </Suspense>
               )}
               {page==="cash_journal" && user && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><CashJournalPage user={user} /></Suspense>}
