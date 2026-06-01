@@ -261,6 +261,7 @@ const RolePermissionPageLazy = lazy(() => import("./RolePermissionPage.jsx").cat
 const IntegrationsPage = lazy(() => import("./IntegrationsPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Tích hợp đang phát triển</div> })));
 const ActionLogPage  = lazy(() => import("./ActionLogPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Nhật ký</div> })));
 const PrintTemplatePage = lazy(() => import("./PrintTemplatePage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang</div> })));
+const ReturnOrderPage  = lazy(() => import("./ReturnOrderPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang Đổi trả</div> })));
 const StockReportNXT = lazy(() => import("./StockReportNXT.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Báo cáo NXT</div> })));
 const RoleHomePlaceholder  = lazy(() => import("./RoleHomePlaceholder").catch(() => ({ default: () => (
   <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang chủ</div>
@@ -1273,6 +1274,8 @@ function MainAppContent({ onUserChange }) {
     // ── 5. BÁN HÀNG — cashier, accountant, receptionist, manager ──
     if (can("sale_order","view"))
       items.push({ key:"cashier_home", icon:"point_of_sale", label:"Bán hàng" });
+    if (["owner","admin","manager","team_leader","cashier"].includes(user?.role))
+      items.push({ key:"return_order", icon:"swap_horiz", label:"Đổi trả & BH" });
 
     // ── 6. KHÁCH HÀNG — receptionist, cashier, marketing (không phải manager)
     if (can("customer","view") && !isKtv && !isManager)
@@ -1891,6 +1894,8 @@ function MainAppContent({ onUserChange }) {
                   "new":          "🔧 Dịch vụ Sửa chữa",
                   "board":        "🔧 Dịch vụ Sửa chữa",
                   "cashier_home": "🛒 Bán hàng",
+                    "return_order": "🔄 Đổi trả & Bảo hành",
+                  "return_order": "🔄 Đổi trả & Bảo hành",
                   "wh_home":      "📦 Kho & Vật tư",
                   "stock_count":  "📦 Kho & Vật tư",
                   "customers":    "👥 Đối tác",
@@ -1981,6 +1986,16 @@ function MainAppContent({ onUserChange }) {
               {page==="wh_import" && <WarehouseImport user={user} />}
               {page==="wh_manager" && <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"dashboard")} />}
               {page==="cashier_home" && <CashierApp user={user} />}
+        {page==="return_order" && currentUser && (
+          <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
+            <ReturnOrderPage user={currentUser} />
+          </Suspense>
+        )}
+              {page==="return_order" && currentUser && (
+                <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
+                  <ReturnOrderPage user={currentUser} />
+                </Suspense>
+              )}
               {page==="suppliers" && user && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><SupplierPage user={user} /></Suspense>}
               {page==="debts" && user && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><DebtPage user={user} /></Suspense>}
               {page==="department" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><DepartmentPageLazy user={user} /></Suspense>}
