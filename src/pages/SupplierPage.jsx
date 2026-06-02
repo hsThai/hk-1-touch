@@ -52,7 +52,7 @@ function SupplierModal({ init, onSave, onClose }) {
 
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.45)", zIndex:9999, display:"flex", alignItems:"flex-end", justifyContent:"center" }} onClick={onClose}>
-      <div style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:"24px 16px 40px", width:"100%", maxWidth:540, maxHeight:"92vh", overflowY:"auto" }} onClick={e=>e.stopPropagation()}>
+      <div style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:"24px 16px 40px", width:"100%", maxWidth:540, maxHeight:"80vh", overflowY:"auto" }} onClick={e=>e.stopPropagation()}>
         <div style={{ fontWeight:800, fontSize:16, marginBottom:18 }}>{init ? "✏️ Sửa nhà cung cấp" : "➕ Thêm nhà cung cấp"}</div>
 
         {field("Tên nhà cung cấp *", "name", "text", "Công ty ABC...")}

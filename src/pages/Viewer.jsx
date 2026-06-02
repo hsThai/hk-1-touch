@@ -223,7 +223,7 @@ function AcceptChecklistModal({ order, onConfirm, onClose }) {
   const canConfirm = estMins !== null;
   return (
     <div style={{ position:"fixed", inset:0, zIndex:4500, background:"rgba(0,0,0,.65)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-      <div style={{ background:"#fff", borderRadius:"24px 24px 0 0", width:"100%", maxWidth:520, maxHeight:"90vh", overflowY:"auto", boxShadow:"0 -8px 40px rgba(0,0,0,.25)" }}>
+      <div style={{ background:"#fff", borderRadius:"24px 24px 0 0", width:"100%", maxWidth:520, maxHeight:"80vh", overflowY:"auto", boxShadow:"0 -8px 40px rgba(0,0,0,.25)" }}>
         {/* Handle */}
         <div style={{ display:"flex", justifyContent:"center", padding:"12px 0 4px" }}>
           <div style={{ width:40, height:4, background:"#e5e7eb", borderRadius:4 }} />

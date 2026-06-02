@@ -118,7 +118,7 @@ export default function PreCheckModal({ order, currentUser, users, onClose, onDo
   return (
     <div style={{ position:"fixed", inset:0, zIndex:2000, background:"rgba(0,0,0,.65)", display:"flex", alignItems:"flex-end" }}
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ width:"100%", maxHeight:"94vh", background:"#fff", borderRadius:"24px 24px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      <div style={{ width:"100%", maxHeight:"92vh", background:"#fff", borderRadius:"24px 24px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }}>
 
         {/* Header */}
         <div style={{ background:"linear-gradient(135deg,#0369a1,#0284c7)", padding:"16px 18px", flexShrink:0 }}>
@@ -326,7 +326,7 @@ export function QT2Modal({ order, currentUser, onClose, onDone }) {
   return (
     <div style={{ position:"fixed", inset:0, zIndex:2000, background:"rgba(0,0,0,.65)", display:"flex", alignItems:"flex-end" }}
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ width:"100%", maxHeight:"94vh", background:"#fff", borderRadius:"24px 24px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      <div style={{ width:"100%", maxHeight:"92vh", background:"#fff", borderRadius:"24px 24px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }}>
 
         {/* Header */}
         <div style={{ background:"linear-gradient(135deg,#6d28d9,#7c3aed)", padding:"16px 18px", flexShrink:0 }}>

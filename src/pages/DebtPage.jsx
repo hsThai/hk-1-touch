@@ -105,7 +105,7 @@ function PaymentModal({ voucher, user, onDone, onClose }) {
   const isRec = voucher.voucher_type === "receivable";
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.45)", zIndex:9999, display:"flex", alignItems:"flex-end", justifyContent:"center" }} onClick={onClose}>
-      <div style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:"24px 16px 40px", width:"100%", maxWidth:480 }} onClick={e => e.stopPropagation()}>
+      <div style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:"24px 16px 40px", width:"100%", maxWidth:480, maxHeight:"80vh", overflowY:"auto" }} onClick={e => e.stopPropagation()}>
         <div style={{ fontWeight:800, fontSize:16, marginBottom:6 }}>{isRec ? "💵 Thu tiền" : "💸 Thanh toán"}</div>
         <div style={{ fontSize:13, color:"#6b7280", marginBottom:18 }}>
           {voucher.party_name} · Còn: <b style={{ color:"#dc2626" }}>{fmtMoney(voucher.remaining)}</b>
@@ -160,7 +160,7 @@ function DetailModal({ voucher, user, onClose, onRefresh }) {
 
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.45)", zIndex:9998, display:"flex", alignItems:"flex-end", justifyContent:"center" }} onClick={onClose}>
-      <div style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:"24px 16px 40px", width:"100%", maxWidth:540, maxHeight:"85vh", overflowY:"auto" }} onClick={e => e.stopPropagation()}>
+      <div style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:"24px 16px 40px", width:"100%", maxWidth:540, maxHeight:"80vh", overflowY:"auto" }} onClick={e => e.stopPropagation()}>
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
           <div style={{ flex:1 }}>
             <div style={{ fontWeight:800, fontSize:15 }}>{voucher.voucher_code}</div>

@@ -258,7 +258,7 @@ export default function SparePartModal({ order, currentStaff, onClose, onDone })
 
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.55)", zIndex:2000, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-      <div style={{ background:"#f8faff", borderRadius:"24px 24px 0 0", width:"100%", maxWidth:560, maxHeight:"92vh", display:"flex", flexDirection:"column", boxShadow:"0 -8px 40px rgba(0,0,0,.25)" }}>
+      <div style={{ background:"#f8faff", borderRadius:"24px 24px 0 0", width:"100%", maxWidth:560, maxHeight:"80vh", display:"flex", flexDirection:"column", boxShadow:"0 -8px 40px rgba(0,0,0,.25)" }}>
 
         {/* Header */}
         <div style={{ padding:"20px 20px 0", flexShrink:0 }}>

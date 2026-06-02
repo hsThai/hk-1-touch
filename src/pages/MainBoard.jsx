@@ -293,7 +293,7 @@ function OrderDrawer({ order, staff, onClose, onUpdate, onRefresh, allStaff }) {
   return (
     <div style={{ position:"fixed", inset:0, zIndex:500 }} onClick={onClose}>
       <div style={{ position:"absolute", inset:0, background:"rgba(0,0,0,.5)" }} />
-      <div style={{ position:"absolute", bottom:0, left:0, right:0, background:"#fff", borderRadius:"20px 20px 0 0", maxHeight:"90vh", display:"flex", flexDirection:"column", maxWidth:640, margin:"0 auto", boxShadow:"0 -8px 40px rgba(0,0,0,.25)" }}
+      <div style={{ position:"absolute", bottom:0, left:0, right:0, background:"#fff", borderRadius:"20px 20px 0 0", maxHeight:"80vh", display:"flex", flexDirection:"column", maxWidth:640, margin:"0 auto", boxShadow:"0 -8px 40px rgba(0,0,0,.25)" }}
         onClick={e => e.stopPropagation()}>
 
         {/* Header */}
@@ -533,7 +533,7 @@ function NewOrderModal({ staff, onClose, onCreated }) {
 
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.55)", zIndex:600, display:"flex", alignItems:"flex-end", justifyContent:"center" }} onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
-      <div style={{ background:"#fff", borderRadius:"20px 20px 0 0", width:"100%", maxWidth:560, maxHeight:"92vh", display:"flex", flexDirection:"column" }}>
+      <div style={{ background:"#fff", borderRadius:"20px 20px 0 0", width:"100%", maxWidth:560, maxHeight:"80vh", display:"flex", flexDirection:"column" }}>
         <div style={{ padding:"16px 16px 0", flexShrink:0 }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
             <div style={{ fontSize:17, fontWeight:900, color:"#1e1b4b" }}>➕ Tạo đơn sửa chữa</div>

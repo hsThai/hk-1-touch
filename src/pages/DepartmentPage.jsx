@@ -85,7 +85,7 @@ function EditModal({ dept, onSave, onClose }) {
     }} onClick={onClose}>
       <div style={{
         background:"#fff", borderRadius:"20px 20px 0 0", padding:24,
-        width:"100%", maxWidth:540, maxHeight:"90vh", overflowY:"auto",
+        width:"100%", maxWidth:540, maxHeight:"80vh", overflowY:"auto",
         paddingBottom:40,
       }} onClick={e => e.stopPropagation()}>
         <div style={{ fontWeight:800, fontSize:16, marginBottom:18 }}>

@@ -153,7 +153,7 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
 
   return (
     <div style={{ position:"fixed", inset:0, zIndex:2000, background:"rgba(0,0,0,.55)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-      <div style={{ background:"#fff", borderRadius:22, width:"100%", maxWidth:540, maxHeight:"93vh", overflowY:"auto", boxShadow:"0 24px 64px rgba(0,0,0,.25)", display:"flex", flexDirection:"column" }}>
+      <div style={{ background:"#fff", borderRadius:22, width:"100%", maxWidth:540, maxHeight:"90vh", overflowY:"auto", boxShadow:"0 24px 64px rgba(0,0,0,.25)", display:"flex", flexDirection:"column" }}>
 
         {/* Header */}
         <div style={{ position:"sticky", top:0, zIndex:10, background:"#3730a3", padding:"14px 20px", borderRadius:"22px 22px 0 0", flexShrink:0 }}>

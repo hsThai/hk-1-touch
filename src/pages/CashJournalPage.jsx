@@ -48,7 +48,7 @@ function ManualEntryModal({ user, onSave, onClose }) {
 
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.45)", zIndex:9999, display:"flex", alignItems:"flex-end", justifyContent:"center" }} onClick={onClose}>
-      <div style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:"24px 16px 40px", width:"100%", maxWidth:480 }} onClick={e=>e.stopPropagation()}>
+      <div style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:"24px 16px 40px", width:"100%", maxWidth:480, maxHeight:"80vh", overflowY:"auto" }} onClick={e=>e.stopPropagation()}>
         <div style={{ fontWeight:800, fontSize:16, marginBottom:18 }}>➕ Ghi thủ công</div>
 
         <div style={{ marginBottom:12 }}>

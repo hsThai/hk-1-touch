@@ -716,7 +716,7 @@ function StaffModal({ staff: s, repairOrders, onClose }) {
       style={{ position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:300,display:"flex",alignItems:"flex-end" }}>
       <div onClick={e=>e.stopPropagation()}
         style={{ background:"#fff",borderRadius:"20px 20px 0 0",padding:"20px 16px 48px",
-          width:"100%",maxHeight:"85vh",overflowY:"auto" }}>
+          width:"100%",maxHeight:"80vh",overflowY:"auto" }}>
         {/* Header */}
         <div style={{ display:"flex",alignItems:"center",gap:12,marginBottom:20 }}>
           <div style={{ width:48,height:48,borderRadius:"50%",background:"#e5e7eb",
