@@ -327,7 +327,7 @@ function RequestDetailModal({viewReq, setViewReq, currentStaff, order, requests,
   return (
     <div style={{position:"fixed",inset:0,zIndex:4000,background:"rgba(0,0,0,.7)",display:"flex",alignItems:"flex-end",justifyContent:"center"}}
       onClick={e=>{if(e.target===e.currentTarget)close();}}>
-      <div style={{background:"#fff",borderRadius:"24px 24px 0 0",width:"100%",maxWidth:600,maxHeight:"90vh",display:"flex",flexDirection:"column"}}>
+      <div style={{background:"#fff",borderRadius:"24px 24px 0 0",width:"100%",maxWidth:600,maxHeight:"65vh",display:"flex",flexDirection:"column"}}>
 
         <div style={{background:"linear-gradient(135deg,#1e1b4b,#4f46e5)",padding:"16px 18px",borderRadius:"24px 24px 0 0",flexShrink:0,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div>
@@ -555,7 +555,7 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
 
   return (
     <div style={{position:"fixed",inset:0,zIndex:3000,background:"rgba(0,0,0,.65)",display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
-      <div style={{background:"#fff",borderRadius:"24px 24px 0 0",width:"100%",maxWidth:600,maxHeight:"94vh",display:"flex",flexDirection:"column"}}>
+      <div style={{background:"#fff",borderRadius:"24px 24px 0 0",width:"100%",maxWidth:600,maxHeight:"80vh",display:"flex",flexDirection:"column"}}>
 
         {/* HEADER */}
         <div style={{background:"linear-gradient(135deg,#1e1b4b,#4f46e5)",padding:"16px 18px 14px",borderRadius:"24px 24px 0 0",flexShrink:0}}>

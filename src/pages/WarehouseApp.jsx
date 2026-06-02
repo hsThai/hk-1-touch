@@ -473,7 +473,7 @@ function WarehouseExport({ user }) {
       {viewReq && (
         <div style={{ position:"fixed", inset:0, zIndex:500, background:"rgba(0,0,0,.6)", display:"flex", alignItems:"flex-end" }}
           onClick={e=>{if(e.target===e.currentTarget){setViewReq(null);setConfirmNote("");setConfirmMedia([]);}}}>
-          <div style={{ background:"#fff", borderRadius:"24px 24px 0 0", width:"100%", maxHeight:"85vh", display:"flex", flexDirection:"column" }}>
+          <div style={{ background:"#fff", borderRadius:"24px 24px 0 0", width:"100%", maxHeight:"70vh", display:"flex", flexDirection:"column" }}>
             <div style={{ background:"linear-gradient(135deg,#1e1b4b,#4f46e5)", padding:"16px 18px", borderRadius:"24px 24px 0 0", flexShrink:0, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <div>
                 <div style={{ color:"#fff", fontWeight:900, fontSize:16 }}>📋 {viewReq.request_code}</div>
@@ -879,7 +879,7 @@ function WarehouseImport({ user }) {
       {/* Form tạo phiếu */}
       {showForm && (
         <div style={{ position:"fixed", inset:0, zIndex:500, background:"rgba(0,0,0,.6)", display:"flex", alignItems:"flex-end" }}>
-          <div style={{ background:"#fff", borderRadius:"24px 24px 0 0", width:"100%", maxHeight:"94vh", display:"flex", flexDirection:"column" }}>
+          <div style={{ background:"#fff", borderRadius:"24px 24px 0 0", width:"100%", maxHeight:"80vh", display:"flex", flexDirection:"column" }}>
             {/* Header */}
             <div style={{ background:"linear-gradient(135deg,#7c3aed,#6d28d9)", padding:"16px 18px", borderRadius:"24px 24px 0 0", flexShrink:0, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <div style={{ color:"#fff", fontWeight:900, fontSize:16 }}>📥 Tạo phiếu nhập hàng</div>
