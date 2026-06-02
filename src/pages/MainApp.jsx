@@ -1821,7 +1821,7 @@ function MainAppContent({ onUserChange }) {
     {isPC && (
       <div style={{ display:"flex", height:"100vh", background:"#f9fafb" }}>
         {/* Left Sidebar */}
-        <div style={{ width:280, background:"#1e1b4b", display:"flex", flexDirection:"column", flexShrink:0, overflowY:"auto" }}>
+        <div style={{ width:240, background:"#1e1b4b", display:"flex", flexDirection:"column", flexShrink:0, overflowY:"auto" }}>
           <div style={{ padding:"20px 16px 16px", borderBottom:"1px solid rgba(255,255,255,.1)" }}>
             <div style={{ fontWeight:900, fontSize:16, color:"#fff" }}>🏠 HK One Touch</div>
             <div style={{ fontSize:12, color:"rgba(255,255,255,.6)", marginTop:4 }}>
@@ -2011,7 +2011,7 @@ function MainAppContent({ onUserChange }) {
       {sidebarOpen && (
         <div style={{ position:"fixed", inset:0, zIndex:200 }}>
           <div style={{ position:"absolute", inset:0, background:"rgba(0,0,0,.4)" }} onClick={() => setSidebarOpen(false)} />
-          <div onClick={e => e.stopPropagation()} style={{ position:"absolute", left:0, top:0, bottom:0, width: bp==="tablet" ? 340 : 290, background:"#1e1b4b", boxShadow:"4px 0 20px rgba(0,0,0,.15)", display:"flex", flexDirection:"column" }}>
+          <div onClick={e => e.stopPropagation()} style={{ position:"absolute", left:0, top:0, bottom:0, width: bp==="tablet" ? 260 : 240, background:"#1e1b4b", boxShadow:"4px 0 20px rgba(0,0,0,.15)", display:"flex", flexDirection:"column" }}>
             <div style={{ background:"#1e1b4b", padding:24, color:"#fff" }}>
               <div style={{ fontSize:40 }}>{user.avatar_url ? <img src={user.avatar_url} style={{width:48,height:48,borderRadius:"50%"}} alt="" /> : <span className="material-icons" style={{fontSize:48,fontFamily:"Material Icons",color:"#9ca3af"}}>person</span>}</div>
               <div style={{ fontWeight:800, fontSize:16, marginTop:8, color:"#fff" }}>{user.name}</div>
