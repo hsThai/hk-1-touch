@@ -940,7 +940,7 @@ function DebtPayableContent() {
   useEffect(() => {
     DebtVoucher.list({
       filter: `type="payable"&&status!="paid"`,
-      sort: "-created",
+      sort: "-id",
     }).then(setItems).catch(()=>setItems([])).finally(()=>setLoading(false));
   }, []);
   if (loading) return <div style={{textAlign:"center",padding:20}}>⏳</div>;
@@ -1671,15 +1671,15 @@ export default function ManagerDashboard({ user, initialTab = "overview", onTabC
     const safe = (p) => p.catch(e => { console.warn("MD fetch warn:", e?.message); return []; });
     const [orders, sales, exps, parts, staffList, custs, imports, ledger, usages, journals] = await Promise.all([
       safe(RepairOrder.list({ limit:500, sort:"-received_date" })),
-      safe(SaleOrder.list({ limit:200, sort:"-created" })),
+      safe(SaleOrder.list({ limit:200, sort:"-id" })),
       safe(Expense.list({ limit:200, sort:"-expense_date" })),
       safe(SparePart.list({ limit:500 })),
       safe(Staff.list({ limit:100 })),
       safe(Customer.list({ limit:500 })),
-      safe(StockImport.list({ limit:50, sort:"-created" })),
+      safe(StockImport.list({ limit:50, sort:"-id" })),
       safe(StockLedger.list({ limit:500 })),
-      safe(SparePartUsage.list({ limit:100, sort:"-created" })),
-      safe(CashJournal.list({ limit:500, sort:"-created" })),
+      safe(SparePartUsage.list({ limit:100, sort:"-id" })),
+      safe(CashJournal.list({ limit:500, sort:"-id" })),
     ]);
 
     // Aggregate ledger

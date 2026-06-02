@@ -107,7 +107,7 @@ export default function StockReportNXT({ user }) {
     try {
       const hist = await StockMovement.list({
         filter: `part_id="${item.part_id||item.spare_part_id||item.id}"`,
-        sort: "-created",
+        sort: "-id",
         limit: 200,
       });
       setItemHistory(hist || []);

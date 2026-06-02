@@ -434,8 +434,8 @@ function TabStockReport({ period, startOf }) {
 
   useEffect(()=>{
     Promise.all([
-      StockImport.list({ limit:200, sort:"-created" }),
-      StockExportRequest.list({ limit:200, sort:"-created" }),
+      StockImport.list({ limit:200, sort:"-id" }),
+      StockExportRequest.list({ limit:200, sort:"-id" }),
     ]).then(([imp,exp])=>{ setImports(imp||[]); setExports(exp||[]); })
       .catch(()=>{}).finally(()=>setLoading(false));
   },[]);
@@ -494,7 +494,7 @@ export default function RevenueReportPage({ user }) {
       try {
         const [ro,so,ex] = await Promise.all([
           RepairOrder.list({ limit:500, sort:"-received_date" }),
-          SaleOrder.list({ limit:500, sort:"-created" }),
+          SaleOrder.list({ limit:500, sort:"-id" }),
           Expense.list({ limit:500, sort:"-expense_date" }),
         ]);
         setRepairOrders(ro||[]); setSaleOrders(so||[]); setExpenses(ex||[]);

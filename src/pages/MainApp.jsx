@@ -1662,7 +1662,7 @@ function MainAppContent({ onUserChange }) {
     const [custOrders, setCustOrders] = useState([]);
 
     useEffect(() => {
-      Customer.list({ limit:500, sort:"-created" })
+      Customer.list({ limit:500, sort:"-id" })
         .then(d => setCusts(d||[]))
         .catch(()=>{})
         .finally(()=>setLoading(false));

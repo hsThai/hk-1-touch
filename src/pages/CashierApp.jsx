@@ -27,7 +27,7 @@ function OverviewTab({ user }) {
       try {
         const [ro, so] = await Promise.all([
           RepairOrder.list({ limit: 500, sort: "-received_date" }),
-          SaleOrder.list({ limit: 500, sort: "-created" }),
+          SaleOrder.list({ limit: 500, sort: "-id" }),
         ]);
         setRepairOrders(ro || []);
         setSaleOrders(so || []);

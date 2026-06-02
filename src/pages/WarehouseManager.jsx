@@ -1011,7 +1011,7 @@ function DefectTab({ user, warehouses }) {
   async function loadList() {
     setLoading(true);
     try {
-      const mvs = await Move.list({ limit:200, sort:"-created" });
+      const mvs = await Move.list({ limit:200, sort:"-id" });
       setList((mvs||[]).filter(m=>m.movement_type==="defect"));
     } catch { setList([]); }
     setLoading(false);
@@ -1132,7 +1132,7 @@ function PreorderTab({ user, warehouses }) {
     setLoading(true);
     try {
       const [u, l] = await Promise.all([
-        Usage.list({ limit:300, sort:"-created" }),
+        Usage.list({ limit:300, sort:"-id" }),
         Ledger.list({ limit:500 }),
       ]);
       setUsages((u||[]).filter(x=>x.status==="pending"||x.status==="requested"));
@@ -1220,7 +1220,7 @@ function ShippingTab({ user }) {
   const [form, setForm] = useState({ tracking_code:"", shipping_unit:"", received_date:"", note:"" });
 
   useEffect(() => {
-    Imports.list({ limit:200, sort:"-created" })
+    Imports.list({ limit:200, sort:"-id" })
       .then(d=>setImports(d||[])).catch(()=>{}).finally(()=>setLoading(false));
   }, []);
 

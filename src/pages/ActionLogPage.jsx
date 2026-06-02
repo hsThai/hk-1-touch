@@ -10,7 +10,7 @@ async function fetchLogs({ page, perPage, search, dateFrom, dateTo }) {
   if (dateTo)   filters.push(`created<="${dateTo} 23:59:59"`);
   const params = new URLSearchParams({
     page, perPage,
-    sort: "-created",
+    sort: "-id",
   });
   if (filters.length) params.set("filter", filters.join(" && "));
   const res = await fetch(

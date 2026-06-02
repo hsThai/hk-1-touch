@@ -58,7 +58,7 @@ export default function MainApp() {
         setDataLoading(true);
         const [staffList, orderList] = await Promise.all([
           Staff.list(),
-          RepairOrder.list({ sort: "-created", limit: 200 }),
+          RepairOrder.list({ sort: "-id", limit: 200 }),
         ]);
         const mappedUsers = staffList.map(s => ({
           id: s.id,

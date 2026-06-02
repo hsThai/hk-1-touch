@@ -126,7 +126,7 @@ export default function SupplierPage({ user }) {
     try {
       const imports = await StockImport.list({
         filter: `supplier_name="${supplier.name}"`,
-        sort: "-created",
+        sort: "-id",
         limit: 100,
       });
       setPurchaseHistory(imports || []);

@@ -172,7 +172,7 @@ export default function RMAPage({ user }) {
     setLoading(true);
     try {
       const [led, sup, prt] = await Promise.allSettled([
-        StockLedger.list({ filter: 'txn_type="rma_out"', sort:"-created", limit:200 }),
+        StockLedger.list({ filter: 'txn_type="rma_out"', sort:"-id", limit:200 }),
         Supplier.list({ sort:"name", limit:200 }),
         SparePart.list({ sort:"name", limit:500 }),
       ]);

@@ -105,7 +105,7 @@ function CountList({ user, onOpen, onNew }) {
     setLoading(true);
     try {
       const [cs, whs] = await Promise.all([
-        StockCount.list({ limit:200, sort:"-created" }),
+        StockCount.list({ limit:200, sort:"-id" }),
         Warehouse.list({ limit:50 }),
       ]);
       setCounts(cs||[]);
@@ -863,7 +863,7 @@ function StockCountHistory({ user }) {
       try {
         const data = await StockLedger.list({
           filter: 'txn_type="count"',
-          sort: "-created",
+          sort: "-id",
           limit: 500,
         });
         const items = data || [];

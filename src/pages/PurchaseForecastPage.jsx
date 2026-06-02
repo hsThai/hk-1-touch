@@ -19,7 +19,7 @@ export default function PurchaseForecastPage({ user }) {
     setLoading(true);
     const [p, im] = await Promise.allSettled([
       SparePart.list({ limit:500 }),
-      StockImport.list({ limit:200, sort:"-created" }),
+      StockImport.list({ limit:200, sort:"-id" }),
     ]);
     setParts(p.status==="fulfilled" ? (p.value || []) : []);
     setImports(im.status==="fulfilled" ? (im.value || []) : []);

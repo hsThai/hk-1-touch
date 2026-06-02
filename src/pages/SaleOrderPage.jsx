@@ -90,7 +90,7 @@ export default function SaleOrderPage({ user }) {
 
   async function loadTodayOrders() {
     try {
-      const list = await SaleOrder.list({ limit:100, sort:"-created" });
+      const list = await SaleOrder.list({ limit:100, sort:"-id" });
       setTodayOrders((list||[]).filter(o => isToday(o.created || o.created_date)));
     } catch {}
   }
