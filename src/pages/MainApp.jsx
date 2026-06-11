@@ -296,12 +296,12 @@ const MGR_ACCORDIONS = [
     key: "acc_service",
     icon: "build",
     label: "Dịch vụ Sửa chữa",
-    pages: ["new","tasks","stock_export"],
+    pages: ["new","tasks","wh_export"],
     items: [
       { key:"new",          icon:"add_circle",  label:"Tạo đơn" },
       { key:"board",        icon:"view_kanban", label:"Bảng điều phối (Kanban)" },
       { key:"tasks",        icon:"list_alt",    label:"Danh sách & Lịch sử đơn" },
-      { key:"stock_export", icon:"output",      label:"Phiếu xuất vật tư" },
+      { key:"wh_export",    icon:"output",      label:"Phiếu xuất vật tư" },
     ],
   },
   {
@@ -1437,7 +1437,9 @@ function MainAppContent({ onUserChange }) {
               {isOpen && (
                 <div style={{ paddingLeft:12, marginTop:1, marginBottom:2 }}>
                   {acc.items.map(sub => {
-                    const isActive = page === sub.key;
+                    const isActive = sub.key.includes("__")
+                      ? (page === sub.key.split("__")[0] && dashboardTab === sub.key.split("__")[1])
+                      : page === sub.key;
                     return (
                       <button key={`${acc.key}-${sub.key}`}
                         onClick={() => {

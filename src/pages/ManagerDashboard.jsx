@@ -1604,6 +1604,7 @@ const NAV_TABS = [
   { key:"business",   icon:"account_balance", label:"Tài chính" },
   { key:"staff",      icon:"people",          label:"Nhân viên" },
   { key:"inventory",  icon:"inventory_2",     label:"Kho & KT" },
+  { key:"reports",    icon:"trending_up",     label:"Lợi nhuận" },
 ];
 
 
