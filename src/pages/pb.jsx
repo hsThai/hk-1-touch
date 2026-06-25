@@ -5,7 +5,7 @@
  * Config IP tại: localStorage key "pb_url" hoặc default bên dưới
  */
 
-const DEFAULT_PB_URL = "https://digiera.cameraddns.net";
+const DEFAULT_PB_URL = "https://pb.hk1touch.online";
 
 export function getPbUrl() {
   try {
