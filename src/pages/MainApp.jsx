@@ -1927,7 +1927,7 @@ function MainAppContent({ onUserChange }) {
               {page==="tasks" && <TaskList />}
               {page==="new" && <div style={{padding:24}}><button onClick={() => setShowNewOrder(true)} style={{ width:"100%", height:52, background:"linear-gradient(135deg,#4f46e5,#7c3aed)", color:"#fff", border:"none", borderRadius:14, fontWeight:800, fontSize:16, cursor:"pointer" }}>+ Tạo Đơn Mới</button></div>}
               {page==="customers" && <Suspense fallback={<div style={{padding:32,textAlign:"center"}}>⏳</div>}><CustomerManagerPage /></Suspense>}
-              {page==="dashboard" && (user.role==="manager"||user.role==="admin" ? <Suspense fallback={<div style={{padding:32}}>⏳</div>}><ManagerDashboard user={user} initialTab={dashboardTab} /></Suspense> : <Dashboard />)}
+              {page==="dashboard" && (["manager","admin","owner","supervisor"].includes(user.role) ? <Suspense fallback={<div style={{padding:32}}>⏳</div>}><ManagerDashboard user={user} initialTab={dashboardTab} /></Suspense> : <Dashboard />)}
               {page==="staff" && <StaffManagerPage currentStaff={user} />}
               {page==="settings" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><SettingsHub user={user} /></Suspense>}
               {page==="wh_home" && <WarehouseHome user={user} setPage={setPage} />}
