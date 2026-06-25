@@ -296,12 +296,11 @@ const MGR_ACCORDIONS = [
     key: "acc_service",
     icon: "build",
     label: "Dịch vụ Sửa chữa",
-    pages: ["new","tasks","wh_export"],
+    pages: ["new","board","tasks"],
     items: [
-      { key:"new",          icon:"add_circle",  label:"Tạo đơn" },
-      { key:"board",        icon:"view_kanban", label:"Bảng điều phối (Kanban)" },
-      { key:"tasks",        icon:"list_alt",    label:"Danh sách & Lịch sử đơn" },
-      { key:"wh_export",    icon:"output",      label:"Phiếu xuất vật tư" },
+      { key:"new",   icon:"add_circle",  label:"Tạo đơn" },
+      { key:"board", icon:"view_kanban", label:"Bảng điều phối (Kanban)" },
+      { key:"tasks", icon:"list_alt",    label:"Danh sách & Lịch sử đơn" },
     ],
   },
   {
@@ -355,12 +354,11 @@ const MGR_ACCORDIONS = [
     key: "acc_report",
     icon: "bar_chart",
     label: "Báo cáo",
-    pages: ["revenue","stock_nxt","dashboard__staff","dashboard__reports"],
+    pages: ["revenue","dashboard__reports","dashboard__staff"],
     items: [
-      { key:"revenue",              icon:"bar_chart",      label:"Báo cáo Doanh thu" },
-      { key:"stock_nxt",            icon:"inventory_2",    label:"Báo cáo Nhập-Xuất-Tồn" },
-      { key:"dashboard__staff",     icon:"people",         label:"Hiệu suất Nhân viên" },
-      { key:"dashboard__reports",   icon:"trending_up",    label:"Lợi nhuận" },
+      { key:"revenue",            icon:"bar_chart",   label:"Báo cáo Doanh thu" },
+      { key:"dashboard__reports", icon:"trending_up", label:"Lợi nhuận" },
+      { key:"dashboard__staff",   icon:"people",      label:"Hiệu suất Nhân viên" },
     ],
   },
   {
@@ -505,7 +503,10 @@ function MainAppContent({ onUserChange }) {
   // Auto mở accordion chứa page hiện tại
   useEffect(() => {
     if (!isManager) return;
-    const found = MGR_ACCORDIONS.find(acc => acc.pages.includes(page));
+    const found = MGR_ACCORDIONS.find(acc => acc.pages.some(p => {
+      if (p.includes("__")) { const [pg, tab] = p.split("__"); return page === pg && dashboardTab === tab; }
+      return page === p;
+    }));
     if (found) setOpenAccordion(found.key);
   }, [page]);
 
@@ -1400,7 +1401,13 @@ function MainAppContent({ onUserChange }) {
       <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
         {MGR_ACCORDIONS.map(acc => {
           const isOpen = openAccordion === acc.key;
-          const isAccActive = acc.pages.includes(page);
+          const isAccActive = acc.pages.some(p => {
+            if (p.includes("__")) {
+              const [pg, tab] = p.split("__");
+              return page === pg && dashboardTab === tab;
+            }
+            return page === p;
+          });
           return (
             <div key={acc.key} style={{ marginBottom:1 }}>
               {/* Header accordion */}
