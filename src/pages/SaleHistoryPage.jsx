@@ -105,24 +105,31 @@ function DetailContent({ detail, detailItems, onClose }) {
           <div style={{ color:"#9ca3af", fontSize:13, textAlign:"center", padding:"16px 0" }}>⏳ Đang tải...</div>
         ) : (
           <div style={{ borderRadius:12, border:"1.5px solid #e5e7eb", overflow:"hidden" }}>
-            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
               <thead>
                 <tr style={{ background:"#f9fafb" }}>
-                  <th style={{ textAlign:"left", padding:"8px 12px", fontWeight:700, color:"#6b7280" }}>Sản phẩm</th>
-                  <th style={{ textAlign:"left", padding:"8px 6px", fontWeight:700, color:"#6b7280" }}>SKU</th>
-                  <th style={{ textAlign:"right", padding:"8px 6px", fontWeight:700, color:"#6b7280" }}>Đ.Giá</th>
-                  <th style={{ textAlign:"center", padding:"8px 6px", fontWeight:700, color:"#6b7280" }}>SL</th>
-                  <th style={{ textAlign:"right", padding:"8px 12px", fontWeight:700, color:"#6b7280" }}>T.Tiền</th>
+                  <th style={{ textAlign:"left",   padding:"8px 12px", fontWeight:700, color:"#374151", fontSize:12 }}>Sản phẩm</th>
+                  <th style={{ textAlign:"right",  padding:"8px 12px", fontWeight:700, color:"#374151", fontSize:12, whiteSpace:"nowrap" }}>Đ.Giá</th>
+                  <th style={{ textAlign:"center", padding:"8px 12px", fontWeight:700, color:"#374151", fontSize:12 }}>SL</th>
+                  <th style={{ textAlign:"right",  padding:"8px 12px", fontWeight:700, color:"#374151", fontSize:12, whiteSpace:"nowrap" }}>T.Tiền</th>
                 </tr>
               </thead>
               <tbody>
                 {detailItems.map((it,i) => (
                   <tr key={i} style={{ borderTop:"1px solid #f3f4f6" }}>
-                    <td style={{ padding:"10px 12px", fontWeight:700, fontSize:13 }}>{it.part_name}</td>
-                    <td style={{ padding:"10px 6px", color:"#9ca3af", fontSize:11 }}>{it.sku||"—"}</td>
-                    <td style={{ padding:"10px 6px", textAlign:"right", color:"#374151" }}>{fmtMoney(it.unit_price)}</td>
-                    <td style={{ padding:"10px 6px", textAlign:"center", fontWeight:700 }}>{it.qty}</td>
-                    <td style={{ padding:"10px 12px", textAlign:"right", fontWeight:800, color:"#059669" }}>{fmtMoney(it.total_price)}</td>
+                    <td style={{ padding:"8px 12px" }}>
+                      <div style={{ fontWeight:700, fontSize:13, color:"#1e1b4b" }}>{it.part_name}</div>
+                      {it.sku && <div style={{ fontSize:11, color:"#9ca3af", marginTop:2 }}>SKU: {it.sku}</div>}
+                    </td>
+                    <td style={{ padding:"8px 12px", textAlign:"right", fontSize:13, color:"#374151", whiteSpace:"nowrap" }}>
+                      {fmtMoney(it.unit_price)}
+                    </td>
+                    <td style={{ padding:"8px 12px", textAlign:"center", fontWeight:700, fontSize:13 }}>
+                      {it.qty}
+                    </td>
+                    <td style={{ padding:"8px 12px", textAlign:"right", fontWeight:800, fontSize:13, color:"#059669", whiteSpace:"nowrap" }}>
+                      {fmtMoney(it.total_price)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -339,7 +346,7 @@ export default function SaleHistoryPage({ user }) {
       {/* Layout wrapper */}
       <div style={{
         display: isPC ? "grid" : "block",
-        gridTemplateColumns: isPC ? "1fr 400px" : undefined,
+        gridTemplateColumns: isPC ? "380px 1fr" : undefined,
         gap: isPC ? 24 : undefined,
         alignItems: "start",
       }}>
