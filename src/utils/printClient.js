@@ -135,3 +135,175 @@ export function previewBill(order, parts = [], shopInfo = {}) {
   const blob = new Blob([html], { type: "text/html" });
   window.open(URL.createObjectURL(blob), "_blank");
 }
+
+/**
+ * In hóa đơn bán lẻ A5 qua Print Agent, fallback sang previewSaleReceipt
+ */
+export async function printSaleReceiptA5(saleOrder, shopInfo = {}) {
+  try {
+    return await callPrintAgent("/print/sale-receipt", {
+      type: "sale_receipt_a5",
+      order: {
+        order_code:     saleOrder.order_code || "",
+        created:        saleOrder.created || new Date().toISOString(),
+        customer_name:  saleOrder.customer_name || "Khách lẻ",
+        customer_phone: saleOrder.customer_phone || "",
+        cashier_name:   saleOrder.cashier_name || "",
+        payment_method: saleOrder.payment_method || "cash",
+        subtotal:       saleOrder.subtotal || 0,
+        discount:       saleOrder.discount || 0,
+        total:          saleOrder.total || 0,
+        items:          saleOrder.items || [],
+      },
+      shop: {
+        name:    shopInfo.shop_name    || "Hoàng Khánh Mobile",
+        phone:   shopInfo.shop_phone   || "",
+        address: shopInfo.shop_address || "",
+      },
+    });
+  } catch (e) {
+    previewSaleReceipt(saleOrder, shopInfo);
+    throw e;
+  }
+}
+
+/**
+ * Preview hóa đơn bán lẻ trong tab mới (fallback)
+ */
+export function previewSaleReceipt(saleOrder, shopInfo = {}) {
+  const fmtMoney = (n) => Number(n || 0).toLocaleString("vi-VN") + "đ";
+  const fmtDate  = (s) => s ? new Date(s).toLocaleString("vi-VN", { hour12: false }) : "";
+  const PM_LABELS = { cash:"Tiền mặt", transfer:"Chuyển khoản", combo:"Kết hợp", credit:"Bán chịu" };
+
+  const itemsHTML = (saleOrder.items || []).map(it =>
+    `<tr>
+      <td>${it.part_name || it.name || ""}</td>
+      <td style="text-align:center">${it.qty}</td>
+      <td style="text-align:right">${fmtMoney(it.unit_price)}</td>
+      <td style="text-align:right;font-weight:bold">${fmtMoney(it.total_price)}</td>
+    </tr>`
+  ).join("");
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+  <title>HĐ Bán lẻ ${saleOrder.order_code || ""}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;font-size:13px;padding:16px;max-width:148mm;margin:0 auto;color:#111}
+    h2{text-align:center;font-size:15px;margin-bottom:2px}
+    .sub{text-align:center;font-size:11px;color:#555;margin-bottom:8px}
+    .title{text-align:center;font-weight:bold;font-size:14px;letter-spacing:1px;margin:8px 0}
+    .sep{border:none;border-top:1px dashed #999;margin:8px 0}
+    .row{display:flex;justify-content:space-between;margin:3px 0;font-size:12px}
+    table{width:100%;border-collapse:collapse;font-size:12px;margin:8px 0}
+    th{background:#f3f4f6;padding:5px 8px;text-align:left;font-size:11px;border-bottom:1px solid #e5e7eb}
+    td{padding:5px 8px;border-bottom:1px solid #f5f5f5}
+    .total-row{font-weight:bold;font-size:13px}
+    .final{font-size:15px;font-weight:bold;color:#059669}
+    .footer{text-align:center;font-size:11px;color:#666;margin-top:10px}
+    @media print{body{padding:4px}}
+  </style>
+  </head><body>
+  <h2>${shopInfo.shop_name || "HOÀNG KHÁNH MOBILE"}</h2>
+  <div class="sub">${[shopInfo.shop_phone, shopInfo.shop_address].filter(Boolean).join(" | ")}</div>
+  <div class="title">─── HÓA ĐƠN BÁN HÀNG ───</div>
+  <hr class="sep"/>
+  <div class="row"><span>Mã đơn:</span><span><b>${saleOrder.order_code || ""}</b></span></div>
+  <div class="row"><span>Ngày bán:</span><span>${fmtDate(saleOrder.created || saleOrder.created_date)}</span></div>
+  <div class="row"><span>Thu ngân:</span><span>${saleOrder.cashier_name || "—"}</span></div>
+  <div class="row"><span>Khách hàng:</span><span>${saleOrder.customer_name || "Khách lẻ"}${saleOrder.customer_phone ? " — " + saleOrder.customer_phone : ""}</span></div>
+  <div class="row"><span>HTTT:</span><span>${PM_LABELS[saleOrder.payment_method] || saleOrder.payment_method || "Tiền mặt"}</span></div>
+  <hr class="sep"/>
+  <table>
+    <thead><tr>
+      <th>Sản phẩm</th>
+      <th style="text-align:center">SL</th>
+      <th style="text-align:right">Đ.Giá</th>
+      <th style="text-align:right">T.Tiền</th>
+    </tr></thead>
+    <tbody>${itemsHTML}</tbody>
+  </table>
+  <hr class="sep"/>
+  ${(saleOrder.subtotal && saleOrder.subtotal !== saleOrder.total)
+    ? `<div class="row"><span>Tạm tính:</span><span>${fmtMoney(saleOrder.subtotal)}</span></div>` : ""}
+  ${(saleOrder.discount > 0)
+    ? `<div class="row" style="color:#dc2626"><span>Giảm giá:</span><span>-${fmtMoney(saleOrder.discount)}</span></div>` : ""}
+  <div class="row total-row"><span>TỔNG THANH TOÁN:</span><span class="final">${fmtMoney(saleOrder.total)}</span></div>
+  <hr class="sep"/>
+  <div class="footer">Cảm ơn quý khách! Hẹn gặp lại 🙏</div>
+  <script>window.onload=()=>setTimeout(()=>window.print(),300)</script>
+  </body></html>`;
+
+  const blob = new Blob([html], { type: "text/html" });
+  window.open(URL.createObjectURL(blob), "_blank");
+}
+
+/**
+ * Preview tem bảo hành 50×30mm
+ */
+export function previewWarrantyLabel(order, shopInfo = {}) {
+  const expireDate = new Date();
+  expireDate.setDate(expireDate.getDate() + (order.warranty_days || 30));
+  const fmtDate = (d) => d.toLocaleDateString("vi-VN");
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+  <title>Tem BH ${order.order_code}</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{width:50mm;height:30mm;font-family:Arial,sans-serif;font-size:9px;overflow:hidden;padding:2mm}
+    .shop{font-weight:bold;font-size:10px;margin-bottom:1mm}
+    .code{font-size:11px;font-weight:bold;color:#1e1b4b;margin-bottom:1mm}
+    .row{display:flex;justify-content:space-between;font-size:8px;margin-bottom:0.5mm}
+    .bh{font-size:8px;color:#dc2626;font-weight:bold}
+    @media print{@page{size:50mm 30mm;margin:0}body{padding:2mm}}
+  </style>
+  </head><body>
+  <div class="shop">${shopInfo.shop_name || "HK Mobile"}</div>
+  <div class="code">${order.order_code || order.id}</div>
+  <div class="row"><span>${order.customer_name || ""}</span></div>
+  <div class="row"><span>${order.device_model || order.device_name || ""}</span></div>
+  <div class="bh">BH: ${fmtDate(new Date())} → ${fmtDate(expireDate)} (${order.warranty_days || 30}N)</div>
+  <script>window.onload=()=>setTimeout(()=>window.print(),300)</script>
+  </body></html>`;
+
+  const blob = new Blob([html], { type: "text/html" });
+  window.open(URL.createObjectURL(blob), "_blank");
+}
+
+/**
+ * Preview tem mã vạch linh kiện 50×25mm
+ */
+export function previewSparePartLabel(part, qty = 1) {
+  const labels = Array.from({ length: qty }, (_, i) => `
+    <div class="label">
+      <div class="name">${part.name || ""}</div>
+      <div class="sku">SKU: ${part.sku || "—"}</div>
+      <div class="row">
+        <span class="price">${Number(part.price || 0).toLocaleString("vi-VN")}đ</span>
+        <span class="wh">${part.warehouse_name || ""}</span>
+      </div>
+    </div>
+  `).join("");
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+  <title>Tem LK</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:Arial,sans-serif;background:#fff}
+    .label{width:50mm;height:25mm;border:0.5px solid #ccc;padding:2mm;display:inline-block;
+      page-break-after:always;vertical-align:top;overflow:hidden}
+    .name{font-size:9px;font-weight:bold;line-height:1.3;margin-bottom:1mm;
+      overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+    .sku{font-size:9px;font-weight:bold;color:#4f46e5;margin-bottom:1mm;letter-spacing:0.5px}
+    .row{display:flex;justify-content:space-between;align-items:flex-end}
+    .price{font-size:10px;font-weight:bold;color:#059669}
+    .wh{font-size:8px;color:#9ca3af}
+    @media print{@page{size:50mm 25mm;margin:0}body{padding:0}.label{border:none;page-break-after:always}}
+  </style>
+  </head><body>
+  ${labels}
+  <script>window.onload=()=>setTimeout(()=>window.print(),300)</script>
+  </body></html>`;
+
+  const blob = new Blob([html], { type: "text/html" });
+  window.open(URL.createObjectURL(blob), "_blank");
+}

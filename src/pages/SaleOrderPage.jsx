@@ -1,6 +1,7 @@
 /* SaleOrderPage.jsx — POS bán hàng lẻ */
 import React, { useState, useEffect, useRef } from "react";
 import { SparePart, SaleOrder, SaleOrderItem, StockMovement, AppSettings, Customer , DebtVoucher, CashJournal } from "./pb.jsx";
+import { previewSaleReceipt } from "../utils/printClient.js";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 function padZ(n) { return String(n).padStart(4,"0"); }
@@ -28,16 +29,6 @@ function fmtDateTime(dateStr) {
 const PM_LABELS = { cash:"Tiền mặt", transfer:"Chuyển khoản", combo:"Kết hợp", credit:"Bán chịu" };
 const PM_COLORS = { cash:"#059669", transfer:"#2563eb", combo:"#7c3aed", credit:"#dc2626" };
 
-const RECEIPT_STYLE = `
-@media print {
-  body > *:not(.print-receipt) { display: none !important; }
-  .print-receipt { display: block !important; }
-  @page { size: A5; margin: 10mm; }
-  .print-receipt { font-size: 12px; font-family: monospace; color: #000; }
-}
-.print-receipt { display: none; }
-`;
-
 const INP = { width:"100%", height:44, borderRadius:12, border:"1.5px solid #e5e7eb", padding:"0 14px", fontSize:14, outline:"none", boxSizing:"border-box" };
 
 export default function SaleOrderPage({ user }) {
@@ -53,6 +44,14 @@ export default function SaleOrderPage({ user }) {
   const [cashAmt,     setCashAmt]     = useState(0);
   const [transferAmt, setTransferAmt] = useState(0);
   const [submitting,  setSubmitting]  = useState(false);
+  const [shopInfo,    setShopInfo]    = useState({});
+  React.useEffect(() => {
+    AppSettings.filter({}).then(settings => {
+      const map = {};
+      (settings||[]).forEach(s => { map[s.key] = s.value; });
+      setShopInfo({ shop_name: map.shop_name||"", shop_phone: map.shop_phone||"", shop_address: map.shop_address||"" });
+    }).catch(()=>{});
+  }, []);
   const [toast,       setToast]       = useState("");
   const [todayOrders, setTodayOrders] = useState([]);
   const [detailOrder, setDetailOrder] = useState(null);
@@ -259,8 +258,7 @@ export default function SaleOrderPage({ user }) {
 
   return (
     <div style={{ padding: isPC ? "20px 28px 40px" : "16px 14px 100px" }}>
-      <style>{RECEIPT_STYLE}</style>
-
+      
       {lastOrder && (
         <div className="print-receipt">
           <div style={{ textAlign:"center", marginBottom:8 }}>
@@ -343,7 +341,7 @@ export default function SaleOrderPage({ user }) {
             ))}
           </div>
           <div style={{ display:"flex", gap:10, marginTop:14 }}>
-            <button onClick={()=>window.print()}
+            <button onClick={() => { if (lastOrder) previewSaleReceipt(lastOrder, shopInfo); }}
               style={{ flex:1, height:40, borderRadius:10, border:"none",
                 background:"#059669", color:"#fff",
                 fontWeight:800, fontSize:13, cursor:"pointer" }}>

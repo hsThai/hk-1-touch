@@ -1,6 +1,7 @@
 /* SaleHistoryPage.jsx — Quản lý đơn bán hàng (nâng cấp đầy đủ) */
 import React, { useState, useEffect } from "react";
 import { SaleOrder, SaleOrderItem } from "./pb.jsx";
+import { previewSaleReceipt } from "../utils/printClient.js";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN")+"đ"; }
 function fmtDateTime(iso) {
@@ -19,34 +20,17 @@ function statusBadge(status) {
   return { label: status||"—", bg:"#f3f4f6", color:"#6b7280" };
 }
 
-async function reprintOrder(order, items) {
-  try {
-    await fetch("http://localhost:7979/print", {
-      method: "POST",
-      headers: { "Content-Type":"application/json", "x-token":"hk-print-2026" },
-      body: JSON.stringify({
-        type: "sale_receipt",
-        order_code:     order.order_code,
-        customer_name:  order.customer_name,
-        customer_phone: order.customer_phone,
-        cashier_name:   order.cashier_name,
-        payment_method: order.payment_method,
-        subtotal:       order.subtotal,
-        discount:       order.discount,
-        total:          order.total,
-        items: items.map(it => ({
-          part_name:   it.part_name,
-          sku:         it.sku,
-          qty:         it.qty,
-          unit_price:  it.unit_price,
-          total_price: it.total_price,
-        })),
-        created: order.created || order.created_date,
-      }),
-    });
-  } catch(e) {
-    alert("⚠️ Không kết nối được máy in. Kiểm tra Print Agent.");
-  }
+function reprintOrder(order, items) {
+  previewSaleReceipt({
+    ...order,
+    items: items.map(it => ({
+      part_name:   it.part_name,
+      sku:         it.sku,
+      qty:         it.qty,
+      unit_price:  it.unit_price,
+      total_price: it.total_price,
+    })),
+  }, {});
 }
 
 /* ─── Detail Panel / Modal content (dùng chung PC+Mobile) ─── */
