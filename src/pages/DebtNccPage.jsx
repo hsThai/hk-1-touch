@@ -117,6 +117,13 @@ function PaymentModal({ supplier, onClose, onSaved, user }) {
 }
 
 export default function DebtNccPage({ user }) {
+
+  const [isPC, setIsPC] = React.useState(window.innerWidth >= 1024);
+  React.useEffect(() => {
+    const fn = () => setIsPC(window.innerWidth >= 1024);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
   const [suppliers, setSuppliers] = useState([]);
   const [history,   setHistory]   = useState([]);
   const [loading,   setLoading]   = useState(true);
@@ -154,7 +161,7 @@ export default function DebtNccPage({ user }) {
   const remaining = Math.max(0, totalDebt - paidMonth);
 
   return (
-    <div style={{ padding:"16px 14px 80px", maxWidth:960, margin:"0 auto" }}>
+    <div style={{ padding: isPC ? "24px 32px 40px" : "16px 14px 80px", maxWidth:1100, margin:"0 auto" }}>
       {toast && (
         <div style={{ position:"fixed", bottom:80, left:"50%", transform:"translateX(-50%)",
           background:"#1e293b", color:"#fff", padding:"10px 20px", borderRadius:12,

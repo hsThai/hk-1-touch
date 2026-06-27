@@ -119,7 +119,13 @@ function ManualEntryModal({ user, onSave, onClose }) {
 
 // ── Main ─────────────────────────────────────────────────
 export default function CashJournalPage({ user }) {
-  const canManage = ALLOWED.includes(user?.role);
+
+  const [isPC, setIsPC] = React.useState(window.innerWidth >= 1024);
+  React.useEffect(() => {
+    const fn = () => setIsPC(window.innerWidth >= 1024);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);  const canManage = ALLOWED.includes(user?.role);
   const [month,   setMonth]   = useState(new Date().toISOString().slice(0,7));
   const [all,     setAll]     = useState([]);
   const [loading, setLoading] = useState(true);
@@ -197,7 +203,7 @@ export default function CashJournalPage({ user }) {
   );
 
   return (
-    <div style={{ padding:"16px 14px 100px" }}>
+    <div style={{ padding: isPC ? "24px 32px 40px" : "16px 14px 80px", maxWidth:1100, margin:"0 auto" }}>
       {/* Card số dư tiền mặt live */}
       <div style={{background:"linear-gradient(135deg,#4f46e5,#7c3aed)",borderRadius:16,
         padding:"18px 20px",marginBottom:16,color:"#fff"}}>

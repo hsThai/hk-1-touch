@@ -354,7 +354,13 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
 }
 
 export default function PurchaseOrderPage({ user }) {
-  const [orders,       setOrders]       = useState([]);
+
+  const [isPC, setIsPC] = React.useState(window.innerWidth >= 1024);
+  React.useEffect(() => {
+    const fn = () => setIsPC(window.innerWidth >= 1024);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);  const [orders,       setOrders]       = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [showModal,    setShowModal]    = useState(false);
   const [selectedPO,   setSelectedPO]   = useState(null);
@@ -399,7 +405,7 @@ export default function PurchaseOrderPage({ user }) {
   }
 
   return (
-    <div style={{padding:"16px 14px 80px",maxWidth:960,margin:"0 auto"}}>
+    <div style={{ padding: isPC ? "24px 32px 40px" : "16px 14px 80px", maxWidth: isPC ? 1200 : "100%", margin:"0 auto" }}>
       <Toast msg={toast} />
 
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10,marginBottom:16}}>

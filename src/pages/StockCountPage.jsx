@@ -944,7 +944,13 @@ function StockCountHistory({ user }) {
 }
 
 export default function StockCountPage({ user }) {
-  const [screen,    setScreen]    = useState("list");   // list / counting / review
+
+  const [isPC, setIsPC] = React.useState(window.innerWidth >= 1024);
+  React.useEffect(() => {
+    const fn = () => setIsPC(window.innerWidth >= 1024);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);  const [screen,    setScreen]    = useState("list");   // list / counting / review
   const [countTab,  setCountTab]  = useState("create"); // "create" | "history"
   const [activeCount, setActiveCount] = useState(null);
   const [showCreate,  setShowCreate]  = useState(false);
@@ -982,7 +988,7 @@ export default function StockCountPage({ user }) {
   }
 
   return (
-    <div style={{ padding:"16px 14px 80px" }}>
+    <div style={{ padding: isPC ? "24px 32px 40px" : "16px 14px 80px", maxWidth: isPC ? 1300 : "100%", margin:"0 auto" }}>
       {/* Tab pills */}
       <div style={{display:"flex",background:"#f1f5f9",borderRadius:12,padding:4,marginBottom:16}}>
         {[{key:"create",label:"📋 Tạo / Kiểm kê"},{key:"history",label:"🕐 Lịch sử"}].map(t => (

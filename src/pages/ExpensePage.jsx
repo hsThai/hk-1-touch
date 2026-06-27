@@ -38,7 +38,13 @@ const TH  = { padding:"10px 12px", background:"#f9fafb", fontWeight:800, fontSiz
 const TD  = { padding:"10px 12px", fontSize:13, borderBottom:"1px solid #f3f4f6", verticalAlign:"middle" };
 
 export default function ExpensePage({ user }) {
-  const [expenses,    setExpenses]    = useState([]);
+
+  const [isPC, setIsPC] = React.useState(window.innerWidth >= 1024);
+  React.useEffect(() => {
+    const fn = () => setIsPC(window.innerWidth >= 1024);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);  const [expenses,    setExpenses]    = useState([]);
   const [loading,     setLoading]     = useState(true);
   const [submitting,  setSubmitting]  = useState(false);
   const [toast,       setToast]       = useState("");
@@ -156,7 +162,7 @@ export default function ExpensePage({ user }) {
   const totalFiltered = filtered.reduce((s,e)=>s+(e.amount||0), 0);
 
   return (
-    <div style={{ padding:"16px 14px 100px" }}>
+    <div style={{ padding: isPC ? "24px 32px 40px" : "16px 14px 80px", maxWidth:1100, margin:"0 auto" }}>
       <div style={{ fontWeight:900, fontSize:18, color:"#1e1b4b", marginBottom:20 }}>💸 Quản lý chi phí</div>
 
       {/* Form thêm */}

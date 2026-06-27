@@ -29,7 +29,13 @@ function RankBadge({ rank }) {
 }
 
 export default function ReportStaffPage({ user }) {
-  const [period,     setPeriod]     = useState("month");
+
+  const [isPC, setIsPC] = React.useState(window.innerWidth >= 1024);
+  React.useEffect(() => {
+    const fn = () => setIsPC(window.innerWidth >= 1024);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);  const [period,     setPeriod]     = useState("month");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo,   setCustomTo]   = useState("");
   const [loading,    setLoading]    = useState(false);
@@ -107,7 +113,7 @@ export default function ReportStaffPage({ user }) {
   const depts = [...new Set(allStaff.map(s => s.department).filter(Boolean))];
 
   return (
-    <div style={{ padding: "16px 14px 80px", maxWidth: 960, margin: "0 auto" }}>
+    <div style={{ padding: isPC ? "24px 32px 40px" : "16px 14px 80px", maxWidth: isPC ? 1200 : "100%", margin:"0 auto" }}>
       <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 20, fontWeight: 800, color: "#1e1b4b" }}>👥 KPI Nhân viên</div>
         <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>Hiệu suất làm việc theo kỳ</div>

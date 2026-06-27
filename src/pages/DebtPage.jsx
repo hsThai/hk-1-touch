@@ -72,7 +72,7 @@ function SummaryCards({ list, vtype }) {
     { label: "Quá hạn",               val: overdue,  color:"#dc2626", bg:"#fee2e2" },
   ];
   return (
-    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:16 }}>
+    <div style={{ display:"grid", gridTemplateColumns: isPC ? "repeat(4,1fr)" : "1fr 1fr", gap:10, marginBottom:16 }}>
       {cards.map(c => (
         <div key={c.label} style={{ background:c.bg, borderRadius:14, padding:"12px 14px" }}>
           <div style={{ fontSize:11, color:c.color, fontWeight:700 }}>{c.label}</div>
@@ -430,14 +430,20 @@ function OverdueTab({ user }) {
 
 // ── Main ─────────────────────────────────────────────────
 export default function DebtPage({ user }) {
-  const [tab, setTab] = useState("receivable");
+
+  const [isPC, setIsPC] = React.useState(window.innerWidth >= 1024);
+  React.useEffect(() => {
+    const fn = () => setIsPC(window.innerWidth >= 1024);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);  const [tab, setTab] = useState("receivable");
   const TABS = [
     { key:"receivable", label:"💰 Phải thu" },
     { key:"payable",    label:"💸 Phải trả" },
     { key:"overdue",    label:"🔴 Quá hạn" },
   ];
   return (
-    <div style={{ padding:"16px 14px 0" }}>
+    <div style={{ padding: isPC ? "24px 32px 40px" : "16px 14px 80px", maxWidth:1100, margin:"0 auto" }}>
       <div style={{ fontWeight:900, fontSize:18, color:"#1e1b4b", marginBottom:16 }}>📒 Quản lý công nợ</div>
 
       {/* Tabs */}

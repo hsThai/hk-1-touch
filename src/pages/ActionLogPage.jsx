@@ -39,7 +39,13 @@ const ACTION_COLOR = {
 };
 
 export default function ActionLogPage({ user }) {
-  const [logs, setLogs]       = useState([]);
+
+  const [isPC, setIsPC] = React.useState(window.innerWidth >= 1024);
+  React.useEffect(() => {
+    const fn = () => setIsPC(window.innerWidth >= 1024);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);  const [logs, setLogs]       = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
   const [page, setPage]       = useState(1);
@@ -69,7 +75,7 @@ export default function ActionLogPage({ user }) {
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
 
   return (
-    <div style={{ padding:16, maxWidth:960, margin:"0 auto" }}>
+    <div style={{ padding: isPC ? "24px 32px 40px" : "16px 14px 80px", maxWidth: isPC ? 1200 : "100%", margin:"0 auto" }}>
       {/* Header */}
       <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
         <span className="material-icons"

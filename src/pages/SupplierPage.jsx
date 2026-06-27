@@ -96,7 +96,13 @@ function SupplierModal({ init, onSave, onClose }) {
 
 // ── Main ─────────────────────────────────────────────────
 export default function SupplierPage({ user }) {
-  const isAdmin = ADMIN.includes(user?.role);
+
+  const [isPC, setIsPC] = React.useState(window.innerWidth >= 1024);
+  React.useEffect(() => {
+    const fn = () => setIsPC(window.innerWidth >= 1024);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);  const isAdmin = ADMIN.includes(user?.role);
   const [list,            setList]            = useState([]);
   const [loading,         setLoading]         = useState(true);
   const [modal,           setModal]           = useState(null); // null | false | supplier
@@ -145,7 +151,7 @@ export default function SupplierPage({ user }) {
   );
 
   return (
-    <div style={{ padding:"16px 14px 100px" }}>
+    <div style={{ padding: isPC ? "24px 32px 40px" : "16px 14px 80px", maxWidth: isPC ? 1100 : "100%", margin:"0 auto" }}>
       {/* Header */}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
         <div>

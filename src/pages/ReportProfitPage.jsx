@@ -38,7 +38,13 @@ function StatCard({ icon, label, value, color, bg }) {
 }
 
 export default function ReportProfitPage({ user }) {
-  const [period,     setPeriod]     = useState("month");
+
+  const [isPC, setIsPC] = React.useState(window.innerWidth >= 1024);
+  React.useEffect(() => {
+    const fn = () => setIsPC(window.innerWidth >= 1024);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);  const [period,     setPeriod]     = useState("month");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo,   setCustomTo]   = useState("");
   const [loading,    setLoading]    = useState(false);
@@ -122,7 +128,7 @@ export default function ReportProfitPage({ user }) {
   useEffect(() => { load(); }, [load]);
 
   return (
-    <div style={{ padding: "16px 14px 80px", maxWidth: 960, margin: "0 auto" }}>
+    <div style={{ padding: isPC ? "24px 32px 40px" : "16px 14px 80px", maxWidth: isPC ? 1200 : "100%", margin:"0 auto" }}>
       {/* Header */}
       <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 20, fontWeight: 800, color: "#1e1b4b" }}>📈 Báo cáo Lợi nhuận</div>
@@ -167,7 +173,7 @@ export default function ReportProfitPage({ user }) {
           </div>
 
           {/* Sub-breakdown */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 24 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isPC ? "repeat(auto-fit, minmax(200px,1fr))" : "1fr 1fr", gap: 10, marginBottom: 24 }}>
             {[
               { label: "Dịch vụ sửa chữa", val: data.totalRepair, color: "#059669" },
               { label: "Bán hàng",          val: data.totalSale,   color: "#0ea5e9" },

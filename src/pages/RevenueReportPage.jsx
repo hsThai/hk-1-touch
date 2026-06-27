@@ -481,7 +481,13 @@ function TabStockReport({ period, startOf }) {
 
 
 export default function RevenueReportPage({ user }) {
-  const [period,      setPeriod]      = useState("today");
+
+  const [isPC, setIsPC] = React.useState(window.innerWidth >= 1024);
+  React.useEffect(() => {
+    const fn = () => setIsPC(window.innerWidth >= 1024);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);  const [period,      setPeriod]      = useState("today");
   const [detailTab,   setDetailTab]   = useState("repair");
   const [repairOrders,setRepairOrders]= useState([]);
   const [saleOrders,  setSaleOrders]  = useState([]);
@@ -579,7 +585,7 @@ export default function RevenueReportPage({ user }) {
   if (loading) return <div style={{ textAlign:"center", padding:48, color:"#9ca3af" }}>⏳ Đang tải...</div>;
 
   return (
-    <div style={{ padding:"16px 14px 100px" }}>
+    <div style={{ padding: isPC ? "24px 32px 40px" : "16px 14px 80px", maxWidth:1200, margin:"0 auto" }}>
       <div style={{ fontWeight:900, fontSize:18, color:"#1e1b4b", marginBottom:16 }}>📊 Báo cáo doanh thu</div>
 
       {/* Period tabs */}
