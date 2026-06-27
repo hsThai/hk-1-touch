@@ -101,9 +101,6 @@ export function renderSalesPages(page, user) {
       {page === "return_order" && user && (
         <Suspense fallback={<Loading />}><ReturnOrderPage user={user} /></Suspense>
       )}
-      {page === "sale_order" && user && (
-        <Suspense fallback={<Loading />}><SaleOrderPage user={user} /></Suspense>
-      )}
       {page === "price_policy" && user && (
         <Suspense fallback={<Loading />}><PricePolicyPage user={user} /></Suspense>
       )}
