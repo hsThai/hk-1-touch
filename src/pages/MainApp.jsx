@@ -60,22 +60,9 @@ const CashJournalPage      = lazy(() => import("./CashJournalPage").catch(() => 
 ) })));
 const DepartmentPageLazy     = lazy(() => import("./DepartmentPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Phòng ban</div> })));
 const RolePermissionPageLazy = lazy(() => import("./RolePermissionPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Phân quyền</div> })));
-const IntegrationsPage = lazy(() => import("./IntegrationsPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Tích hợp đang phát triển</div> })));
-const ActionLogPage  = lazy(() => import("./ActionLogPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Nhật ký</div> })));
 const PrintTemplatePage = lazy(() => import("./PrintTemplatePage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang</div> })));
-const ReturnOrderPage  = lazy(() => import("./ReturnOrderPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang Đổi trả</div> })));
-const PricePolicyPage      = lazy(() => import("./PricePolicyPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Chính sách giá</div> })));
 const PurchaseForecastPage = lazy(() => import("./PurchaseForecastPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Mua hàng</div> })));
-const RMAPage = lazy(() => import("./RMAPage.jsx").catch(() => ({
-  default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải RMA</div>
-})));
-const StockReportNXT = lazy(() => import("./StockReportNXT.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Báo cáo NXT</div> })));
-const RevenueReportPage = lazy(() => import("./RevenueReportPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Báo cáo doanh thu</div> })));
-const SaleOrderPage = lazy(() => import("./SaleOrderPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Bán hàng</div> })));
-const PurchaseOrderPage = lazy(() => import("./PurchaseOrderPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Đặt hàng NCC</div> })));
-const ReportProfitPage = lazy(() => import("./ReportProfitPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Báo cáo Lợi nhuận</div> })));
-const ReportStaffPage  = lazy(() => import("./ReportStaffPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải KPI Nhân viên</div> })));
-const DebtNccPage      = lazy(() => import("./DebtNccPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Công nợ NCC</div> })));
+
 const RoleHomePlaceholder  = lazy(() => import("./RoleHomePlaceholder").catch(() => ({ default: () => (
   <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang chủ</div>
 ) })));
@@ -90,6 +77,7 @@ import { NewOrderModal, KPIPage, ProductHistoryModal } from "./OrderForms";
 import LoginPage, { showSystemNotif, requestNotifPermission } from "./LoginV2";
 import { PermissionProvider, usePermission } from "./PermissionContext.jsx";
 import ChangePassword from "./ChangePassword";
+import { renderReportPages, renderPurchaseNccPages, renderSalesPages, renderSetupPages } from "./MainAppWidgets.jsx";
 import {
   WarehouseOrders,
   TechnicianHome,
@@ -1951,82 +1939,19 @@ function MainAppContent({ onUserChange }) {
               {page==="wh_import" && <WarehouseImport user={user} />}
               {page==="wh_manager" && <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"dashboard")} />}
               {page==="cashier_home" && <CashierApp user={user} />}
-              {page==="return_order" && user && (
-                <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
-                  <ReturnOrderPage user={user} />
-                </Suspense>
-              )}
               {page==="suppliers" && user && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><SupplierPage user={user} /></Suspense>}
               {page==="debts" && user && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><DebtPage user={user} /></Suspense>}
               {page==="department" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><DepartmentPageLazy user={user} /></Suspense>}
               {page==="role_perm" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><RolePermissionPageLazy /></Suspense>}
-              {page==="integrations" && (
-                <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
-                  <IntegrationsPage user={user} />
-                </Suspense>
-              )}
-              {page==="action_log" && (
-                <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
-                  <ActionLogPage user={user} />
-                </Suspense>
-              )}
               {page==="print_template" && user && <PrintTemplatePage user={user} />}
-              {page==="stock_nxt" && (
-                <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
-                  <StockReportNXT user={user} />
-                </Suspense>
-              )}
-              {page==="revenue" && (
-                <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
-                  <RevenueReportPage user={user} />
-                </Suspense>
-              )}
-              {page==="sale_order" && (
-                <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
-                  <SaleOrderPage user={user} />
-                </Suspense>
-              )}
-              {page==="price_policy" && user && (
-                <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
-                  <PricePolicyPage user={user} />
-                </Suspense>
-              )}
-              
-
-              {page==="purchase_order" && user && (
-                <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
-                  <PurchaseOrderPage user={user} />
-                </Suspense>
-              )}
-              {page==="expense" && user && (
-                <div style={{padding:40,textAlign:"center",color:"#6b7280",fontSize:15}}>
-                  🧾 Thu / Chi — đang phát triển
-                </div>
-              )}
-              {page==="report_staff" && user && (
-                <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
-                  <ReportStaffPage user={user} />
-                </Suspense>
-              )}
-              {page==="report_profit" && user && (
-                <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
-                  <ReportProfitPage user={user} />
-                </Suspense>
-              )}
-              {page==="debt_ncc" && user && (
-                <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
-                  <DebtNccPage user={user} />
-                </Suspense>
-              )}
-              {page==="wh_import_ncc" && user && (
-                <WarehouseImport user={user} />
-              )}              {page==="rma" && user && (
-                <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
-                  <RMAPage user={user} />
-                </Suspense>
-              )}
-              {page==="cash_journal" && user && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><CashJournalPage user={user} /></Suspense>}
-              {page==="stock_count" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><StockCountPage user={user} /></Suspense>}
+              {/* Sales, Kho, Tài chính */}
+              {renderSalesPages(page, user)}
+              {/* Thiết lập (Integrations, ActionLog) */}
+              {renderSetupPages(page, user)}
+              {/* Mua hàng NCC */}
+              {renderPurchaseNccPages(page, user)}
+              {/* Báo cáo */}
+              {renderReportPages(page, user)}
               {page==="role_home" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><RoleHomePlaceholder user={user} setPage={setPage} orders={orders} /></Suspense>}
             </Suspense>
           </div>
@@ -2341,64 +2266,10 @@ function MainAppContent({ onUserChange }) {
             <RevenueReportPage user={user} />
           </Suspense>
         )}
-        {page==="sale_order" && (
-          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
-            <SaleOrderPage user={user} />
-          </Suspense>
-        )}
-        {page==="return_order" && user && (
-          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
-            <ReturnOrderPage user={user} />
-          </Suspense>
-        )}
-        {page==="price_policy" && user && (
-          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
-            <PricePolicyPage user={user} />
-          </Suspense>
-        )}
-        {page==="wh_import_ncc" && user && (
-          <WarehouseImport user={user} />
-        )}
-        {page==="debt_ncc" && user && (
-          <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
-            <DebtNccPage user={user} />
-          </Suspense>
-        )}
-        {page==="report_profit" && user && (
-          <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
-            <ReportProfitPage user={user} />
-          </Suspense>
-        )}
-        {page==="report_staff" && user && (
-          <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
-            <ReportStaffPage user={user} />
-          </Suspense>
-        )}
-        {page==="expense" && user && (
-          <div style={{padding:40,textAlign:"center",color:"#6b7280",fontSize:15}}>
-            🧾 Thu / Chi — đang phát triển
-          </div>
-        )}
-
-        {page==="purchase_order" && user && (
-          <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
-            <PurchaseOrderPage user={user} />
-          </Suspense>
-        )}        {page==="rma" && user && (
-          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
-            <RMAPage user={user} />
-          </Suspense>
-        )}
-        {page==="cash_journal" && user && (
-          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
-            <CashJournalPage user={user} />
-          </Suspense>
-        )}
-        {page==="stock_count" && (
-          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
-            <StockCountPage user={user} />
-          </Suspense>
-        )}
+        {/* Sales, Kho, Tài chính, Báo cáo, Mua hàng NCC */}
+        {renderSalesPages(page, user)}
+        {renderPurchaseNccPages(page, user)}
+        {renderReportPages(page, user)}
         </div>
       </Suspense>
 
@@ -2449,7 +2320,6 @@ function MainAppContent({ onUserChange }) {
           order={selectedOrder}
           onClose={() => setSelectedOrderSync(null)}
           onUpdate={(id, patch, kpiEvent, action) => { updateOrder(id, patch, kpiEvent, action); }}
-          onAcceptStage={(id, stage) => updateOrder(id, { accept_stage:stage, assigned_at: stage===1 ? new Date().toISOString() : selectedOrder.assigned_at })}
           users={users}
           currentUser={user}
           onGoToPendingAccept={goToPendingAccept}

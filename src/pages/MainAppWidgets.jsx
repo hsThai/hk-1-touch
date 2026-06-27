@@ -78,3 +78,69 @@ export function renderPlaceholderPages(page, user) {
     </>
   );
 }
+
+// ── Lazy imports bổ sung ────────────────────────────────────────────────────
+const RMAPage         = lazy(() => import("./RMAPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải RMA</div> })));
+const SaleOrderPage   = lazy(() => import("./SaleOrderPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Đơn bán hàng</div> })));
+const ReturnOrderPage = lazy(() => import("./ReturnOrderPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Đổi trả</div> })));
+const PricePolicyPage = lazy(() => import("./PricePolicyPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Chính sách giá</div> })));
+const RevenueReportPage = lazy(() => import("./RevenueReportPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Doanh thu</div> })));
+const StockReportNXT  = lazy(() => import("./StockReportNXT.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Thẻ kho</div> })));
+const IntegrationsPage = lazy(() => import("./IntegrationsPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Tích hợp</div> })));
+const ActionLogPage   = lazy(() => import("./ActionLogPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Nhật ký</div> })));
+const CashJournalPage = lazy(() => import("./CashJournalPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Sổ quỹ</div> })));
+const StockCountPage  = lazy(() => import("./StockCountPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Kiểm kê</div> })));
+const ExpensePage     = lazy(() => import("./ExpensePage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Thu/Chi</div> })));
+
+/**
+ * renderSalesPages — Bán hàng + Báo cáo doanh thu + Thẻ kho
+ */
+export function renderSalesPages(page, user) {
+  return (
+    <>
+      {page === "return_order" && user && (
+        <Suspense fallback={<Loading />}><ReturnOrderPage user={user} /></Suspense>
+      )}
+      {page === "sale_order" && user && (
+        <Suspense fallback={<Loading />}><SaleOrderPage user={user} /></Suspense>
+      )}
+      {page === "price_policy" && user && (
+        <Suspense fallback={<Loading />}><PricePolicyPage user={user} /></Suspense>
+      )}
+      {page === "revenue" && user && (
+        <Suspense fallback={<Loading />}><RevenueReportPage user={user} /></Suspense>
+      )}
+      {page === "stock_nxt" && (
+        <Suspense fallback={<Loading />}><StockReportNXT user={user} /></Suspense>
+      )}
+      {page === "expense" && user && (
+        <Suspense fallback={<Loading />}><ExpensePage user={user} /></Suspense>
+      )}
+      {page === "rma" && user && (
+        <Suspense fallback={<Loading />}><RMAPage user={user} /></Suspense>
+      )}
+      {page === "cash_journal" && user && (
+        <Suspense fallback={<Loading />}><CashJournalPage user={user} /></Suspense>
+      )}
+      {page === "stock_count" && (
+        <Suspense fallback={<Loading />}><StockCountPage user={user} /></Suspense>
+      )}
+    </>
+  );
+}
+
+/**
+ * renderSetupPages — Thiết lập: Integrations, ActionLog
+ */
+export function renderSetupPages(page, user) {
+  return (
+    <>
+      {page === "integrations" && (
+        <Suspense fallback={<Loading />}><IntegrationsPage user={user} /></Suspense>
+      )}
+      {page === "action_log" && (
+        <Suspense fallback={<Loading />}><ActionLogPage user={user} /></Suspense>
+      )}
+    </>
+  );
+}
