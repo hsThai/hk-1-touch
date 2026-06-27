@@ -152,20 +152,23 @@ export default function SaleOrderPage({ user }) {
       // Bước 1: Tạo sale_order (KHÔNG truyền field items)
       let so;
       try {
+        console.log("🔵 Đang tạo sale_order...", { orderCode, custName, payMethod, subtotal, discount, total });
         so = await SaleOrder.create({
-          order_code:   orderCode,
-          customer_name: custName || "Khách lẻ",
+          order_code:     orderCode,
+          customer_name:  custName || "Khách lẻ",
           customer_phone: custPhone || "",
           subtotal,
-          discount:     discount || 0,
+          discount:       discount || 0,
           total,
           payment_method: payMethod,
-          cashier_id:   user.id || "",
-          cashier_name: user.full_name || user.name || "",
-          status:       "completed",
+          cashier_id:     user.id || "",
+          cashier_name:   user.full_name || user.name || "",
+          status:         "completed",
         });
+        console.log("✅ Tạo sale_order thành công:", so);
       } catch(e) {
-        showToast("❌ Lỗi tạo đơn: " + e.message);
+        console.error("❌ Lỗi tạo sale_order:", e);
+        showToast("❌ Lỗi tạo đơn: " + (e?.message || e?.data?.message || JSON.stringify(e)));
         setSubmitting(false); return;
       }
 
@@ -280,7 +283,7 @@ export default function SaleOrderPage({ user }) {
 
       <div style={{ fontWeight:900, fontSize:18, color:"#1e1b4b", marginBottom:20 }}>💰 Bán hàng lẻ</div>
 
-      {/* Search */}
+      {/* ─── 1. Search sản phẩm ─── */}
       <div style={{ marginBottom:16, position:"relative" }}>
         <div style={{ position:"relative" }}>
           <span className="material-icons" style={{ fontFamily:"Material Icons", position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color:"#9ca3af", fontSize:20 }}>search</span>
@@ -308,7 +311,109 @@ export default function SaleOrderPage({ user }) {
         )}
       </div>
 
-      {/* Cart */}
+      {/* ─── 2. Khách hàng — luôn hiển thị ─── */}
+      <div style={{ marginBottom:16 }}>
+        <label style={{ fontSize:12, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>Khách hàng (tuỳ chọn)</label>
+        {custName ? (
+          <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px",
+            background:"#f0fdf4", border:"1.5px solid #86efac", borderRadius:12 }}>
+            <span style={{ fontSize:14, fontWeight:700, color:"#059669", flex:1 }}>
+              ✅ {custName}{custPhone ? " — " + custPhone : ""}
+            </span>
+            <button onClick={()=>{ setCustName(""); setCustPhone(""); setCustSearch(""); setCustResults([]); }}
+              style={{ background:"none", border:"none", color:"#dc2626", fontWeight:800, fontSize:18, cursor:"pointer", lineHeight:1 }}>×</button>
+          </div>
+        ) : (
+          <div style={{ position:"relative" }}>
+            <input value={custSearch} onChange={e=>setCustSearch(e.target.value)}
+              placeholder="Tên hoặc SĐT khách..." style={INP} />
+            {custResults.length > 0 && (
+              <div style={{ position:"absolute", top:48, left:0, right:0, background:"#fff",
+                border:"1.5px solid #e5e7eb", borderRadius:12, zIndex:50,
+                boxShadow:"0 8px 24px rgba(0,0,0,.12)", maxHeight:220, overflowY:"auto" }}>
+                {custResults.map(c => (
+                  <div key={c.id} onClick={()=>{ setCustName(c.full_name||c.name||""); setCustPhone(c.phone||""); setCustSearch(""); setCustResults([]); }}
+                    style={{ padding:"10px 14px", cursor:"pointer", borderBottom:"1px solid #f3f4f6",
+                      display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                    <div>
+                      <div style={{ fontWeight:700, fontSize:13 }}>{c.full_name||c.name}</div>
+                      <div style={{ fontSize:12, color:"#6b7280" }}>{c.phone}</div>
+                    </div>
+                    {c.total_orders > 0 && (
+                      <span style={{ fontSize:11, color:"#4f46e5", background:"#eef2ff", borderRadius:99, padding:"2px 8px", fontWeight:700 }}>
+                        {c.total_orders} đơn
+                      </span>
+                    )}
+                  </div>
+                ))}
+                <div onClick={()=>{ setCustName(custSearch); setCustPhone(""); setCustSearch(""); setCustResults([]); }}
+                  style={{ padding:"10px 14px", cursor:"pointer", color:"#4f46e5", fontWeight:700, fontSize:13,
+                    borderTop:"1.5px solid #e5e7eb", background:"#f5f3ff" }}>
+                  + Dùng "{custSearch}" (khách mới)
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ─── 3. Giảm giá — luôn hiển thị ─── */}
+      <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", padding:"12px 16px", marginBottom:16 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
+          <span style={{ fontWeight:700, fontSize:14, color:"#374151" }}>Giảm giá</span>
+          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+            <input
+              type="number"
+              value={discount || ""}
+              min={0}
+              max={subtotal || 0}
+              placeholder="0"
+              onChange={e => setDiscount(Math.min(subtotal || 0, Number(e.target.value) || 0))}
+              style={{ width:140, height:40, borderRadius:10, border:"1.5px solid #e5e7eb",
+                padding:"0 12px", fontSize:14, textAlign:"right", outline:"none" }}
+            />
+            <span style={{ fontSize:13, color:"#6b7280", fontWeight:600 }}>đ</span>
+          </div>
+        </div>
+        {discount > 0 && (
+          <div style={{ fontSize:12, color:"#059669", fontWeight:600, textAlign:"right" }}>
+            Tiết kiệm: -{fmtMoney(discount)}
+          </div>
+        )}
+      </div>
+
+      {/* ─── 4. Hình thức thanh toán — luôn hiển thị ─── */}
+      <div style={{ marginBottom:16 }}>
+        <label style={{ fontSize:12, fontWeight:700, color:"#374151", display:"block", marginBottom:8 }}>Hình thức thanh toán</label>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+          {["cash","transfer","combo","credit"].map(pm => (
+            <button key={pm} onClick={()=>setPayMethod(pm)}
+              style={{
+                height:44, borderRadius:12,
+                border:"2px solid " + (payMethod===pm ? PM_COLORS[pm] : "#e5e7eb"),
+                background: payMethod===pm ? PM_COLORS[pm] : "#f9fafb",
+                color: payMethod===pm ? "#fff" : "#374151",
+                fontWeight:800, fontSize:13, cursor:"pointer",
+              }}>
+              {PM_LABELS[pm]}
+            </button>
+          ))}
+        </div>
+        {payMethod==="combo" && (
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginTop:12 }}>
+            <div>
+              <label style={{ fontSize:12, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>Tiền mặt</label>
+              <input type="number" value={cashAmt} onChange={e=>setCashAmt(Number(e.target.value)||0)} style={INP} />
+            </div>
+            <div>
+              <label style={{ fontSize:12, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>Chuyển khoản</label>
+              <input type="number" value={transferAmt} onChange={e=>setTransferAmt(Number(e.target.value)||0)} style={INP} />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ─── 5. Giỏ hàng — chỉ hiện khi có sản phẩm ─── */}
       {cart.length > 0 && (
         <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", marginBottom:16, overflow:"hidden" }}>
           <div style={{ padding:"12px 16px", borderBottom:"1px solid #f3f4f6", fontWeight:800, fontSize:14 }}>
@@ -335,138 +440,49 @@ export default function SaleOrderPage({ user }) {
               <button onClick={()=>removeItem(idx)} style={{ background:"none", border:"none", cursor:"pointer", color:"#dc2626", fontSize:22, padding:2 }}>×</button>
             </div>
           ))}
-          <div style={{ padding:"12px 16px" }}>
-            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
-              <span style={{ color:"#6b7280" }}>Tạm tính</span>
-              <span style={{ fontWeight:700 }}>{fmtMoney(subtotal)}</span>
-            </div>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-              <span style={{ color:"#6b7280" }}>Giảm giá</span>
-              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                <input
-                  type="number"
-                  value={discount || ""}
-                  min={0}
-                  max={subtotal}
-                  placeholder="0"
-                  onChange={e => setDiscount(Math.min(subtotal, Number(e.target.value) || 0))}
-                  style={{ width:130, height:36, borderRadius:8, border:"1.5px solid #e5e7eb",
-                    padding:"0 10px", fontSize:13, textAlign:"right" }}
-                />
-                <span style={{ fontSize:12, color:"#6b7280" }}>đ</span>
-              </div>
-            </div>
-            <div style={{ display:"flex", justifyContent:"space-between", paddingTop:8, borderTop:"1.5px solid #e5e7eb" }}>
-              <span style={{ fontWeight:900, fontSize:16 }}>Tổng thanh toán</span>
-              <span style={{ fontWeight:900, fontSize:20, color:"#059669" }}>{fmtMoney(total)}</span>
-            </div>
-          </div>
         </div>
       )}
 
-      {/* KH info — autocomplete */}
-      <div style={{ marginBottom:16 }}>
-        <label style={{ fontSize:12, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>Khách hàng (tuỳ chọn)</label>
-
-        {/* Chip khi đã chọn */}
-        {custName ? (
-          <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px",
-            background:"#f0fdf4", border:"1.5px solid #86efac", borderRadius:12 }}>
-            <span style={{ fontSize:14, fontWeight:700, color:"#059669", flex:1 }}>
-              ✅ {custName}{custPhone ? " — " + custPhone : ""}
-            </span>
-            <button onClick={()=>{ setCustName(""); setCustPhone(""); setCustSearch(""); setCustSuggestions([]); }}
-              style={{ background:"none", border:"none", cursor:"pointer", color:"#6b7280", fontSize:18, lineHeight:1, padding:"0 4px" }}>×</button>
-          </div>
-        ) : (
-          <div style={{ position:"relative" }}>
-            <input value={custSearch}
-              onChange={e=>{ setCustSearch(e.target.value); if (!e.target.value) { setCustName(""); setCustPhone(""); } }}
-              placeholder="Tìm tên hoặc SĐT khách..."
-              style={INP} />
-
-            {/* Dropdown gợi ý */}
-            {custSuggestions.length > 0 && (
-              <div style={{ position:"absolute", top:46, left:0, right:0, background:"#fff",
-                border:"1.5px solid #e5e7eb", borderRadius:12, zIndex:100,
-                boxShadow:"0 8px 24px rgba(0,0,0,.12)", maxHeight:240, overflowY:"auto" }}>
-                {custSuggestions.map(c => (
-                  <div key={c.id}
-                    onClick={()=>{ setCustName(c.full_name||""); setCustPhone(c.phone||""); setCustSearch((c.full_name||"")+(c.phone?" — "+c.phone:"")); setCustSuggestions([]); }}
-                    style={{ padding:"11px 16px", cursor:"pointer", borderBottom:"1px solid #f3f4f6",
-                      display:"flex", justifyContent:"space-between", alignItems:"center" }}
-                    onMouseEnter={e=>e.currentTarget.style.background="#f9fafb"}
-                    onMouseLeave={e=>e.currentTarget.style.background=""}>
-                    <span style={{ fontWeight:700, fontSize:14 }}>{c.full_name}</span>
-                    <span style={{ fontSize:12, color:"#6b7280" }}>{c.phone||""}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Khách mới: hiện 2 input nhập tay */}
-            {custSearch.length >= 2 && custSuggestions.length === 0 && !custName && (
-              <div style={{ marginTop:10, display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-                <div>
-                  <label style={{ fontSize:11, fontWeight:700, color:"#6b7280", display:"block", marginBottom:4 }}>Tên khách mới</label>
-                  <input value={custName} onChange={e=>setCustName(e.target.value)}
-                    placeholder="Nguyễn Văn A" style={INP} />
-                </div>
-                <div>
-                  <label style={{ fontSize:11, fontWeight:700, color:"#6b7280", display:"block", marginBottom:4 }}>SĐT</label>
-                  <input value={custPhone} onChange={e=>setCustPhone(e.target.value)}
-                    placeholder="0901234567" type="tel" style={INP} />
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* HTTT */}
-      <div style={{ marginBottom:16 }}>
-        <label style={{ fontSize:12, fontWeight:700, color:"#374151", display:"block", marginBottom:8 }}>Hình thức thanh toán</label>
-        <div style={{ display:"flex", gap:8 }}>
-          {["cash","transfer","combo","credit"].map(pm => (
-            <button key={pm} onClick={()=>setPayMethod(pm)}
-              style={{ flex:1, height:44, borderRadius:12,
-                border:"2px solid " + (payMethod===pm ? PM_COLORS[pm] : "#e5e7eb"),
-                background: payMethod===pm ? PM_COLORS[pm] : "#f9fafb",
-                color: payMethod===pm ? "#fff" : "#374151",
-                fontWeight:800, fontSize:13, cursor:"pointer" }}>
-              {PM_LABELS[pm]}
-            </button>
-          ))}
+      {/* ─── 6. Summary — luôn hiển thị ─── */}
+      <div style={{ background:"#f0fdf4", borderRadius:16, border:"1.5px solid #86efac", padding:"14px 16px", marginBottom:16 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+          <span style={{ color:"#6b7280", fontSize:13 }}>Tạm tính</span>
+          <span style={{ fontWeight:700 }}>{fmtMoney(subtotal)}</span>
         </div>
-        {payMethod==="combo" && (
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginTop:12 }}>
-            <div>
-              <label style={{ fontSize:12, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>Tiền mặt</label>
-              <input type="number" value={cashAmt} onChange={e=>setCashAmt(Number(e.target.value)||0)} style={INP} />
-            </div>
-            <div>
-              <label style={{ fontSize:12, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>Chuyển khoản</label>
-              <input type="number" value={transferAmt} onChange={e=>setTransferAmt(Number(e.target.value)||0)} style={INP} />
-            </div>
+        {discount > 0 && (
+          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+            <span style={{ color:"#6b7280", fontSize:13 }}>Giảm giá</span>
+            <span style={{ fontWeight:700, color:"#dc2626" }}>-{fmtMoney(discount)}</span>
           </div>
         )}
+        <div style={{ display:"flex", justifyContent:"space-between", paddingTop:8, borderTop:"1.5px solid #86efac" }}>
+          <span style={{ fontWeight:900, fontSize:16 }}>Tổng thanh toán</span>
+          <span style={{ fontWeight:900, fontSize:22, color:"#059669" }}>{fmtMoney(total)}</span>
+        </div>
       </div>
 
-      {/* Action buttons */}
+      {/* ─── 7. Nút xác nhận + In ─── */}
       <div style={{ display:"flex", gap:12, marginBottom:28 }}>
-        <button onClick={handleSubmit} disabled={submitting||cart.length===0}
-          style={{ flex:2, height:44, background:"#059669", color:"#fff", border:"none", borderRadius:12,
-            fontWeight:800, fontSize:14, cursor:"pointer", opacity:(submitting||cart.length===0)?0.6:1 }}>
-          {submitting ? "⏳ Đang xử lý..." : "✅ Xác nhận bán"}
+        <button
+          onClick={handleSubmit}
+          disabled={submitting || cart.length === 0 || !payMethod}
+          style={{
+            flex:2, height:52, borderRadius:14, border:"none",
+            background: (submitting || cart.length === 0 || !payMethod) ? "#e5e7eb" : "linear-gradient(135deg,#059669,#047857)",
+            color: (submitting || cart.length === 0 || !payMethod) ? "#9ca3af" : "#fff",
+            fontWeight:900, fontSize:16,
+            cursor: (submitting || cart.length === 0 || !payMethod) ? "not-allowed" : "pointer",
+          }}>
+          {submitting ? "⏳ Đang lưu..." : cart.length === 0 ? "Chưa có sản phẩm" : !payMethod ? "Chọn hình thức TT" : "✅ Xác nhận bán"}
         </button>
         {lastOrder && (
-          <button onClick={()=>window.print()} style={{ flex:1, height:44, background:"#374151", color:"#fff", border:"none", borderRadius:12, fontWeight:800, fontSize:14, cursor:"pointer" }}>
+          <button onClick={()=>window.print()} style={{ flex:1, height:52, background:"#374151", color:"#fff", border:"none", borderRadius:14, fontWeight:800, fontSize:14, cursor:"pointer" }}>
             🖨️ In HĐ
           </button>
         )}
       </div>
 
-      {/* Today orders */}
+      {/* ─── 8. Danh sách đơn hôm nay ─── */}
       <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", overflow:"hidden" }}>
         <div style={{ padding:"12px 16px", borderBottom:"1px solid #f3f4f6", fontWeight:800, fontSize:14 }}>
           📋 Đơn bán hôm nay ({todayOrders.length})
@@ -493,7 +509,7 @@ export default function SaleOrderPage({ user }) {
         }
       </div>
 
-      {/* Detail modal */}
+      {/* ─── 9. Detail modal ─── */}
       {detailOrder && (
         <div onClick={()=>setDetailOrder(null)}
           style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.5)", zIndex:200, display:"flex", alignItems:"flex-end" }}>
