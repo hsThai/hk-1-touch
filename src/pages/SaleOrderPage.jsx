@@ -144,63 +144,107 @@ export default function SaleOrderPage({ user }) {
     setSubmitting(true);
     try {
       const orderCode = genCode();
-      const items = cart.map(i => ({
-        part_id:i.part_id, part_name:i.part_name, sku:i.sku,
+      const itemsPayload = cart.map(i => ({
+        part_id:i.part_id, part_name:i.part_name, sku:i.sku||"",
         qty:i.qty, unit_price:i.unit_price, total_price:i.qty*i.unit_price,
       }));
-      // 1. Tạo sale_order
-      const so = await SaleOrder.create({
-        order_code:orderCode, customer_name:custName, customer_phone:custPhone,
-        items, subtotal, discount:discount||0, total, payment_method:payMethod,
-        cashier_id:user.id||"", cashier_name:user.full_name||user.name||"", status:"paid",
-      });
-      // 2. Tạo sale_order_items
-      await Promise.all(items.map(item => SaleOrderItem.create({
-        sale_order_id:so.id, sale_order_code:orderCode,
-        part_id:item.part_id, part_name:item.part_name, sku:item.sku,
-        qty:item.qty, unit_price:item.unit_price, total_price:item.total_price,
-      })));
-      // 3. Trừ stock + tạo movement
-      await Promise.all(cart.map(async item => {
-        try { await SparePart.update(item.part_id, { stock_qty:Math.max(0, item.stock_max-item.qty) }); } catch {}
+
+      // Bước 1: Tạo sale_order (KHÔNG truyền field items)
+      let so;
+      try {
+        so = await SaleOrder.create({
+          order_code:   orderCode,
+          customer_name: custName || "Khách lẻ",
+          customer_phone: custPhone || "",
+          subtotal,
+          discount:     discount || 0,
+          total,
+          payment_method: payMethod,
+          cashier_id:   user.id || "",
+          cashier_name: user.full_name || user.name || "",
+          status:       "completed",
+        });
+      } catch(e) {
+        showToast("❌ Lỗi tạo đơn: " + e.message);
+        setSubmitting(false); return;
+      }
+
+      // Bước 2: Tạo sale_order_items
+      try {
+        await Promise.all(itemsPayload.map(item => SaleOrderItem.create({
+          sale_order_id:   so.id,
+          sale_order_code: orderCode,
+          part_id:         item.part_id,
+          part_name:       item.part_name,
+          sku:             item.sku,
+          qty:             item.qty,
+          unit_price:      item.unit_price,
+          total_price:     item.total_price,
+        })));
+      } catch(e) { console.warn("Lỗi tạo items:", e.message); }
+
+      // Bước 3: Trừ stock + tạo movement
+      for (const item of cart) {
+        try { await SparePart.update(item.part_id, { stock_qty: Math.max(0, item.stock_max - item.qty) }); } catch {}
         try {
           await StockMovement.create({
-            movement_type:"sale", part_id:item.part_id, part_name:item.part_name, sku:item.sku,
-            qty_change:-item.qty, unit_price:item.unit_price,
-            ref_type:"sale_order", ref_code:orderCode, created_by_name:user.full_name||user.name||"",
+            movement_type: "sale",
+            part_id:       item.part_id,
+            part_name:     item.part_name,
+            sku:           item.sku || "",
+            qty_change:    -item.qty,
+            unit_price:    item.unit_price,
+            ref_type:      "sale_order",
+            ref_code:      orderCode,
+            created_by_name: user.full_name || user.name || "",
           });
-        } catch {}
-      }));
-      // KT-2: auto ghi debt_voucher / cash_journal
+        } catch(e) { console.warn("Lỗi trừ stock:", e.message); }
+      }
+
+      // Bước 4: Ghi kế toán
       try {
         if (payMethod === "credit") {
           await DebtVoucher.create({
             voucher_code:  "PT-BL-" + String(Date.now()).slice(-6),
-            voucher_type:  "receivable", party_type: "customer",
-            party_id:      custPhone || "",
-            party_name:    custName  || "Khách lẻ",
-            origin_type:   "sale_order", origin_id: so.id, origin_code: orderCode,
-            total_amount:  total, paid_amount: 0, remaining: total, status: "open",
-            created_by_id: user.id, created_by_name: user.full_name || user.name || "",
+            voucher_type:  "receivable",
+            party_type:    "customer",
+            party_name:    custName || "Khách lẻ",
+            origin_type:   "sale_order",
+            origin_id:     so.id,
+            origin_code:   orderCode,
+            total_amount:  total,
+            paid_amount:   0,
+            remaining:     total,
+            status:        "open",
+            created_by_id:   user.id,
+            created_by_name: user.full_name || user.name || "",
           });
         }
-        if (payMethod === "cash") {
+        if (payMethod === "cash" || payMethod === "transfer") {
           await CashJournal.create({
-            journal_date:    new Date().toISOString().slice(0,10),
-            entry_type:      "receipt", amount: total,
-            ref_type:        "sale_order", ref_id: so.id, ref_code: orderCode,
+            journal_date:    new Date().toISOString().slice(0, 10),
+            entry_type:      "receipt",
+            amount:          total,
+            ref_type:        "sale_order",
+            ref_id:          so.id,
+            ref_code:        orderCode,
             description:     "Bán lẻ: " + (custName || "Khách lẻ"),
-            payment_method:  "cash",
-            created_by_id:   user.id, created_by_name: user.full_name || user.name || "",
+            payment_method:  payMethod,
+            created_by_id:   user.id,
+            created_by_name: user.full_name || user.name || "",
           });
         }
-      } catch(e) { console.error("KT-2 sale debt/cash:", e); }
-      setLastOrder({...so, order_code:orderCode, items, subtotal, discount:discount||0, total,
-        payment_method:payMethod, customer_name:custName, customer_phone:custPhone});
+      } catch(e) { console.warn("Lỗi ghi kế toán:", e.message); }
+
+      // Reset form
+      setLastOrder({ ...so, order_code: orderCode, items: itemsPayload, subtotal, discount: discount||0, total,
+        payment_method: payMethod, customer_name: custName, customer_phone: custPhone });
       setCart([]); setCustName(""); setCustPhone(""); setDiscount(0); setPayMethod(""); setCashAmt(0); setTransferAmt(0);
       showToast("✅ Bán hàng thành công!");
       loadTodayOrders();
-    } catch(e) { showToast("❌ Lỗi: "+e.message); }
+    } catch(e) {
+      showToast("❌ Lỗi không xác định: " + e.message);
+    }
     setSubmitting(false);
   }
 
@@ -298,8 +342,19 @@ export default function SaleOrderPage({ user }) {
             </div>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
               <span style={{ color:"#6b7280" }}>Giảm giá</span>
-              <input type="number" value={discount} min={0} onChange={e=>setDiscount(Number(e.target.value)||0)}
-                style={{ width:130, height:36, borderRadius:8, border:"1.5px solid #e5e7eb", padding:"0 10px", fontSize:13, textAlign:"right" }} />
+              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                <input
+                  type="number"
+                  value={discount || ""}
+                  min={0}
+                  max={subtotal}
+                  placeholder="0"
+                  onChange={e => setDiscount(Math.min(subtotal, Number(e.target.value) || 0))}
+                  style={{ width:130, height:36, borderRadius:8, border:"1.5px solid #e5e7eb",
+                    padding:"0 10px", fontSize:13, textAlign:"right" }}
+                />
+                <span style={{ fontSize:12, color:"#6b7280" }}>đ</span>
+              </div>
             </div>
             <div style={{ display:"flex", justifyContent:"space-between", paddingTop:8, borderTop:"1.5px solid #e5e7eb" }}>
               <span style={{ fontWeight:900, fontSize:16 }}>Tổng thanh toán</span>

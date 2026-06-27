@@ -297,8 +297,8 @@ const MGR_ACCORDIONS = [
     label: "Bán hàng",
     pages: ["cashier_home","sale_order","return_order","price_policy"],
     items: [
-      { key:"cashier_home", icon:"point_of_sale", label:"Bán hàng tại quầy" },
-      { key:"sale_order",   icon:"receipt_long",  label:"Đơn bán hàng" },
+      { key:"cashier_home", icon:"point_of_sale", label:"Thu ngân (POS)" },
+      { key:"sale_order",   icon:"receipt_long",  label:"Quản lý đơn bán hàng" },
       { key:"return_order", icon:"swap_horiz",    label:"Xử lý Đổi trả" },
       { key:"price_policy", icon:"price_change",  label:"Chính sách giá" },
     ],
@@ -1352,7 +1352,7 @@ function MainAppContent({ onUserChange }) {
 
     // 3. BÁN HÀNG
     if (can("sale_order","view"))
-      items.push({ key:"cashier_home", icon:"point_of_sale", label:"Bán hàng" });
+      items.push({ key:"cashier_home", icon:"point_of_sale", label:"Thu ngân (POS)" });
     if (["owner","admin","manager","team_leader","cashier"].includes(user?.role))
       items.push({ key:"return_order", icon:"swap_horiz", label:"Đổi trả & BH" });
 
@@ -1844,7 +1844,7 @@ function MainAppContent({ onUserChange }) {
                   "new":               "Dịch vụ Sửa chữa",
                   "board":             "Dịch vụ Sửa chữa",
                   "tasks":             "Dịch vụ Sửa chữa",
-                  "cashier_home":      "🛒 Bán hàng",
+                  "cashier_home":      "🛒 Thu ngân (POS)",
                   "return_order":      "🛒 Bán hàng",
                   "price_policy":      "🛒 Bán hàng",
                   "wh_manager":        "Kho & Vật tư",
@@ -1994,7 +1994,7 @@ function MainAppContent({ onUserChange }) {
                     "new":               "Dịch vụ Sửa chữa",
                     "board":             "Dịch vụ Sửa chữa",
                     "tasks":             "Dịch vụ Sửa chữa",
-                    "cashier_home":      "🛒 Bán hàng",
+                    "cashier_home":      "🛒 Thu ngân (POS)",
                     "return_order":      "🛒 Bán hàng",
                     "price_policy":      "🛒 Bán hàng",
                     "wh_manager":        "Kho & Vật tư",
