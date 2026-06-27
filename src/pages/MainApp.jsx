@@ -284,13 +284,9 @@ const MGR_ACCORDIONS = [
     key: "acc_overview",
     icon: "dashboard",
     label: "Tổng quan",
-    pages: ["dashboard", "dashboard__board", "dashboard__business", "dashboard__inventory", "dashboard__staff"],
+    pages: ["dashboard"],
     items: [
-      { key:"dashboard",            icon:"home",           label:"Tổng quan" },
-      { key:"dashboard__board",     icon:"storefront",     label:"Dịch vụ / Bán hàng" },
-      { key:"dashboard__business",  icon:"account_balance",label:"Tài chính" },
-      { key:"dashboard__inventory", icon:"inventory_2",    label:"Kho / Vật tư" },
-      { key:"dashboard__staff",     icon:"people",         label:"KPI Nhân viên" },
+      { key:"dashboard", icon:"home", label:"Tổng quan Dashboard" },
     ],
   },
   {
@@ -320,53 +316,64 @@ const MGR_ACCORDIONS = [
     key: "acc_warehouse",
     icon: "warehouse",
     label: "Kho & Vật tư",
-    pages: ["wh_manager","wh_import","wh_export","stock_nxt","stock_count","rma"],
+    pages: ["wh_manager","wh_import","wh_export","stock_nxt","stock_count"],
     items: [
-      { key:"wh_manager",        icon:"warehouse",         label:"Danh mục hàng & dịch vụ" },
-      { key:"wh_import",         icon:"move_to_inbox",     label:"Nhập kho" },
-      { key:"wh_export",         icon:"outbox",            label:"Xuất kho" },
-      { key:"stock_nxt",         icon:"assessment",        label:"Thẻ kho (Lịch sử)" },
-      { key:"stock_count",       icon:"fact_check",        label:"Kiểm kê kho" },
-      { key:"rma",               icon:"assignment_return", label:"Trả hàng NCC (RMA)" },
+      { key:"wh_manager",  icon:"warehouse",     label:"Danh mục hàng & dịch vụ" },
+      { key:"wh_import",   icon:"move_to_inbox", label:"Nhập kho" },
+      { key:"wh_export",   icon:"outbox",        label:"Xuất kho" },
+      { key:"stock_nxt",   icon:"assessment",    label:"Thẻ kho (Lịch sử NXT)" },
+      { key:"stock_count", icon:"fact_check",    label:"Kiểm kê kho" },
     ],
   },
   {
-    key: "acc_partner",
-    icon: "group",
-    label: "Đối tác",
-    pages: ["customers","suppliers"],
+    key: "acc_purchase",
+    icon: "shopping_cart",
+    label: "Mua hàng (NCC)",
+    pages: ["purchase_order","wh_import_ncc","rma","debt_ncc","suppliers"],
     items: [
-      { key:"customers", icon:"group",      label:"Danh sách khách hàng" },
-      { key:"suppliers", icon:"storefront", label:"Nhà cung cấp" },
+      { key:"purchase_order", icon:"add_shopping_cart",      label:"Đặt hàng NCC" },
+      { key:"wh_import_ncc",  icon:"move_to_inbox",          label:"Nhập kho (nhận hàng)" },
+      { key:"rma",            icon:"assignment_return",      label:"Trả hàng NCC (RMA)" },
+      { key:"debt_ncc",       icon:"account_balance_wallet", label:"Công nợ NCC" },
+      { key:"suppliers",      icon:"storefront",             label:"Danh sách NCC" },
+    ],
+  },
+  {
+    key: "acc_customers",
+    icon: "group",
+    label: "Khách hàng",
+    pages: ["customers"],
+    items: [
+      { key:"customers", icon:"group", label:"Danh sách khách hàng" },
     ],
   },
   {
     key: "acc_accounting",
     icon: "account_balance",
     label: "Kế toán",
-    pages: ["cash_journal","debts","purchase_order"],
+    pages: ["cash_journal","debts","expense"],
     items: [
-      { key:"cash_journal",   icon:"menu_book",              label:"Sổ quỹ" },
-      { key:"debts",          icon:"account_balance_wallet", label:"Công nợ khách hàng" },
-      { key:"purchase_order", icon:"shopping_cart",          label:"Đặt hàng NCC" },
+      { key:"cash_journal", icon:"menu_book",              label:"Sổ quỹ" },
+      { key:"debts",        icon:"account_balance_wallet", label:"Công nợ khách hàng" },
+      { key:"expense",      icon:"receipt",                label:"Thu / Chi" },
     ],
   },
   {
     key: "acc_report",
     icon: "bar_chart",
     label: "Báo cáo",
-    pages: ["revenue","dashboard__reports","dashboard__staff"],
+    pages: ["revenue","report_profit","report_staff"],
     items: [
-      { key:"revenue",            icon:"bar_chart",   label:"Báo cáo Doanh thu" },
-      { key:"dashboard__reports", icon:"trending_up", label:"Lợi nhuận" },
-      { key:"dashboard__staff",   icon:"people",      label:"Hiệu suất Nhân viên" },
+      { key:"revenue",       icon:"bar_chart",   label:"Doanh thu" },
+      { key:"report_profit", icon:"trending_up", label:"Lợi nhuận" },
+      { key:"report_staff",  icon:"people",      label:"KPI Nhân viên" },
     ],
   },
   {
     key: "acc_setup",
     icon: "manage_accounts",
     label: "Thiết lập",
-    pages: ["staff","department","role_perm","settings","integrations","action_log","print_template"],
+    pages: ["staff","department","role_perm","settings","integrations","print_template","action_log"],
     items: [
       { key:"staff",          icon:"badge",                label:"Nhân viên" },
       { key:"department",     icon:"account_tree",         label:"Phòng ban" },
@@ -378,7 +385,6 @@ const MGR_ACCORDIONS = [
     ],
   },
 ];
-
 function MainAppContent({ onUserChange }) {
   const { can } = usePermission();
   const bp = useBreakpoint();
@@ -1329,66 +1335,64 @@ function MainAppContent({ onUserChange }) {
   const navItems = (() => {
     // ── WAREHOUSE — menu riêng ──────────────────────────────
     if (isWarehouse) return [
-      { key:"wh_home",    icon:"home",          label:"Trang chủ" },
-      { key:"wh_orders",  icon:"chat",          label:"Chat đơn" },
-      { key:"wh_export",  icon:"outbox",        label:"Phiếu xuất kho" },
-      { key:"wh_import",  icon:"move_to_inbox", label:"Nhập hàng" },
-      { key:"wh_manager", icon:"warehouse",     label:"Quản lý kho" },
+      { key:"wh_home",        icon:"home",                   label:"Trang chủ" },
+      { key:"wh_orders",      icon:"chat",                   label:"Chat đơn" },
+      { key:"wh_export",      icon:"outbox",                 label:"Phiếu xuất kho" },
+      { key:"wh_import",      icon:"move_to_inbox",          label:"Nhập hàng" },
+      { key:"wh_manager",     icon:"warehouse",              label:"Quản lý kho" },
+      { key:"purchase_order", icon:"add_shopping_cart",      label:"Đặt hàng NCC" },
+      { key:"wh_import_ncc",  icon:"move_to_inbox",          label:"Nhập kho (nhận NCC)" },
+      { key:"rma",            icon:"assignment_return",      label:"Trả hàng NCC" },
+      { key:"debt_ncc",       icon:"account_balance_wallet", label:"Công nợ NCC" },
     ];
 
     const items = [];
 
-    // ── 1. TRANG CHỦ / TỔNG QUAN ───────────────────────────
-    if (isKtv)
-      items.push({ key:"ktv_home",  icon:"home", label:"Trang chủ" });
-    else if (isReception)
-      items.push({ key:"rec_home",  icon:"home", label:"Trang chủ" });
-    else if (isRoleHome)
-      items.push({ key:"role_home", icon:"home", label:"Trang chủ" });
+    // 1. TRANG CHỦ
+    if (isKtv)            items.push({ key:"ktv_home",  icon:"home", label:"Trang chủ" });
+    else if (isReception) items.push({ key:"rec_home",  icon:"home", label:"Trang chủ" });
+    else if (isRoleHome)  items.push({ key:"role_home", icon:"home", label:"Trang chủ" });
 
-    // ── 2. DỊCH VỤ SỬA CHỮA (thứ tự đúng: Tạo → Bảng → Danh sách)
+    // 2. DỊCH VỤ SỬA CHỮA
     if (can("repair_order","create") && !isKtv)
-      items.push({ key:"new",   icon:"add_circle",  label:"Tạo đơn" });
-    if (can("repair_order","view") && isManager)
-      items.push({ key:"board", icon:"assignment",  label:"Bảng điều phối" });
+      items.push({ key:"new",   icon:"add_circle", label:"Tạo đơn" });
     if (can("repair_order","view"))
-      items.push({ key:"tasks", icon:"assignment",  label:"Danh sách & Lịch sử đơn" });
+      items.push({ key:"tasks", icon:"list_alt",   label:"Danh sách & Lịch sử đơn" });
 
-    // ── 3. BÁN HÀNG (Bán hàng → Đổi trả → Chính sách giá — cùng 1 nhóm)
+    // 3. BÁN HÀNG
     if (can("sale_order","view"))
       items.push({ key:"cashier_home", icon:"point_of_sale", label:"Bán hàng" });
     if (["owner","admin","manager","team_leader","cashier"].includes(user?.role))
-      items.push({ key:"return_order", icon:"swap_horiz",    label:"Đổi trả & BH" });
-    if (["owner","admin","manager","team_leader"].includes(user?.role))
-      items.push({ key:"price_policy", icon:"price_change",  label:"Chính sách giá" });
+      items.push({ key:"return_order", icon:"swap_horiz", label:"Đổi trả & BH" });
 
-    // ── 4. KHO & VẬT TƯ (Quản lý kho → Kiểm kê → Mua hàng → RMA)
+    // 4. KHO & VẬT TƯ
     if (can("warehouse_mgr","view") && !isManager)
-      items.push({ key:"wh_manager",        icon:"warehouse",        label:"Quản lý kho" });
+      items.push({ key:"wh_manager",  icon:"warehouse",  label:"Quản lý kho" });
     if (can("stock_count","view") && !isManager && !isRoleHome)
-      items.push({ key:"stock_count",       icon:"fact_check",       label:"Kiểm kê kho" });
-    if (["owner","admin","manager","warehouse","team_leader"].includes(user?.role) && !isManager)
-      items.push({ key:"purchase_forecast", icon:"shopping_cart",    label:"Mua hàng & Dự báo" });
-    if (["owner","admin","manager","warehouse","team_leader"].includes(user?.role) && !isManager)
-      items.push({ key:"rma",               icon:"assignment_return", label:"Trả hàng NCC (RMA)" });
+      items.push({ key:"stock_count", icon:"fact_check", label:"Kiểm kê kho" });
 
-    // ── 5. ĐỐI TÁC (Khách hàng → NCC)
+    // 5. MUA HÀNG NCC
+    if (["owner","admin","team_leader","warehouse"].includes(user?.role) && !isManager) {
+      items.push({ key:"purchase_order", icon:"add_shopping_cart",      label:"Đặt hàng NCC" });
+      items.push({ key:"wh_import_ncc",  icon:"move_to_inbox",          label:"Nhập kho (nhận NCC)" });
+      items.push({ key:"rma",            icon:"assignment_return",       label:"Trả hàng NCC (RMA)" });
+      items.push({ key:"debt_ncc",       icon:"account_balance_wallet",  label:"Công nợ NCC" });
+      items.push({ key:"suppliers",      icon:"storefront",              label:"Danh sách NCC" });
+    }
+
+    // 6. KHÁCH HÀNG
     if (can("customer","view") && !isKtv && !isManager)
-      items.push({ key:"customers",  icon:"group",      label:"Khách hàng" });
-    if (can("supplier","view") && !isManager)
-      items.push({ key:"suppliers",  icon:"storefront", label:"Nhà cung cấp" });
+      items.push({ key:"customers", icon:"group", label:"Khách hàng" });
 
-    // ── 6. KẾ TOÁN (Sổ quỹ → Công nợ)
+    // 7. KẾ TOÁN
     if (can("cash_journal","view") && !isManager)
-      items.push({ key:"cash_journal", icon:"menu_book",             label:"Sổ quỹ" });
+      items.push({ key:"cash_journal", icon:"menu_book",              label:"Sổ quỹ" });
     if (can("debt","view") && !isManager)
-      items.push({ key:"debts",        icon:"account_balance_wallet", label:"Công nợ" });
+      items.push({ key:"debts",        icon:"account_balance_wallet", label:"Công nợ KH" });
 
-    // ── 7. NHÂN VIÊN — non-manager (manager dùng accordion Thiết Lập)
+    // 8. THIẾT LẬP
     if (can("staff","view") && !isManager)
       items.push({ key:"staff",    icon:"person",   label:"Nhân viên" });
-
-    // ── 8. CÀI ĐẶT — admin/owner
     if (can("settings","view") && !isManager)
       items.push({ key:"settings", icon:"settings", label:"Cài đặt" });
 
@@ -1984,16 +1988,35 @@ function MainAppContent({ onUserChange }) {
                   <PricePolicyPage user={user} />
                 </Suspense>
               )}
-              {page==="purchase_forecast" && user && (
-                <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
-                  <PurchaseForecastPage user={user} />
-                </Suspense>
-              )}
+              
 
               {page==="purchase_order" && user && (
                 <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
                   <PurchaseOrderPage user={user} />
                 </Suspense>
+              )}
+              {page==="expense" && user && (
+                <div style={{padding:40,textAlign:"center",color:"#6b7280",fontSize:15}}>
+                  🧾 Thu / Chi — đang phát triển
+                </div>
+              )}
+              {page==="report_staff" && user && (
+                <div style={{padding:40,textAlign:"center",color:"#6b7280",fontSize:15}}>
+                  👥 KPI Nhân viên — đang phát triển
+                </div>
+              )}
+              {page==="report_profit" && user && (
+                <div style={{padding:40,textAlign:"center",color:"#6b7280",fontSize:15}}>
+                  📈 Báo cáo Lợi nhuận — đang phát triển
+                </div>
+              )}
+              {page==="debt_ncc" && user && (
+                <div style={{padding:40,textAlign:"center",color:"#6b7280",fontSize:15}}>
+                  💳 Công nợ NCC — đang phát triển
+                </div>
+              )}
+              {page==="wh_import_ncc" && user && (
+                <WarehouseImport user={user} />
               )}              {page==="rma" && user && (
                 <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
                   <RMAPage user={user} />
@@ -2330,10 +2353,28 @@ function MainAppContent({ onUserChange }) {
             <PricePolicyPage user={user} />
           </Suspense>
         )}
-        {page==="purchase_forecast" && user && (
-          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
-            <PurchaseForecastPage user={user} />
-          </Suspense>
+        {page==="wh_import_ncc" && user && (
+          <WarehouseImport user={user} />
+        )}
+        {page==="debt_ncc" && user && (
+          <div style={{padding:40,textAlign:"center",color:"#6b7280",fontSize:15}}>
+            💳 Công nợ NCC — đang phát triển
+          </div>
+        )}
+        {page==="report_profit" && user && (
+          <div style={{padding:40,textAlign:"center",color:"#6b7280",fontSize:15}}>
+            📈 Báo cáo Lợi nhuận — đang phát triển
+          </div>
+        )}
+        {page==="report_staff" && user && (
+          <div style={{padding:40,textAlign:"center",color:"#6b7280",fontSize:15}}>
+            👥 KPI Nhân viên — đang phát triển
+          </div>
+        )}
+        {page==="expense" && user && (
+          <div style={{padding:40,textAlign:"center",color:"#6b7280",fontSize:15}}>
+            🧾 Thu / Chi — đang phát triển
+          </div>
         )}
 
         {page==="purchase_order" && user && (
