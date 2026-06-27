@@ -1,6 +1,6 @@
 /* REBUILD_20260406_1408 */
 /* v3-export-request-flow — fixed JSX */
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { SparePart, SparePartUsage, RepairChat, RepairOrder, Notification, Staff, StockExportRequest, Warehouse, StockLedger } from "./pb.jsx";
 
 function genCode() {
@@ -58,7 +58,7 @@ function CBlock({title,by,at,note,media}) {
 }
 
 // ─── TAB: Chọn linh kiện ───────────────────────────────────
-function TabList({parts, cartItems, search, setSearch, addToCart, removeFromCart}) {
+function TabList({parts, cartItems, search, setSearch, addToCart, removeFromCart, totalStockByPart}) {
   return (
     <div>
       <div style={{padding:"12px 14px 8px",position:"sticky",top:0,background:"#fff",zIndex:1}}>
@@ -80,6 +80,19 @@ function TabList({parts, cartItems, search, setSearch, addToCart, removeFromCart
               <div style={{fontSize:12,color:"#6b7280",marginTop:2,display:"flex",gap:8,flexWrap:"wrap"}}>
                 {part.sku && <span>SKU: {part.sku}</span>}
                 <span style={{color:(part.stock_qty||0)>0?"#059669":"#dc2626",fontWeight:700}}>Tồn: {part.stock_qty||0} {part.unit||"cái"}</span>
+                {(() => {
+                  const totalAll = totalStockByPart?.[part.id] || 0;
+                  if (totalAll <= (part.stock_qty || 0)) return null;
+                  return (
+                    <span style={{
+                      fontSize:11, color:"#7c3aed", fontWeight:600,
+                      background:"#f5f3ff", borderRadius:6,
+                      padding:"1px 6px", display:"inline-block", marginTop:2
+                    }}>
+                      🏭 Tổng tất cả kho: {totalAll} cái
+                    </span>
+                  );
+                })()}
               </div>
               <div style={{fontSize:13,fontWeight:800,color:"#4f46e5",marginTop:2}}>{fmtMoney(part.price)}</div>
             </div>
@@ -451,6 +464,7 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
   const [submitting, setSubmitting] = useState(false);
   const [warehouses, setWarehouses] = useState([]);
   const [selectedWH, setSelectedWH] = useState("");
+  const [allLedgers, setAllLedgers] = useState([]);
 
   useEffect(()=>{ if (order?.id) loadAll(); },[order?.id]);
 
@@ -467,16 +481,28 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
   async function loadAll() {
     setLoading(true);
     try {
-      const [p,r] = await Promise.all([
+      const [p, r, ledgers] = await Promise.all([
         SparePart.filter({is_active:true}),
         StockExportRequest.filter({order_id:order.order_code||order.id}),
+        StockLedger.list({limit:2000}).catch(()=>[]),
       ]);
       setParts(p.sort((a,b)=>(a.name||"").localeCompare(b.name)));
       setRequests(r.sort((a,b)=>(b.id||"").localeCompare(a.id||"")));
+      setAllLedgers(ledgers || []);
     } catch(e){console.error(e);}
     setLoading(false);
   }
 
+
+  // Tổng tồn tất cả kho cho từng part_id (từ stock_ledgers)
+  const totalStockByPart = useMemo(() => {
+    const map = {};
+    (allLedgers || []).forEach(l => {
+      if (!l.part_id) return;
+      map[l.part_id] = (map[l.part_id] || 0) + (l.qty_on_hand || 0);
+    });
+    return map;
+  }, [allLedgers]);
 
   function addToCart(part) {
     if (cartItems.find(c=>c.part_id===part.id)){showToast("Đã có trong giỏ!");return;}
@@ -618,7 +644,7 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
                   🏭 Kho: <b style={{color:"#1e1b4b"}}>{warehouses[0]?.name}</b>
                 </div>
               )}
-              <TabList parts={filteredParts} cartItems={cartItems} search={search} setSearch={setSearch} addToCart={addToCart} removeFromCart={removeFromCart}/>
+              <TabList parts={filteredParts} cartItems={cartItems} search={search} setSearch={setSearch} addToCart={addToCart} removeFromCart={removeFromCart} totalStockByPart={totalStockByPart}/>
             </>
           ) : tab==="cart" ? (
             <TabCart cartItems={cartItems} updateCartQty={updateCartQty} removeFromCart={removeFromCart} order={order} showForm={showForm} setShowForm={setShowForm} exportType={exportType} setExportType={setExportType} dueMinutes={dueMinutes} setDueMinutes={setDueMinutes} returnDays={returnDays} setReturnDays={setReturnDays} reqNote={reqNote} setReqNote={setReqNote} submitting={submitting} handleSubmitRequest={handleSubmitRequest}/>
