@@ -62,6 +62,7 @@ const DepartmentPageLazy     = lazy(() => import("./DepartmentPage.jsx").catch((
 const RolePermissionPageLazy = lazy(() => import("./RolePermissionPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Phân quyền</div> })));
 const PrintTemplatePage = lazy(() => import("./PrintTemplatePage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang</div> })));
 const PurchaseForecastPage = lazy(() => import("./PurchaseForecastPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Mua hàng</div> })));
+const SaleHistoryPage = lazy(() => import("./SaleHistoryPage").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>Không tải được trang</div> })));
 
 const RoleHomePlaceholder  = lazy(() => import("./RoleHomePlaceholder").catch(() => ({ default: () => (
   <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang chủ</div>
@@ -1939,6 +1940,16 @@ function MainAppContent({ onUserChange }) {
               {page==="wh_import" && <WarehouseImport user={user} />}
               {page==="wh_manager" && <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"dashboard")} />}
               {page==="cashier_home" && <CashierApp user={user} />}
+        {page==="sale_order" && user && (
+          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
+            <SaleHistoryPage user={user} />
+          </Suspense>
+        )}
+              {page==="sale_order" && user && (
+                <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
+                  <SaleHistoryPage user={user} />
+                </Suspense>
+              )}
               {page==="suppliers" && user && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><SupplierPage user={user} /></Suspense>}
               {page==="debts" && user && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><DebtPage user={user} /></Suspense>}
               {page==="department" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><DepartmentPageLazy user={user} /></Suspense>}
@@ -2225,6 +2236,11 @@ function MainAppContent({ onUserChange }) {
         {page==="wh_import" && <WarehouseImport user={user} />}
         {page==="wh_manager" && <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"dashboard")} />}
         {page==="cashier_home" && <CashierApp user={user} />}
+        {page==="sale_order" && user && (
+          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
+            <SaleHistoryPage user={user} />
+          </Suspense>
+        )}
         {page==="suppliers" && user && (
           <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
             <SupplierPage user={user} />
