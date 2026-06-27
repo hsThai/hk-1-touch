@@ -59,6 +59,12 @@ export default function SaleOrderPage({ user }) {
   const [lastOrder,   setLastOrder]   = useState(null);
   const [shopName,    setShopName]    = useState("HK One Touch");
   const [shopPhone,   setShopPhone]   = useState("");
+  const [isPC, setIsPC] = React.useState(window.innerWidth >= 1024);
+  React.useEffect(() => {
+    const fn = () => setIsPC(window.innerWidth >= 1024);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
   const searchTimer = useRef(null);
 
   useEffect(() => {
@@ -252,7 +258,7 @@ export default function SaleOrderPage({ user }) {
   }
 
   return (
-    <div style={{ padding:"16px 14px 100px" }}>
+    <div style={{ padding: isPC ? "20px 28px 40px" : "16px 14px 100px" }}>
       <style>{RECEIPT_STYLE}</style>
 
       {lastOrder && (
@@ -281,7 +287,20 @@ export default function SaleOrderPage({ user }) {
         </div>
       )}
 
-      <div style={{ fontWeight:900, fontSize:18, color:"#1e1b4b", marginBottom:20 }}>💰 Bán hàng lẻ</div>
+      <div style={{ fontWeight:900, fontSize:18, color:"#1e1b4b", marginBottom:16 }}>
+        🛒 Bán hàng lẻ
+      </div>
+
+      {/* ── LAYOUT WRAPPER 2 cột (PC) / 1 cột (Mobile) ── */}
+      <div style={{
+        display: isPC ? "grid" : "block",
+        gridTemplateColumns: isPC ? "1fr 420px" : undefined,
+        gap: isPC ? 24 : undefined,
+        alignItems: "start",
+      }}>
+
+      {/* ═══ CỘT TRÁI — Search + Giỏ hàng + Đơn hôm nay ═══ */}
+      <div>
 
       {/* ─── 1. Search sản phẩm ─── */}
       <div style={{ marginBottom:16, position:"relative" }}>
@@ -310,6 +329,77 @@ export default function SaleOrderPage({ user }) {
           </div>
         )}
       </div>
+
+      {/* ─── 5. Giỏ hàng — chỉ hiện khi có sản phẩm ─── */}
+      {cart.length > 0 && (
+        <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", marginBottom:16, overflow:"hidden" }}>
+          <div style={{ padding:"12px 16px", borderBottom:"1px solid #f3f4f6", fontWeight:800, fontSize:14 }}>
+            🛒 Giỏ hàng ({cart.length} SP)
+          </div>
+          {cart.map((item,idx) => (
+            <div key={idx} style={{ padding:"12px 16px", borderBottom:"1px solid #f3f4f6",
+              display:"flex", alignItems:"center", gap:10 }}>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontWeight:700, fontSize:13, marginBottom:4 }}>{item.part_name}</div>
+                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  <input type="number" value={item.unit_price} min={0}
+                    onChange={e=>updatePrice(idx,e.target.value)}
+                    style={{ width:100, height:32, borderRadius:8, border:"1.5px solid #e5e7eb", padding:"0 8px", fontSize:13 }} />
+                  <span style={{ fontSize:12, color:"#6b7280" }}>đ/cái</span>
+                </div>
+              </div>
+              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                <button onClick={()=>updateQty(idx,-1)} style={{ width:32, height:32, borderRadius:8, border:"1.5px solid #e5e7eb", background:"#f9fafb", cursor:"pointer", fontWeight:900, fontSize:16 }}>−</button>
+                <span style={{ fontWeight:800, fontSize:15, minWidth:24, textAlign:"center" }}>{item.qty}</span>
+                <button onClick={()=>updateQty(idx,+1)} style={{ width:32, height:32, borderRadius:8, border:"1.5px solid #e5e7eb", background:"#f9fafb", cursor:"pointer", fontWeight:900, fontSize:16 }}>+</button>
+              </div>
+              <div style={{ fontWeight:800, fontSize:14, color:"#059669", minWidth:72, textAlign:"right" }}>{fmtMoney(item.qty*item.unit_price)}</div>
+              <button onClick={()=>removeItem(idx)} style={{ background:"none", border:"none", cursor:"pointer", color:"#dc2626", fontSize:22, padding:2 }}>×</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+
+      {/* ─── 8. Danh sách đơn hôm nay ─── */}
+      <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", overflow:"hidden" }}>
+        <div style={{ padding:"12px 16px", borderBottom:"1px solid #f3f4f6", fontWeight:800, fontSize:14 }}>
+          📋 Đơn bán hôm nay ({todayOrders.length})
+        </div>
+        {todayOrders.length===0
+          ? <div style={{ textAlign:"center", padding:"24px 0", color:"#9ca3af", fontSize:13 }}>Chưa có đơn bán nào hôm nay</div>
+          : todayOrders.map(o => (
+            <div key={o.id} onClick={()=>setDetailOrder(o)}
+              style={{ padding:"12px 16px", borderBottom:"1px solid #f3f4f6", cursor:"pointer",
+                display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div>
+                <div style={{ fontWeight:700, fontSize:13 }}>{o.order_code}</div>
+                <div style={{ fontSize:12, color:"#6b7280" }}>{fmtTime(o.created||o.created_date)} · {o.customer_name||"Khách lẻ"}</div>
+              </div>
+              <div style={{ textAlign:"right" }}>
+                <div style={{ fontWeight:800, color:"#059669" }}>{fmtMoney(o.total)}</div>
+                <span style={{ fontSize:11, background:(PM_COLORS[o.payment_method]||"#9ca3af")+"22",
+                  color:PM_COLORS[o.payment_method]||"#9ca3af", borderRadius:99, padding:"2px 8px", fontWeight:700 }}>
+                  {PM_LABELS[o.payment_method]||o.payment_method}
+                </span>
+              </div>
+            </div>
+          ))
+        }
+      </div>
+
+
+      </div>{/* end cột trái */}
+
+      {/* ═══ CỘT PHẢI — Khách hàng + Giảm giá + HTTT + Summary + Nút XN ═══ */}
+      <div style={{
+        background: isPC ? "#fff" : "transparent",
+        border: isPC ? "1.5px solid #e5e7eb" : "none",
+        borderRadius: isPC ? 20 : 0,
+        padding: isPC ? "20px 20px" : 0,
+        position: isPC ? "sticky" : undefined,
+        top: isPC ? 20 : undefined,
+      }}>
 
       {/* ─── 2. Khách hàng — luôn hiển thị ─── */}
       <div style={{ marginBottom:16 }}>
@@ -413,36 +503,6 @@ export default function SaleOrderPage({ user }) {
         )}
       </div>
 
-      {/* ─── 5. Giỏ hàng — chỉ hiện khi có sản phẩm ─── */}
-      {cart.length > 0 && (
-        <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", marginBottom:16, overflow:"hidden" }}>
-          <div style={{ padding:"12px 16px", borderBottom:"1px solid #f3f4f6", fontWeight:800, fontSize:14 }}>
-            🛒 Giỏ hàng ({cart.length} SP)
-          </div>
-          {cart.map((item,idx) => (
-            <div key={idx} style={{ padding:"12px 16px", borderBottom:"1px solid #f3f4f6",
-              display:"flex", alignItems:"center", gap:10 }}>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontWeight:700, fontSize:13, marginBottom:4 }}>{item.part_name}</div>
-                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                  <input type="number" value={item.unit_price} min={0}
-                    onChange={e=>updatePrice(idx,e.target.value)}
-                    style={{ width:100, height:32, borderRadius:8, border:"1.5px solid #e5e7eb", padding:"0 8px", fontSize:13 }} />
-                  <span style={{ fontSize:12, color:"#6b7280" }}>đ/cái</span>
-                </div>
-              </div>
-              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                <button onClick={()=>updateQty(idx,-1)} style={{ width:32, height:32, borderRadius:8, border:"1.5px solid #e5e7eb", background:"#f9fafb", cursor:"pointer", fontWeight:900, fontSize:16 }}>−</button>
-                <span style={{ fontWeight:800, fontSize:15, minWidth:24, textAlign:"center" }}>{item.qty}</span>
-                <button onClick={()=>updateQty(idx,+1)} style={{ width:32, height:32, borderRadius:8, border:"1.5px solid #e5e7eb", background:"#f9fafb", cursor:"pointer", fontWeight:900, fontSize:16 }}>+</button>
-              </div>
-              <div style={{ fontWeight:800, fontSize:14, color:"#059669", minWidth:72, textAlign:"right" }}>{fmtMoney(item.qty*item.unit_price)}</div>
-              <button onClick={()=>removeItem(idx)} style={{ background:"none", border:"none", cursor:"pointer", color:"#dc2626", fontSize:22, padding:2 }}>×</button>
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* ─── 6. Summary — luôn hiển thị ─── */}
       <div style={{ background:"#f0fdf4", borderRadius:16, border:"1.5px solid #86efac", padding:"14px 16px", marginBottom:16 }}>
         <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
@@ -482,32 +542,8 @@ export default function SaleOrderPage({ user }) {
         )}
       </div>
 
-      {/* ─── 8. Danh sách đơn hôm nay ─── */}
-      <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", overflow:"hidden" }}>
-        <div style={{ padding:"12px 16px", borderBottom:"1px solid #f3f4f6", fontWeight:800, fontSize:14 }}>
-          📋 Đơn bán hôm nay ({todayOrders.length})
-        </div>
-        {todayOrders.length===0
-          ? <div style={{ textAlign:"center", padding:"24px 0", color:"#9ca3af", fontSize:13 }}>Chưa có đơn bán nào hôm nay</div>
-          : todayOrders.map(o => (
-            <div key={o.id} onClick={()=>setDetailOrder(o)}
-              style={{ padding:"12px 16px", borderBottom:"1px solid #f3f4f6", cursor:"pointer",
-                display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <div>
-                <div style={{ fontWeight:700, fontSize:13 }}>{o.order_code}</div>
-                <div style={{ fontSize:12, color:"#6b7280" }}>{fmtTime(o.created||o.created_date)} · {o.customer_name||"Khách lẻ"}</div>
-              </div>
-              <div style={{ textAlign:"right" }}>
-                <div style={{ fontWeight:800, color:"#059669" }}>{fmtMoney(o.total)}</div>
-                <span style={{ fontSize:11, background:(PM_COLORS[o.payment_method]||"#9ca3af")+"22",
-                  color:PM_COLORS[o.payment_method]||"#9ca3af", borderRadius:99, padding:"2px 8px", fontWeight:700 }}>
-                  {PM_LABELS[o.payment_method]||o.payment_method}
-                </span>
-              </div>
-            </div>
-          ))
-        }
-      </div>
+      </div>{/* end cột phải */}
+      </div>{/* end layout wrapper */}
 
       {/* ─── 9. Detail modal ─── */}
       {detailOrder && (
