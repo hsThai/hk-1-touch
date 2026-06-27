@@ -70,11 +70,8 @@ function OverviewTab({ user }) {
 }
 
 const NAV_TABS = [
-  { key:"sale",     icon:"point_of_sale", label:"Bán hàng" },
-  { key:"revenue",  icon:"bar_chart",     label:"Doanh thu" },
-  { key:"expense",  icon:"receipt_long",  label:"Chi phí" },
-  { key:"overview", icon:"dashboard",     label:"Tổng quan" },
-  { key:"shift",    icon:"balance",       label:"Đối soát ca" },
+  { key:"sale",  label:"🛒 Bán hàng lẻ" },
+  { key:"shift", label:"⚖️ Đối soát ca" },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -238,14 +235,10 @@ function ShiftReconcile({ user }) {
 
 export default function CashierApp({ user }) {
   const [tab, setTab] = useState("sale");
-  const [SaleOrderPage,     setSaleOrderPage]     = useState(null);
-  const [RevenueReportPage, setRevenueReportPage] = useState(null);
-  const [ExpensePage,       setExpensePage]       = useState(null);
+  const [SaleOrderPage, setSaleOrderPage] = useState(null);
 
   useEffect(() => {
     import("./SaleOrderPage.jsx").then(m => setSaleOrderPage(() => m.default)).catch(()=>{});
-    import("./RevenueReportPage.jsx").then(m => setRevenueReportPage(() => m.default)).catch(()=>{});
-    import("./ExpensePage.jsx").then(m => setExpensePage(() => m.default)).catch(()=>{});
   }, []);
 
   if (!user || !ALLOWED_ROLES.includes(user.role)) {
@@ -258,38 +251,49 @@ export default function CashierApp({ user }) {
     );
   }
 
-  const Fallback = () => <div style={{ textAlign:"center", padding:48, color:"#9ca3af" }}>⏳ Đang tải...</div>;
+  const Fallback = () => (
+    <div style={{ textAlign:"center", padding:48, color:"#9ca3af" }}>⏳ Đang tải...</div>
+  );
 
   return (
-    <div style={{ height:"100vh", display:"flex", flexDirection:"column", background:"#f9fafb" }}>
-      <div style={{ background:"linear-gradient(135deg,#059669,#047857)", color:"#fff", padding:"14px 16px 12px", flexShrink:0 }}>
-        <div style={{ fontWeight:900, fontSize:17 }}>🏪 Kế toán & Bán hàng</div>
-        <div style={{ fontSize:12, opacity:0.85, marginTop:2 }}>{user.full_name || user.name} · {todayStr()}</div>
+    <div style={{ minHeight:"100vh", background:"#f9fafb" }}>
+
+      {/* Header */}
+      <div style={{ background:"linear-gradient(135deg,#059669,#047857)", color:"#fff",
+        padding:"14px 24px 12px", display:"flex", alignItems:"center",
+        justifyContent:"space-between" }}>
+        <div>
+          <div style={{ fontWeight:900, fontSize:17 }}>🏪 Thu ngân (POS)</div>
+          <div style={{ fontSize:12, opacity:0.85, marginTop:2 }}>
+            {user.full_name || user.name} · {todayStr()}
+          </div>
+        </div>
       </div>
 
-      <div style={{ flex:1, overflowY:"auto" }}>
-        {tab === "sale"     && (SaleOrderPage     ? <SaleOrderPage user={user} />     : <Fallback />)}
-        {tab === "revenue"  && (RevenueReportPage  ? <RevenueReportPage user={user} />  : <Fallback />)}
-        {tab === "expense"  && (ExpensePage        ? <ExpensePage user={user} />        : <Fallback />)}
-        {tab === "overview" && <OverviewTab user={user} />}
-        {tab === "shift"    && <ShiftReconcile user={user} />}
+      {/* Pill tabs */}
+      <div style={{ background:"#fff", borderBottom:"1.5px solid #e5e7eb",
+        padding:"10px 24px", display:"flex", gap:8 }}>
+        {NAV_TABS.map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)}
+            style={{
+              height:36, padding:"0 20px", borderRadius:99,
+              border: tab === t.key ? "none" : "1.5px solid #e5e7eb",
+              background: tab === t.key ? "#059669" : "#fff",
+              color: tab === t.key ? "#fff" : "#374151",
+              fontWeight: tab === t.key ? 800 : 500,
+              fontSize:13, cursor:"pointer", transition:"all .15s",
+            }}>
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#fff", borderTop:"1.5px solid #e5e7eb", display:"flex", zIndex:100, paddingBottom:"env(safe-area-inset-bottom)" }}>
-        {NAV_TABS.map(n => {
-          const active = tab === n.key;
-          return (
-            <button key={n.key} onClick={() => setTab(n.key)}
-              style={{ flex:1, border:"none", background:"none", cursor:"pointer", padding:"10px 4px 8px",
-                display:"flex", flexDirection:"column", alignItems:"center", gap:3, position:"relative",
-                color: active ? "#059669" : "#9ca3af" }}>
-              {active && <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:32, height:2, background:"#059669", borderRadius:2 }} />}
-              <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:24, lineHeight:1, color: active ? "#059669" : "#9ca3af" }}>{n.icon}</span>
-              <span style={{ fontSize:10, fontWeight: active ? 800 : 500 }}>{n.label}</span>
-            </button>
-          );
-        })}
+      {/* Nội dung tab */}
+      <div style={{ maxWidth: tab==="sale" ? 760 : 900, margin:"0 auto", padding:"20px 24px 60px" }}>
+        {tab === "sale"  && (SaleOrderPage ? <SaleOrderPage user={user} /> : <Fallback />)}
+        {tab === "shift" && <ShiftReconcile user={user} />}
       </div>
+
     </div>
   );
 }
