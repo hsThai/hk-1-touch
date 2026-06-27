@@ -72,7 +72,7 @@ function SummaryCards({ list, vtype }) {
     { label: "Quá hạn",               val: overdue,  color:"#dc2626", bg:"#fee2e2" },
   ];
   return (
-    <div style={{ display:"grid", gridTemplateColumns: isPC ? "repeat(4,1fr)" : "1fr 1fr", gap:10, marginBottom:16 }}>
+    <div style={{ display:"grid", gridTemplateColumns: "repeat(auto-fit, minmax(155px,1fr))", gap:10, marginBottom:16 }}>
       {cards.map(c => (
         <div key={c.label} style={{ background:c.bg, borderRadius:14, padding:"12px 14px" }}>
           <div style={{ fontSize:11, color:c.color, fontWeight:700 }}>{c.label}</div>
