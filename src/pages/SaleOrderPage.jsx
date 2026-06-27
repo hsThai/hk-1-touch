@@ -320,19 +320,19 @@ export default function SaleOrderPage({ user }) {
             <span style={{ fontSize:14, fontWeight:700, color:"#059669", flex:1 }}>
               ✅ {custName}{custPhone ? " — " + custPhone : ""}
             </span>
-            <button onClick={()=>{ setCustName(""); setCustPhone(""); setCustSearch(""); setCustResults([]); }}
+            <button onClick={()=>{ setCustName(""); setCustPhone(""); setCustSearch(""); setCustSuggestions([]); }}
               style={{ background:"none", border:"none", color:"#dc2626", fontWeight:800, fontSize:18, cursor:"pointer", lineHeight:1 }}>×</button>
           </div>
         ) : (
           <div style={{ position:"relative" }}>
             <input value={custSearch} onChange={e=>setCustSearch(e.target.value)}
               placeholder="Tên hoặc SĐT khách..." style={INP} />
-            {custResults.length > 0 && (
+            {custSuggestions.length > 0 && (
               <div style={{ position:"absolute", top:48, left:0, right:0, background:"#fff",
                 border:"1.5px solid #e5e7eb", borderRadius:12, zIndex:50,
                 boxShadow:"0 8px 24px rgba(0,0,0,.12)", maxHeight:220, overflowY:"auto" }}>
-                {custResults.map(c => (
-                  <div key={c.id} onClick={()=>{ setCustName(c.full_name||c.name||""); setCustPhone(c.phone||""); setCustSearch(""); setCustResults([]); }}
+                {custSuggestions.map(c => (
+                  <div key={c.id} onClick={()=>{ setCustName(c.full_name||c.name||""); setCustPhone(c.phone||""); setCustSearch(""); setCustSuggestions([]); }}
                     style={{ padding:"10px 14px", cursor:"pointer", borderBottom:"1px solid #f3f4f6",
                       display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                     <div>
@@ -346,7 +346,7 @@ export default function SaleOrderPage({ user }) {
                     )}
                   </div>
                 ))}
-                <div onClick={()=>{ setCustName(custSearch); setCustPhone(""); setCustSearch(""); setCustResults([]); }}
+                <div onClick={()=>{ setCustName(custSearch); setCustPhone(""); setCustSearch(""); setCustSuggestions([]); }}
                   style={{ padding:"10px 14px", cursor:"pointer", color:"#4f46e5", fontWeight:700, fontSize:13,
                     borderTop:"1.5px solid #e5e7eb", background:"#f5f3ff" }}>
                   + Dùng "{custSearch}" (khách mới)
