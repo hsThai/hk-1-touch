@@ -72,6 +72,7 @@ const RMAPage = lazy(() => import("./RMAPage.jsx").catch(() => ({
 const StockReportNXT = lazy(() => import("./StockReportNXT.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Báo cáo NXT</div> })));
 const RevenueReportPage = lazy(() => import("./RevenueReportPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Báo cáo doanh thu</div> })));
 const SaleOrderPage = lazy(() => import("./SaleOrderPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Bán hàng</div> })));
+const PurchaseOrderPage = lazy(() => import("./PurchaseOrderPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Đặt hàng NCC</div> })));
 const RoleHomePlaceholder  = lazy(() => import("./RoleHomePlaceholder").catch(() => ({ default: () => (
   <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang chủ</div>
 ) })));
@@ -319,14 +320,13 @@ const MGR_ACCORDIONS = [
     key: "acc_warehouse",
     icon: "warehouse",
     label: "Kho & Vật tư",
-    pages: ["wh_manager","wh_import","wh_export","stock_nxt","stock_count","purchase_forecast","rma"],
+    pages: ["wh_manager","wh_import","wh_export","stock_nxt","stock_count","rma"],
     items: [
       { key:"wh_manager",        icon:"warehouse",         label:"Danh mục hàng & dịch vụ" },
       { key:"wh_import",         icon:"move_to_inbox",     label:"Nhập kho" },
       { key:"wh_export",         icon:"outbox",            label:"Xuất kho" },
       { key:"stock_nxt",         icon:"assessment",        label:"Thẻ kho (Lịch sử)" },
       { key:"stock_count",       icon:"fact_check",        label:"Kiểm kê kho" },
-      { key:"purchase_forecast", icon:"shopping_cart",     label:"Mua hàng & Dự báo" },
       { key:"rma",               icon:"assignment_return", label:"Trả hàng NCC (RMA)" },
     ],
   },
@@ -344,10 +344,11 @@ const MGR_ACCORDIONS = [
     key: "acc_accounting",
     icon: "account_balance",
     label: "Kế toán",
-    pages: ["cash_journal","debts"],
+    pages: ["cash_journal","debts","purchase_order"],
     items: [
-      { key:"cash_journal", icon:"menu_book",              label:"Sổ quỹ" },
-      { key:"debts",        icon:"account_balance_wallet", label:"Công nợ khách hàng" },
+      { key:"cash_journal",   icon:"menu_book",              label:"Sổ quỹ" },
+      { key:"debts",          icon:"account_balance_wallet", label:"Công nợ khách hàng" },
+      { key:"purchase_order", icon:"shopping_cart",          label:"Đặt hàng NCC" },
     ],
   },
   {
@@ -1988,7 +1989,12 @@ function MainAppContent({ onUserChange }) {
                   <PurchaseForecastPage user={user} />
                 </Suspense>
               )}
-              {page==="rma" && user && (
+
+              {page==="purchase_order" && user && (
+                <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
+                  <PurchaseOrderPage user={user} />
+                </Suspense>
+              )}              {page==="rma" && user && (
                 <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
                   <RMAPage user={user} />
                 </Suspense>
@@ -2329,7 +2335,12 @@ function MainAppContent({ onUserChange }) {
             <PurchaseForecastPage user={user} />
           </Suspense>
         )}
-        {page==="rma" && user && (
+
+        {page==="purchase_order" && user && (
+          <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
+            <PurchaseOrderPage user={user} />
+          </Suspense>
+        )}        {page==="rma" && user && (
           <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
             <RMAPage user={user} />
           </Suspense>

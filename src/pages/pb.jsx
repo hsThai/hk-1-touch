@@ -425,3 +425,5 @@ export const B44Staff = {
     return b44Fetch(`/${id}`, { method: "DELETE" });
   },
 };
+export const PurchaseOrder     = makeCollection("purchase_orders");
+export const PurchaseOrderItem = makeCollection("purchase_order_items");
