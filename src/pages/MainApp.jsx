@@ -73,6 +73,9 @@ const StockReportNXT = lazy(() => import("./StockReportNXT.jsx").catch(() => ({ 
 const RevenueReportPage = lazy(() => import("./RevenueReportPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Báo cáo doanh thu</div> })));
 const SaleOrderPage = lazy(() => import("./SaleOrderPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Bán hàng</div> })));
 const PurchaseOrderPage = lazy(() => import("./PurchaseOrderPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Đặt hàng NCC</div> })));
+const ReportProfitPage = lazy(() => import("./ReportProfitPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Báo cáo Lợi nhuận</div> })));
+const ReportStaffPage  = lazy(() => import("./ReportStaffPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải KPI Nhân viên</div> })));
+const DebtNccPage      = lazy(() => import("./DebtNccPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Công nợ NCC</div> })));
 const RoleHomePlaceholder  = lazy(() => import("./RoleHomePlaceholder").catch(() => ({ default: () => (
   <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang chủ</div>
 ) })));
@@ -2001,19 +2004,19 @@ function MainAppContent({ onUserChange }) {
                 </div>
               )}
               {page==="report_staff" && user && (
-                <div style={{padding:40,textAlign:"center",color:"#6b7280",fontSize:15}}>
-                  👥 KPI Nhân viên — đang phát triển
-                </div>
+                <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
+                  <ReportStaffPage user={user} />
+                </Suspense>
               )}
               {page==="report_profit" && user && (
-                <div style={{padding:40,textAlign:"center",color:"#6b7280",fontSize:15}}>
-                  📈 Báo cáo Lợi nhuận — đang phát triển
-                </div>
+                <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
+                  <ReportProfitPage user={user} />
+                </Suspense>
               )}
               {page==="debt_ncc" && user && (
-                <div style={{padding:40,textAlign:"center",color:"#6b7280",fontSize:15}}>
-                  💳 Công nợ NCC — đang phát triển
-                </div>
+                <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
+                  <DebtNccPage user={user} />
+                </Suspense>
               )}
               {page==="wh_import_ncc" && user && (
                 <WarehouseImport user={user} />
@@ -2357,19 +2360,19 @@ function MainAppContent({ onUserChange }) {
           <WarehouseImport user={user} />
         )}
         {page==="debt_ncc" && user && (
-          <div style={{padding:40,textAlign:"center",color:"#6b7280",fontSize:15}}>
-            💳 Công nợ NCC — đang phát triển
-          </div>
+          <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
+            <DebtNccPage user={user} />
+          </Suspense>
         )}
         {page==="report_profit" && user && (
-          <div style={{padding:40,textAlign:"center",color:"#6b7280",fontSize:15}}>
-            📈 Báo cáo Lợi nhuận — đang phát triển
-          </div>
+          <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
+            <ReportProfitPage user={user} />
+          </Suspense>
         )}
         {page==="report_staff" && user && (
-          <div style={{padding:40,textAlign:"center",color:"#6b7280",fontSize:15}}>
-            👥 KPI Nhân viên — đang phát triển
-          </div>
+          <Suspense fallback={<div style={{padding:40,textAlign:"center"}}>⏳</div>}>
+            <ReportStaffPage user={user} />
+          </Suspense>
         )}
         {page==="expense" && user && (
           <div style={{padding:40,textAlign:"center",color:"#6b7280",fontSize:15}}>
