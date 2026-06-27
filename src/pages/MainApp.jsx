@@ -2315,6 +2315,10 @@ function MainAppContent({ onUserChange }) {
           </div>
         </div>
       )}
+    </div>
+    )}
+
+      {/* ── Global overlays — hiện trên cả PC lẫn Mobile ── */}
       {selectedOrder && (
         <OrderDrawer
           order={selectedOrder}
@@ -2325,7 +2329,6 @@ function MainAppContent({ onUserChange }) {
           onGoToPendingAccept={goToPendingAccept}
         />
       )}
-
       {showQRScan && <QRScanModal onClose={() => setShowQRScan(false)} onFound={handleGlobalQRScan} orders={orders} />}
       {productHistory && (
         <ProductHistoryModal
@@ -2335,8 +2338,6 @@ function MainAppContent({ onUserChange }) {
           onOpenOrder={o => { setProductHistory(null); setSelectedOrderSync(o); }}
         />
       )}
-
-      {/* Created order toast */}
       {createdOrder && (
         <div style={{ position:"fixed", bottom:80, left:16, right:16, zIndex:400, background:"#059669", borderRadius:16, padding:"14px 18px", color:"#fff", boxShadow:"0 8px 24px rgba(0,0,0,.2)", display:"flex", justifyContent:"space-between", alignItems:"center"}}>
           <div>
@@ -2349,8 +2350,6 @@ function MainAppContent({ onUserChange }) {
           </button>
         </div>
       )}
-    </div>
-    )}
     </>
   );
 }
