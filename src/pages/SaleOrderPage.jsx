@@ -302,6 +302,78 @@ export default function SaleOrderPage({ user }) {
       {/* ═══ CỘT TRÁI — Search + Giỏ hàng + Đơn hôm nay ═══ */}
       <div>
 
+      {/* ─── Banner thành công ─── */}
+      {lastOrder && (
+        <div style={{
+          background:"linear-gradient(135deg,#f0fdf4,#dcfce7)",
+          border:"2px solid #86efac", borderRadius:16,
+          padding:"16px 20px", marginBottom:16,
+        }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+            <div>
+              <div style={{ fontWeight:900, fontSize:16, color:"#065f46", marginBottom:4 }}>
+                ✅ Bán hàng thành công!
+              </div>
+              <div style={{ fontSize:13, color:"#047857", fontWeight:700 }}>
+                {lastOrder.order_code} · {PM_LABELS[lastOrder.payment_method]||lastOrder.payment_method}
+              </div>
+              <div style={{ fontSize:12, color:"#6b7280", marginTop:4 }}>
+                {lastOrder.customer_name && lastOrder.customer_name !== "Khách lẻ"
+                  ? "👤 " + lastOrder.customer_name
+                  : "👤 Khách lẻ"}
+                {lastOrder.customer_phone ? " · " + lastOrder.customer_phone : ""}
+              </div>
+            </div>
+            <div style={{ textAlign:"right" }}>
+              <div style={{ fontWeight:900, fontSize:22, color:"#059669" }}>
+                {fmtMoney(lastOrder.total)}
+              </div>
+              {lastOrder.discount > 0 && (
+                <div style={{ fontSize:11, color:"#dc2626" }}>Giảm: -{fmtMoney(lastOrder.discount)}</div>
+              )}
+            </div>
+          </div>
+          <div style={{ marginTop:12, paddingTop:12, borderTop:"1px dashed #86efac" }}>
+            {(lastOrder.items||[]).map((it,i) => (
+              <div key={i} style={{ display:"flex", justifyContent:"space-between",
+                fontSize:12, color:"#374151", padding:"3px 0" }}>
+                <span>{it.part_name} × {it.qty}</span>
+                <span style={{ fontWeight:700 }}>{fmtMoney(it.total_price)}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ display:"flex", gap:10, marginTop:14 }}>
+            <button onClick={()=>window.print()}
+              style={{ flex:1, height:40, borderRadius:10, border:"none",
+                background:"#059669", color:"#fff",
+                fontWeight:800, fontSize:13, cursor:"pointer" }}>
+              🖨️ In hóa đơn
+            </button>
+            <button onClick={()=>setLastOrder(null)}
+              style={{ flex:1, height:40, borderRadius:10,
+                border:"1.5px solid #059669", background:"#fff",
+                color:"#059669", fontWeight:800, fontSize:13, cursor:"pointer" }}>
+              + Đơn mới
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Placeholder giỏ trống ─── */}
+      {cart.length === 0 && !lastOrder && (
+        <div style={{
+          background:"#fff", borderRadius:16, border:"1.5px dashed #e5e7eb",
+          padding:"32px 20px", textAlign:"center", color:"#9ca3af",
+          marginBottom:16,
+        }}>
+          <div style={{ fontSize:36, marginBottom:8 }}>🛒</div>
+          <div style={{ fontSize:14, fontWeight:700, color:"#6b7280", marginBottom:4 }}>
+            Giỏ hàng trống
+          </div>
+          <div style={{ fontSize:12 }}>Tìm linh kiện / phụ kiện bên trên để thêm vào đơn</div>
+        </div>
+      )}
+
       {/* ─── 1. Search sản phẩm ─── */}
       <div style={{ marginBottom:16, position:"relative" }}>
         <div style={{ position:"relative" }}>
@@ -535,11 +607,7 @@ export default function SaleOrderPage({ user }) {
           }}>
           {submitting ? "⏳ Đang lưu..." : cart.length === 0 ? "Chưa có sản phẩm" : !payMethod ? "Chọn hình thức TT" : "✅ Xác nhận bán"}
         </button>
-        {lastOrder && (
-          <button onClick={()=>window.print()} style={{ flex:1, height:52, background:"#374151", color:"#fff", border:"none", borderRadius:14, fontWeight:800, fontSize:14, cursor:"pointer" }}>
-            🖨️ In HĐ
-          </button>
-        )}
+
       </div>
 
       </div>{/* end cột phải */}
