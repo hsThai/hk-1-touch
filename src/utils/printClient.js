@@ -273,8 +273,16 @@ ${shopInfo.shop_phone  ?`<div class="sub-shop">📞 ${shopInfo.shop_phone}</div>
 <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-top:4px">
   <div style="flex:1">
     <hr style="border:none;border-top:2px solid #111;margin:5px 0"/>
-    <div style="font-size:18px;font-weight:bold;text-align:center;margin:7px 0 2px;letter-spacing:2px;text-transform:uppercase;text-decoration:underline">Phiếu tiếp nhận máy</div>
-    <div style="text-align:center;font-size:11px;color:#888;margin-bottom:5px">Phiếu này là bằng chứng bàn giao thiết bị giữa khách hàng và cửa hàng</div>
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="flex:1">
+        <div style="font-size:18px;font-weight:bold;text-align:center;margin:7px 0 2px;letter-spacing:2px;text-transform:uppercase;text-decoration:underline">Phiếu tiếp nhận máy</div>
+        <div style="text-align:center;font-size:11px;color:#888;margin-bottom:5px">Phiếu này là bằng chứng bàn giao thiết bị giữa khách hàng và cửa hàng</div>
+      </div>
+      <div style="margin-left:10px;text-align:center;flex-shrink:0">
+        <img src="${orderQrSample}" style="width:68px;height:68px;display:block;border:1px solid #eee"/>
+        <div style="font-size:9px;color:#888;margin-top:2px">HK-001</div>
+      </div>
+    </div>
   </div>
   <div style="margin-left:10px;text-align:center;flex-shrink:0">
     <img src="${orderQrUrl}" style="width:72px;height:72px;display:block"/>
@@ -777,6 +785,7 @@ export function getDefaultTemplate(key, shopInfo = {}) {
 
   if (key === "receipt_form") {
     const fmtDt = (s) => s ? new Date(s).toLocaleDateString("vi-VN") : new Date().toLocaleDateString("vi-VN");
+    const orderQrSample = "https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=" + encodeURIComponent("https://hk-1-touch.vercel.app?order=HK-001");
     const fmtMoney = (n) => Number(n||0).toLocaleString("vi-VN");
     const QT1_ALL = [
       {key:"vien_cong_mop",label:"Viền cong / móp"},{key:"can_mop_goc",label:"Cấn móp góc"},
@@ -867,6 +876,7 @@ export function getDefaultTemplate(key, shopInfo = {}) {
     const vietqrUrl = shop.bank_account && shop.bank_name
       ? `https://img.vietqr.io/image/${shop.bank_name}-${shop.bank_account}-compact2.png?amount=${remaining}&addInfo=${encodeURIComponent("HK " + order.order_code)}&accountName=${encodeURIComponent(shop.shop_name)}`
       : null;
+    const orderQrSample = "https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=" + encodeURIComponent("https://hk-1-touch.vercel.app?order=" + (order.order_code||"HK-001"));
     return `<!DOCTYPE html>
 <html><head><meta charset="utf-8">
 <title>HOA DON SC ${order.order_code}</title>
@@ -907,9 +917,17 @@ export function getDefaultTemplate(key, shopInfo = {}) {
   <div class="title-shop">${shop.shop_name}</div>
   ${shop.shop_address ? `<div class="sub-shop">📍 ${shop.shop_address}</div>` : ""}
   ${shop.shop_phone   ? `<div class="sub-shop">📞 ${shop.shop_phone}</div>` : ""}
-  <hr class="sep-solid"/>
-  <div class="doc-title">Hóa đơn sửa chữa</div>
-  <div class="doc-sub">Sửa chữa - Bảo hành - Kiểm tra</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
+    <div style="flex:1">
+      <hr style="border:none;border-top:1.5px solid #111;margin:5px 0"/>
+      <div class="doc-title">Hóa đơn sửa chữa</div>
+      <div class="doc-sub">Sửa chữa - Bảo hành - Kiểm tra</div>
+    </div>
+    <div style="text-align:center;flex-shrink:0;margin-left:10px">
+      <img src="${orderQrSample}" style="width:68px;height:68px;display:block;border:1px solid #eee"/>
+      <div style="font-size:9px;color:#888;margin-top:2px">${order.order_code||"HK-001"}</div>
+    </div>
+  </div>
   <hr class="sep-dash"/>
   <div class="info-grid">
     <div class="info-row"><span class="info-label">Mã phiếu:</span><span class="info-val" style="font-size:14px;font-weight:900">${order.order_code}</span></div>
@@ -966,7 +984,7 @@ export function getDefaultTemplate(key, shopInfo = {}) {
   if (key === "sale_receipt") {
     const sampleQr = "https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=" + encodeURIComponent("https://hk-1-touch.vercel.app?sale=SP-001");
     return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>HOA DON BAN LE</title>
+<html><head><meta charset="utf-8"><title>HOA DON BAN HANG</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   body{font-family:"Times New Roman",Times,serif;font-size:13px;max-width:148mm;margin:0 auto;
@@ -996,7 +1014,7 @@ export function getDefaultTemplate(key, shopInfo = {}) {
     <div style="flex:1">
       <hr style="border:none;border-top:1.5px solid #111;margin:5px 0"/>
       <div style="text-align:center;font-size:13px;color:#333;letter-spacing:2px">───────────────</div>
-      <div style="font-size:16px;font-weight:bold;text-align:center;margin:5px 0 2px;letter-spacing:1.5px;text-transform:uppercase">Hóa đơn bán lẻ</div>
+      <div style="font-size:16px;font-weight:bold;text-align:center;margin:5px 0 2px;letter-spacing:1.5px;text-transform:uppercase">Hóa Đơn Bán Hàng</div>
       <div style="text-align:center;font-size:13px;color:#333;letter-spacing:2px">───────────────</div>
     </div>
     <div style="margin-left:10px;text-align:center;flex-shrink:0">

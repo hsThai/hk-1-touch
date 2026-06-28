@@ -29,7 +29,7 @@ const PRINT_FIELDS = [
 const TEMPLATES = [
   { key:"receipt_form", icon:"📋", label:"Phiếu tiếp nhận máy",          size:"A5" },
   { key:"bill",         icon:"🧾", label:"Hóa đơn sửa chữa",              size:"A5" },
-  { key:"sale_receipt", icon:"🛒", label:"Hóa đơn bán lẻ",               size:"A5" },
+  { key:"sale_receipt", icon:"🛒", label:"Hóa Đơn Bán Hàng",               size:"A5" },
   { key:"warranty",     icon:"🏷️", label:"Tem bảo hành",                 size:"50×30mm" },
   { key:"spare_label",  icon:"📦", label:"Tem linh kiện",                 size:"50×25mm" },
 ];
@@ -252,7 +252,7 @@ export default function PrintSettingsTab({ user }) {
               fn: () => previewReceiptForm(SAMPLE_ORDER, SAMPLE_PARTS, buildShopInfo()) },
             { label:"🧾 Hóa đơn SC / Phiếu thanh toán",
               fn: () => previewBill(SAMPLE_ORDER, SAMPLE_PARTS, buildShopInfo()) },
-            { label:"🛒 Hóa đơn bán lẻ",
+            { label:"🛒 Hóa Đơn Bán Hàng",
               fn: () => previewSaleReceipt(SAMPLE_SALE, buildShopInfo()) },
             { label:"🏷️ Tem bảo hành 50×30mm",
               fn: () => previewWarrantyLabel(SAMPLE_ORDER, buildShopInfo()) },
