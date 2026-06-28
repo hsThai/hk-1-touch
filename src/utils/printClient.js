@@ -114,6 +114,8 @@ export async function printReceiptA5(order, shopInfo = null) {
 export async function printBillA5(order, parts = [], shopInfo = null) {
   if (!shopInfo || Object.keys(shopInfo).length === 0) { shopInfo = await loadShopInfo(); }
   const remaining = Math.max(0, (order.final_cost || order.estimated_cost || 0) - (order.deposit || 0));
+  const orderUrl = "https://hk-1-touch.vercel.app?order=" + encodeURIComponent(order.order_code || order.id);
+  const orderQrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=" + encodeURIComponent(orderUrl);
   const vietqrUrl = shopInfo.bank_account && shopInfo.bank_name
     ? `https://img.vietqr.io/image/${shopInfo.bank_name}-${shopInfo.bank_account}-compact2.png?amount=${remaining}&addInfo=${encodeURIComponent("HK " + (order.order_code || order.id))}&accountName=${encodeURIComponent(shopInfo.shop_name || "Hoang Khanh")}`
     : null;
@@ -178,6 +180,8 @@ export async function previewReceiptForm(order, quotedParts = [], shopInfo = {})
     note:    qt1[key]?.note    || "",
   }));
 
+  const orderUrl = "https://hk-1-touch.vercel.app?order=" + encodeURIComponent(order.order_code || order.id);
+  const orderQrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=" + encodeURIComponent(orderUrl);
   const fmtDt = (s) => s ? new Date(s).toLocaleString("vi-VN",{
     hour12:false,day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"
   }) : "—";
@@ -266,8 +270,18 @@ export async function previewReceiptForm(order, quotedParts = [], shopInfo = {})
 <div class="title-shop">${shopInfo.shop_name||"HOÀNG KHÁNH MOBILE"}</div>
 ${shopInfo.shop_address?`<div class="sub-shop">📍 ${shopInfo.shop_address}</div>`:""}
 ${shopInfo.shop_phone  ?`<div class="sub-shop">📞 ${shopInfo.shop_phone}</div>`:""}
-<hr class="sep-solid"/>
-<div class="doc-title">Phiếu tiếp nhận máy</div>
+<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-top:4px">
+  <div style="flex:1">
+    <hr style="border:none;border-top:2px solid #111;margin:5px 0"/>
+    <div style="font-size:18px;font-weight:bold;text-align:center;margin:7px 0 2px;letter-spacing:2px;text-transform:uppercase;text-decoration:underline">Phiếu tiếp nhận máy</div>
+    <div style="text-align:center;font-size:11px;color:#888;margin-bottom:5px">Phiếu này là bằng chứng bàn giao thiết bị giữa khách hàng và cửa hàng</div>
+  </div>
+  <div style="margin-left:10px;text-align:center;flex-shrink:0">
+    <img src="${orderQrUrl}" style="width:72px;height:72px;display:block"/>
+    <div style="font-size:9px;color:#888;margin-top:1px">${order.order_code||order.id}</div>
+  </div>
+</div>
+<hr style="border:none;border-top:1px dashed #777;margin:4px 0"/>
 <div class="doc-sub">Phiếu này là bằng chứng bàn giao thiết bị giữa khách hàng và cửa hàng</div>
 <hr class="sep-dash"/>
 
@@ -435,10 +449,18 @@ export async function previewBill(order, parts = [], shopInfo = {}) {
   <div class="title-shop">${shopInfo.shop_name||"HOÀNG KHÁNH MOBILE"}</div>
   ${shopInfo.shop_address?`<div class="sub-shop">📍 ${shopInfo.shop_address}</div>`:""}
   ${shopInfo.shop_phone  ?`<div class="sub-shop">📞 ${shopInfo.shop_phone}</div>`:""}
-  <hr class="sep-solid"/>
-  <div class="doc-deco">───────────────</div>
-  <div class="doc-title">Hóa đơn sửa chữa</div>
-  <div class="doc-deco">───────────────</div>
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-top:4px">
+    <div style="flex:1">
+      <hr style="border:none;border-top:1.5px solid #111;margin:5px 0"/>
+      <div style="text-align:center;font-size:13px;color:#333;letter-spacing:2px">───────────────</div>
+      <div style="font-size:16px;font-weight:bold;text-align:center;margin:5px 0 2px;letter-spacing:1.5px;text-transform:uppercase">Hóa đơn sửa chữa</div>
+      <div style="text-align:center;font-size:13px;color:#333;letter-spacing:2px">───────────────</div>
+    </div>
+    <div style="margin-left:10px;text-align:center;flex-shrink:0">
+      <img src="${orderQrUrl}" style="width:68px;height:68px;display:block"/>
+      <div style="font-size:9px;color:#888;margin-top:1px">${order.order_code||order.id}</div>
+    </div>
+  </div>
   <hr class="sep-dash"/>
 
   <!-- THÔNG TIN ĐƠN -->
@@ -549,6 +571,7 @@ export async function printSaleReceiptA5(saleOrder, shopInfo = null) {
 export async function previewSaleReceipt(saleOrder, shopInfo = {}) {
   if (!shopInfo || !shopInfo.shop_name) shopInfo = await loadShopInfo();
   const fmtMoney = (n) => Number(n || 0).toLocaleString("vi-VN") + "đ";
+  const saleQrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=" + encodeURIComponent("https://hk-1-touch.vercel.app?sale=" + encodeURIComponent(saleOrder.order_code || saleOrder.id));
   const fmtDate  = (s) => s ? new Date(s).toLocaleString("vi-VN", { hour12: false }) : "";
   const PM_LABELS = { cash:"Tiền mặt", transfer:"Chuyển khoản", combo:"Kết hợp", credit:"Bán chịu" };
 
@@ -592,8 +615,15 @@ export async function previewSaleReceipt(saleOrder, shopInfo = {}) {
   <div class="title-shop">${shopInfo.shop_name || "HOÀNG KHÁNH MOBILE"}</div>
   ${shopInfo.shop_address ? `<div class="sub-shop">${shopInfo.shop_address}</div>` : ""}
   ${shopInfo.shop_phone   ? `<div class="sub-shop">ĐT: ${shopInfo.shop_phone}</div>` : ""}
-
-  <div class="doc-title">─── Phiếu thanh toán ───</div>
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-top:4px">
+    <div style="flex:1">
+      <div class="doc-title">─── Phiếu thanh toán ───</div>
+    </div>
+    <div style="margin-left:10px;text-align:center;flex-shrink:0">
+      <img src="${saleQrUrl}" style="width:62px;height:62px;display:block"/>
+      <div style="font-size:9px;color:#888;margin-top:1px">${saleOrder.order_code||saleOrder.id}</div>
+    </div>
+  </div>
   <hr class="sep-solid"/>
 
   <!-- THÔNG TIN ĐƠN -->
