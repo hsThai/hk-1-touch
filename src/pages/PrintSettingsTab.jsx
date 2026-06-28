@@ -27,8 +27,8 @@ const PRINT_FIELDS = [
 ];
 
 const TEMPLATES = [
-  { key:"receipt_form", icon:"📋", label:"Phiếu tiếp nhận máy",          size:"A4" },
-  { key:"bill",         icon:"🧾", label:"Hóa đơn SC / Phiếu thanh toán", size:"A5" },
+  { key:"receipt_form", icon:"📋", label:"Phiếu tiếp nhận máy",          size:"A5" },
+  { key:"bill",         icon:"🧾", label:"Hóa đơn sửa chữa",              size:"A5" },
   { key:"sale_receipt", icon:"🛒", label:"Hóa đơn bán lẻ",               size:"A5" },
   { key:"warranty",     icon:"🏷️", label:"Tem bảo hành",                 size:"50×30mm" },
   { key:"spare_label",  icon:"📦", label:"Tem linh kiện",                 size:"50×25mm" },
