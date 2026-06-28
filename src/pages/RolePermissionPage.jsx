@@ -294,7 +294,7 @@ export default function RolePermissionPage() {
         <div style={{
           overflowX:"auto", overflowY:"auto",
           WebkitOverflowScrolling:"touch",
-          maxHeight:"calc(100vh - 340px)",
+          maxHeight:"calc(100vh - 180px)",
         }}>
           <table style={{ width:"100%", borderCollapse:"collapse", minWidth:520 }}>
 
