@@ -296,54 +296,78 @@ export async function previewSaleReceipt(saleOrder, shopInfo = {}) {
     </tr>`
   ).join("");
 
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
-  <title>HĐ Bán lẻ ${saleOrder.order_code || ""}</title>
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:Arial,sans-serif;font-size:13px;padding:16px;max-width:148mm;margin:0 auto;color:#111}
-    h2{text-align:center;font-size:15px;margin-bottom:2px}
-    .sub{text-align:center;font-size:11px;color:#555;margin-bottom:8px}
-    .title{text-align:center;font-weight:bold;font-size:14px;letter-spacing:1px;margin:8px 0}
-    .sep{border:none;border-top:1px dashed #999;margin:8px 0}
-    .row{display:flex;justify-content:space-between;margin:3px 0;font-size:12px}
-    table{width:100%;border-collapse:collapse;font-size:12px;margin:8px 0}
-    th{background:#f3f4f6;padding:5px 8px;text-align:left;font-size:11px;border-bottom:1px solid #e5e7eb}
-    td{padding:5px 8px;border-bottom:1px solid #f5f5f5}
-    .total-row{font-weight:bold;font-size:13px}
-    .final{font-size:15px;font-weight:bold;color:#059669}
-    .footer{text-align:center;font-size:11px;color:#666;margin-top:10px}
-    @media print{body{padding:4px}}
-  </style>
-  </head><body>
-  <h2>${shopInfo.shop_name || "HOÀNG KHÁNH MOBILE"}</h2>
-  <div class="sub">${[shopInfo.shop_phone, shopInfo.shop_address].filter(Boolean).join(" | ")}</div>
-  <div class="title">─── HÓA ĐƠN BÁN HÀNG ───</div>
-  <hr class="sep"/>
-  <div class="row"><span>Mã đơn:</span><span><b>${saleOrder.order_code || ""}</b></span></div>
-  <div class="row"><span>Ngày bán:</span><span>${fmtDate(saleOrder.created || saleOrder.created_date)}</span></div>
-  <div class="row"><span>Thu ngân:</span><span>${saleOrder.cashier_name || "—"}</span></div>
-  <div class="row"><span>Khách hàng:</span><span>${saleOrder.customer_name || "Khách lẻ"}${saleOrder.customer_phone ? " — " + saleOrder.customer_phone : ""}</span></div>
-  <div class="row"><span>HTTT:</span><span>${PM_LABELS[saleOrder.payment_method] || saleOrder.payment_method || "Tiền mặt"}</span></div>
-  <hr class="sep"/>
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<title>PHIEU THANH TOAN ${saleOrder.order_code || ""}</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:"Times New Roman",Times,serif;font-size:13px;max-width:80mm;margin:0 auto;padding:6mm 4mm;color:#111;background:#fff}
+  .title-shop{font-size:14px;font-weight:bold;text-align:center;text-transform:uppercase;margin-bottom:2px}
+  .sub-shop{font-size:11px;text-align:center;margin-bottom:2px}
+  .doc-title{font-size:15px;font-weight:bold;text-align:center;margin:6px 0 4px;letter-spacing:1px;text-transform:uppercase}
+  .sep-solid{border:none;border-top:1.5px solid #222;margin:5px 0}
+  .sep-dash{border:none;border-top:1px dashed #555;margin:4px 0}
+  .meta{font-size:12px;margin:2px 0;display:flex;justify-content:space-between}
+  .meta span:last-child{font-weight:bold;text-align:right}
+  table{width:100%;border-collapse:collapse;font-size:12px;margin:4px 0}
+  thead th{border-bottom:1px solid #555;padding:3px 2px;text-align:left;font-size:11px;font-weight:bold;background:#f5f5f5}
+  thead th.r{text-align:right} thead th.c{text-align:center}
+  tbody td{padding:4px 2px;vertical-align:top;font-size:12px;border-bottom:1px dashed #e0e0e0}
+  tbody td.r{text-align:right} tbody td.c{text-align:center}
+  .total-row{display:flex;justify-content:space-between;font-size:12px;margin:2px 0}
+  .grand-total{display:flex;justify-content:space-between;font-size:15px;font-weight:bold;margin:4px 0}
+  .grand-val{color:#059669}
+  .discount-row{display:flex;justify-content:space-between;font-size:12px;margin:2px 0;color:#dc2626}
+  .footer{text-align:center;font-size:11px;color:#555;margin-top:8px;border-top:1px dashed #aaa;padding-top:5px}
+  .highlight-box{border:1.5px solid #222;display:inline-block;padding:1px 6px;font-weight:bold;font-size:13px}
+  @media print{@page{size:80mm auto;margin:0}body{padding:4mm 3mm}}
+</style>
+</head><body>
+  <!-- HEADER -->
+  <div class="title-shop">${shopInfo.shop_name || "HOÀNG KHÁNH MOBILE"}</div>
+  ${shopInfo.shop_address ? `<div class="sub-shop">${shopInfo.shop_address}</div>` : ""}
+  ${shopInfo.shop_phone   ? `<div class="sub-shop">ĐT: ${shopInfo.shop_phone}</div>` : ""}
+
+  <div class="doc-title">─── Phiếu thanh toán ───</div>
+  <hr class="sep-solid"/>
+
+  <!-- THÔNG TIN ĐƠN -->
+  <div class="meta"><span>Hóa đơn:</span><span class="highlight-box">${saleOrder.order_code || ""}</span></div>
+  <div class="meta"><span>Ngày bán:</span><span>${fmtDate(saleOrder.created_date || saleOrder.created)}</span></div>
+  ${saleOrder.cashier_name ? `<div class="meta"><span>Thu ngân:</span><span>${saleOrder.cashier_name}</span></div>` : ""}
+  ${saleOrder.seller_name  ? `<div class="meta"><span>Người bán:</span><span>${saleOrder.seller_name}</span></div>` : ""}
+  <div class="meta"><span>Khách hàng:</span><span>${saleOrder.customer_name || "Khách lẻ"}${saleOrder.customer_phone ? " — " + saleOrder.customer_phone : ""}</span></div>
+  <div class="meta"><span>Thanh toán:</span><span>${PM_LABELS[saleOrder.payment_method] || saleOrder.payment_method || "Tiền mặt"}</span></div>
+  <hr class="sep-dash"/>
+
+  <!-- BẢNG SẢN PHẨM -->
   <table>
     <thead><tr>
-      <th>Sản phẩm</th>
-      <th style="text-align:center">SL</th>
-      <th style="text-align:right">Đ.Giá</th>
-      <th style="text-align:right">T.Tiền</th>
+      <th style="width:44%">Sản phẩm</th>
+      <th class="c" style="width:10%">SL</th>
+      <th class="r" style="width:22%">Đ.Giá</th>
+      <th class="r" style="width:24%">T.Tiền</th>
     </tr></thead>
     <tbody>${itemsHTML}</tbody>
   </table>
-  <hr class="sep"/>
+
+  <hr class="sep-dash"/>
+
+  <!-- TỔNG -->
   ${(saleOrder.subtotal && saleOrder.subtotal !== saleOrder.total)
-    ? `<div class="row"><span>Tạm tính:</span><span>${fmtMoney(saleOrder.subtotal)}</span></div>` : ""}
+    ? `<div class="total-row"><span>Tạm tính:</span><span>${fmtMoney(saleOrder.subtotal)}</span></div>` : ""}
   ${(saleOrder.discount > 0)
-    ? `<div class="row" style="color:#dc2626"><span>Giảm giá:</span><span>-${fmtMoney(saleOrder.discount)}</span></div>` : ""}
-  <div class="row total-row"><span>TỔNG THANH TOÁN:</span><span class="final">${fmtMoney(saleOrder.total)}</span></div>
-  <hr class="sep"/>
-  <div class="footer">Cảm ơn quý khách! Hẹn gặp lại 🙏</div>
+    ? `<div class="discount-row"><span>Giảm giá:</span><span>- ${fmtMoney(saleOrder.discount)}</span></div>` : ""}
+  <div class="grand-total"><span>TỔNG:</span><span class="grand-val">${fmtMoney(saleOrder.total)}</span></div>
+  ${saleOrder.amount_paid > 0 && saleOrder.amount_paid !== saleOrder.total
+    ? `<div class="total-row"><span>Tiền khách đưa:</span><span>${fmtMoney(saleOrder.amount_paid)}</span></div>
+       <div class="total-row"><span>Tiền thừa:</span><span>${fmtMoney((saleOrder.amount_paid||0)-(saleOrder.total||0))}</span></div>` : ""}
+
+  <div class="footer">
+    <div>Cảm ơn quý khách! Hẹn gặp lại 🙏</div>
+  </div>
   <script>window.onload=()=>setTimeout(()=>window.print(),300)</script>
-  </body></html>`;
+</body></html>`;
 
   const finalHtml = await loadTemplate("sale_receipt", html);
   if (!finalHtml) { alert("Mẫu hóa đơn bán lẻ đã bị tắt."); return; }
@@ -577,44 +601,66 @@ export function getDefaultTemplate(key, shopInfo = {}) {
 
   if (key === "sale_receipt") {
     const fmtMoney = (n) => Number(n || 0).toLocaleString("vi-VN") + "đ";
-    const itemsHTML = saleOrder.items.map(it =>
-      `<tr><td>${it.part_name}</td><td style="text-align:center">${it.qty}</td>` +
-      `<td style="text-align:right">${fmtMoney(it.unit_price)}</td>` +
-      `<td style="text-align:right;font-weight:bold">${fmtMoney(it.total_price)}</td></tr>`
+    const fmtDate  = (s) => s ? new Date(s).toLocaleDateString("vi-VN") : new Date().toLocaleDateString("vi-VN");
+    const PM_LABELS = { cash:"Tiền mặt", transfer:"Chuyển khoản", combo:"Kết hợp", credit:"Bán chịu" };
+    const itemsHTML = saleOrder.items.map((it, i) =>
+      `<tr>
+        <td>${i+1}. ${it.part_name || it.name || ""}</td>
+        <td class="c">${it.qty}</td>
+        <td class="r">${fmtMoney(it.unit_price)}</td>
+        <td class="r" style="font-weight:bold">${fmtMoney(it.total_price)}</td>
+      </tr>`
     ).join("");
-    return `<!DOCTYPE html><html><head><meta charset="utf-8">
-  <title>HĐ Bán lẻ ${saleOrder.order_code}</title>
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:Arial,sans-serif;font-size:13px;padding:16px;max-width:148mm;margin:0 auto;color:#111}
-    h2{text-align:center;font-size:15px;margin-bottom:2px}
-    .sub{text-align:center;font-size:11px;color:#555;margin-bottom:8px}
-    .title{text-align:center;font-weight:bold;font-size:14px;letter-spacing:1px;margin:8px 0}
-    .sep{border:none;border-top:1px dashed #999;margin:8px 0}
-    .row{display:flex;justify-content:space-between;margin:3px 0;font-size:12px}
-    table{width:100%;border-collapse:collapse;font-size:12px;margin:8px 0}
-    th{background:#f3f4f6;padding:5px 8px;text-align:left;font-size:11px}
-    td{padding:5px 8px;border-bottom:1px solid #f5f5f5}
-    .final{font-size:15px;font-weight:bold;color:#059669}
-    .footer{text-align:center;font-size:11px;color:#666;margin-top:10px}
-    @media print{body{padding:4px}}
-  </style>
-  </head><body>
-  <h2>${shop.shop_name}</h2>
-  <div class="sub">${shop.shop_phone} | ${shop.shop_address}</div>
-  <div class="title">─── HÓA ĐƠN BÁN HÀNG ───</div>
-  <hr class="sep"/>
-  <div class="row"><span>Mã đơn:</span><span><b>${saleOrder.order_code}</b></span></div>
-  <div class="row"><span>Thu ngân:</span><span>${saleOrder.cashier_name}</span></div>
-  <div class="row"><span>Khách hàng:</span><span>${saleOrder.customer_name}</span></div>
-  <hr class="sep"/>
-  <table><thead><tr><th>Sản phẩm</th><th>SL</th><th>Đ.Giá</th><th>T.Tiền</th></tr></thead>
-  <tbody>${itemsHTML}</tbody></table>
-  <hr class="sep"/>
-  <div class="row" style="font-weight:bold;font-size:14px"><span>TỔNG:</span><span class="final">${fmtMoney(saleOrder.total)}</span></div>
-  <hr class="sep"/>
-  <div class="footer">Cảm ơn quý khách! 🙏</div>
-  </body></html>`;
+    return `<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<title>PHIEU THANH TOAN ${saleOrder.order_code}</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:"Times New Roman",Times,serif;font-size:13px;max-width:80mm;margin:0 auto;padding:6mm 4mm;color:#111;background:#fff}
+  .title-shop{font-size:14px;font-weight:bold;text-align:center;text-transform:uppercase;margin-bottom:2px}
+  .sub-shop{font-size:11px;text-align:center;margin-bottom:2px}
+  .doc-title{font-size:15px;font-weight:bold;text-align:center;margin:6px 0 4px;letter-spacing:1px;text-transform:uppercase}
+  .sep-solid{border:none;border-top:1.5px solid #222;margin:5px 0}
+  .sep-dash{border:none;border-top:1px dashed #555;margin:4px 0}
+  .meta{font-size:12px;margin:2px 0;display:flex;justify-content:space-between}
+  .meta span:last-child{font-weight:bold}
+  table{width:100%;border-collapse:collapse;font-size:12px;margin:4px 0}
+  thead th{border-bottom:1px solid #555;padding:3px 2px;text-align:left;font-size:11px;font-weight:bold;background:#f5f5f5}
+  thead th.r{text-align:right} thead th.c{text-align:center}
+  tbody td{padding:4px 2px;vertical-align:top;border-bottom:1px dashed #e0e0e0}
+  tbody td.r{text-align:right} tbody td.c{text-align:center}
+  .grand-total{display:flex;justify-content:space-between;font-size:15px;font-weight:bold;margin:4px 0}
+  .grand-val{color:#059669}
+  .highlight-box{border:1.5px solid #222;display:inline-block;padding:1px 6px;font-weight:bold;font-size:13px}
+  .footer{text-align:center;font-size:11px;color:#555;margin-top:8px;border-top:1px dashed #aaa;padding-top:5px}
+  @media print{@page{size:80mm auto;margin:0}body{padding:4mm 3mm}}
+</style>
+</head><body>
+  <div class="title-shop">${shop.shop_name}</div>
+  ${shop.shop_address ? `<div class="sub-shop">${shop.shop_address}</div>` : ""}
+  ${shop.shop_phone   ? `<div class="sub-shop">ĐT: ${shop.shop_phone}</div>` : ""}
+  <div class="doc-title">─── Phiếu thanh toán ───</div>
+  <hr class="sep-solid"/>
+  <div class="meta"><span>Hóa đơn:</span><span class="highlight-box">${saleOrder.order_code}</span></div>
+  <div class="meta"><span>Ngày bán:</span><span>${fmtDate(saleOrder.created_date)}</span></div>
+  <div class="meta"><span>Thu ngân:</span><span>${saleOrder.cashier_name}</span></div>
+  <div class="meta"><span>Khách hàng:</span><span>${saleOrder.customer_name}</span></div>
+  <div class="meta"><span>Thanh toán:</span><span>${PM_LABELS[saleOrder.payment_method]||"Tiền mặt"}</span></div>
+  <hr class="sep-dash"/>
+  <table>
+    <thead><tr>
+      <th style="width:44%">Sản phẩm</th>
+      <th class="c" style="width:10%">SL</th>
+      <th class="r" style="width:22%">Đ.Giá</th>
+      <th class="r" style="width:24%">T.Tiền</th>
+    </tr></thead>
+    <tbody>${itemsHTML}</tbody>
+  </table>
+  <hr class="sep-dash"/>
+  ${saleOrder.discount > 0 ? `<div style="display:flex;justify-content:space-between;font-size:12px;color:#dc2626"><span>Giảm giá:</span><span>-${fmtMoney(saleOrder.discount)}</span></div>` : ""}
+  <div class="grand-total"><span>TỔNG:</span><span class="grand-val">${fmtMoney(saleOrder.total)}</span></div>
+  <div class="footer"><div>Cảm ơn quý khách! Hẹn gặp lại 🙏</div></div>
+</body></html>`;
   }
 
   if (key === "warranty") {
