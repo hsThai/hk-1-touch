@@ -447,7 +447,7 @@ export default function SaleOrderPage({ user }) {
         <div style={{ position:"relative" }}>
           <span className="material-icons" style={{ fontFamily:"Material Icons", position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color:"#9ca3af", fontSize:20 }}>search</span>
           <input value={search} onChange={e=>setSearch(e.target.value)}
-  placeholder="🔍  Tìm linh kiện theo tên hoặc SKU..."
+  placeholder="Tìm linh kiện theo tên hoặc SKU..."
   style={{...INP, paddingLeft:16, height:48, fontSize:15,
     border:"2px solid #d1fae5", background:"#f0fdf4",
     boxShadow:"0 1px 4px rgba(5,150,105,.08)"}} />
