@@ -964,65 +964,67 @@ export function getDefaultTemplate(key, shopInfo = {}) {
   }
 
   if (key === "sale_receipt") {
-    const fmtMoney = (n) => Number(n || 0).toLocaleString("vi-VN") + "đ";
-    const fmtDate  = (s) => s ? new Date(s).toLocaleDateString("vi-VN") : new Date().toLocaleDateString("vi-VN");
-    const PM_LABELS = { cash:"Tiền mặt", transfer:"Chuyển khoản", combo:"Kết hợp", credit:"Bán chịu" };
-    const itemsHTML = saleOrder.items.map((it, i) =>
-      `<tr>
-        <td>${i+1}. ${it.part_name || it.name || ""}</td>
-        <td class="c">${it.qty}</td>
-        <td class="r">${fmtMoney(it.unit_price)}</td>
-        <td class="r" style="font-weight:bold">${fmtMoney(it.total_price)}</td>
-      </tr>`
-    ).join("");
+    const sampleQr = "https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=" + encodeURIComponent("https://hk-1-touch.vercel.app?sale=SP-001");
     return `<!DOCTYPE html>
-<html><head><meta charset="utf-8">
-<title>PHIEU THANH TOAN ${saleOrder.order_code}</title>
+<html><head><meta charset="utf-8"><title>HOA DON BAN LE</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:"Times New Roman",Times,serif;font-size:13px;max-width:80mm;margin:0 auto;padding:6mm 4mm;color:#111;background:#fff}
-  .title-shop{font-size:14px;font-weight:bold;text-align:center;text-transform:uppercase;margin-bottom:2px}
-  .sub-shop{font-size:11px;text-align:center;margin-bottom:2px}
-  .doc-title{font-size:15px;font-weight:bold;text-align:center;margin:6px 0 4px;letter-spacing:1px;text-transform:uppercase}
-  .sep-solid{border:none;border-top:1.5px solid #222;margin:5px 0}
-  .sep-dash{border:none;border-top:1px dashed #555;margin:4px 0}
-  .meta{font-size:12px;margin:2px 0;display:flex;justify-content:space-between}
-  .meta span:last-child{font-weight:bold}
-  table{width:100%;border-collapse:collapse;font-size:12px;margin:4px 0}
-  thead th{border-bottom:1px solid #555;padding:3px 2px;text-align:left;font-size:11px;font-weight:bold;background:#f5f5f5}
+  body{font-family:"Times New Roman",Times,serif;font-size:13px;max-width:148mm;margin:0 auto;
+       padding:6mm 5mm;color:#111;background:#fff;line-height:1.55}
+  .title-shop{font-size:15px;font-weight:bold;text-align:center;text-transform:uppercase;letter-spacing:.5px}
+  .sub-shop{font-size:11px;text-align:center;color:#555;margin-bottom:1px}
+  .sep-dash{border:none;border-top:1px dashed #777;margin:4px 0}
+  .meta{display:flex;justify-content:space-between;font-size:12px;margin:2px 0}
+  .meta span:last-child{font-weight:700;text-align:right}
+  .highlight-box{border:1.5px solid #111;display:inline-block;padding:1px 7px;font-weight:900;font-size:13px}
+  table{width:100%;border-collapse:collapse;font-size:12px;margin:5px 0}
+  thead th{background:#222;color:#fff;padding:4px;text-align:left;font-size:11px;font-weight:bold}
   thead th.r{text-align:right} thead th.c{text-align:center}
-  tbody td{padding:4px 2px;vertical-align:top;border-bottom:1px dashed #e0e0e0}
+  tbody tr:nth-child(even){background:#f9f9f9}
+  tbody td{padding:5px 4px;border-bottom:1px dashed #e0e0e0;font-size:12px;vertical-align:top}
   tbody td.r{text-align:right} tbody td.c{text-align:center}
-  .grand-total{display:flex;justify-content:space-between;font-size:15px;font-weight:bold;margin:4px 0}
+  .grand-row{display:flex;justify-content:space-between;font-size:15px;font-weight:bold;
+             border-top:2px solid #111;border-bottom:2px solid #111;padding:5px 0;margin:4px 0}
   .grand-val{color:#059669}
-  .highlight-box{border:1.5px solid #222;display:inline-block;padding:1px 6px;font-weight:bold;font-size:13px}
-  .footer{text-align:center;font-size:11px;color:#555;margin-top:8px;border-top:1px dashed #aaa;padding-top:5px}
-  @media print{@page{size:80mm auto;margin:0}body{padding:4mm 3mm}}
-</style>
-</head><body>
+  .footer{text-align:center;font-size:11px;color:#555;margin-top:7px;border-top:1px dashed #aaa;padding-top:5px}
+  @media print{@page{size:A5 portrait;margin:6mm}body{padding:0}}
+</style></head><body>
   <div class="title-shop">${shop.shop_name}</div>
-  ${shop.shop_address ? `<div class="sub-shop">${shop.shop_address}</div>` : ""}
-  ${shop.shop_phone   ? `<div class="sub-shop">ĐT: ${shop.shop_phone}</div>` : ""}
-  <div class="doc-title">─── Phiếu thanh toán ───</div>
-  <hr class="sep-solid"/>
-  <div class="meta"><span>Hóa đơn:</span><span class="highlight-box">${saleOrder.order_code}</span></div>
-  <div class="meta"><span>Ngày bán:</span><span>${fmtDate(saleOrder.created_date)}</span></div>
-  <div class="meta"><span>Thu ngân:</span><span>${saleOrder.cashier_name}</span></div>
-  <div class="meta"><span>Khách hàng:</span><span>${saleOrder.customer_name}</span></div>
-  <div class="meta"><span>Thanh toán:</span><span>${PM_LABELS[saleOrder.payment_method]||"Tiền mặt"}</span></div>
+  ${shop.shop_address?`<div class="sub-shop">📍 ${shop.shop_address}</div>`:""}
+  ${shop.shop_phone  ?`<div class="sub-shop">📞 ${shop.shop_phone}</div>`:""}
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
+    <div style="flex:1">
+      <hr style="border:none;border-top:1.5px solid #111;margin:5px 0"/>
+      <div style="text-align:center;font-size:13px;color:#333;letter-spacing:2px">───────────────</div>
+      <div style="font-size:16px;font-weight:bold;text-align:center;margin:5px 0 2px;letter-spacing:1.5px;text-transform:uppercase">Hóa đơn bán lẻ</div>
+      <div style="text-align:center;font-size:13px;color:#333;letter-spacing:2px">───────────────</div>
+    </div>
+    <div style="margin-left:10px;text-align:center;flex-shrink:0">
+      <img src="${sampleQr}" style="width:72px;height:72px;display:block;border:1px solid #eee"/>
+      <div style="font-size:9px;color:#888;margin-top:2px">SP-001</div>
+    </div>
+  </div>
+  <hr class="sep-dash"/>
+  <div class="meta"><span>Hóa đơn:</span><span><span class="highlight-box">SP-001</span></span></div>
+  <div class="meta"><span>Ngày bán:</span><span>${new Date().toLocaleDateString("vi-VN")}</span></div>
+  <div class="meta"><span>Khách hàng:</span><span>Nguyễn Văn A — 0901234567</span></div>
+  <div class="meta"><span>Thu ngân:</span><span>Nhân viên A</span></div>
+  <div class="meta"><span>Thanh toán:</span><span>Tiền mặt</span></div>
   <hr class="sep-dash"/>
   <table>
     <thead><tr>
-      <th style="width:44%">Sản phẩm</th>
+      <th class="c" style="width:4%">#</th><th>Sản phẩm</th>
       <th class="c" style="width:10%">SL</th>
-      <th class="r" style="width:22%">Đ.Giá</th>
-      <th class="r" style="width:24%">T.Tiền</th>
+      <th class="r" style="width:22%">Đơn giá</th>
+      <th class="r" style="width:22%">T.Tiền</th>
     </tr></thead>
-    <tbody>${itemsHTML}</tbody>
+    <tbody>
+      <tr><td class="c">1</td><td>Ốp lưng iPhone 15</td><td class="c">1</td><td class="r">150.000</td><td class="r" style="font-weight:bold">150.000</td></tr>
+      <tr><td class="c">2</td><td>Kính cường lực 9H</td><td class="c">2</td><td class="r">50.000</td><td class="r" style="font-weight:bold">100.000</td></tr>
+    </tbody>
   </table>
   <hr class="sep-dash"/>
-  ${saleOrder.discount > 0 ? `<div style="display:flex;justify-content:space-between;font-size:12px;color:#dc2626"><span>Giảm giá:</span><span>-${fmtMoney(saleOrder.discount)}</span></div>` : ""}
-  <div class="grand-total"><span>TỔNG:</span><span class="grand-val">${fmtMoney(saleOrder.total)}</span></div>
+  <div class="grand-row"><span>TỔNG THANH TOÁN:</span><span class="grand-val">250.000 đ</span></div>
   <div class="footer"><div>Cảm ơn quý khách! Hẹn gặp lại 🙏</div></div>
 </body></html>`;
   }
