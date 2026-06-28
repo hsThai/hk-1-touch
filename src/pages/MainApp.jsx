@@ -1906,12 +1906,20 @@ function MainAppContent({ onUserChange }) {
         </div>
         {/* Main Content PC */}
         <div style={{ flex:1, overflowY:"auto", display:"flex", flexDirection:"column" }}>
-          {!["cashier_home","wh_manager","wh_app","stock_count","purchase_order"].includes(page) && (
+          {!["cashier_home","wh_manager","wh_app","stock_count","purchase_order",
+   "purchase_forecast","rma",
+   "customers","suppliers","cash_journal","debts","debt_ncc",
+   "report_profit","report_staff","action_log","staff","stock_nxt","sale_history"
+  ].includes(page) && (
           <div style={{ background:"#fff", borderBottom:"1px solid #e5e7eb", padding:"12px 24px",
             display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
             <div style={{ fontWeight:700, fontSize:16, color:"#1e1b4b" }}>
   {/* Ẩn title khi trang đã có header riêng */}
-  {!["cashier_home","wh_manager","wh_app","stock_count","purchase_order"].includes(page) && (
+  {!["cashier_home","wh_manager","wh_app","stock_count","purchase_order",
+   "purchase_forecast","rma",
+   "customers","suppliers","cash_journal","debts","debt_ncc",
+   "report_profit","report_staff","action_log","staff","stock_nxt","sale_history"
+  ].includes(page) && (
     navItems.find(n=>n.key===page)?.label || "HK One Touch"
   )}
 </div>

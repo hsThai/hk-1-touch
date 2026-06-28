@@ -318,7 +318,7 @@ export default function SaleHistoryPage({ user }) {
 
   /* ─── Render ─── */
   return (
-    <div style={{ padding: isPC ? "20px 28px 40px" : "20px 16px 80px" }}>
+    <div style={{ padding: isPC ? "20px 28px 40px" : "20px 16px 80px", maxWidth: isPC ? 1200 : "100%", margin: "0 auto" }}>
       {/* Title + summary */}
       <div style={{ fontWeight:900, fontSize:20, color:"#1e1b4b", marginBottom:4 }}>
         📋 Quản lý đơn bán hàng
