@@ -7,6 +7,7 @@ import { AppSettings } from "./pb.jsx";
 import {
   previewBill, previewSaleReceipt,
   previewWarrantyLabel, previewSparePartLabel,
+  getDefaultTemplate,
 } from "../utils/printClient.js";
 
 /* ─── Config ─── */
@@ -125,10 +126,20 @@ export default function PrintSettingsTab({ user }) {
   async function openEditor(tplKey) {
     try {
       const list = await AppSettings.filter({ key:`print_tpl_${tplKey}` });
-      if (list && list.length > 0 && list[0].value) {
+      if (list && list.length > 0 && list[0].value && !list[0].value.startsWith("<!--")) {
+        // Đã có bản custom → load bản custom
         setEditHtml(list[0].value);
       } else {
-        setEditHtml("<!-- Template mặc định — chưa customize.\n     Bấm Xem trước để xem mẫu gốc.\n     Dán HTML tùy chỉnh vào đây rồi bấm Lưu. -->");
+        // Chưa custom → load HTML gốc từ printClient để user thấy và chỉnh
+        const defaultHtml = getDefaultTemplate(tplKey, {
+          shop_name:    settings.shop_name,
+          shop_phone:   settings.shop_phone,
+          shop_address: settings.shop_address,
+          warranty_note:settings.warranty_note,
+          bank_name:    settings.bank_name,
+          bank_account: settings.bank_account,
+        });
+        setEditHtml(defaultHtml || "<!-- Không tìm thấy template mặc định -->");
       }
     } catch { setEditHtml(""); }
     setEditKey(tplKey);
