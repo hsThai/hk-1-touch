@@ -96,9 +96,9 @@ export default function SaleOrderPage({ user }) {
 
   async function loadTodayOrders() {
     try {
-      const list = await SaleOrder.list({ limit:100, sort:"-created" });
+      const list = await SaleOrder.list({ limit:100, sort:"-id" });
       setTodayOrders((list||[]).filter(o => {
-        const dateVal = o.created || o.created_date || o.created_at || "";
+        const dateVal = o.created_date || o.created || o.created_at || "";
         return isToday(dateVal);
       }));
     } catch {}
@@ -517,7 +517,7 @@ export default function SaleOrderPage({ user }) {
                 display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <div>
                 <div style={{ fontWeight:700, fontSize:13 }}>{o.order_code}</div>
-                <div style={{ fontSize:12, color:"#6b7280" }}>{fmtTime(o.created||o.created_date)} · {o.customer_name||"Khách lẻ"}</div>
+                <div style={{ fontSize:12, color:"#6b7280" }}>{fmtTime(o.created_date||o.created)} · {o.customer_name||"Khách lẻ"}</div>
               </div>
               <div style={{ textAlign:"right" }}>
                 <div style={{ fontWeight:800, color:"#059669" }}>{fmtMoney(o.total)}</div>
@@ -709,7 +709,7 @@ export default function SaleOrderPage({ user }) {
             style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:"20px 16px 40px",
               width:"100%", maxHeight:"80vh", overflowY:"auto" }}>
             <div style={{ fontWeight:900, fontSize:16, marginBottom:4 }}>{detailOrder.order_code}</div>
-            <div style={{ fontSize:12, color:"#6b7280", marginBottom:16 }}>{fmtDateTime(detailOrder.created||detailOrder.created_date)}</div>
+            <div style={{ fontSize:12, color:"#6b7280", marginBottom:16 }}>{fmtDateTime(detailOrder.created_date||detailOrder.created)}</div>
             {(detailOrder.items||[]).map((it,i) => (
               <div key={i} style={{ display:"flex", justifyContent:"space-between", padding:"8px 0", borderBottom:"1px solid #f3f4f6" }}>
                 <span style={{ fontSize:13 }}>{it.part_name} × {it.qty}</span>
