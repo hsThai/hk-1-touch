@@ -48,12 +48,12 @@ const TABS = [
   },
 ];
 
-export default function SettingsHub({ user }) {
+export default function SettingsHub({ user, initialTab }) {
   const { can } = usePermission();
   const isAdmin = ["owner","admin","manager"].includes(user?.role);
 
   const visibleTabs = TABS.filter(t => !t.adminOnly || isAdmin);
-  const [tab, setTab] = useState(visibleTabs[0]?.key || "settings");
+  const [tab, setTab] = useState(initialTab && visibleTabs.find(t=>t.key===initialTab) ? initialTab : (visibleTabs[0]?.key || "settings"));
 
   return (
     <div style={{ minHeight:"100vh", background:"#f8fafc" }}>

@@ -365,7 +365,7 @@ const MGR_ACCORDIONS = [
     key: "acc_setup",
     icon: "manage_accounts",
     label: "Thiết lập",
-    pages: ["staff","customers","suppliers","debts","department","role_perm","settings","integrations","print_template","action_log"],
+    pages: ["staff","customers","suppliers","debts","department","role_perm","settings","integrations","print_settings","print_template","action_log"],
     items: [
       { key:"staff",          icon:"badge",                label:"Nhân viên" },
       { key:"customers",      icon:"person",               label:"Khách hàng" },
@@ -375,7 +375,7 @@ const MGR_ACCORDIONS = [
       { key:"role_perm",      icon:"admin_panel_settings", label:"Vai trò & Quyền" },
       { key:"settings",       icon:"store",                label:"Cài đặt cửa hàng" },
       { key:"integrations",   icon:"cable",                label:"Tích hợp" },
-      { key:"print_template", icon:"print",                label:"Mẫu in ấn" },
+      { key:"print_settings", icon:"print",                label:"Mẫu in & Cài đặt" },
       { key:"action_log",     icon:"history",              label:"Nhật ký thao tác" },
     ],
   },
@@ -1968,6 +1968,7 @@ function MainAppContent({ onUserChange }) {
               {page==="debts" && user && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><DebtPage user={user} /></Suspense>}
               {page==="department" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><DepartmentPageLazy user={user} /></Suspense>}
               {page==="role_perm" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><RolePermissionPageLazy /></Suspense>}
+              {page==="print_settings" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><SettingsHub user={user} initialTab="print" /></Suspense>}
               {page==="print_template" && user && <PrintTemplatePage user={user} />}
               {/* Sales, Kho, Tài chính */}
               {renderSalesPages(page, user)}
