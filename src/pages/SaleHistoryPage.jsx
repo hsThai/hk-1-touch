@@ -70,19 +70,52 @@ function DetailContent({ detail, detailItems, onClose }) {
 
       {/* Block 2 — Thông tin giao dịch */}
       <div style={{ background:"#f9fafb", borderRadius:12, padding:"12px 14px", marginBottom:14, fontSize:13, display:"grid", gridTemplateColumns:"auto 1fr", gap:"6px 12px" }}>
-        <span style={{ color:"#9ca3af", fontWeight:600 }}>Thu ngân</span>
-        <span style={{ fontWeight:700 }}>{detail.cashier_name||"—"}</span>
-        <span style={{ color:"#9ca3af", fontWeight:600 }}>Khách hàng</span>
-        <span style={{ fontWeight:700 }}>
-          {detail.customer_name||"Khách lẻ"}
-          {detail.customer_phone ? <span style={{ color:"#6b7280", fontWeight:500 }}> — {detail.customer_phone}</span> : ""}
+
+        {/* Thời gian tạo đơn */}
+        <span style={{ color:"#9ca3af", fontWeight:600 }}>🕐 Tạo đơn</span>
+        <span style={{ fontWeight:700, color:"#374151" }}>
+          {fmtDateTime(detail.created || detail.created_date || "")}
         </span>
-        <span style={{ color:"#9ca3af", fontWeight:600 }}>HTTT</span>
-        <span style={{ fontWeight:700 }}>{PM_LABELS[detail.payment_method]||detail.payment_method||"—"}</span>
+
+        {/* NV bán hàng */}
+        {detail.seller_name && <>
+          <span style={{ color:"#9ca3af", fontWeight:600 }}>🛒 NV bán</span>
+          <span style={{ fontWeight:700 }}>{detail.seller_name}</span>
+        </>}
+
+        {/* Thời gian thanh toán */}
+        {detail.status === "completed" && (detail.updated || detail.updated_date) && <>
+          <span style={{ color:"#9ca3af", fontWeight:600 }}>💳 Thanh toán</span>
+          <span style={{ fontWeight:700, color:"#059669" }}>
+            {fmtDateTime(detail.updated || detail.updated_date || "")}
+          </span>
+        </>}
+
+        {/* NV thu ngân */}
+        <span style={{ color:"#9ca3af", fontWeight:600 }}>🧑‍💼 Thu ngân</span>
+        <span style={{ fontWeight:700 }}>{detail.cashier_name || "—"}</span>
+
+        {/* Khách hàng */}
+        <span style={{ color:"#9ca3af", fontWeight:600 }}>👤 Khách hàng</span>
+        <span style={{ fontWeight:700 }}>
+          {detail.customer_name || "Khách lẻ"}
+          {detail.customer_phone
+            ? <span style={{ color:"#6b7280", fontWeight:500 }}> — {detail.customer_phone}</span>
+            : ""}
+        </span>
+
+        {/* Hình thức thanh toán */}
+        <span style={{ color:"#9ca3af", fontWeight:600 }}>💰 HTTT</span>
+        <span style={{ fontWeight:700 }}>
+          {PM_LABELS[detail.payment_method] || detail.payment_method || "—"}
+        </span>
+
+        {/* Ghi chú */}
         {detail.note && <>
-          <span style={{ color:"#9ca3af", fontWeight:600 }}>Ghi chú</span>
+          <span style={{ color:"#9ca3af", fontWeight:600 }}>📝 Ghi chú</span>
           <span style={{ fontWeight:500, fontStyle:"italic", color:"#374151" }}>{detail.note}</span>
         </>}
+
       </div>
 
       {/* Block 3 — Danh sách sản phẩm */}
@@ -178,7 +211,7 @@ export default function SaleHistoryPage({ user }) {
   async function load() {
     setLoading(true);
     try {
-      const data = await SaleOrder.list({ sort: "-id", limit: 500 });
+      const data = await SaleOrder.list({ sort: "-created", limit: 500 });
       setOrders(data || []);
     } catch(e) { console.error(e); }
     setLoading(false);
