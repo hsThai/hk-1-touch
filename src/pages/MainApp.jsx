@@ -1906,6 +1906,7 @@ function MainAppContent({ onUserChange }) {
         </div>
         {/* Main Content PC */}
         <div style={{ flex:1, overflowY:"auto", display:"flex", flexDirection:"column" }}>
+          {!["cashier_home","wh_manager","wh_app","stock_count","purchase_order"].includes(page) && (
           <div style={{ background:"#fff", borderBottom:"1px solid #e5e7eb", padding:"12px 24px",
             display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
             <div style={{ fontWeight:700, fontSize:16, color:"#1e1b4b" }}>
@@ -1926,6 +1927,7 @@ function MainAppContent({ onUserChange }) {
               </button>
             </div>
           </div>
+          )}
           <div style={{ flex:1, overflowY:"auto" }}>
             <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
               {page==="ktv_home" && <TechnicianHome user={user} orders={orders} setPage={setPage} />}
@@ -1942,7 +1944,7 @@ function MainAppContent({ onUserChange }) {
               {page==="wh_export" && <WarehouseExport user={user} />}
               {page==="wh_import" && <WarehouseImport user={user} />}
               {page==="wh_manager" && <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"dashboard")} />}
-              {page==="cashier_home" && <CashierApp user={user} />}
+              {page==="cashier_home" && <CashierApp user={user} onNotif={()=>setShowNotif(v=>!v)} onQRScan={()=>setShowQRScan(true)} notifCount={notifications.length+dbNotifications.length} />}
               {page==="sale_order" && user && (
                 <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
                   <SaleHistoryPage user={user} />
@@ -2233,7 +2235,7 @@ function MainAppContent({ onUserChange }) {
         {page==="wh_export" && <WarehouseExport user={user} />}
         {page==="wh_import" && <WarehouseImport user={user} />}
         {page==="wh_manager" && <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"dashboard")} />}
-        {page==="cashier_home" && <CashierApp user={user} />}
+        {page==="cashier_home" && <CashierApp user={user} onNotif={()=>setShowNotif(v=>!v)} onQRScan={()=>setShowQRScan(true)} notifCount={notifications.length+dbNotifications.length} />}
         {page==="sale_order" && user && (
           <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
             <SaleHistoryPage user={user} />

@@ -233,7 +233,7 @@ function ShiftReconcile({ user }) {
 }
 
 
-export default function CashierApp({ user }) {
+export default function CashierApp({ user, onNotif, onQRScan, notifCount=0 }) {
   const [tab, setTab] = useState("sale");
   const [SaleOrderPage, setSaleOrderPage] = useState(null);
 
@@ -267,6 +267,32 @@ export default function CashierApp({ user }) {
           <div style={{ fontSize:12, opacity:0.85, marginTop:2 }}>
             {user.full_name || user.name} · {todayStr()}
           </div>
+        </div>
+        {/* Utility buttons — góc phải header */}
+        <div style={{ display:"flex", gap:4, alignItems:"center" }}>
+          {onQRScan && (
+            <button onClick={onQRScan}
+              style={{ background:"rgba(255,255,255,.15)", border:"none", borderRadius:10,
+                color:"#fff", width:38, height:38, display:"flex", alignItems:"center",
+                justifyContent:"center", cursor:"pointer" }}>
+              <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22,lineHeight:1}}>qr_code_scanner</span>
+            </button>
+          )}
+          {onNotif && (
+            <button onClick={onNotif}
+              style={{ background:"rgba(255,255,255,.15)", border:"none", borderRadius:10,
+                color:"#fff", width:38, height:38, display:"flex", alignItems:"center",
+                justifyContent:"center", cursor:"pointer", position:"relative" }}>
+              <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22,lineHeight:1}}>notifications</span>
+              {notifCount > 0 && (
+                <span style={{ position:"absolute", top:4, right:4, background:"#ef4444",
+                  color:"#fff", borderRadius:"50%", width:15, height:15, fontSize:9,
+                  display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800 }}>
+                  {notifCount > 9 ? "9+" : notifCount}
+                </span>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
