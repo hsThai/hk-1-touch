@@ -48,7 +48,11 @@ export default function CashierConfirmPage({ user }) {
 
   const today=new Date().toISOString().slice(0,10);
   const pending  =orders.filter(o=>o.status==="pending_payment");
-  const doneToday=orders.filter(o=>o.status==="completed"&&(o.updated_date||o.created_date||"").slice(0,10)===today);
+  const doneToday = orders.filter(o => {
+    if (o.status !== "completed") return false;
+    const dateVal = o.updated || o.updated_date || o.created || o.created_date || "";
+    return dateVal.slice(0, 10) === today;
+  });
 
   function openConfirm(order){
     setConfirming(order);
@@ -137,7 +141,7 @@ export default function CashierConfirmPage({ user }) {
                 <div>
                   <div style={{fontWeight:900,fontSize:15,color:"#1e1b4b",marginBottom:3}}>{o.order_code}</div>
                   <div style={{fontSize:13,color:"#374151",marginBottom:2}}>👤 {o.customer_name||"Khách lẻ"}{o.customer_phone?" · "+o.customer_phone:""}</div>
-                  <div style={{fontSize:12,color:"#9ca3af"}}>🕐 {fmtTime(o.created_date||o.created)}{o.seller_name?" · NV: "+o.seller_name:""}</div>
+                  <div style={{fontSize:12,color:"#9ca3af"}}>🕐 {fmtTime(o.created || o.created_date || "")}{o.seller_name?" · NV: "+o.seller_name:""}</div>
                 </div>
                 <div style={{textAlign:"right"}}>
                   <div style={{fontWeight:900,fontSize:20,color:"#059669"}}>{fmtMoney(o.total)}</div>

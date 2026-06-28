@@ -7,7 +7,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   RepairChat, Notification, Staff, RepairOrder, Customer,
   SparePart, StockExportRequest, StockImport, StockImportItem,
-  StockLedger, ActionLog, getPbUrl, getAuth, logHistory
+  StockLedger, ActionLog, CashJournal, DebtVoucher, getPbUrl, getAuth, logHistory
 } from "./pb.jsx";
 import { uploadFile } from "./pb.jsx";
 import {

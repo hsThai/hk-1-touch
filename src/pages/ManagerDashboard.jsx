@@ -1659,14 +1659,6 @@ export default function ManagerDashboard({ user, initialTab = "overview", onTabC
   const [sparePartUsages,setSparePartUsages]= useState([]);
   const [cashJournals,   setCashJournals]   = useState([]);
 
-  if (!user) return null;
-  if (!ALLOWED.includes(user.role)) return (
-    <div style={{ textAlign:"center", padding:80, color:"#dc2626" }}>
-      <div style={{ fontSize:48 }}>🚫</div>
-      <div style={{ fontWeight:700, fontSize:16, marginTop:12 }}>Không có quyền truy cập</div>
-    </div>
-  );
-
   const loadData = useCallback(async () => {
     setLoading(true);
     const safe = (p) => p.catch(e => { console.warn("MD fetch warn:", e?.message); return []; });
@@ -1706,6 +1698,14 @@ export default function ManagerDashboard({ user, initialTab = "overview", onTabC
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  if (!user) return null;
+  if (!ALLOWED.includes(user.role)) return (
+    <div style={{ textAlign:"center", padding:80, color:"#dc2626" }}>
+      <div style={{ fontSize:48 }}>🚫</div>
+      <div style={{ fontWeight:700, fontSize:16, marginTop:12 }}>Không có quyền truy cập</div>
+    </div>
+  );
 
   function handleStaffUpdate(id, patch) {
     setStaff(prev => prev.map(s => s.id===id ? {...s,...patch} : s));

@@ -26,6 +26,7 @@ function StaffKpiTab({ currentUser }) {
   const [loading,  setLoading]  = useState(true);
   const [period,   setPeriod]   = useState("month");
   const [selStaff, setSelStaff] = useState("");
+  const [depts,    setDepts]    = useState([]);
 
   useEffect(() => { load(); }, [period]);
 

@@ -15,8 +15,11 @@ const PM_LABELS = { cash:"Tiền mặt", transfer:"Chuyển khoản", combo:"K�
 const PM_COLORS = { cash:"#059669", transfer:"#2563eb", combo:"#7c3aed", credit:"#dc2626" };
 
 function statusBadge(status) {
-  if (status === "completed") return { label:"Hoàn thành", bg:"#dcfce7", color:"#059669" };
-  if (status === "credit")    return { label:"Bán chịu",   bg:"#fee2e2", color:"#dc2626" };
+  if (status === "completed")        return { label:"Hoàn thành",    bg:"#dcfce7", color:"#059669" };
+  if (status === "credit")           return { label:"Bán chịu",      bg:"#fee2e2", color:"#dc2626" };
+  if (status === "pending_payment")  return { label:"Chờ thu tiền",  bg:"#fef9c3", color:"#ca8a04" };
+  if (status === "draft")            return { label:"Báo giá / Tạm", bg:"#eff6ff", color:"#3b82f6" };
+  if (status === "cancelled")        return { label:"Đã hủy",        bg:"#f3f4f6", color:"#9ca3af" };
   return { label: status||"—", bg:"#f3f4f6", color:"#6b7280" };
 }
 
@@ -157,6 +160,7 @@ export default function SaleHistoryPage({ user }) {
   const [loading, setLoading]         = useState(true);
   const [search, setSearch]           = useState("");
   const [filterPM, setFilterPM]       = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
   const [dateFrom, setDateFrom]       = useState("");
   const [dateTo, setDateTo]           = useState("");
   const [detail, setDetail]           = useState(null);
@@ -196,6 +200,22 @@ export default function SaleHistoryPage({ user }) {
 
   function closeDetail() { setDetail(null); setDetailItems([]); }
 
+  async function handleConfirmFromHistory(order) {
+    if (!window.confirm(`Xác nhận khách đồng ý đơn ${order.order_code}?`)) return;
+    try {
+      await SaleOrder.update(order.id, { status: "pending_payment" });
+      load();
+    } catch(e) { alert("Lỗi: " + e.message); }
+  }
+
+  async function handleCancelFromHistory(order) {
+    if (!window.confirm(`Hủy đơn ${order.order_code}?`)) return;
+    try {
+      await SaleOrder.update(order.id, { status: "cancelled" });
+      load();
+    } catch(e) { alert("Lỗi: " + e.message); }
+  }
+
   const filtered = orders.filter(o => {
     const q = search.toLowerCase();
     const matchSearch = !q
@@ -204,6 +224,7 @@ export default function SaleHistoryPage({ user }) {
       || (o.customer_phone||"").includes(q)
       || (o.cashier_name||"").toLowerCase().includes(q);
     const matchPM = filterPM === "all" || o.payment_method === filterPM;
+    const matchStatus = filterStatus === "all" || o.status === filterStatus;
     const matchDate = (() => {
       if (!dateFrom && !dateTo) return true;
       const d = new Date(o.created || o.created_date);
@@ -211,7 +232,7 @@ export default function SaleHistoryPage({ user }) {
       if (dateTo   && d > new Date(dateTo + "T23:59:59")) return false;
       return true;
     })();
-    return matchSearch && matchPM && matchDate;
+    return matchSearch && matchPM && matchStatus && matchDate;
   });
 
   const totalRevenue = filtered.reduce((s,o) => s+(o.total||0), 0);
@@ -263,6 +284,20 @@ export default function SaleHistoryPage({ user }) {
             <div style={{ fontWeight:900, fontSize:17, color:"#059669" }}>{fmtMoney(o.total)}</div>
           </div>
         </div>
+        {o.status === "draft" && (
+          <div style={{ display:"flex", gap:8, marginTop:10 }}>
+            <button onClick={(e)=>{ e.stopPropagation(); handleCancelFromHistory(o); }}
+              style={{ flex:1, padding:"8px", border:"1.5px solid #fca5a5", borderRadius:10,
+                background:"#fff", color:"#dc2626", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+              ❌ Hủy đơn
+            </button>
+            <button onClick={(e)=>{ e.stopPropagation(); handleConfirmFromHistory(o); }}
+              style={{ flex:2, padding:"8px", border:"none", borderRadius:10,
+                background:"#059669", color:"#fff", fontSize:12, fontWeight:800, cursor:"pointer" }}>
+              ✅ Khách đồng ý
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -283,6 +318,16 @@ export default function SaleHistoryPage({ user }) {
           <option value="cash">Tiền mặt</option>
           <option value="transfer">Chuyển khoản</option>
           <option value="combo">Kết hợp</option>
+          <option value="credit">Bán chịu</option>
+        </select>
+        <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)}
+          style={{ height:40, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px",
+            fontSize:13, outline:"none", background:"#fff" }}>
+          <option value="all">Tất cả trạng thái</option>
+          <option value="completed">Hoàn thành</option>
+          <option value="pending_payment">Chờ thu tiền</option>
+          <option value="draft">Báo giá / Tạm</option>
+          <option value="cancelled">Đã hủy</option>
           <option value="credit">Bán chịu</option>
         </select>
         <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)}

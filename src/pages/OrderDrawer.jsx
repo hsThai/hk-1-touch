@@ -13,7 +13,7 @@ const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ defa
     </div>
   </div>
 )})));
-import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage, StockExportRequest, ActionLog, subscribeCollection, getPbUrl, getAuth, logHistory, pbSettings, DebtVoucher, DebtPayment, CashJournal } from "./pb.jsx";
+import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage, StockExportRequest, ActionLog, subscribeCollection, getPbUrl, getAuth, logHistory, pbSettings, DebtVoucher, DebtPayment, CashJournal, Customer } from "./pb.jsx";
 import { getNotifSound } from "./notifUtils.js";
 import { uploadFile } from "./pb.jsx";
 
@@ -550,6 +550,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
     }
   }
 
+  const [printing, setPrinting] = useState(false);
   if (!order || !currentUser) return null;
   const cust = order.customer_name ? { full_name: order.customer_name, phone: order.customer_phone } : null;
   const assignee = (users||[]).find(u => u.id === order.assigned_to);
@@ -631,7 +632,6 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
     setEditMode(false);
     updateCustomerStats({ ...order, status:"Hoàn Thành" });
   }
-  const [printing, setPrinting] = useState(false);
 
   async function getShopInfo() {
     try {

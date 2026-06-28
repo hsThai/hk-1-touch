@@ -56,6 +56,7 @@ export default function SaleOrderPage({ user }) {
   const [todayOrders, setTodayOrders] = useState([]);
   const [detailOrder, setDetailOrder] = useState(null);
   const [lastOrder,   setLastOrder]   = useState(null);
+  const [lastDraft,   setLastDraft]   = useState(null);
   const [shopName,    setShopName]    = useState("HK One Touch");
   const [shopPhone,   setShopPhone]   = useState("");
   const [isPC, setIsPC] = React.useState(window.innerWidth >= 1024);
@@ -95,8 +96,11 @@ export default function SaleOrderPage({ user }) {
 
   async function loadTodayOrders() {
     try {
-      const list = await SaleOrder.list({ limit:100, sort:"-id" });
-      setTodayOrders((list||[]).filter(o => isToday(o.created || o.created_date)));
+      const list = await SaleOrder.list({ limit:100, sort:"-created" });
+      setTodayOrders((list||[]).filter(o => {
+        const dateVal = o.created || o.created_date || o.created_at || "";
+        return isToday(dateVal);
+      }));
     } catch {}
   }
 
@@ -226,9 +230,115 @@ export default function SaleOrderPage({ user }) {
     setSubmitting(false);
   }
 
+  async function handleSaveDraft() {
+    if (cart.length === 0) return;
+    setSubmitting(true);
+    try {
+      const code   = "BH-" + Date.now().toString().slice(-6);
+      const sub    = cart.reduce((s,i) => s + i.unit_price * i.qty, 0);
+      const disc   = Number(discount) || 0;
+      const total  = Math.max(0, sub - disc);
+      const itemsPayload = cart.map(i => ({
+        part_id: i.part_id||"", part_name: i.part_name, sku: i.sku||"",
+        qty: i.qty, unit_price: i.unit_price, total_price: i.unit_price*i.qty,
+      }));
+      const draft = await SaleOrder.create({
+        order_code:     code,
+        customer_name:  custName  || "Khách lẻ",
+        customer_phone: custPhone || "",
+        items:          JSON.stringify(itemsPayload),
+        subtotal:       sub,
+        discount:       disc,
+        total:          total,
+        payment_method: payMethod || "",
+        seller_id:      user.id   || "",
+        seller_name:    user.full_name || user.name || "",
+        cashier_id:     "",
+        cashier_name:   "",
+        note:           "",
+        status:         "draft",
+      });
+      setLastDraft({ ...draft, order_code: code, items: itemsPayload,
+        subtotal: sub, discount: disc, total,
+        customer_name: custName || "Khách lẻ", payment_method: payMethod||"" });
+      setCart([]); setCustName(""); setCustPhone(""); setDiscount(0);
+      setPayMethod(""); setCashAmt(0); setTransferAmt(0);
+      showToast("💾 Đã lưu đơn tạm!");
+      loadTodayOrders();
+    } catch(e) { showToast("❌ Lỗi lưu tạm: " + e.message); }
+    setSubmitting(false);
+  }
+
+  async function handleConfirmDraft(draft) {
+    try {
+      await SaleOrder.update(draft.id, { status: "pending_payment" });
+      setLastDraft(null);
+      loadTodayOrders();
+      showToast("✅ Đơn đã chuyển chờ thu ngân!");
+    } catch(e) { showToast("❌ Lỗi: " + e.message); }
+  }
+
+  async function handleCancelDraft(draft) {
+    if (!window.confirm(`Hủy đơn ${draft.order_code}?`)) return;
+    try {
+      await SaleOrder.update(draft.id, { status: "cancelled" });
+      setLastDraft(null);
+      loadTodayOrders();
+      showToast("🗑️ Đã hủy đơn tạm");
+    } catch(e) { showToast("❌ Lỗi: " + e.message); }
+  }
+
   return (
     <div style={{ padding: isPC ? "20px 28px 40px" : "16px 14px 100px", maxWidth: isPC ? 1200 : "100%", margin: "0 auto" }}>
       
+      {lastDraft && !lastOrder && (
+        <div style={{ padding:"24px 16px" }}>
+          <div style={{ textAlign:"center", marginBottom:24 }}>
+            <div style={{ fontSize:56, marginBottom:8 }}>📋</div>
+            <div style={{ fontWeight:900, fontSize:20, color:"#1e1b4b" }}>Đơn tạm đã lưu</div>
+            <div style={{ color:"#6b7280", fontSize:14, marginTop:4 }}>
+              Báo giá <b>{lastDraft.order_code}</b> — chờ khách xác nhận
+            </div>
+          </div>
+          <div style={{ background:"#fffbeb", border:"2px solid #fde68a", borderRadius:18, padding:"18px 20px", marginBottom:20 }}>
+            <div style={{ fontWeight:800, fontSize:14, color:"#92400e", marginBottom:12 }}>📋 Chi tiết báo giá</div>
+            {(Array.isArray(lastDraft.items) ? lastDraft.items : []).map((it,i) => (
+              <div key={i} style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:6,
+                paddingBottom:6, borderBottom:"1px solid #fef3c7" }}>
+                <span style={{ flex:1 }}>{it.part_name} <span style={{ color:"#9ca3af" }}>×{it.qty}</span></span>
+                <span style={{ fontWeight:700 }}>{((it.total_price||0)).toLocaleString("vi-VN")}đ</span>
+              </div>
+            ))}
+            <div style={{ borderTop:"2px solid #fde68a", paddingTop:10, marginTop:4,
+              display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <span style={{ fontWeight:700, color:"#92400e" }}>Tổng báo giá</span>
+              <span style={{ fontWeight:900, fontSize:22, color:"#d97706" }}>
+                {(lastDraft.total||0).toLocaleString("vi-VN")}đ
+              </span>
+            </div>
+          </div>
+          <div style={{ display:"flex", gap:12, marginBottom:12 }}>
+            <button onClick={() => handleCancelDraft(lastDraft)}
+              style={{ flex:1, padding:"15px 8px", borderRadius:14, border:"2px solid #fca5a5",
+                background:"#fff", color:"#dc2626", fontSize:14, fontWeight:800, cursor:"pointer" }}>
+              ❌ Khách từ chối
+            </button>
+            <button onClick={() => handleConfirmDraft(lastDraft)}
+              style={{ flex:2, padding:"15px 8px", borderRadius:14, border:"none",
+                background:"linear-gradient(135deg,#059669,#047857)",
+                color:"#fff", fontSize:14, fontWeight:900, cursor:"pointer",
+                boxShadow:"0 4px 16px rgba(5,150,105,0.4)" }}>
+              ✅ Khách đồng ý
+            </button>
+          </div>
+          <button onClick={() => setLastDraft(null)}
+            style={{ width:"100%", padding:"12px", borderRadius:12, border:"1.5px solid #e5e7eb",
+              background:"none", color:"#6b7280", fontSize:14, fontWeight:600, cursor:"pointer" }}>
+            + Tạo đơn khác (đơn tạm vẫn giữ)
+          </button>
+        </div>
+      )}
+
       {lastOrder && (
         <div className="print-receipt">
           <div style={{ textAlign:"center", marginBottom:8 }}>
@@ -556,23 +666,35 @@ export default function SaleOrderPage({ user }) {
         </div>
       </div>
 
-      {/* ─── 7. Nút xác nhận + In ─── */}
-      <div style={{ display:"flex", gap:12, marginBottom:28 }}>
+      {/* ─── 7. Nút Lưu tạm + Xác nhận ─── */}
+      <div style={{ display:"flex", gap:10, marginBottom:28 }}>
+        <button
+          onClick={handleSaveDraft}
+          disabled={submitting || cart.length === 0}
+          style={{
+            flex:1, height:56, borderRadius:14,
+            border:"2px solid #e5e7eb",
+            background: cart.length===0 ? "#f9fafb" : "#fff",
+            color: cart.length===0 ? "#d1d5db" : "#374151",
+            fontSize:14, fontWeight:800,
+            cursor: cart.length===0 ? "not-allowed" : "pointer",
+          }}>
+          💾 Lưu tạm
+        </button>
         <button
           onClick={handleSubmit}
           disabled={submitting || cart.length === 0 || !payMethod}
           style={{
             flex:2, height:56, borderRadius:14, border:"none",
-            background: (submitting || cart.length === 0 || !payMethod) ? "#e5e7eb" : "linear-gradient(135deg,#059669,#047857)",
+            background: (submitting || cart.length === 0 || !payMethod) ? "#d1d5db" : "linear-gradient(135deg,#059669,#047857)",
             color: (submitting || cart.length === 0 || !payMethod) ? "#9ca3af" : "#fff",
             fontWeight:900, fontSize:17, letterSpacing:"0.3px",
             cursor: (submitting || cart.length === 0 || !payMethod) ? "not-allowed" : "pointer",
-            boxShadow: (submitting || cart.length === 0 || !payMethod) ? "none" : "0 4px 16px rgba(5,150,105,.35)",
+            boxShadow: (cart.length > 0 && payMethod) ? "0 4px 16px rgba(5,150,105,.35)" : "none",
             transition:"all .15s",
           }}>
           {submitting ? "⏳ Đang lưu..." : cart.length === 0 ? "Chưa có sản phẩm" : !payMethod ? "Chọn hình thức TT" : "✅ Xác nhận bán"}
         </button>
-
       </div>
 
       </div>{/* end cột phải */}

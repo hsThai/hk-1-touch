@@ -6,6 +6,8 @@
 import React, { useState, useEffect } from "react";
 import { getPbUrl, pbSettings } from "./pb.jsx";
 
+const PUBLIC_URL = "https://hk-app-copy-4cefbb7c.base44.app/OrderPublic";
+
 // ── PASTE NGUYÊN SI từ OrderDrawer.jsx ──────────────────────
 
 let _shareQrLoaded = false, _shareQrCbs = [];

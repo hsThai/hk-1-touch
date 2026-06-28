@@ -245,7 +245,6 @@ export default function CashierApp({ user, onNotif, onQRScan, notifCount=0, forc
     }
     if(["cashier","accountant","manager","admin","owner"].includes(user?.role)){
       tabs.push({ key:"confirm", label:"💰 Xác nhận Thu" });
-      tabs.push({ key:"overview",label:"📊 Tổng quan" });
     }
     tabs.push({ key:"shift", label:"⚖️ Đối soát ca" });
     return tabs;
@@ -336,7 +335,6 @@ export default function CashierApp({ user, onNotif, onQRScan, notifCount=0, forc
       <div style={{ maxWidth: tab==="shift" ? 900 : "100%", margin:"0 auto", padding: (tab==="sale"||tab==="confirm") ? 0 : "20px 24px 60px" }}>
         {tab === "sale"    && (SaleOrderPage     ? <SaleOrderPage user={user} />     : <Fallback />)}
         {tab === "confirm" && (CashierConfirmPage ? <CashierConfirmPage user={user} /> : <Fallback />)}
-        {tab === "overview"&& <DayOverview user={user} />}
         {tab === "shift"   && <ShiftReconcile user={user} />}
       </div>
 

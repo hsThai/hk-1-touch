@@ -47,6 +47,7 @@ export default function ExpensePage({ user }) {
   }, []);  const [expenses,    setExpenses]    = useState([]);
   const [loading,     setLoading]     = useState(true);
   const [submitting,  setSubmitting]  = useState(false);
+  const [saving,      setSaving]      = useState(false);
   const [toast,       setToast]       = useState("");
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0,7));
   const [filterCat,   setFilterCat]   = useState("");
