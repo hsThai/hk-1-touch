@@ -58,6 +58,30 @@ async function loadShopInfo() {
   }
 }
 
+/**
+ * Load HTML template từ app_settings.
+ * Nếu chưa customize → trả về defaultHtml (template gốc).
+ * Nếu bị disabled (tắt) → trả về null.
+ */
+async function loadTemplate(key, defaultHtml) {
+  try {
+    const pbUrl = localStorage.getItem("pb_url") || "https://pb.hk1touch.online";
+    const res = await fetch(
+      `${pbUrl}/api/collections/app_settings/records?filter=(key%3D'print_tpl_${key}'%20||%20key%3D'print_tpl_${key}_disabled')&perPage=5`,
+      { signal: AbortSignal.timeout(3000) }
+    );
+    if (!res.ok) return defaultHtml;
+    const data = await res.json();
+    const map  = {};
+    (data.items || []).forEach(r => { map[r.key] = r.value; });
+    if (map[`print_tpl_${key}_disabled`] === "1") return null;
+    if (map[`print_tpl_${key}`]) return map[`print_tpl_${key}`];
+    return defaultHtml;
+  } catch {
+    return defaultHtml;
+  }
+}
+
 export async function printReceiptA5(order, shopInfo = null) {
   if (!shopInfo || Object.keys(shopInfo).length === 0) { shopInfo = await loadShopInfo(); }
   return callPrintAgent("/print/receipt", {
@@ -124,7 +148,8 @@ export async function printBillA5(order, parts = [], shopInfo = null) {
   });
 }
 
-export function previewBill(order, parts = [], shopInfo = {}) {
+export async function previewBill(order, parts = [], shopInfo = {}) {
+  if (!shopInfo || !shopInfo.shop_name) shopInfo = await loadShopInfo();
   const remaining = Math.max(0, (order.final_cost || order.estimated_cost || 0) - (order.deposit || 0));
   const vietqrUrl = shopInfo.bank_account && shopInfo.bank_name
     ? `https://img.vietqr.io/image/${shopInfo.bank_name}-${shopInfo.bank_account}-compact2.png?amount=${remaining}&addInfo=${encodeURIComponent("HK " + (order.order_code || order.id))}&accountName=${encodeURIComponent(shopInfo.shop_name || "")}`
@@ -171,7 +196,9 @@ export function previewBill(order, parts = [], shopInfo = {}) {
   <script>window.onload=()=>window.print()</script>
   </body></html>`;
 
-  const blob = new Blob([html], { type: "text/html" });
+  const finalHtml = await loadTemplate("bill", html);
+  if (!finalHtml) { alert("Mẫu hóa đơn SC đã bị tắt."); return; }
+  const blob = new Blob([finalHtml], { type: "text/html" });
   window.open(URL.createObjectURL(blob), "_blank");
 }
 
@@ -210,7 +237,8 @@ export async function printSaleReceiptA5(saleOrder, shopInfo = null) {
 /**
  * Preview hóa đơn bán lẻ trong tab mới (fallback)
  */
-export function previewSaleReceipt(saleOrder, shopInfo = {}) {
+export async function previewSaleReceipt(saleOrder, shopInfo = {}) {
+  if (!shopInfo || !shopInfo.shop_name) shopInfo = await loadShopInfo();
   const fmtMoney = (n) => Number(n || 0).toLocaleString("vi-VN") + "đ";
   const fmtDate  = (s) => s ? new Date(s).toLocaleString("vi-VN", { hour12: false }) : "";
   const PM_LABELS = { cash:"Tiền mặt", transfer:"Chuyển khoản", combo:"Kết hợp", credit:"Bán chịu" };
@@ -273,14 +301,17 @@ export function previewSaleReceipt(saleOrder, shopInfo = {}) {
   <script>window.onload=()=>setTimeout(()=>window.print(),300)</script>
   </body></html>`;
 
-  const blob = new Blob([html], { type: "text/html" });
+  const finalHtml = await loadTemplate("sale_receipt", html);
+  if (!finalHtml) { alert("Mẫu hóa đơn bán lẻ đã bị tắt."); return; }
+  const blob = new Blob([finalHtml], { type: "text/html" });
   window.open(URL.createObjectURL(blob), "_blank");
 }
 
 /**
  * Preview tem bảo hành 50×30mm
  */
-export function previewWarrantyLabel(order, shopInfo = {}) {
+export async function previewWarrantyLabel(order, shopInfo = {}) {
+  if (!shopInfo || !shopInfo.shop_name) shopInfo = await loadShopInfo();
   const expireDate = new Date();
   expireDate.setDate(expireDate.getDate() + (order.warranty_days || 30));
   const fmtDate = (d) => d.toLocaleDateString("vi-VN");
@@ -305,14 +336,16 @@ export function previewWarrantyLabel(order, shopInfo = {}) {
   <script>window.onload=()=>setTimeout(()=>window.print(),300)</script>
   </body></html>`;
 
-  const blob = new Blob([html], { type: "text/html" });
+  const finalHtml = await loadTemplate("warranty", html);
+  if (!finalHtml) { alert("Mẫu tem bảo hành đã bị tắt."); return; }
+  const blob = new Blob([finalHtml], { type: "text/html" });
   window.open(URL.createObjectURL(blob), "_blank");
 }
 
 /**
  * Preview tem mã vạch linh kiện 50×25mm
  */
-export function previewSparePartLabel(part, qty = 1) {
+export async function previewSparePartLabel(part, qty = 1) {
   const labels = Array.from({ length: qty }, (_, i) => `
     <div class="label">
       <div class="name">${part.name || ""}</div>
@@ -344,6 +377,8 @@ export function previewSparePartLabel(part, qty = 1) {
   <script>window.onload=()=>setTimeout(()=>window.print(),300)</script>
   </body></html>`;
 
-  const blob = new Blob([html], { type: "text/html" });
+  const finalHtml = await loadTemplate("spare_label", html);
+  if (!finalHtml) { alert("Mẫu tem linh kiện đã bị tắt."); return; }
+  const blob = new Blob([finalHtml], { type: "text/html" });
   window.open(URL.createObjectURL(blob), "_blank");
 }
