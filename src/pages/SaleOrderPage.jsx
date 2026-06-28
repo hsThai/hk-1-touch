@@ -164,6 +164,7 @@ export default function SaleOrderPage({ user }) {
         console.log("🔵 Đang tạo sale_order...", { orderCode, custName, payMethod, subtotal, discount, total });
         so = await SaleOrder.create({
           order_code:     orderCode,
+          created_date:   new Date().toISOString(),
           customer_name:  custName || "Khách lẻ",
           customer_phone: custPhone || "",
           subtotal,
