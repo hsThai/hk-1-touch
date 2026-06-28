@@ -183,17 +183,17 @@ export async function previewReceiptForm(order, quotedParts = [], shopInfo = {})
   }) : "—";
   const fmtMoney = (n) => Number(n||0).toLocaleString("vi-VN");
 
-  // Bảng checklist QT1
-  const checklistHTML = qt1Items.map(it => `
-    <tr>
-      <td style="width:36px;text-align:center">
-        <span style="display:inline-block;width:14px;height:14px;border:1.5px solid ${it.checked?"#dc2626":"#999"};
-          background:${it.checked?"#dc2626":"#fff"};border-radius:3px;vertical-align:middle;color:#fff;
-          font-size:10px;line-height:14px;text-align:center">${it.checked?"✓":""}</span>
-      </td>
-      <td>${it.label}${it.note ? `<span style="font-size:10px;color:#777;margin-left:6px">→ ${it.note}</span>` : ""}</td>
-      <td style="text-align:center;font-weight:bold;color:${it.checked?"#dc2626":"#9ca3af"}">${it.checked?"CÓ LỖI":"OK"}</td>
-    </tr>`).join("");
+  // Chỉ lấy các mục đã được đánh dấu CÓ LỖI
+  const checkedItems = qt1Items.filter(it => it.checked);
+  const checklistInline = checkedItems.length > 0
+    ? checkedItems.map(it =>
+        `<span style="display:inline-block;background:#fff0f0;border:1px solid #fca5a5;border-radius:16px;
+          padding:2px 10px;margin:2px 3px;font-size:12px;color:#991b1b;font-weight:600">`
+        + it.label
+        + (it.note ? ` <span style="font-size:10px;font-weight:400;color:#b91c1c">→ ${it.note}</span>` : "")
+        + `</span>`
+      ).join("")
+    : `<span style="font-size:12px;color:#6b7280;font-style:italic">Không phát hiện lỗi ngoại quan</span>`;
 
   // Bảng báo giá linh kiện
   const quotedTotal = (quotedParts||[]).reduce((s,p) => s + (p.total_price||p.unit_price||0), 0);
@@ -300,14 +300,9 @@ ${shopInfo.shop_phone  ?`<div class="sub-shop">📞 ${shopInfo.shop_phone}</div>
 
 <!-- ══ TÌNH TRẠNG NGOẠI QUAN KHI TIẾP NHẬN ══ -->
 <div class="section-title">🔍 TÌNH TRẠNG NGOẠI QUAN KHI TIẾP NHẬN (QT1)</div>
-<table>
-  <thead><tr>
-    <th style="width:40px">Đánh dấu</th>
-    <th>Hạng mục kiểm tra</th>
-    <th class="c" style="width:80px">Kết quả</th>
-  </tr></thead>
-  <tbody>${checklistHTML}</tbody>
-</table>
+<div style="padding:6px 4px;line-height:1.9">
+  ${checklistInline}
+</div>
 ${order.qt1_note?`
 <div style="font-size:11px;font-weight:bold;margin:5px 0 2px">📝 Ghi chú ngoại quan:</div>
 <div class="note-box">${order.qt1_note}</div>`:""}
@@ -815,10 +810,7 @@ export function getDefaultTemplate(key, shopInfo = {}) {
       {key:"camera",label:"Camera trước / sau"},{key:"loa_mic",label:"Loa / Mic & thoại"},
       {key:"wifi_bt",label:"Wifi / Bluetooth"},
     ];
-    const checklistHTML = QT1_ALL.map(it =>
-      `<tr><td style="text-align:center"><span style="display:inline-block;width:14px;height:14px;border:1.5px solid #999;border-radius:3px"></span></td>` +
-      `<td>${it.label}</td><td style="text-align:center;color:#aaa;font-size:10px">OK / Lỗi</td></tr>`
-    ).join("");
+
     return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>PHIEU TIEP NHAN</title>
 <style>
@@ -868,10 +860,11 @@ export function getDefaultTemplate(key, shopInfo = {}) {
   <div class="info-row" style="font-size:12px;margin:3px 0"><span class="lbl">Lỗi / Yêu cầu:</span><span class="val" style="font-style:italic">Màn hình vỡ, pin yếu</span></div>
   <hr class="sep-dash"/>
   <div class="section-title">🔍 TÌNH TRẠNG NGOẠI QUAN KHI TIẾP NHẬN (QT1)</div>
-  <table>
-    <thead><tr><th style="width:40px">Đánh dấu</th><th>Hạng mục</th><th style="width:80px;text-align:center">Kết quả</th></tr></thead>
-    <tbody>${checklistHTML}</tbody>
-  </table>
+  <div style="padding:6px 4px;line-height:1.9">
+    <span style="display:inline-block;background:#fff0f0;border:1px solid #fca5a5;border-radius:16px;padding:2px 10px;margin:2px 3px;font-size:12px;color:#991b1b;font-weight:600">Vỡ kính màn hình</span>
+    <span style="display:inline-block;background:#fff0f0;border:1px solid #fca5a5;border-radius:16px;padding:2px 10px;margin:2px 3px;font-size:12px;color:#991b1b;font-weight:600">Trầy xước nhẹ</span>
+    <span style="display:inline-block;background:#fff0f0;border:1px solid #fca5a5;border-radius:16px;padding:2px 10px;margin:2px 3px;font-size:12px;color:#991b1b;font-weight:600">Camera trước / sau <span style="font-size:10px;font-weight:400">→ Camera sau mờ</span></span>
+  </div>
   <div style="font-size:11px;font-weight:bold;margin:6px 0 2px">📝 Ghi chú ngoại quan:</div>
   <div style="border:1px solid #ccc;border-radius:3px;padding:6px 8px;min-height:42px;font-size:11px;background:#fafafa">&nbsp;</div>
   <hr class="sep-dash"/>
