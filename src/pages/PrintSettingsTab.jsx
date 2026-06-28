@@ -5,7 +5,7 @@
 import React, { useState, useEffect } from "react";
 import { AppSettings } from "./pb.jsx";
 import {
-  previewBill, previewSaleReceipt,
+  previewReceiptForm, previewBill, previewSaleReceipt,
   previewWarrantyLabel, previewSparePartLabel,
   getDefaultTemplate,
 } from "../utils/printClient.js";
@@ -27,7 +27,8 @@ const PRINT_FIELDS = [
 ];
 
 const TEMPLATES = [
-  { key:"bill",         icon:"🧾", label:"Hóa đơn SC / Phiếu tiếp nhận", size:"A5" },
+  { key:"receipt_form", icon:"📋", label:"Phiếu tiếp nhận máy",          size:"A4" },
+  { key:"bill",         icon:"🧾", label:"Hóa đơn SC / Phiếu thanh toán", size:"A5" },
   { key:"sale_receipt", icon:"🛒", label:"Hóa đơn bán lẻ",               size:"A5" },
   { key:"warranty",     icon:"🏷️", label:"Tem bảo hành",                 size:"50×30mm" },
   { key:"spare_label",  icon:"📦", label:"Tem linh kiện",                 size:"50×25mm" },
@@ -247,7 +248,9 @@ export default function PrintSettingsTab({ user }) {
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
           {[
-            { label:"📋 Phiếu tiếp nhận / Hóa đơn SC",
+            { label:"📋 Phiếu tiếp nhận máy",
+              fn: () => previewReceiptForm(SAMPLE_ORDER, SAMPLE_PARTS, buildShopInfo()) },
+            { label:"🧾 Hóa đơn SC / Phiếu thanh toán",
               fn: () => previewBill(SAMPLE_ORDER, SAMPLE_PARTS, buildShopInfo()) },
             { label:"🛒 Hóa đơn bán lẻ",
               fn: () => previewSaleReceipt(SAMPLE_SALE, buildShopInfo()) },

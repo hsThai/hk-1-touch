@@ -148,6 +148,244 @@ export async function printBillA5(order, parts = [], shopInfo = null) {
   });
 }
 
+/**
+ * Phiếu tiếp nhận máy — in khi nhận máy từ khách
+ * Bao gồm: tình trạng ngoại quan QT1, báo giá linh kiện, ký xác nhận
+ */
+export async function previewReceiptForm(order, quotedParts = [], shopInfo = {}) {
+  if (!shopInfo || !shopInfo.shop_name) shopInfo = await loadShopInfo();
+
+  const QT1_LABELS = {
+    vien_cong_mop:    "Viền cong / móp",
+    can_mop_goc:      "Cấn móp góc",
+    vo_kinh_man:      "Vỡ kính màn hình",
+    vo_kinh_lung:     "Vỡ kính lưng",
+    tray_xuoc_nhe:    "Trầy xước nhẹ",
+    cam_ung_loi:      "Cảm ứng lỗi",
+    cam_ung_delay:    "Cảm ứng đa điểm delay",
+    faceid_touch_loi: "FaceID / Touch lỗi",
+    camera:           "Camera trước / sau",
+    loa_mic:          "Loa / Mic & thoại / video",
+    wifi_bt:          "Wifi / Bluetooth",
+  };
+
+  // Parse qt1_checklist JSON
+  let qt1 = {};
+  try { qt1 = JSON.parse(order.qt1_checklist || "{}"); } catch {}
+  const qt1Items = Object.entries(QT1_LABELS).map(([key, label]) => ({
+    key, label,
+    checked: qt1[key]?.checked || false,
+    note:    qt1[key]?.note    || "",
+  }));
+
+  const fmtDt = (s) => s ? new Date(s).toLocaleString("vi-VN",{
+    hour12:false,day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"
+  }) : "—";
+  const fmtMoney = (n) => Number(n||0).toLocaleString("vi-VN");
+
+  // Bảng checklist QT1
+  const checklistHTML = qt1Items.map(it => `
+    <tr>
+      <td style="width:36px;text-align:center">
+        <span style="display:inline-block;width:14px;height:14px;border:1.5px solid ${it.checked?"#dc2626":"#999"};
+          background:${it.checked?"#dc2626":"#fff"};border-radius:3px;vertical-align:middle;color:#fff;
+          font-size:10px;line-height:14px;text-align:center">${it.checked?"✓":""}</span>
+      </td>
+      <td>${it.label}${it.note ? `<span style="font-size:10px;color:#777;margin-left:6px">→ ${it.note}</span>` : ""}</td>
+      <td style="text-align:center;font-weight:bold;color:${it.checked?"#dc2626":"#9ca3af"}">${it.checked?"CÓ LỖI":"OK"}</td>
+    </tr>`).join("");
+
+  // Bảng báo giá linh kiện
+  const quotedTotal = (quotedParts||[]).reduce((s,p) => s + (p.total_price||p.unit_price||0), 0);
+  const quotedHTML = (quotedParts && quotedParts.length > 0)
+    ? quotedParts.map((p,i) => `
+      <tr>
+        <td class="c">${i+1}</td>
+        <td>${p.part_name||p.name||""}</td>
+        <td class="c">${p.qty_used||p.qty||1}</td>
+        <td class="r">${fmtMoney(p.unit_price)}</td>
+        <td class="r" style="font-weight:bold">${fmtMoney(p.total_price||p.unit_price)}</td>
+      </tr>`).join("")
+    : `<tr><td colspan="5" style="text-align:center;color:#aaa;font-style:italic;padding:8px">Chưa có báo giá linh kiện</td></tr>`;
+
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<title>PHIEU TIEP NHAN ${order.order_code||order.id}</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:"Times New Roman",Times,serif;font-size:13px;max-width:190mm;margin:0 auto;
+       padding:8mm 7mm;color:#111;background:#fff;line-height:1.55}
+  .title-shop{font-size:15px;font-weight:bold;text-align:center;text-transform:uppercase;letter-spacing:.5px}
+  .sub-shop{font-size:11px;text-align:center;color:#444;margin-bottom:1px}
+  .doc-title{font-size:18px;font-weight:bold;text-align:center;margin:8px 0 2px;letter-spacing:2px;
+             text-transform:uppercase;text-decoration:underline}
+  .doc-sub{text-align:center;font-size:11px;color:#888;margin-bottom:6px}
+  .sep-solid{border:none;border-top:2px solid #111;margin:6px 0}
+  .sep-dash{border:none;border-top:1px dashed #777;margin:5px 0}
+  /* 2 cột info */
+  .info-2col{display:grid;grid-template-columns:1fr 1fr;gap:2px 20px;margin:6px 0}
+  .info-row{display:flex;font-size:12px;gap:4px;margin:1px 0}
+  .lbl{color:#555;white-space:nowrap;min-width:92px}
+  .val{font-weight:700;flex:1}
+  /* Tiêu đề section */
+  .section-title{font-size:12px;font-weight:bold;background:#222;color:#fff;
+                 padding:4px 8px;margin:8px 0 4px;letter-spacing:.5px}
+  /* Bảng */
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  thead th{background:#f0f0f0;border:1px solid #ccc;padding:4px 5px;font-size:11px;font-weight:bold}
+  thead th.r{text-align:right} thead th.c{text-align:center}
+  tbody td{border:1px solid #ddd;padding:4px 5px;vertical-align:top}
+  tbody td.r{text-align:right} tbody td.c{text-align:center}
+  tfoot td{border:1px solid #ccc;padding:5px;font-weight:bold;background:#f9f9f9}
+  tfoot td.r{text-align:right}
+  /* Tổng giá trị */
+  .price-block{margin:6px 0;font-size:12px}
+  .price-row{display:flex;justify-content:space-between;padding:2px 0}
+  .grand-row{display:flex;justify-content:space-between;font-size:14px;font-weight:bold;
+              border-top:2px solid #111;border-bottom:2px solid #111;padding:5px 0;margin:4px 0}
+  /* Ghi chú */
+  .note-box{border:1px solid #ccc;border-radius:3px;padding:6px 8px;font-size:11px;
+            color:#444;min-height:42px;margin:4px 0;background:#fafafa}
+  /* Xác nhận */
+  .confirm-box{border:1.5px solid #333;border-radius:4px;padding:8px 10px;margin:6px 0;font-size:12px;
+               background:#fffbf0}
+  /* Ký tên */
+  .sign-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 32px;margin-top:16px}
+  .sign-box{text-align:center;border-top:1.5px solid #333;padding-top:4px}
+  .sign-title{font-size:12px;font-weight:bold;margin-bottom:1px}
+  .sign-note{font-size:10px;color:#777;font-style:italic;margin-bottom:48px}
+  .sign-name{font-size:11px;font-style:italic;color:#666;border-top:1px dashed #ccc;
+             padding-top:3px;margin-top:4px}
+  .terms{font-size:10px;color:#666;margin-top:8px;line-height:1.7;
+         border:1px dashed #ccc;padding:5px 8px;border-radius:3px;background:#fafafa}
+  @media print{@page{size:A4 portrait;margin:10mm}body{padding:0}}
+</style>
+</head><body>
+
+<!-- ══ HEADER ══ -->
+<div class="title-shop">${shopInfo.shop_name||"HOÀNG KHÁNH MOBILE"}</div>
+${shopInfo.shop_address?`<div class="sub-shop">📍 ${shopInfo.shop_address}</div>`:""}
+${shopInfo.shop_phone  ?`<div class="sub-shop">📞 ${shopInfo.shop_phone}</div>`:""}
+<hr class="sep-solid"/>
+<div class="doc-title">Phiếu tiếp nhận máy</div>
+<div class="doc-sub">Phiếu này là bằng chứng bàn giao thiết bị giữa khách hàng và cửa hàng</div>
+<hr class="sep-dash"/>
+
+<!-- ══ THÔNG TIN ĐƠN ══ -->
+<div class="info-2col">
+  <div>
+    <div class="info-row"><span class="lbl">Mã phiếu:</span>
+      <span class="val" style="font-size:15px;font-weight:900;border:2px solid #111;padding:0 6px">${order.order_code||order.id}</span></div>
+    <div class="info-row"><span class="lbl">Ngày tiếp nhận:</span>
+      <span class="val">${fmtDt(order.received_date)}</span></div>
+    <div class="info-row"><span class="lbl">Ngày hẹn trả:</span>
+      <span class="val" style="color:#dc2626;font-weight:900">${fmtDt(order.estimated_done_date)}</span></div>
+    <div class="info-row"><span class="lbl">Nhân viên TN:</span>
+      <span class="val">${order.assigned_to_name||"—"}</span></div>
+  </div>
+  <div>
+    <div class="info-row"><span class="lbl">Khách hàng:</span><span class="val">${order.customer_name||"—"}</span></div>
+    <div class="info-row"><span class="lbl">Số điện thoại:</span><span class="val">${order.customer_phone||"—"}</span></div>
+    <div class="info-row"><span class="lbl">Thiết bị:</span><span class="val">${order.device_name||order.device_model||"—"}</span></div>
+    <div class="info-row"><span class="lbl">Model:</span><span class="val">${order.device_model||"—"}</span></div>
+    ${order.imei?`<div class="info-row"><span class="lbl">IMEI/SN:</span><span class="val">${order.imei}</span></div>`:""}
+    ${order.passcode?`<div class="info-row"><span class="lbl">Mật khẩu MK:</span><span class="val">${order.passcode}</span></div>`:""}
+  </div>
+</div>
+<div class="info-row" style="font-size:12px;margin:3px 0">
+  <span class="lbl">Lỗi / Yêu cầu:</span>
+  <span class="val" style="font-style:italic">${order.issue_description||"—"}</span>
+</div>
+<hr class="sep-dash"/>
+
+<!-- ══ TÌNH TRẠNG NGOẠI QUAN KHI TIẾP NHẬN ══ -->
+<div class="section-title">🔍 TÌNH TRẠNG NGOẠI QUAN KHI TIẾP NHẬN (QT1)</div>
+<table>
+  <thead><tr>
+    <th style="width:40px">Đánh dấu</th>
+    <th>Hạng mục kiểm tra</th>
+    <th class="c" style="width:80px">Kết quả</th>
+  </tr></thead>
+  <tbody>${checklistHTML}</tbody>
+</table>
+${order.qt1_note?`
+<div style="font-size:11px;font-weight:bold;margin:5px 0 2px">📝 Ghi chú ngoại quan:</div>
+<div class="note-box">${order.qt1_note}</div>`:""}
+
+<hr class="sep-dash"/>
+
+<!-- ══ BÁO GIÁ LINH KIỆN / DỊCH VỤ ══ -->
+<div class="section-title">💰 BÁO GIÁ LINH KIỆN / DỊCH VỤ DỰ KIẾN</div>
+<table>
+  <thead><tr>
+    <th class="c" style="width:30px">#</th>
+    <th>Tên linh kiện / Dịch vụ</th>
+    <th class="c" style="width:40px">SL</th>
+    <th class="r" style="width:110px">Đơn giá (đ)</th>
+    <th class="r" style="width:120px">Thành tiền (đ)</th>
+  </tr></thead>
+  <tbody>${quotedHTML}</tbody>
+  ${quotedParts&&quotedParts.length>0?`
+  <tfoot><tr>
+    <td colspan="4" class="r">Chi phí dự kiến:</td>
+    <td class="r">${fmtMoney(order.estimated_cost||quotedTotal)}</td>
+  </tr></tfoot>`:""}
+</table>
+${order.deposit>0?`
+<div class="price-row" style="font-size:12px;margin-top:4px">
+  <span>💵 Đặt cọc ban đầu:</span>
+  <span style="font-weight:bold;color:#059669">${fmtMoney(order.deposit)} đ</span>
+</div>`:""}
+<div class="price-row" style="font-size:12px">
+  <span>📋 Chi phí ước tính còn lại:</span>
+  <span style="font-weight:bold;color:#dc2626">${fmtMoney(Math.max(0,(order.estimated_cost||0)-(order.deposit||0)))} đ</span>
+</div>
+
+<hr class="sep-dash"/>
+
+<!-- ══ XÁC NHẬN KHÁCH HÀNG ══ -->
+<div class="confirm-box">
+  <div style="font-weight:bold;margin-bottom:4px;font-size:12px">✅ XÁC NHẬN CỦA KHÁCH HÀNG</div>
+  <div style="font-size:11px;line-height:1.7">
+    Tôi xác nhận đã bàn giao thiết bị với tình trạng ngoại quan như trên và đồng ý với mức báo giá dự kiến.
+    Cửa hàng sẽ liên hệ xác nhận trước khi tiến hành sửa chữa nếu phát sinh thêm chi phí.
+    Phí kiểm tra máy không được hoàn lại trong mọi trường hợp.
+  </div>
+</div>
+
+<!-- ══ ĐIỀU KHOẢN ══ -->
+<div class="terms">
+  ⚠️ <b>Điều khoản bảo quản:</b>
+  (1) Cửa hàng chịu trách nhiệm bảo quản thiết bị trong thời gian sửa chữa.
+  (2) Máy không lấy sau <b>30 ngày</b> kể từ ngày hẹn trả, cửa hàng không chịu trách nhiệm.
+  (3) Bảo hành linh kiện <b>${order.warranty_days||30} ngày</b> kể từ ngày giao máy.
+  (4) Vui lòng mang phiếu này khi đến lấy máy.${shopInfo.warranty_note?" (5) "+shopInfo.warranty_note:""}
+</div>
+
+<!-- ══ KÝ TÊN ══ -->
+<div class="sign-grid" style="margin-top:20px">
+  <div class="sign-box">
+    <div class="sign-title">KHÁCH HÀNG</div>
+    <div class="sign-note">(Ký và ghi rõ họ tên)</div>
+    <div class="sign-name">${order.customer_name||""}</div>
+  </div>
+  <div class="sign-box">
+    <div class="sign-title">NHÂN VIÊN TIẾP NHẬN</div>
+    <div class="sign-note">(Ký và ghi rõ họ tên)</div>
+    <div class="sign-name">${order.assigned_to_name||""}</div>
+  </div>
+</div>
+
+<script>window.onload=()=>window.print()</script>
+</body></html>`;
+
+  const finalHtml = await loadTemplate("receipt_form", html);
+  if (!finalHtml) { alert("Mẫu phiếu tiếp nhận đã bị tắt."); return; }
+  const blob = new Blob([finalHtml], { type:"text/html" });
+  window.open(URL.createObjectURL(blob), "_blank");
+}
+
+
 export async function previewBill(order, parts = [], shopInfo = {}) {
   if (!shopInfo || !shopInfo.shop_name) shopInfo = await loadShopInfo();
   const remaining = Math.max(0, (order.final_cost || order.estimated_cost || 0) - (order.deposit || 0));
@@ -565,6 +803,94 @@ export function getDefaultTemplate(key, shopInfo = {}) {
       { part_name:"Ốp lưng Samsung A55", qty:1, unit_price:180000, total_price:180000 },
     ],
   };
+
+  if (key === "receipt_form") {
+    const fmtDt = (s) => s ? new Date(s).toLocaleDateString("vi-VN") : new Date().toLocaleDateString("vi-VN");
+    const fmtMoney = (n) => Number(n||0).toLocaleString("vi-VN");
+    const QT1_ALL = [
+      {key:"vien_cong_mop",label:"Viền cong / móp"},{key:"can_mop_goc",label:"Cấn móp góc"},
+      {key:"vo_kinh_man",label:"Vỡ kính màn hình"},{key:"vo_kinh_lung",label:"Vỡ kính lưng"},
+      {key:"tray_xuoc_nhe",label:"Trầy xước nhẹ"},{key:"cam_ung_loi",label:"Cảm ứng lỗi"},
+      {key:"cam_ung_delay",label:"Cảm ứng đa điểm delay"},{key:"faceid_touch_loi",label:"FaceID / Touch lỗi"},
+      {key:"camera",label:"Camera trước / sau"},{key:"loa_mic",label:"Loa / Mic & thoại"},
+      {key:"wifi_bt",label:"Wifi / Bluetooth"},
+    ];
+    const checklistHTML = QT1_ALL.map(it =>
+      `<tr><td style="text-align:center"><span style="display:inline-block;width:14px;height:14px;border:1.5px solid #999;border-radius:3px"></span></td>` +
+      `<td>${it.label}</td><td style="text-align:center;color:#aaa;font-size:10px">OK / Lỗi</td></tr>`
+    ).join("");
+    return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>PHIEU TIEP NHAN</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:"Times New Roman",Times,serif;font-size:13px;max-width:190mm;margin:0 auto;padding:8mm 7mm;color:#111;background:#fff;line-height:1.55}
+  .title-shop{font-size:15px;font-weight:bold;text-align:center;text-transform:uppercase}
+  .sub-shop{font-size:11px;text-align:center;color:#444;margin-bottom:1px}
+  .doc-title{font-size:18px;font-weight:bold;text-align:center;margin:8px 0 2px;letter-spacing:2px;text-transform:uppercase;text-decoration:underline}
+  .sep-solid{border:none;border-top:2px solid #111;margin:6px 0}
+  .sep-dash{border:none;border-top:1px dashed #777;margin:5px 0}
+  .info-2col{display:grid;grid-template-columns:1fr 1fr;gap:2px 20px;margin:6px 0}
+  .info-row{display:flex;font-size:12px;gap:4px;margin:1px 0}
+  .lbl{color:#555;white-space:nowrap;min-width:92px}.val{font-weight:700;flex:1}
+  .section-title{font-size:12px;font-weight:bold;background:#222;color:#fff;padding:4px 8px;margin:8px 0 4px}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  thead th{background:#f0f0f0;border:1px solid #ccc;padding:4px 5px;font-size:11px;font-weight:bold}
+  tbody td{border:1px solid #ddd;padding:4px 5px;vertical-align:top}
+  tfoot td{border:1px solid #ccc;padding:5px;font-weight:bold;background:#f9f9f9;text-align:right}
+  .sign-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 32px;margin-top:20px}
+  .sign-box{text-align:center;border-top:1.5px solid #333;padding-top:4px}
+  .sign-title{font-size:12px;font-weight:bold}
+  .sign-note{font-size:10px;color:#777;font-style:italic;margin-bottom:48px}
+  .terms{font-size:10px;color:#666;margin-top:8px;line-height:1.7;border:1px dashed #ccc;padding:5px 8px}
+  @media print{@page{size:A4 portrait;margin:10mm}body{padding:0}}
+</style></head><body>
+  <div class="title-shop">${shop.shop_name}</div>
+  ${shop.shop_address?`<div class="sub-shop">📍 ${shop.shop_address}</div>`:""}
+  ${shop.shop_phone  ?`<div class="sub-shop">📞 ${shop.shop_phone}</div>`:""}
+  <hr class="sep-solid"/>
+  <div class="doc-title">Phiếu tiếp nhận máy</div>
+  <div style="text-align:center;font-size:11px;color:#888;margin-bottom:6px">Phiếu này là bằng chứng bàn giao thiết bị giữa khách hàng và cửa hàng</div>
+  <hr class="sep-dash"/>
+  <div class="info-2col">
+    <div>
+      <div class="info-row"><span class="lbl">Mã phiếu:</span><span class="val" style="font-size:15px;border:2px solid #111;padding:0 6px">HK-250628-001</span></div>
+      <div class="info-row"><span class="lbl">Ngày tiếp nhận:</span><span class="val">${fmtDt(new Date())}</span></div>
+      <div class="info-row"><span class="lbl">Ngày hẹn trả:</span><span class="val" style="color:#dc2626;font-weight:900">—</span></div>
+      <div class="info-row"><span class="lbl">Nhân viên TN:</span><span class="val">—</span></div>
+    </div>
+    <div>
+      <div class="info-row"><span class="lbl">Khách hàng:</span><span class="val">Nguyễn Văn A</span></div>
+      <div class="info-row"><span class="lbl">Số điện thoại:</span><span class="val">0901234567</span></div>
+      <div class="info-row"><span class="lbl">Thiết bị:</span><span class="val">iPhone 13 Pro Max</span></div>
+      <div class="info-row"><span class="lbl">IMEI/SN:</span><span class="val">—</span></div>
+    </div>
+  </div>
+  <div class="info-row" style="font-size:12px;margin:3px 0"><span class="lbl">Lỗi / Yêu cầu:</span><span class="val" style="font-style:italic">Màn hình vỡ, pin yếu</span></div>
+  <hr class="sep-dash"/>
+  <div class="section-title">🔍 TÌNH TRẠNG NGOẠI QUAN KHI TIẾP NHẬN (QT1)</div>
+  <table>
+    <thead><tr><th style="width:40px">Đánh dấu</th><th>Hạng mục</th><th style="width:80px;text-align:center">Kết quả</th></tr></thead>
+    <tbody>${checklistHTML}</tbody>
+  </table>
+  <div style="font-size:11px;font-weight:bold;margin:6px 0 2px">📝 Ghi chú ngoại quan:</div>
+  <div style="border:1px solid #ccc;border-radius:3px;padding:6px 8px;min-height:42px;font-size:11px;background:#fafafa">&nbsp;</div>
+  <hr class="sep-dash"/>
+  <div class="section-title">💰 BÁO GIÁ LINH KIỆN / DỊCH VỤ DỰ KIẾN</div>
+  <table>
+    <thead><tr><th style="width:30px;text-align:center">#</th><th>Tên linh kiện / Dịch vụ</th><th style="width:40px;text-align:center">SL</th><th style="width:110px;text-align:right">Đơn giá (đ)</th><th style="width:120px;text-align:right">Thành tiền (đ)</th></tr></thead>
+    <tbody>
+      <tr><td style="text-align:center">1</td><td>Màn hình iPhone 13 Pro Max</td><td style="text-align:center">1</td><td style="text-align:right">950.000</td><td style="text-align:right;font-weight:bold">950.000</td></tr>
+      <tr><td style="text-align:center">2</td><td>Pin iPhone 13 Pro Max</td><td style="text-align:center">1</td><td style="text-align:right">350.000</td><td style="text-align:right;font-weight:bold">350.000</td></tr>
+    </tbody>
+    <tfoot><tr><td colspan="4">Chi phí dự kiến:</td><td>1.500.000</td></tr></tfoot>
+  </table>
+  <div class="terms">⚠️ <b>Điều khoản:</b> (1) Máy không lấy sau 30 ngày, cửa hàng không chịu trách nhiệm. (2) Bảo hành linh kiện 30 ngày kể từ ngày giao. (3) Vui lòng mang phiếu này khi đến lấy máy.</div>
+  <div class="sign-grid">
+    <div class="sign-box"><div class="sign-title">KHÁCH HÀNG</div><div class="sign-note">(Ký và ghi rõ họ tên)</div><div style="font-size:11px;font-style:italic;color:#666;border-top:1px dashed #ccc;padding-top:3px">Nguyễn Văn A</div></div>
+    <div class="sign-box"><div class="sign-title">NHÂN VIÊN TIẾP NHẬN</div><div class="sign-note">(Ký và ghi rõ họ tên)</div><div style="font-size:11px;font-style:italic;color:#666;border-top:1px dashed #ccc;padding-top:3px"></div></div>
+  </div>
+</body></html>`;
+  }
 
   if (key === "bill") {
     const remaining = Math.max(0, order.final_cost - order.deposit);

@@ -1,7 +1,7 @@
 /* v1774860462-5727 */
 import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
 import HandoverModal from "./HandoverModal.jsx";
-import { printReceiptA5, printBillA5, previewBill } from "../utils/printClient.js";
+import { printReceiptA5, printBillA5, previewBill, previewReceiptForm } from "../utils/printClient.js";
 import EditOrderModal from "./EditOrderModal.jsx";
 import PreCheckModal, { QT2Modal, CustomerConfirmModal } from "./PreCheckModal.jsx";
 const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ default: ({ onClose }) => (
@@ -666,6 +666,19 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
     } finally { setPrinting(false); }
   }
 
+  async function handlePrintReceiptForm() {
+    setPrinting(true);
+    try {
+      const [shopInfo, parts] = await Promise.all([
+        getShopInfo(),
+        SparePartUsage.filter({ order_id: order.id }).catch(()=>[]),
+      ]);
+      await previewReceiptForm(order, parts, shopInfo);
+    } catch (e) {
+      alert("Lỗi in phiếu tiếp nhận: " + e.message);
+    } finally { setPrinting(false); }
+  }
+
   async function handlePrintBill() {
     setPrinting(true);
     try {
@@ -1095,13 +1108,22 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                   </div>
                 )}
                 {(order.final_cost > 0 || order.estimated_cost > 0) && (
-                  <button onClick={handlePrintBill} disabled={printing}
-                    style={{ marginTop:8, background:"#1e1b4b", border:"none", color:"#fff",
-                             borderRadius:8, padding:"8px 16px", fontSize:13, cursor:"pointer",
-                             display:"flex", alignItems:"center", gap:6, width:"100%" }}>
-                    <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>receipt</span>
-                    {printing ? "Đang in..." : "In Bill Thanh Toán"}
-                  </button>
+                  <div style={{ display:"flex", gap:8, marginTop:8 }}>
+                    <button onClick={handlePrintReceiptForm} disabled={printing}
+                      style={{ flex:1, background:"#0f766e", border:"none", color:"#fff",
+                               borderRadius:8, padding:"8px 12px", fontSize:12, cursor:"pointer",
+                               display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
+                      <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:15,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>assignment</span>
+                      {printing ? "..." : "Phiếu tiếp nhận"}
+                    </button>
+                    <button onClick={handlePrintBill} disabled={printing}
+                      style={{ flex:1, background:"#1e1b4b", border:"none", color:"#fff",
+                               borderRadius:8, padding:"8px 12px", fontSize:12, cursor:"pointer",
+                               display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
+                      <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:15,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>receipt</span>
+                      {printing ? "..." : "Hóa đơn SC"}
+                    </button>
+                  </div>
                 )}
 
                 {/* Lịch sử thanh toán */}
