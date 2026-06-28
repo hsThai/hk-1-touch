@@ -141,3 +141,65 @@ export function renderSetupPages(page, user) {
     </>
   );
 }
+
+// ── Thêm imports cần thiết cho renderMobilePages ────────────────────────────
+const CustomerManagerPage = lazy(() => import("./CustomerManager.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Khách hàng</div> })));
+const SupplierPage   = lazy(() => import("./SupplierPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Nhà cung cấp</div> })));
+const DebtPage       = lazy(() => import("./DebtPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Công nợ</div> })));
+const DepartmentPageLazy    = lazy(() => import("./DepartmentPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Phòng ban</div> })));
+const RolePermissionPageLazy = lazy(() => import("./RolePermissionPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Vai trò</div> })));
+const SaleHistoryPage = lazy(() => import("./SaleHistoryPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Lịch sử bán</div> })));
+
+/**
+ * renderMobilePages — Mobile page renders (tách từ MainApp.jsx để giảm dòng)
+ */
+export function renderMobilePages(page, user, extraProps = {}) {
+  const { setPage, dashboardTab, notifications = [], dbNotifications = [], setShowNotif, setShowQRScan } = extraProps;
+  return (
+    <>
+      {page==="customers" && (
+        <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
+          <CustomerManagerPage />
+        </Suspense>
+      )}
+      {page==="suppliers" && user && (
+        <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
+          <SupplierPage user={user} />
+        </Suspense>
+      )}
+      {page==="debts" && user && (
+        <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
+          <DebtPage user={user} />
+        </Suspense>
+      )}
+      {page==="department" && (
+        <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
+          <DepartmentPageLazy user={user} />
+        </Suspense>
+      )}
+      {page==="role_perm" && (
+        <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
+          <RolePermissionPageLazy />
+        </Suspense>
+      )}
+      {page==="integrations" && (
+        <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
+          <IntegrationsPage user={user} />
+        </Suspense>
+      )}
+      {page==="action_log" && (
+        <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
+          <ActionLogPage user={user} />
+        </Suspense>
+      )}
+      {page==="sale_order" && user && (
+        <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
+          <SaleHistoryPage user={user} />
+        </Suspense>
+      )}
+      {renderSalesPages(page, user)}
+      {renderPurchaseNccPages(page, user)}
+      {renderReportPages(page, user)}
+    </>
+  );
+}

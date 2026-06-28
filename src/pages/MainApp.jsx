@@ -78,7 +78,7 @@ import { NewOrderModal, KPIPage, ProductHistoryModal } from "./OrderForms";
 import LoginPage, { showSystemNotif, requestNotifPermission } from "./LoginV2";
 import { PermissionProvider, usePermission } from "./PermissionContext.jsx";
 import ChangePassword from "./ChangePassword";
-import { renderReportPages, renderPurchaseNccPages, renderSalesPages, renderSetupPages } from "./MainAppWidgets.jsx";
+import { renderReportPages, renderPurchaseNccPages, renderSalesPages, renderSetupPages, renderMobilePages } from "./MainAppWidgets.jsx";
 import {
   WarehouseOrders,
   TechnicianHome,
@@ -365,9 +365,12 @@ const MGR_ACCORDIONS = [
     key: "acc_setup",
     icon: "manage_accounts",
     label: "Thiết lập",
-    pages: ["staff","department","role_perm","settings","integrations","print_template","action_log"],
+    pages: ["staff","customers","suppliers","debts","department","role_perm","settings","integrations","print_template","action_log"],
     items: [
       { key:"staff",          icon:"badge",                label:"Nhân viên" },
+      { key:"customers",      icon:"person",               label:"Khách hàng" },
+      { key:"suppliers",      icon:"store",                label:"Nhà cung cấp" },
+      { key:"debts",          icon:"account_balance",      label:"Công nợ" },
       { key:"department",     icon:"account_tree",         label:"Phòng ban" },
       { key:"role_perm",      icon:"admin_panel_settings", label:"Vai trò & Quyền" },
       { key:"settings",       icon:"store",                label:"Cài đặt cửa hàng" },
@@ -2225,75 +2228,7 @@ function MainAppContent({ onUserChange }) {
           </div>
         )}
         
-        {page==="customers" && (
-          <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
-            <CustomerManagerPage />
-          </Suspense>
-        )}
-        {page==="dashboard" && (
-          user.role==="manager" || user.role==="admin"
-            ? <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><ManagerDashboard user={user} initialTab={dashboardTab} /></Suspense>
-            : <Dashboard />
-        )}
-        {page==="staff"      && <StaffManagerPage currentStaff={user} />}
-        {page==="settings"   && <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}><SettingsHub user={user} /></Suspense>}
-        {page==="role_home"  && <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}><RoleHomePlaceholder user={user} setPage={setPage} orders={orders} /></Suspense>}
-        {page==="wh_home"   && <WarehouseHome   user={user} setPage={setPage} />}
-        {page==="wh_orders" && <WarehouseOrders user={user} users={users} setSelectedOrder={setSelectedOrderSync} />}
-        {page==="wh_export" && <WarehouseExport user={user} />}
-        {page==="wh_import" && <WarehouseImport user={user} />}
-        {page==="wh_manager" && <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"dashboard")} />}
-        {page==="cashier_home" && <CashierApp user={user} onNotif={()=>setShowNotif(v=>!v)} onQRScan={()=>setShowQRScan(true)} notifCount={notifications.length+dbNotifications.length} />}
-        {page==="sale_order" && user && (
-          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
-            <SaleHistoryPage user={user} />
-          </Suspense>
-        )}
-        {page==="suppliers" && user && (
-          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
-            <SupplierPage user={user} />
-          </Suspense>
-        )}
-        {page==="debts" && user && (
-          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
-            <DebtPage user={user} />
-          </Suspense>
-        )}
-        {page==="department" && (
-          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
-            <DepartmentPageLazy user={user} />
-          </Suspense>
-        )}
-        {page==="role_perm" && (
-          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
-            <RolePermissionPageLazy />
-          </Suspense>
-        )}
-        {page==="integrations" && (
-          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
-            <IntegrationsPage user={user} />
-          </Suspense>
-        )}
-        {page==="action_log" && (
-          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
-            <ActionLogPage user={user} />
-          </Suspense>
-        )}
-              {page==="print_template" && user && <PrintTemplatePage user={user} />}
-        {page==="stock_nxt" && (
-          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
-            <StockReportNXT user={user} />
-          </Suspense>
-        )}
-        {page==="revenue" && (
-          <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
-            <RevenueReportPage user={user} />
-          </Suspense>
-        )}
-        {/* Sales, Kho, Tài chính, Báo cáo, Mua hàng NCC */}
-        {renderSalesPages(page, user)}
-        {renderPurchaseNccPages(page, user)}
-        {renderReportPages(page, user)}
+        {renderMobilePages(page, user, { setPage, dashboardTab, notifications, dbNotifications, setShowNotif, setShowQRScan })}
         </div>
       </Suspense>
 

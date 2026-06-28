@@ -330,7 +330,7 @@ export default function SaleHistoryPage({ user }) {
       {/* Layout wrapper */}
       <div style={{
         display: isPC ? "grid" : "block",
-        gridTemplateColumns: isPC ? "380px 1fr" : undefined,
+        gridTemplateColumns: isPC ? "minmax(300px, 360px) 1fr" : undefined,
         gap: isPC ? 24 : undefined,
         alignItems: "start",
       }}>
