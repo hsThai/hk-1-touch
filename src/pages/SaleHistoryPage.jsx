@@ -74,7 +74,7 @@ function DetailContent({ detail, detailItems, onClose }) {
         {/* Thời gian tạo đơn */}
         <span style={{ color:"#9ca3af", fontWeight:600 }}>🕐 Tạo đơn</span>
         <span style={{ fontWeight:700, color:"#374151" }}>
-          {fmtDateTime(detail.created || detail.created_date || "")}
+          {fmtDateTime(detail.created_date || detail.created || "")}
         </span>
 
         {/* NV bán hàng */}
@@ -211,7 +211,7 @@ export default function SaleHistoryPage({ user }) {
   async function load() {
     setLoading(true);
     try {
-      const data = await SaleOrder.list({ sort: "-created", limit: 500 });
+      const data = await SaleOrder.list({ sort: "-id", limit: 500 });
       setOrders(data || []);
     } catch(e) { console.error(e); }
     setLoading(false);
@@ -260,7 +260,7 @@ export default function SaleHistoryPage({ user }) {
     const matchStatus = filterStatus === "all" || o.status === filterStatus;
     const matchDate = (() => {
       if (!dateFrom && !dateTo) return true;
-      const d = new Date(o.created || o.created_date);
+      const d = new Date(o.created_date || o.created || "");
       if (dateFrom && d < new Date(dateFrom)) return false;
       if (dateTo   && d > new Date(dateTo + "T23:59:59")) return false;
       return true;
@@ -302,7 +302,7 @@ export default function SaleHistoryPage({ user }) {
         </div>
         {/* Row 3 */}
         <div style={{ fontSize:12, color:"#9ca3af", marginBottom:6 }}>
-          🕐 {fmtDateTime(o.created||o.created_date)}
+          🕐 {fmtDateTime(o.created_date||o.created)}
           {o.cashier_name ? " · 🧑‍💼 "+o.cashier_name : ""}
         </div>
         {/* Row 4 */}
