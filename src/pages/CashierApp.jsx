@@ -39,7 +39,7 @@ function OverviewTab({ user }) {
 
   const repairDone    = repairOrders.filter(o => DONE_STATUS.includes(o.status) && isToday(o.done_date || o.updated));
   const repairRevenue = repairDone.reduce((s, o) => s + (o.final_cost || 0), 0);
-  const saleToday     = saleOrders.filter(o => isToday(o.created || o.created_date));
+  const saleToday     = saleOrders.filter(o => isToday(o.created_date || o.created));
   const saleRevenue   = saleToday.reduce((s, o) => s + (o.total || 0), 0);
 
   const cards = [
@@ -93,7 +93,7 @@ function ShiftReconcile({ user }) {
         RepairOrder.list({ limit:500 }),
         SaleOrder.list({ limit:500 }),
         Expense.list({ limit:200 }),
-        CashJournal.list({ limit:500 }),
+        CashJournal.list({ limit:500, sort:"-id" }),
       ]);
       const dayJournals = (journals||[]).filter(j => (j.journal_date||"").startsWith(date));
       const cashIn  = dayJournals.filter(j=>j.entry_type==="receipt" &&j.payment_method==="cash").reduce((s,j)=>s+(j.amount||0),0);
@@ -102,7 +102,7 @@ function ShiftReconcile({ user }) {
       const doneRepairs = (repairs||[]).filter(o =>
         ["Đã Thanh Toán","Hoàn Thành","Đã Giao"].includes(o.status) &&
         inDay(o.paid_at || o.done_date || o.updated_date || o.updated));
-      const paidSales   = (sales||[]).filter(o => o.status==="paid" && inDay(o.created||o.created_date));
+      const paidSales   = (sales||[]).filter(o => ["paid","completed"].includes(o.status) && inDay(o.created_date||o.created));
       const dayExp      = (exps||[]).filter(e => inDay(e.expense_date||e.created_date||e.created));
 
       const repairCash = doneRepairs.filter(o=>!o.payment_method||o.payment_method==="Tiền mặt").reduce((s,o)=>s+(o.final_cost||0),0);

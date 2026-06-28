@@ -165,9 +165,9 @@ function OverviewTab({ repairOrders, saleOrders, spareParts, ledgerSummary=[], c
   const pendingSales = saleOrders.filter(o => o.status === "pending");
 
   // ── Section 4: Tài chính nhanh ────────────────────────
-  const balance  = (cashJournals||[]).reduce((s,j) => j.type==="thu"||j.entry_type==="in" ? s+(j.amount||0) : s-(j.amount||0), 0);
-  const todayThu = (cashJournals||[]).filter(j => (j.type==="thu"||j.entry_type==="in")  && isToday(j.date||j.created)).reduce((s,j)=>s+(j.amount||0),0);
-  const todayChi = (cashJournals||[]).filter(j => (j.type==="chi"||j.entry_type==="out") && isToday(j.date||j.created)).reduce((s,j)=>s+(j.amount||0),0);
+  const balance  = (cashJournals||[]).reduce((s,j) => j.entry_type==="receipt" ? s+(j.amount||0) : j.entry_type==="payment" ? s-(j.amount||0) : 0, 0);
+  const todayThu = (cashJournals||[]).filter(j => j.entry_type==="receipt"  && isToday(j.journal_date||j.date||j.created_date)).reduce((s,j)=>s+(j.amount||0),0);
+  const todayChi = (cashJournals||[]).filter(j => j.entry_type==="payment" && isToday(j.journal_date||j.date||j.created_date)).reduce((s,j)=>s+(j.amount||0),0);
 
   // ── Section 5: KTV idle ───────────────────────────────
   const idleKtv = (staff||[]).filter(s =>
@@ -1139,12 +1139,10 @@ function CashflowSubTab({ repairOrders, expenses, saleOrders }) {
 
   useEffect(() => {
     const today = new Date().toISOString().slice(0,10);
-    CashJournal.list({
-      filter: `date>="${today}"`,
-      limit: 500,
-    }).then(entries => {
-      const totalIn  = entries.filter(e=>e.type==="in" ||e.entry_type==="in" ).reduce((s,e)=>s+(e.amount||0),0);
-      const totalOut = entries.filter(e=>e.type==="out"||e.entry_type==="out").reduce((s,e)=>s+(e.amount||0),0);
+    CashJournal.list({ limit: 500, sort:"-id" }).then(entries => {
+      const todayEntries = entries.filter(e => (e.journal_date||"").startsWith(today));
+      const totalIn  = todayEntries.filter(e=>e.entry_type==="receipt").reduce((s,e)=>s+(e.amount||0),0);
+      const totalOut = todayEntries.filter(e=>e.entry_type==="payment").reduce((s,e)=>s+(e.amount||0),0);
       setCashSummary({ totalIn, totalOut, balance: totalIn - totalOut });
     }).catch(()=>{});
   }, []);
@@ -1157,7 +1155,7 @@ function CashflowSubTab({ repairOrders, expenses, saleOrders }) {
     .filter(o => DONE_ST.includes(o.status) && thisMonth(o.done_date||o.updated))
     .reduce((s,o) => s+(o.final_cost||0), 0);
   const saleRevenue = saleOrders
-    .filter(o => thisMonth(o.created))
+    .filter(o => thisMonth(o.created_date||o.created))
     .reduce((s,o) => s+(o.total||0), 0);
   const totalRevenue = repairRevenue + saleRevenue;
   const totalExpense = expenses
