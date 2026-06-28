@@ -159,42 +159,86 @@ export async function previewBill(order, parts = [], shopInfo = {}) {
     `<tr><td>${p.part_name || ""}</td><td style="text-align:right">${p.qty_used}</td><td style="text-align:right">${Number(p.unit_price || 0).toLocaleString("vi-VN")}đ</td><td style="text-align:right">${Number(p.total_price || 0).toLocaleString("vi-VN")}đ</td></tr>`
   ).join("");
 
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bill ${order.order_code || order.id}</title>
-  <style>
-    body{font-family:Arial,sans-serif;font-size:13px;padding:20px;max-width:500px;margin:0 auto}
-    h2{text-align:center;margin:0;font-size:16px}
-    .center{text-align:center}
-    .sep{border-top:1px dashed #999;margin:8px 0}
-    table{width:100%;border-collapse:collapse;font-size:12px}
-    th{background:#f3f4f6;padding:6px;text-align:left}
-    td{padding:5px 6px;border-bottom:1px solid #f0f0f0}
-    .total{font-weight:bold;font-size:14px}
-    .qr{text-align:center;margin-top:12px}
-    .qr img{width:150px;height:150px}
-    @media print{body{padding:0}}
-  </style>
-  </head><body>
-  <h2>${shopInfo.shop_name || "Hoàng Khánh Mobile"}</h2>
-  <p class="center" style="margin:4px 0;font-size:12px">${shopInfo.shop_phone || ""} | ${shopInfo.shop_address || ""}</p>
-  <p class="center" style="font-weight:bold;font-size:15px;margin:8px 0">HÓA ĐƠN THANH TOÁN</p>
-  <div class="sep"></div>
-  <p><b>Mã phiếu:</b> ${order.order_code || order.id}</p>
-  <p><b>Khách hàng:</b> ${order.customer_name || ""} — ${order.customer_phone || ""}</p>
-  <p><b>Thiết bị:</b> ${order.device_model || order.device_name || ""}</p>
-  <p><b>Ngày:</b> ${new Date().toLocaleDateString("vi-VN")}</p>
-  <div class="sep"></div>
-  ${partsHTML ? `<p><b>Linh kiện đã dùng:</b></p><table><tr><th>Tên LK</th><th>SL</th><th>Đơn giá</th><th>Thành tiền</th></tr>${partsHTML}</table>` : ""}
-  <div class="sep"></div>
-  <p class="total">Tổng tiền: ${Number(order.final_cost || order.estimated_cost || 0).toLocaleString("vi-VN")}đ</p>
-  <p>Đã cọc: ${Number(order.deposit || 0).toLocaleString("vi-VN")}đ</p>
-  <p class="total" style="color:#dc2626">Còn lại: ${Number(remaining).toLocaleString("vi-VN")}đ</p>
-  <p><b>Hình thức:</b> ${order.payment_method || "Tiền mặt"}</p>
-  ${vietqrUrl ? `<div class="qr"><p style="font-weight:bold;margin-bottom:4px">Quét QR để chuyển khoản:</p><img src="${vietqrUrl}" onerror="this.style.display='none'"/></div>` : ""}
-  <div class="sep"></div>
-  <p class="center" style="font-size:11px">Bảo hành: ${order.warranty_days || 0} ngày | ${shopInfo.warranty_note || ""}</p>
-  <p class="center" style="font-size:11px">Cảm ơn quý khách!</p>
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<title>PHIEU THANH TOAN ${order.order_code || order.id}</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:"Times New Roman",Times,serif;font-size:13px;max-width:80mm;margin:0 auto;padding:6mm 4mm;color:#111;background:#fff}
+  .center{text-align:center}
+  .title-shop{font-size:14px;font-weight:bold;text-align:center;text-transform:uppercase;margin-bottom:2px}
+  .sub-shop{font-size:11px;text-align:center;margin-bottom:2px}
+  .doc-title{font-size:15px;font-weight:bold;text-align:center;margin:6px 0 4px;letter-spacing:1px;text-transform:uppercase}
+  .sep-solid{border:none;border-top:1.5px solid #222;margin:5px 0}
+  .sep-dash{border:none;border-top:1px dashed #555;margin:4px 0}
+  .meta{font-size:12px;margin:2px 0}
+  .highlight-box{border:1.5px solid #222;display:inline-block;padding:1px 6px;font-weight:bold;font-size:13px}
+  table{width:100%;border-collapse:collapse;font-size:12px;margin:4px 0}
+  thead th{border-bottom:1px solid #555;padding:3px 2px;text-align:left;font-size:11px;font-weight:bold}
+  thead th.r{text-align:right} thead th.c{text-align:center}
+  tbody td{padding:3px 2px;vertical-align:top;font-size:12px}
+  tbody td.r{text-align:right} tbody td.c{text-align:center}
+  .total-row{display:flex;justify-content:space-between;font-size:12px;margin:2px 0}
+  .grand-total{display:flex;justify-content:space-between;font-size:14px;font-weight:bold;margin:3px 0}
+  .bangchu{font-size:11px;font-style:italic;margin-top:2px;color:#333}
+  .qr-block{text-align:center;margin-top:8px}
+  .qr-block img{width:130px;height:130px}
+  .qr-note{font-size:10px;color:#666;margin-top:3px;font-style:italic}
+  .footer{text-align:center;font-size:11px;color:#555;margin-top:8px;border-top:1px dashed #aaa;padding-top:5px}
+  @media print{@page{size:80mm auto;margin:0}body{padding:4mm 3mm}}
+</style>
+</head><body>
+  <div class="title-shop">${shopInfo.shop_name || "HOÀNG KHÁNH MOBILE"}</div>
+  ${shopInfo.shop_address ? `<div class="sub-shop">${shopInfo.shop_address}</div>` : ""}
+  ${shopInfo.shop_phone   ? `<div class="sub-shop">ĐT: ${shopInfo.shop_phone}</div>` : ""}
+  <div class="doc-title">Phiếu thanh toán</div>
+  <hr class="sep-solid"/>
+
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+    <div>
+      <div class="meta"><span class="highlight-box">Mã phiếu: ${order.order_code || order.id}</span></div>
+      <div class="meta" style="margin-top:3px">Ngày: <b>${new Date().toLocaleDateString("vi-VN")}</b></div>
+    </div>
+    ${vietqrUrl ? `<img src="${vietqrUrl}" style="width:55px;height:55px" onerror="this.style.display='none'"/>` : ""}
+  </div>
+
+  <hr class="sep-dash"/>
+  <div class="meta">Khách hàng: <b>${order.customer_name || "Khách lẻ"}</b>${order.customer_phone ? " — " + order.customer_phone : ""}</div>
+  <div class="meta">Thiết bị: <b>${order.device_model || order.device_name || ""}</b></div>
+  ${order.issue_description ? `<div class="meta" style="font-size:11px;color:#555">Lỗi: ${order.issue_description}</div>` : ""}
+  <hr class="sep-dash"/>
+
+  <table>
+    <thead><tr>
+      <th style="width:46%">Mặt hàng</th>
+      <th class="c" style="width:12%">SL</th>
+      <th class="r" style="width:20%">ĐG</th>
+      <th class="r" style="width:22%">TT</th>
+    </tr></thead>
+    <tbody>
+      ${partsHTML || `<tr><td>Dịch vụ sửa chữa</td><td class="c">1</td><td class="r">${Number(order.final_cost||order.estimated_cost||0).toLocaleString("vi-VN")}</td><td class="r">${Number(order.final_cost||order.estimated_cost||0).toLocaleString("vi-VN")}</td></tr>`}
+    </tbody>
+  </table>
+
+  <hr class="sep-dash"/>
+  <div class="total-row"><span>Thành tiền:</span><span>${Number(order.final_cost||order.estimated_cost||0).toLocaleString("vi-VN")}</span></div>
+  ${order.deposit > 0 ? `<div class="total-row"><span>Đã cọc:</span><span style="color:#059669">${Number(order.deposit||0).toLocaleString("vi-VN")}</span></div>` : ""}
+  <div class="grand-total"><span>Tổng tiền:</span><span>${Number(order.final_cost||order.estimated_cost||0).toLocaleString("vi-VN")} đ</span></div>
+  ${remaining > 0 ? `<div class="grand-total" style="color:#dc2626"><span>Còn lại:</span><span>${Number(remaining).toLocaleString("vi-VN")} đ</span></div>` : ""}
+
+  ${vietqrUrl ? `
+  <div class="qr-block">
+    <div style="font-size:11px;font-weight:bold;margin-bottom:4px">Quét QR để chuyển khoản</div>
+    <img src="${vietqrUrl}" onerror="this.style.display='none'"/>
+    <div class="qr-note">${shopInfo.bank_name} — ${shopInfo.bank_account}<br/>${shopInfo.shop_name||""}</div>
+  </div>` : ""}
+
+  <div class="footer">
+    ${shopInfo.warranty_note ? `<div>🛡️ ${shopInfo.warranty_note}</div>` : ""}
+    <div style="margin-top:3px">Cảm ơn quý khách! Hẹn gặp lại 🙏</div>
+  </div>
   <script>window.onload=()=>window.print()</script>
-  </body></html>`;
+</body></html>`;
 
   const finalHtml = await loadTemplate("bill", html);
   if (!finalHtml) { alert("Mẫu hóa đơn SC đã bị tắt."); return; }
@@ -414,34 +458,121 @@ export function getDefaultTemplate(key, shopInfo = {}) {
 
   if (key === "bill") {
     const remaining = Math.max(0, order.final_cost - order.deposit);
-    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bill ${order.order_code}</title>
-  <style>
-    body{font-family:Arial,sans-serif;font-size:13px;padding:20px;max-width:500px;margin:0 auto}
-    h2{text-align:center;margin:0;font-size:16px}
-    .center{text-align:center}
-    .sep{border-top:1px dashed #999;margin:8px 0}
-    table{width:100%;border-collapse:collapse;font-size:12px}
-    th{background:#f3f4f6;padding:6px;text-align:left}
-    td{padding:5px 6px;border-bottom:1px solid #f0f0f0}
-    .total{font-weight:bold;font-size:14px}
-    @media print{body{padding:0}}
-  </style>
-  </head><body>
-  <h2>${shop.shop_name}</h2>
-  <p class="center" style="margin:4px 0;font-size:12px">${shop.shop_phone} | ${shop.shop_address}</p>
-  <p class="center" style="font-weight:bold;font-size:15px;margin:8px 0">HÓA ĐƠN THANH TOÁN</p>
-  <div class="sep"></div>
-  <p><b>Mã phiếu:</b> ${order.order_code}</p>
-  <p><b>Khách hàng:</b> ${order.customer_name} — ${order.customer_phone}</p>
-  <p><b>Thiết bị:</b> ${order.device_model}</p>
-  <p><b>Ngày:</b> ${new Date().toLocaleDateString("vi-VN")}</p>
-  <div class="sep"></div>
-  <p class="total">Tổng tiền: ${order.final_cost.toLocaleString("vi-VN")}đ</p>
-  <p>Đã cọc: ${order.deposit.toLocaleString("vi-VN")}đ</p>
-  <p class="total" style="color:#dc2626">Còn lại: ${remaining.toLocaleString("vi-VN")}đ</p>
-  <p class="center" style="font-size:11px">Bảo hành: ${order.warranty_days} ngày | ${shop.warranty_note}</p>
-  <p class="center" style="font-size:11px">Cảm ơn quý khách!</p>
-  </body></html>`;
+    const today = new Date().toLocaleDateString("vi-VN");
+    const vietqrUrl = shop.bank_account && shop.bank_name
+      ? `https://img.vietqr.io/image/${shop.bank_name}-${shop.bank_account}-compact2.png?amount=${remaining}&addInfo=${encodeURIComponent("HK " + order.order_code)}&accountName=${encodeURIComponent(shop.shop_name)}`
+      : null;
+    return `<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<title>PHIEU THANH TOAN ${order.order_code}</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:"Times New Roman",Times,serif;font-size:13px;max-width:80mm;margin:0 auto;padding:6mm 4mm;color:#111;background:#fff}
+  .center{text-align:center}
+  .bold{font-weight:bold}
+  .title-shop{font-size:14px;font-weight:bold;text-align:center;text-transform:uppercase;margin-bottom:2px}
+  .sub-shop{font-size:11px;text-align:center;margin-bottom:2px}
+  .doc-title{font-size:15px;font-weight:bold;text-align:center;margin:6px 0 4px;letter-spacing:1px;text-transform:uppercase}
+  .sep-solid{border:none;border-top:1.5px solid #222;margin:5px 0}
+  .sep-dash{border:none;border-top:1px dashed #555;margin:4px 0}
+  .info-row{display:flex;justify-content:space-between;font-size:12px;margin:2px 0}
+  .info-label{color:#333}
+  .info-val{font-weight:600;text-align:right;max-width:60%}
+  .meta{font-size:12px;margin:2px 0}
+  table{width:100%;border-collapse:collapse;font-size:12px;margin:4px 0}
+  thead th{border-bottom:1px solid #555;padding:3px 2px;text-align:left;font-size:11px;font-weight:bold}
+  thead th.r{text-align:right}
+  thead th.c{text-align:center}
+  tbody td{padding:3px 2px;vertical-align:top;font-size:12px}
+  tbody td.r{text-align:right}
+  tbody td.c{text-align:center}
+  .total-block{margin-top:4px}
+  .total-row{display:flex;justify-content:space-between;font-size:12px;margin:2px 0}
+  .grand-total{display:flex;justify-content:space-between;font-size:14px;font-weight:bold;margin:3px 0}
+  .bangchu{font-size:11px;font-style:italic;margin-top:2px;color:#333}
+  .qr-block{text-align:center;margin-top:8px}
+  .qr-block img{width:130px;height:130px}
+  .qr-note{font-size:10px;color:#666;margin-top:3px;font-style:italic}
+  .footer{text-align:center;font-size:11px;color:#555;margin-top:8px;border-top:1px dashed #aaa;padding-top:5px}
+  .highlight-box{border:1.5px solid #222;display:inline-block;padding:1px 6px;font-weight:bold;font-size:13px}
+  @media print{@page{size:80mm auto;margin:0}body{padding:4mm 3mm}}
+</style>
+</head><body>
+  <!-- HEADER -->
+  <div class="title-shop">${shop.shop_name}</div>
+  ${shop.shop_address ? `<div class="sub-shop">${shop.shop_address}</div>` : ""}
+  ${shop.shop_phone   ? `<div class="sub-shop">ĐT: ${shop.shop_phone}</div>` : ""}
+
+  <div class="doc-title">Phiếu thanh toán</div>
+  <hr class="sep-solid"/>
+
+  <!-- THÔNG TIN ĐƠN -->
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+    <div>
+      <div class="meta"><span class="highlight-box">Mã phiếu: ${order.order_code}</span></div>
+      <div class="meta" style="margin-top:3px">Ngày: <b>${today}</b></div>
+    </div>
+    ${vietqrUrl ? `<img src="${vietqrUrl}" style="width:55px;height:55px" onerror="this.style.display='none'"/>` : ""}
+  </div>
+
+  <hr class="sep-dash"/>
+  <div class="meta">Khách hàng: <b>${order.customer_name || "Khách lẻ"}</b>${order.customer_phone ? " — " + order.customer_phone : ""}</div>
+  <div class="meta">Thiết bị: <b>${order.device_model || order.device_name || ""}</b></div>
+  ${order.issue_description ? `<div class="meta" style="font-size:11px;color:#555">Lỗi: ${order.issue_description}</div>` : ""}
+  <hr class="sep-dash"/>
+
+  <!-- BẢNG LINH KIỆN / DỊCH VỤ -->
+  <table>
+    <thead>
+      <tr>
+        <th style="width:46%">Mặt hàng</th>
+        <th class="c" style="width:12%">SL</th>
+        <th class="r" style="width:20%">ĐG</th>
+        <th class="r" style="width:22%">TT</th>
+      </tr>
+    </thead>
+    <tbody id="parts-body">
+      <tr>
+        <td>Dịch vụ sửa chữa</td>
+        <td class="c">1</td>
+        <td class="r">${(order.final_cost||0).toLocaleString("vi-VN")}</td>
+        <td class="r">${(order.final_cost||0).toLocaleString("vi-VN")}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <hr class="sep-dash"/>
+
+  <!-- TỔNG TIỀN -->
+  <div class="total-block">
+    <div class="total-row">
+      <span>Thành tiền:</span>
+      <span>${(order.final_cost||0).toLocaleString("vi-VN")}</span>
+    </div>
+    ${order.deposit > 0 ? `<div class="total-row"><span>Đã cọc:</span><span style="color:#059669">${order.deposit.toLocaleString("vi-VN")}</span></div>` : ""}
+    <div class="grand-total">
+      <span>Tổng tiền:</span>
+      <span>${(order.final_cost||0).toLocaleString("vi-VN")} đ</span>
+    </div>
+    ${remaining > 0 ? `<div class="grand-total" style="color:#dc2626"><span>Còn lại:</span><span>${remaining.toLocaleString("vi-VN")} đ</span></div>` : ""}
+    <div class="bangchu">Bằng chữ: <i>-- xem hóa đơn chính thức --</i></div>
+  </div>
+
+  <!-- QR CHUYỂN KHOẢN LỚN BÊN DƯỚI -->
+  ${vietqrUrl ? `
+  <div class="qr-block">
+    <div style="font-size:11px;font-weight:bold;margin-bottom:4px">Quét QR để chuyển khoản</div>
+    <img src="${vietqrUrl}" onerror="this.style.display='none'"/>
+    <div class="qr-note">${shop.bank_name} — ${shop.bank_account}<br/>${shop.shop_name}</div>
+  </div>` : ""}
+
+  <div class="footer">
+    ${shop.warranty_note ? `<div>🛡️ ${shop.warranty_note}</div>` : ""}
+    <div style="margin-top:3px">Cảm ơn quý khách! Hẹn gặp lại 🙏</div>
+  </div>
+
+  <script>window.onload=()=>window.print()</script>
+</body></html>`;
   }
 
   if (key === "sale_receipt") {
