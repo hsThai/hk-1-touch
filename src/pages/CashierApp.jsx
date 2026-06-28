@@ -289,7 +289,7 @@ export default function CashierApp({ user }) {
       </div>
 
       {/* Nội dung tab */}
-      <div style={{ maxWidth: tab==="sale" ? 760 : 900, margin:"0 auto", padding:"20px 24px 60px" }}>
+      <div style={{ maxWidth: tab==="shift" ? 900 : "100%", margin:"0 auto", padding: tab==="sale" ? 0 : "20px 24px 60px" }}>
         {tab === "sale"  && (SaleOrderPage ? <SaleOrderPage user={user} /> : <Fallback />)}
         {tab === "shift" && <ShiftReconcile user={user} />}
       </div>

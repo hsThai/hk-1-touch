@@ -257,7 +257,7 @@ export default function SaleOrderPage({ user }) {
   }
 
   return (
-    <div style={{ padding: isPC ? "20px 28px 40px" : "16px 14px 100px" }}>
+    <div style={{ padding: isPC ? "20px 28px 40px" : "16px 14px 100px", maxWidth: isPC ? 1200 : "100%", margin: "0 auto" }}>
       
       {lastOrder && (
         <div className="print-receipt">
@@ -292,7 +292,7 @@ export default function SaleOrderPage({ user }) {
       {/* ── LAYOUT WRAPPER 2 cột (PC) / 1 cột (Mobile) ── */}
       <div style={{
         display: isPC ? "grid" : "block",
-        gridTemplateColumns: isPC ? "1fr 420px" : undefined,
+        gridTemplateColumns: isPC ? "1fr minmax(360px, 440px)" : undefined,
         gap: isPC ? 24 : undefined,
         alignItems: "start",
       }}>

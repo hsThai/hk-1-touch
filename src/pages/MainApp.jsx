@@ -1909,8 +1909,11 @@ function MainAppContent({ onUserChange }) {
           <div style={{ background:"#fff", borderBottom:"1px solid #e5e7eb", padding:"12px 24px",
             display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
             <div style={{ fontWeight:700, fontSize:16, color:"#1e1b4b" }}>
-              {navItems.find(n=>n.key===page)?.label || "HK One Touch"}
-            </div>
+  {/* Ẩn title khi trang đã có header riêng */}
+  {!["cashier_home","wh_manager","wh_app","stock_count","purchase_order"].includes(page) && (
+    navItems.find(n=>n.key===page)?.label || "HK One Touch"
+  )}
+</div>
             <div style={{ display:"flex", gap:8 }}>
               <div style={{ position:"relative" }}>
                 <button onClick={() => setShowNotif(v=>!v)} style={{ background:"none", border:"none", color:"#374151", fontSize:22, cursor:"pointer", padding:4 }}>
