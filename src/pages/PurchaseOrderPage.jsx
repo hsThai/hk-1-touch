@@ -1,6 +1,6 @@
 /* PurchaseOrderPage.jsx — Đặt hàng NCC — HK One Touch */
 import React, { useState, useEffect, useCallback } from "react";
-import { PurchaseOrder, PurchaseOrderItem, SparePart } from "./pb.jsx";
+import { PurchaseOrder, PurchaseOrderItem, SparePart, Supplier } from "./pb.jsx";
 
 const fmt = (n) => (n || 0).toLocaleString("vi-VN") + "đ";
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString("vi-VN") : "—";
@@ -54,6 +54,9 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
   const [note,          setNote]          = useState(po?.note           || "");
   const [items,         setItems]         = useState([]);
   const [saving,        setSaving]        = useState(false);
+  const [supplierSearch,    setSupplierSearch]    = useState(po?.supplier_name || "");
+  const [supplierSuggestions, setSupplierSuggestions] = useState([]);
+  const [showSupplierDrop, setShowSupplierDrop] = useState(false);
   const [partSearch,    setPartSearch]    = useState({});
   const [partDropdown,  setPartDropdown]  = useState(null);
 
@@ -71,6 +74,23 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
       setItems([{ id:Date.now(), part_id:"", part_name:"", sku:"", qty_ordered:1, qty_received:0, unit_price:0, total_price:0, note:"" }]);
     }
   }, [po]);
+
+  // Auto-search supplier khi gõ tên
+  useEffect(() => {
+    const q = supplierSearch.trim();
+    if (q.length < 1) { setSupplierSuggestions([]); return; }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await Supplier.list({ limit:200 });
+        const filtered = (res||[]).filter(s =>
+          s.name?.toLowerCase().includes(q.toLowerCase()) ||
+          s.phone?.includes(q)
+        ).slice(0,6);
+        setSupplierSuggestions(filtered);
+      } catch {}
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [supplierSearch]);
 
   function addRow() {
     setItems(p => [...p, { id:Date.now(), part_id:"", part_name:"", sku:"", qty_ordered:1, qty_received:0, unit_price:0, total_price:0, note:"" }]);
@@ -160,16 +180,51 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
         </div>
         <div style={{ padding:20 }}>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
-            {[
-              {label:"Tên NCC *", val:supplierName, set:setSupplierName, ph:"Tên nhà cung cấp"},
-              {label:"SĐT NCC",   val:supplierPhone,set:setSupplierPhone,ph:"Số điện thoại"},
-            ].map(f=>(
-              <div key={f.label}>
-                <label style={{fontSize:12,fontWeight:600,color:"#6b7280",display:"block",marginBottom:4}}>{f.label}</label>
-                <input value={f.val} onChange={e=>f.set(e.target.value)} disabled={!canEdit}
-                  placeholder={f.ph} style={inputStyle(canEdit)} />
-              </div>
-            ))}
+            {/* Tên NCC — autocomplete */}
+            <div style={{ position:"relative" }}>
+              <label style={{fontSize:12,fontWeight:600,color:"#6b7280",display:"block",marginBottom:4}}>Tên NCC *</label>
+              <input
+                value={supplierSearch}
+                onChange={e => { setSupplierSearch(e.target.value); setSupplierName(e.target.value); setShowSupplierDrop(true); }}
+                onFocus={() => setShowSupplierDrop(true)}
+                onBlur={() => setTimeout(() => setShowSupplierDrop(false), 180)}
+                disabled={!canEdit}
+                placeholder="Tên nhà cung cấp..."
+                style={inputStyle(canEdit)}
+              />
+              {canEdit && showSupplierDrop && supplierSuggestions.length > 0 && (
+                <div style={{
+                  position:"absolute", top:"100%", left:0, right:0, zIndex:50,
+                  background:"#fff", border:"1.5px solid #e5e7eb", borderRadius:10,
+                  boxShadow:"0 8px 24px rgba(0,0,0,.12)", overflow:"hidden", marginTop:2,
+                }}>
+                  {supplierSuggestions.map(s => (
+                    <div key={s.id}
+                      onMouseDown={() => {
+                        setSupplierName(s.name || "");
+                        setSupplierPhone(s.phone || "");
+                        setSupplierSearch(s.name || "");
+                        setSupplierSuggestions([]);
+                        setShowSupplierDrop(false);
+                      }}
+                      style={{ padding:"10px 14px", cursor:"pointer", borderBottom:"1px solid #f3f4f6",
+                        display:"flex", justifyContent:"space-between", alignItems:"center" }}
+                      onMouseEnter={e => e.currentTarget.style.background="#f5f3ff"}
+                      onMouseLeave={e => e.currentTarget.style.background="#fff"}
+                    >
+                      <div style={{fontWeight:700, fontSize:13, color:"#1e1b4b"}}>{s.name}</div>
+                      {s.phone && <div style={{fontSize:12, color:"#6b7280"}}>{s.phone}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {/* SĐT NCC */}
+            <div>
+              <label style={{fontSize:12,fontWeight:600,color:"#6b7280",display:"block",marginBottom:4}}>SĐT NCC</label>
+              <input value={supplierPhone} onChange={e=>setSupplierPhone(e.target.value)} disabled={!canEdit}
+                placeholder="Số điện thoại" style={inputStyle(canEdit)} />
+            </div>
             <div>
               <label style={{fontSize:12,fontWeight:600,color:"#6b7280",display:"block",marginBottom:4}}>Ngày đặt</label>
               <input type="date" value={orderDate} onChange={e=>setOrderDate(e.target.value)} disabled={!canEdit} style={inputStyle(canEdit)} />
