@@ -297,7 +297,7 @@ export default function CashierApp({ user, onNotif, onQRScan, notifCount=0 }) {
       </div>
 
       {/* Pill tabs */}
-      <div style={{ background:"#fff", borderBottom:"1.5px solid #e5e7eb",
+      <div style={{ background:"#f0fdf4", borderBottom:"1.5px solid #d1fae5",
         padding:"10px 24px", display:"flex", gap:8 }}>
         {NAV_TABS.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}

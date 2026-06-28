@@ -29,7 +29,7 @@ function fmtDateTime(dateStr) {
 const PM_LABELS = { cash:"Tiền mặt", transfer:"Chuyển khoản", combo:"Kết hợp", credit:"Bán chịu" };
 const PM_COLORS = { cash:"#059669", transfer:"#2563eb", combo:"#7c3aed", credit:"#dc2626" };
 
-const INP = { width:"100%", height:44, borderRadius:12, border:"1.5px solid #e5e7eb", padding:"0 14px", fontSize:14, outline:"none", boxSizing:"border-box" };
+const INP = { width:"100%", height:44, borderRadius:12, border:"1.5px solid #e5e7eb", padding:"0 14px", fontSize:14, outline:"none", boxSizing:"border-box", transition:"border-color .15s, box-shadow .15s" };
 
 export default function SaleOrderPage({ user }) {
   const [search,      setSearch]      = useState("");
@@ -360,15 +360,18 @@ export default function SaleOrderPage({ user }) {
       {/* ─── Placeholder giỏ trống ─── */}
       {cart.length === 0 && !lastOrder && (
         <div style={{
-          background:"#fff", borderRadius:16, border:"1.5px dashed #e5e7eb",
-          padding:"32px 20px", textAlign:"center", color:"#9ca3af",
+          background:"linear-gradient(135deg,#f0fdf4,#ecfdf5)",
+          borderRadius:16, border:"2px dashed #86efac",
+          padding:"40px 20px", textAlign:"center",
           marginBottom:16,
         }}>
-          <div style={{ fontSize:36, marginBottom:8 }}>🛒</div>
-          <div style={{ fontSize:14, fontWeight:700, color:"#6b7280", marginBottom:4 }}>
+          <div style={{ fontSize:48, marginBottom:10, opacity:.6 }}>🛒</div>
+          <div style={{ fontSize:15, fontWeight:800, color:"#059669", marginBottom:6 }}>
             Giỏ hàng trống
           </div>
-          <div style={{ fontSize:12 }}>Tìm linh kiện / phụ kiện bên trên để thêm vào đơn</div>
+          <div style={{ fontSize:13, color:"#6b7280" }}>
+            Tìm kiếm linh kiện / phụ kiện ở ô bên trên
+          </div>
         </div>
       )}
 
@@ -377,7 +380,10 @@ export default function SaleOrderPage({ user }) {
         <div style={{ position:"relative" }}>
           <span className="material-icons" style={{ fontFamily:"Material Icons", position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color:"#9ca3af", fontSize:20 }}>search</span>
           <input value={search} onChange={e=>setSearch(e.target.value)}
-            placeholder="Tìm linh kiện theo tên hoặc SKU..." style={{...INP, paddingLeft:40}} />
+  placeholder="🔍  Tìm linh kiện theo tên hoặc SKU..."
+  style={{...INP, paddingLeft:16, height:48, fontSize:15,
+    border:"2px solid #d1fae5", background:"#f0fdf4",
+    boxShadow:"0 1px 4px rgba(5,150,105,.08)"}} />
         </div>
         {searchRes.length > 0 && (
           <div style={{ position:"absolute", top:48, left:0, right:0, background:"#fff", border:"1.5px solid #e5e7eb",
@@ -551,9 +557,12 @@ export default function SaleOrderPage({ user }) {
               style={{
                 height:44, borderRadius:12,
                 border:"2px solid " + (payMethod===pm ? PM_COLORS[pm] : "#e5e7eb"),
-                background: payMethod===pm ? PM_COLORS[pm] : "#f9fafb",
+                background: payMethod===pm ? PM_COLORS[pm] : "#fff",
                 color: payMethod===pm ? "#fff" : "#374151",
                 fontWeight:800, fontSize:13, cursor:"pointer",
+                boxShadow: payMethod===pm ? "0 2px 8px rgba(0,0,0,.15)" : "0 1px 3px rgba(0,0,0,.06)",
+                transform: payMethod===pm ? "scale(1.02)" : "scale(1)",
+                transition:"all .15s",
               }}>
               {PM_LABELS[pm]}
             </button>
@@ -587,7 +596,7 @@ export default function SaleOrderPage({ user }) {
         )}
         <div style={{ display:"flex", justifyContent:"space-between", paddingTop:8, borderTop:"1.5px solid #86efac" }}>
           <span style={{ fontWeight:900, fontSize:16 }}>Tổng thanh toán</span>
-          <span style={{ fontWeight:900, fontSize:22, color:"#059669" }}>{fmtMoney(total)}</span>
+          <span style={{ fontWeight:900, fontSize:28, color:"#059669", letterSpacing:"-0.5px" }}>{fmtMoney(total)}</span>
         </div>
       </div>
 
@@ -597,11 +606,13 @@ export default function SaleOrderPage({ user }) {
           onClick={handleSubmit}
           disabled={submitting || cart.length === 0 || !payMethod}
           style={{
-            flex:2, height:52, borderRadius:14, border:"none",
+            flex:2, height:56, borderRadius:14, border:"none",
             background: (submitting || cart.length === 0 || !payMethod) ? "#e5e7eb" : "linear-gradient(135deg,#059669,#047857)",
             color: (submitting || cart.length === 0 || !payMethod) ? "#9ca3af" : "#fff",
-            fontWeight:900, fontSize:16,
+            fontWeight:900, fontSize:17, letterSpacing:"0.3px",
             cursor: (submitting || cart.length === 0 || !payMethod) ? "not-allowed" : "pointer",
+            boxShadow: (submitting || cart.length === 0 || !payMethod) ? "none" : "0 4px 16px rgba(5,150,105,.35)",
+            transition:"all .15s",
           }}>
           {submitting ? "⏳ Đang lưu..." : cart.length === 0 ? "Chưa có sản phẩm" : !payMethod ? "Chọn hình thức TT" : "✅ Xác nhận bán"}
         </button>
