@@ -129,7 +129,7 @@ function OverviewTab({ repairOrders, saleOrders, spareParts, ledgerSummary=[], c
   // ── KPI Cards ─────────────────────────────────────────
   const active    = repairOrders.filter(o => !SKIP_ST.includes(o.status));
   const doneToday = repairOrders.filter(o => DONE_ST.includes(o.status) && isToday(o.done_date||o.updated));
-  const saleToday = saleOrders.filter(o => o.status==="paid" && isToday(o.created||o.created_date));
+  const saleToday = saleOrders.filter(o => ["paid","completed"].includes(o.status) && isToday(o.created_date||o.created));
   const revenue   = doneToday.reduce((s,o)=>s+(o.final_cost||0),0) + saleToday.reduce((s,o)=>s+(o.total||0),0);
   const overdue   = repairOrders.filter(o => !SKIP_ST.includes(o.status) && o.estimated_done_date && new Date(o.estimated_done_date) < now);
 
