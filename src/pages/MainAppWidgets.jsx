@@ -1,6 +1,6 @@
 /* MainAppWidgets.jsx — Render helpers cho các page mới — HK One Touch */
 import React, { Suspense, lazy } from "react";
-import { WarehouseImport } from "./WarehouseApp.jsx";
+import { WarehouseImport, WarehouseHome, WarehouseOrders, WarehouseExport } from "./WarehouseApp.jsx";
 
 const Loading = () => <div style={{ padding: 40, textAlign: "center", color: "#9ca3af" }}>⏳</div>;
 
@@ -149,6 +149,13 @@ const DebtPage       = lazy(() => import("./DebtPage.jsx").catch(()=>({ default:
 const DepartmentPageLazy    = lazy(() => import("./DepartmentPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Phòng ban</div> })));
 const RolePermissionPageLazy = lazy(() => import("./RolePermissionPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Vai trò</div> })));
 const SaleHistoryPage = lazy(() => import("./SaleHistoryPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Lịch sử bán</div> })));
+const ManagerDashboard    = lazy(() => import("./ManagerDashboard.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Dashboard</div> })));
+const StaffManagerPage    = lazy(() => import("./StaffManager.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Nhân viên</div> })));
+const SettingsHub         = lazy(() => import("./SettingsHub.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Cài đặt</div> })));
+const WarehouseManagerLazy = lazy(() => import("./WarehouseManager.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Quản lý kho</div> })));
+const CashierApp          = lazy(() => import("./CashierApp.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Thu ngân</div> })));
+const PrintTemplatePage   = lazy(() => import("./PrintTemplatePage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Mẫu in</div> })));
+const RoleHomePlaceholder = lazy(() => import("./RoleHomePlaceholder.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Trang chủ</div> })));
 
 /**
  * renderMobilePages — Mobile page renders (tách từ MainApp.jsx để giảm dòng)
@@ -197,6 +204,62 @@ export function renderMobilePages(page, user, extraProps = {}) {
           <SaleHistoryPage user={user} />
         </Suspense>
       )}
+
+      {/* === Dashboard === */}
+      {page==="dashboard" && user && (
+        <Suspense fallback={<Loading />}>
+          <ManagerDashboard user={user} initialTab={dashboardTab} />
+        </Suspense>
+      )}
+
+      {/* === Quản lý nhân viên === */}
+      {page==="staff" && user && (
+        <Suspense fallback={<Loading />}><StaffManagerPage currentStaff={user} /></Suspense>
+      )}
+
+      {/* === Thiết lập === */}
+      {page==="settings" && user && (
+        <Suspense fallback={<Loading />}><SettingsHub user={user} /></Suspense>
+      )}
+
+      {/* === In ấn === */}
+      {page==="print_template" && user && (
+        <Suspense fallback={<Loading />}><PrintTemplatePage user={user} /></Suspense>
+      )}
+
+      {/* === Kho === */}
+      {page==="wh_home" && user && setPage && (
+        <WarehouseHome user={user} setPage={setPage} />
+      )}
+      {page==="wh_orders" && user && (
+        <WarehouseOrders user={user} />
+      )}
+      {page==="wh_export" && user && (
+        <WarehouseExport user={user} />
+      )}
+      {page==="wh_import" && user && (
+        <WarehouseImport user={user} />
+      )}
+      {page==="wh_manager" && user && setPage && (
+        <Suspense fallback={<Loading />}>
+          <WarehouseManagerLazy user={user} onBack={() => setPage("wh_home")} />
+        </Suspense>
+      )}
+
+      {/* === Thu ngân — CashierApp === */}
+      {page==="cashier_home" && user && (
+        <Suspense fallback={<Loading />}>
+          <CashierApp user={user} />
+        </Suspense>
+      )}
+
+      {/* === Role home placeholder === */}
+      {page==="role_home" && user && setPage && (
+        <Suspense fallback={<Loading />}>
+          <RoleHomePlaceholder user={user} setPage={setPage} />
+        </Suspense>
+      )}
+
       {renderSalesPages(page, user)}
       {renderPurchaseNccPages(page, user)}
       {renderReportPages(page, user)}
