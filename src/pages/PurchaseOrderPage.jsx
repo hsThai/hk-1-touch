@@ -261,7 +261,7 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
                 {items.map(row => {
                   const filteredParts = allParts.filter(p => {
                     const q = (partSearch[row.id]||"").toLowerCase();
-                    return !q || p.name.toLowerCase().includes(q) || (p.sku||"").toLowerCase().includes(q);
+                    return !q || p.name.toLowerCase().includes(q) || (p.sku||"").toLowerCase().includes(q) || (p.category||"").toLowerCase().includes(q);
                   }).slice(0,20);
                   return (
                     <tr key={row.id} style={{borderBottom:"1px solid #f3f4f6"}}>
@@ -280,19 +280,49 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
                               placeholder="Tìm linh kiện hoặc nhập tự do..."
                               style={{width:"100%",padding:"7px 10px",borderRadius:7,border:"1.5px solid #e5e7eb",fontSize:13,boxSizing:"border-box"}}
                             />
-                            {partDropdown===row.id && filteredParts.length>0 && (
-                              <div style={{position:"absolute",top:"100%",left:0,right:0,background:"#fff",border:"1.5px solid #e5e7eb",borderRadius:8,zIndex:200,maxHeight:180,overflowY:"auto",boxShadow:"0 4px 16px rgba(0,0,0,.12)"}}>
-                                {filteredParts.map(p=>(
-                                  <div key={p.id} onMouseDown={()=>selectPart(row.id,p)}
-                                    style={{padding:"8px 12px",cursor:"pointer",borderBottom:"1px solid #f3f4f6",fontSize:13}}
-                                    onMouseEnter={e=>e.currentTarget.style.background="#f5f3ff"}
-                                    onMouseLeave={e=>e.currentTarget.style.background=""}>
-                                    <span style={{fontWeight:600}}>{p.name}</span>
-                                    {p.sku&&<span style={{fontSize:11,color:"#9ca3af",marginLeft:6}}>SKU: {p.sku}</span>}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
+                            {partDropdown===row.id && (filteredParts.length>0 || (partSearch[row.id]||"").length===0) && (() => {
+                              const q = (partSearch[row.id]||"").toLowerCase();
+                              // Nhóm theo category
+                              const grouped = {};
+                              (q ? filteredParts : allParts.slice(0,80)).forEach(p => {
+                                const cat = p.category || "Khác";
+                                if (!grouped[cat]) grouped[cat] = [];
+                                grouped[cat].push(p);
+                              });
+                              const cats = Object.keys(grouped).sort();
+                              if (cats.length === 0) return null;
+                              return (
+                                <div style={{position:"absolute",top:"100%",left:0,right:0,background:"#fff",border:"1.5px solid #e5e7eb",borderRadius:10,zIndex:200,maxHeight:260,overflowY:"auto",boxShadow:"0 8px 24px rgba(0,0,0,.14)"}}>
+                                  {!q && (
+                                    <div style={{padding:"7px 12px",fontSize:11,color:"#9ca3af",fontWeight:700,borderBottom:"1px solid #f3f4f6",background:"#f9fafb",letterSpacing:".5px"}}>
+                                      📦 CHỌN THEO DANH MỤC
+                                    </div>
+                                  )}
+                                  {cats.map(cat => (
+                                    <div key={cat}>
+                                      <div style={{padding:"5px 12px",fontSize:11,fontWeight:800,color:"#4f46e5",background:"#f5f3ff",borderBottom:"1px solid #ede9fe",letterSpacing:".3px"}}>
+                                        {cat.toUpperCase()} ({grouped[cat].length})
+                                      </div>
+                                      {grouped[cat].map(p=>(
+                                        <div key={p.id} onMouseDown={()=>selectPart(row.id,p)}
+                                          style={{padding:"8px 14px",cursor:"pointer",borderBottom:"1px solid #f9f9f9",fontSize:13,display:"flex",justifyContent:"space-between",alignItems:"center"}}
+                                          onMouseEnter={e=>e.currentTarget.style.background="#f5f3ff"}
+                                          onMouseLeave={e=>e.currentTarget.style.background=""}>
+                                          <div>
+                                            <span style={{fontWeight:700,color:"#1e1b4b"}}>{p.name}</span>
+                                            {p.sku&&<span style={{fontSize:11,color:"#9ca3af",marginLeft:6}}>SKU: {p.sku}</span>}
+                                          </div>
+                                          {p.price>0 && <span style={{fontSize:12,color:"#059669",fontWeight:700}}>{p.price.toLocaleString("vi-VN")}đ</span>}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ))}
+                                  {q && filteredParts.length===0 && (
+                                    <div style={{padding:"10px 14px",color:"#9ca3af",fontSize:13,textAlign:"center"}}>Không tìm thấy linh kiện</div>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </>
                         ) : (
                           <div>
@@ -439,7 +469,7 @@ export default function PurchaseOrderPage({ user }) {
 
   useEffect(() => {
     SparePart.list({ limit:1000 })
-      .then(r => setAllParts((r||[]).map(p=>({ id:p.id, name:p.name, sku:p.sku||"", price:p.price||0 }))))
+      .then(r => setAllParts((r||[]).map(p=>({ id:p.id, name:p.name, sku:p.sku||"", price:p.price||0, category:p.category||"" }))))
       .catch(()=>{});
   }, []);
 
