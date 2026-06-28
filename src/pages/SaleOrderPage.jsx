@@ -166,9 +166,11 @@ export default function SaleOrderPage({ user }) {
           discount:       discount || 0,
           total,
           payment_method: payMethod,
-          cashier_id:     user.id || "",
-          cashier_name:   user.full_name || user.name || "",
-          status:         "completed",
+          seller_id:      user.id || "",
+          seller_name:    user.full_name || user.name || "",
+          cashier_id:     "",
+          cashier_name:   "",
+          status:         "pending_payment",
         });
         console.log("✅ Tạo sale_order thành công:", so);
       } catch(e) {
@@ -209,40 +211,8 @@ export default function SaleOrderPage({ user }) {
         } catch(e) { console.warn("Lỗi trừ stock:", e.message); }
       }
 
-      // Bước 4: Ghi kế toán
-      try {
-        if (payMethod === "credit") {
-          await DebtVoucher.create({
-            voucher_code:  "PT-BL-" + String(Date.now()).slice(-6),
-            voucher_type:  "receivable",
-            party_type:    "customer",
-            party_name:    custName || "Khách lẻ",
-            origin_type:   "sale_order",
-            origin_id:     so.id,
-            origin_code:   orderCode,
-            total_amount:  total,
-            paid_amount:   0,
-            remaining:     total,
-            status:        "open",
-            created_by_id:   user.id,
-            created_by_name: user.full_name || user.name || "",
-          });
-        }
-        if (payMethod === "cash" || payMethod === "transfer") {
-          await CashJournal.create({
-            journal_date:    new Date().toISOString().slice(0, 10),
-            entry_type:      "receipt",
-            amount:          total,
-            ref_type:        "sale_order",
-            ref_id:          so.id,
-            ref_code:        orderCode,
-            description:     "Bán lẻ: " + (custName || "Khách lẻ"),
-            payment_method:  payMethod,
-            created_by_id:   user.id,
-            created_by_name: user.full_name || user.name || "",
-          });
-        }
-      } catch(e) { console.warn("Lỗi ghi kế toán:", e.message); }
+      // Bước 4: Ghi kế toán — ĐÃ CHUYỂN sang CashierConfirmPage (Thu ngân xác nhận thu tiền mới ghi)
+      // Kế toán sẽ được ghi khi Thu ngân bấm "Xác nhận Thu"
 
       // Reset form
       setLastOrder({ ...so, order_code: orderCode, items: itemsPayload, subtotal, discount: discount||0, total,
@@ -300,60 +270,46 @@ export default function SaleOrderPage({ user }) {
       {/* ═══ CỘT TRÁI — Search + Giỏ hàng + Đơn hôm nay ═══ */}
       <div>
 
-      {/* ─── Banner thành công ─── */}
+      {/* ─── Banner chờ thu ngân ─── */}
       {lastOrder && (
-        <div style={{
-          background:"linear-gradient(135deg,#f0fdf4,#dcfce7)",
-          border:"2px solid #86efac", borderRadius:16,
-          padding:"16px 20px", marginBottom:16,
-        }}>
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-            <div>
-              <div style={{ fontWeight:900, fontSize:16, color:"#065f46", marginBottom:4 }}>
-                ✅ Bán hàng thành công!
-              </div>
-              <div style={{ fontSize:13, color:"#047857", fontWeight:700 }}>
-                {lastOrder.order_code} · {PM_LABELS[lastOrder.payment_method]||lastOrder.payment_method}
-              </div>
-              <div style={{ fontSize:12, color:"#6b7280", marginTop:4 }}>
-                {lastOrder.customer_name && lastOrder.customer_name !== "Khách lẻ"
-                  ? "👤 " + lastOrder.customer_name
-                  : "👤 Khách lẻ"}
-                {lastOrder.customer_phone ? " · " + lastOrder.customer_phone : ""}
-              </div>
+        <div style={{ textAlign:"center", padding:"40px 20px" }}>
+          {/* Icon chờ */}
+          <div style={{ fontSize:64, marginBottom:16 }}>⏳</div>
+          <div style={{ fontWeight:900, fontSize:20, color:"#1e1b4b", marginBottom:8 }}>
+            Đơn đã tạo thành công!
+          </div>
+          <div style={{ color:"#6b7280", fontSize:14, marginBottom:24 }}>
+            Đơn <b>{lastOrder.order_code}</b> đang chờ thu ngân xác nhận thanh toán
+          </div>
+
+          {/* Tóm tắt đơn */}
+          <div style={{ background:"#f0fdf4", border:"1.5px solid #86efac", borderRadius:16,
+            padding:"16px 20px", marginBottom:20, textAlign:"left" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
+              <span style={{ color:"#6b7280", fontSize:13 }}>Khách hàng</span>
+              <span style={{ fontWeight:700 }}>{lastOrder.customer_name || "Khách lẻ"}</span>
             </div>
-            <div style={{ textAlign:"right" }}>
-              <div style={{ fontWeight:900, fontSize:22, color:"#059669" }}>
-                {fmtMoney(lastOrder.total)}
-              </div>
-              {lastOrder.discount > 0 && (
-                <div style={{ fontSize:11, color:"#dc2626" }}>Giảm: -{fmtMoney(lastOrder.discount)}</div>
-              )}
+            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
+              <span style={{ color:"#6b7280", fontSize:13 }}>Tổng tiền</span>
+              <span style={{ fontWeight:900, fontSize:18, color:"#059669" }}>{fmtMoney(lastOrder.total)}</span>
+            </div>
+            <div style={{ display:"flex", justifyContent:"space-between" }}>
+              <span style={{ color:"#6b7280", fontSize:13 }}>Hình thức</span>
+              <span style={{ fontWeight:700 }}>
+                {lastOrder.payment_method === "cash" ? "💵 Tiền mặt"
+                  : lastOrder.payment_method === "transfer" ? "🏦 Chuyển khoản"
+                  : lastOrder.payment_method === "credit" ? "💳 Bán chịu"
+                  : lastOrder.payment_method}
+              </span>
             </div>
           </div>
-          <div style={{ marginTop:12, paddingTop:12, borderTop:"1px dashed #86efac" }}>
-            {(lastOrder.items||[]).map((it,i) => (
-              <div key={i} style={{ display:"flex", justifyContent:"space-between",
-                fontSize:12, color:"#374151", padding:"3px 0" }}>
-                <span>{it.part_name} × {it.qty}</span>
-                <span style={{ fontWeight:700 }}>{fmtMoney(it.total_price)}</span>
-              </div>
-            ))}
-          </div>
-          <div style={{ display:"flex", gap:10, marginTop:14 }}>
-            <button onClick={() => { if (lastOrder) previewSaleReceipt(lastOrder, shopInfo); }}
-              style={{ flex:1, height:40, borderRadius:10, border:"none",
-                background:"#059669", color:"#fff",
-                fontWeight:800, fontSize:13, cursor:"pointer" }}>
-              🖨️ In hóa đơn
-            </button>
-            <button onClick={()=>setLastOrder(null)}
-              style={{ flex:1, height:40, borderRadius:10,
-                border:"1.5px solid #059669", background:"#fff",
-                color:"#059669", fontWeight:800, fontSize:13, cursor:"pointer" }}>
-              + Đơn mới
-            </button>
-          </div>
+
+          {/* Nút tạo đơn mới */}
+          <button onClick={() => setLastOrder(null)}
+            style={{ background:"#059669", color:"#fff", border:"none", borderRadius:14,
+              padding:"14px 40px", fontSize:16, fontWeight:900, cursor:"pointer", width:"100%" }}>
+            + Tạo đơn mới
+          </button>
         </div>
       )}
 

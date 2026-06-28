@@ -545,6 +545,8 @@ function MainAppContent({ onUserChange }) {
           user?.role === "technician"   ? "ktv_home"    :
           user?.role === "receptionist" ? "rec_home"    :
           user?.role === "warehouse"    ? "wh_home"     :
+          user?.role === "sales"        ? "cashier_home":
+          user?.role === "team_leader"   ? "cashier_home":
           user?.role === "accountant"   ? "cashier_home":
           user?.role === "cashier"      ? "cashier_home":
           user?.role === "owner"        ? "dashboard" :
@@ -657,6 +659,7 @@ function MainAppContent({ onUserChange }) {
   }, [user?.id, handleNewNotif]);
   const [qrOrder, setQrOrder] = useState(null);
   const [showQRScan, setShowQRScan] = useState(false);
+  const [cashierTab, setCashierTab]   = useState("");  // forceTab cho CashierApp
   const [newOrderProductQR, setNewOrderProductQR] = useState("");
   const [highlightId, setHighlightId] = useState(null);
   const [createdOrder, setCreatedOrder] = useState(null); // toast xác nhận tạo đơn
@@ -1955,7 +1958,7 @@ function MainAppContent({ onUserChange }) {
               {page==="wh_export" && <WarehouseExport user={user} />}
               {page==="wh_import" && <WarehouseImport user={user} />}
               {page==="wh_manager" && <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"dashboard")} />}
-              {page==="cashier_home" && <CashierApp user={user} onNotif={()=>setShowNotif(v=>!v)} onQRScan={()=>setShowQRScan(true)} notifCount={notifications.length+dbNotifications.length} />}
+              {page==="cashier_home" && <CashierApp user={user} onNotif={()=>setShowNotif(v=>!v)} onQRScan={()=>setShowQRScan(true)} notifCount={notifications.length+dbNotifications.length} forceTab={cashierTab} onTabChange={setCashierTab} />}
               {page==="sale_order" && user && (
                 <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
                   <SaleHistoryPage user={user} />
@@ -2232,16 +2235,70 @@ function MainAppContent({ onUserChange }) {
         </div>
       </Suspense>
 
-      {/* Bottom nav */}
-      <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#fff", borderTop:"1px solid #e5e7eb", display:"flex", zIndex:50, paddingBottom:"env(safe-area-inset-bottom)" }}>
-        {navItems.slice(0,5).map(n => (
-          <button key={n.key} onClick={() => { setPage(n.key); if(n.key==="board"||n.key==="dashboard"||n.key==="tasks"||n.key==="ktv_home"||n.key==="rec_home")setDashboardFilter(null); }}
-            style={{ flex:1, padding:"10px 4px", background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
-            <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",lineHeight:1}}>{n.icon}</span>
-            <span style={{ fontSize: bp==="tablet"?11:10, color:page===n.key?"#4f46e5":"#9ca3af", fontWeight:page===n.key?800:500 }}>{n.label}</span>
-          </button>
-        ))}
-      </div>
+      {/* Context Action Bar — cashier_home */}
+      {page === "cashier_home" && (
+        <div style={{ position:"fixed", bottom:0, left:0, right:0, zIndex:50,
+          background:"#fff", borderTop:"2px solid #e5e7eb",
+          paddingBottom:"env(safe-area-inset-bottom)",
+          display:"flex", alignItems:"stretch" }}>
+          {["sales","team_leader"].includes(user?.role) ? (
+            <>
+              <button onClick={() => setCashierTab("sale")}
+                style={{ flex:1, padding:"12px 4px", background:"none", border:"none",
+                  cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
+                <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",color:"#6b7280"}}>receipt_long</span>
+                <span style={{fontSize:10,color:"#6b7280",fontWeight:600}}>Bán hàng</span>
+              </button>
+              <button onClick={() => setCashierTab("shift")}
+                style={{ flex:1, padding:"12px 4px", background:"none", border:"none",
+                  cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
+                <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",color:"#6b7280"}}>balance</span>
+                <span style={{fontSize:10,color:"#6b7280",fontWeight:600}}>Đối soát</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => setCashierTab("confirm")}
+                style={{ flex:1, padding:"12px 4px", background:"none", border:"none",
+                  cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
+                <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",color:"#f59e0b"}}>pending_actions</span>
+                <span style={{fontSize:10,color:"#f59e0b",fontWeight:700}}>Chờ thu</span>
+              </button>
+              <button onClick={() => setCashierTab("overview")}
+                style={{ flex:1, padding:"12px 4px", background:"none", border:"none",
+                  cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
+                <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",color:"#059669"}}>bar_chart</span>
+                <span style={{fontSize:10,color:"#059669",fontWeight:700}}>Tổng quan</span>
+              </button>
+              <button onClick={() => setPage("cash_journal")}
+                style={{ flex:1, padding:"12px 4px", background:"none", border:"none",
+                  cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
+                <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",color:"#6b7280"}}>menu_book</span>
+                <span style={{fontSize:10,color:"#6b7280",fontWeight:600}}>Sổ quỹ</span>
+              </button>
+              <button onClick={() => setCashierTab("shift")}
+                style={{ flex:1, padding:"12px 4px", background:"none", border:"none",
+                  cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
+                <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",color:"#6b7280"}}>balance</span>
+                <span style={{fontSize:10,color:"#6b7280",fontWeight:600}}>Đối soát</span>
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Bottom nav thông thường — các trang khác */}
+      {page !== "cashier_home" && !["wh_manager","wh_app","stock_count"].includes(page) && (
+        <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#fff", borderTop:"1px solid #e5e7eb", display:"flex", zIndex:50, paddingBottom:"env(safe-area-inset-bottom)" }}>
+          {navItems.slice(0,5).map(n => (
+            <button key={n.key} onClick={() => { setPage(n.key); if(n.key==="board"||n.key==="dashboard"||n.key==="tasks"||n.key==="ktv_home"||n.key==="rec_home")setDashboardFilter(null); }}
+              style={{ flex:1, padding:"10px 4px", background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
+              <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",lineHeight:1}}>{n.icon}</span>
+              <span style={{ fontSize: bp==="tablet"?11:10, color:page===n.key?"#4f46e5":"#9ca3af", fontWeight:page===n.key?800:500 }}>{n.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Modals */}
       {showNewOrder && <NewOrderModal onClose={() => { setShowNewOrder(false); setNewOrderProductQR(""); }} onCreate={createOrder} users={users} orders={orders} initialProductQR={newOrderProductQR} />}

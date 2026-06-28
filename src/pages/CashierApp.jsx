@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { RepairOrder, SaleOrder, SaleOrderItem, Expense , CashJournal } from "./pb.jsx";
 
-const ALLOWED_ROLES = ["accountant", "cashier", "manager", "admin"];
+const ALLOWED_ROLES = ["accountant", "cashier", "manager", "admin", "owner", "sales", "team_leader"];
 const DONE_STATUS   = ["Hoàn Thành", "Đã Giao", "Đã Thanh Toán"];
 
 function fmtMoney(n) { return (n || 0).toLocaleString("vi-VN") + "đ"; }
@@ -69,10 +69,8 @@ function OverviewTab({ user }) {
   );
 }
 
-const NAV_TABS = [
-  { key:"sale",  label:"🛒 Bán hàng lẻ" },
-  { key:"shift", label:"⚖️ Đối soát ca" },
-];
+// NAV_TABS dynamic theo role — xem bên trong CashierApp component
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ShiftReconcile — Đối soát ca ngày
@@ -233,12 +231,32 @@ function ShiftReconcile({ user }) {
 }
 
 
-export default function CashierApp({ user, onNotif, onQRScan, notifCount=0 }) {
-  const [tab, setTab] = useState("sale");
-  const [SaleOrderPage, setSaleOrderPage] = useState(null);
+export default function CashierApp({ user, onNotif, onQRScan, notifCount=0, forceTab="", onTabChange }) {
+  const defaultTab = ["cashier","accountant"].includes(user?.role) ? "confirm" : "sale";
+  const [tab, setTab] = useState(defaultTab);
+  const [SaleOrderPage, setSaleOrderPage]             = useState(null);
+  const [CashierConfirmPage, setCashierConfirmPage]   = useState(null);
+
+  // NAV_TABS dynamic theo role
+  const NAV_TABS = React.useMemo(() => {
+    const tabs = [];
+    if(["sales","team_leader","manager","admin","owner"].includes(user?.role)){
+      tabs.push({ key:"sale",    label:"🛒 Bán hàng" });
+    }
+    if(["cashier","accountant","manager","admin","owner"].includes(user?.role)){
+      tabs.push({ key:"confirm", label:"💰 Xác nhận Thu" });
+      tabs.push({ key:"overview",label:"📊 Tổng quan" });
+    }
+    tabs.push({ key:"shift", label:"⚖️ Đối soát ca" });
+    return tabs;
+  }, [user?.role]);
+
+  // forceTab từ MainApp (Context Bar)
+  useEffect(() => { if(forceTab) setTab(forceTab); }, [forceTab]);
 
   useEffect(() => {
     import("./SaleOrderPage.jsx").then(m => setSaleOrderPage(() => m.default)).catch(()=>{});
+    import("./CashierConfirmPage.jsx").then(m => setCashierConfirmPage(() => m.default)).catch(()=>{});
   }, []);
 
   if (!user || !ALLOWED_ROLES.includes(user.role)) {
@@ -315,9 +333,11 @@ export default function CashierApp({ user, onNotif, onQRScan, notifCount=0 }) {
       </div>
 
       {/* Nội dung tab */}
-      <div style={{ maxWidth: tab==="shift" ? 900 : "100%", margin:"0 auto", padding: tab==="sale" ? 0 : "20px 24px 60px" }}>
-        {tab === "sale"  && (SaleOrderPage ? <SaleOrderPage user={user} /> : <Fallback />)}
-        {tab === "shift" && <ShiftReconcile user={user} />}
+      <div style={{ maxWidth: tab==="shift" ? 900 : "100%", margin:"0 auto", padding: (tab==="sale"||tab==="confirm") ? 0 : "20px 24px 60px" }}>
+        {tab === "sale"    && (SaleOrderPage     ? <SaleOrderPage user={user} />     : <Fallback />)}
+        {tab === "confirm" && (CashierConfirmPage ? <CashierConfirmPage user={user} /> : <Fallback />)}
+        {tab === "overview"&& <DayOverview user={user} />}
+        {tab === "shift"   && <ShiftReconcile user={user} />}
       </div>
 
     </div>
