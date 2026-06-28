@@ -204,12 +204,13 @@ export default function RolePermissionPage() {
   return (
     <div style={{ paddingBottom:80 }}>
 
-      {/* ── Toolbar: Dropdown + Seed button ── */}
+      {/* ── Toolbar: Dropdown + Role info inline + Seed button ── */}
       <div style={{
-        padding:"14px 16px", display:"flex", alignItems:"center",
+        padding:"10px 16px", display:"flex", alignItems:"center",
         gap:12, flexWrap:"wrap", borderBottom:"1.5px solid #e5e7eb",
         background:"#fff", position:"sticky", top:0, zIndex:20,
       }}>
+        {/* Label + Dropdown */}
         <label style={{ fontSize:13, fontWeight:700, color:"#374151", whiteSpace:"nowrap" }}>
           🔑 Chọn vai trò:
         </label>
@@ -217,10 +218,10 @@ export default function RolePermissionPage() {
           value={activeRole || ""}
           onChange={e => setActiveRole(e.target.value)}
           style={{
-            height:42, padding:"0 14px 0 10px", borderRadius:10,
+            height:38, padding:"0 12px 0 10px", borderRadius:10,
             border:"2px solid #4f46e5", fontSize:14, fontWeight:700,
             color:"#1e1b4b", background:"#fff", cursor:"pointer",
-            minWidth:200, outline:"none",
+            minWidth:190, outline:"none", flexShrink:0,
           }}>
           {roles.map(r => (
             <option key={r.key} value={r.key}>
@@ -229,61 +230,61 @@ export default function RolePermissionPage() {
           ))}
         </select>
 
-        <button onClick={handleSeed} disabled={seeding}
-          style={{
-            marginLeft:"auto", height:42, padding:"0 16px", borderRadius:10,
-            border:"1.5px solid #e5e7eb", background:"#f9fafb",
-            fontSize:13, fontWeight:700, cursor:"pointer",
-            display:"flex", alignItems:"center", gap:6, whiteSpace:"nowrap",
-          }}>
-          {seeding ? "⏳ Đang seed..." : "🌱 Seed mặc định"}
-        </button>
-      </div>
-
-      {/* ── Role info card + staff badges ── */}
-      {activeRoleData && (() => {
-        const staffInRole = staffList.filter(s => s.role === activeRole);
-        return (
-          <div style={{
-            margin:"12px 16px 8px", borderRadius:12,
-            background: activeRoleData.bg || "#f3f4f6",
-            border:`1.5px solid ${activeRoleData.color || "#e5e7eb"}33`,
-            padding:"12px 14px",
-          }}>
-            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-              <span style={{ fontSize:24 }}>{activeRoleData.icon || "👤"}</span>
-              <div>
-                <div style={{ fontWeight:900, fontSize:15, color: activeRoleData.color || "#374151" }}>
+        {/* Role info inline — icon + tên + mô tả + staff badges */}
+        {activeRoleData && (() => {
+          const staffInRole = staffList.filter(s => s.role === activeRole);
+          return (
+            <div style={{
+              display:"flex", alignItems:"center", gap:8, flex:1,
+              background: activeRoleData.bg || "#f3f4f6",
+              border:`1.5px solid ${activeRoleData.color || "#e5e7eb"}33`,
+              borderRadius:10, padding:"6px 12px", minWidth:0,
+            }}>
+              <span style={{ fontSize:20, flexShrink:0 }}>{activeRoleData.icon || "👤"}</span>
+              <div style={{ minWidth:0 }}>
+                <div style={{ fontWeight:800, fontSize:13, color: activeRoleData.color || "#374151", lineHeight:1.2 }}>
                   {activeRoleData.label || activeRole}
                 </div>
-                <div style={{ fontSize:12, color:"#6b7280", marginTop:1 }}>
+                <div style={{ fontSize:11, color:"#6b7280", marginTop:1, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
                   {activeRoleData.description || ""}
                 </div>
               </div>
+              {/* Staff badges */}
+              <div style={{ display:"flex", alignItems:"center", gap:5, flexWrap:"wrap", marginLeft:8 }}>
+                <span style={{ fontSize:11, color:"#9ca3af", whiteSpace:"nowrap", flexShrink:0 }}>
+                  👤 {staffInRole.length}:
+                </span>
+                {staffInRole.length === 0
+                  ? <span style={{ fontSize:11, color:"#9ca3af", fontStyle:"italic" }}>Chưa có ai</span>
+                  : staffInRole.slice(0, 5).map(s => (
+                      <span key={s.id} style={{
+                        fontSize:11, fontWeight:700, padding:"1px 8px", borderRadius:99,
+                        background:"#fff", border:`1px solid ${activeRoleData.color || "#e5e7eb"}55`,
+                        color: activeRoleData.color || "#374151", whiteSpace:"nowrap",
+                      }}>
+                        {s.full_name || s.id}
+                      </span>
+                    ))
+                }
+                {staffInRole.length > 5 && (
+                  <span style={{ fontSize:11, color:"#9ca3af" }}>+{staffInRole.length - 5}</span>
+                )}
+              </div>
             </div>
-            <div style={{ marginTop:8, display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
-              <span style={{ fontSize:11, fontWeight:700, color:"#9ca3af" }}>
-                👤 {staffInRole.length} nhân viên:
-              </span>
-              {staffInRole.length === 0
-                ? <span style={{ fontSize:12, color:"#9ca3af", fontStyle:"italic" }}>Chưa có ai</span>
-                : staffInRole.slice(0, 8).map(s => (
-                    <span key={s.id} style={{
-                      fontSize:11, fontWeight:700, padding:"2px 9px", borderRadius:99,
-                      background:"#fff", border:`1px solid ${activeRoleData.color || "#e5e7eb"}55`,
-                      color: activeRoleData.color || "#374151",
-                    }}>
-                      {s.full_name || s.id}
-                    </span>
-                  ))
-              }
-              {staffInRole.length > 8 && (
-                <span style={{ fontSize:11, color:"#9ca3af" }}>+{staffInRole.length - 8} khác</span>
-              )}
-            </div>
-          </div>
-        );
-      })()}
+          );
+        })()}
+
+        {/* Seed button */}
+        <button onClick={handleSeed} disabled={seeding}
+          style={{
+            flexShrink:0, height:38, padding:"0 14px", borderRadius:10,
+            border:"1.5px solid #e5e7eb", background:"#f9fafb",
+            fontSize:13, fontWeight:700, cursor:"pointer",
+            display:"flex", alignItems:"center", gap:5, whiteSpace:"nowrap",
+          }}>
+          {seeding ? "⏳ Đang seed..." : "🌱 Seed"}
+        </button>
+      </div>
 
       {/* ── Bảng ma trận scroll 2 chiều ── */}
       <div style={{
