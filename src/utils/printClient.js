@@ -21,7 +21,45 @@ async function callPrintAgent(endpoint, body) {
   }
 }
 
-export async function printReceiptA5(order, shopInfo = {}) {
+
+/**
+ * Tự động load shopInfo từ PocketBase app_settings
+ * Fallback về thông tin mặc định nếu chưa cài đặt
+ */
+async function loadShopInfo() {
+  try {
+    const pbUrl = localStorage.getItem("pb_url") || "https://pb.hk1touch.online";
+    const res = await fetch(`${pbUrl}/api/collections/app_settings/records?perPage=200`, {
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!res.ok) throw new Error("settings fetch failed");
+    const data = await res.json();
+    const map  = {};
+    (data.items || []).forEach(r => { map[r.key] = r.value; });
+    return {
+      shop_name:     map.shop_name     || "Hoàng Khánh Mobile",
+      shop_phone:    map.shop_phone    || "",
+      shop_address:  map.shop_address  || "",
+      warranty_note: map.warranty_note || "",
+      bank_name:     map.bank_name     || "",
+      bank_account:  map.bank_account  || "",
+      bank_holder:   map.bank_holder   || "",
+    };
+  } catch {
+    return {
+      shop_name:     "Hoàng Khánh Mobile",
+      shop_phone:    "",
+      shop_address:  "",
+      warranty_note: "",
+      bank_name:     "",
+      bank_account:  "",
+      bank_holder:   "",
+    };
+  }
+}
+
+export async function printReceiptA5(order, shopInfo = null) {
+  if (!shopInfo || Object.keys(shopInfo).length === 0) { shopInfo = await loadShopInfo(); }
   return callPrintAgent("/print/receipt", {
     type: "receipt_a5",
     order: {
@@ -49,7 +87,8 @@ export async function printReceiptA5(order, shopInfo = {}) {
   });
 }
 
-export async function printBillA5(order, parts = [], shopInfo = {}) {
+export async function printBillA5(order, parts = [], shopInfo = null) {
+  if (!shopInfo || Object.keys(shopInfo).length === 0) { shopInfo = await loadShopInfo(); }
   const remaining = Math.max(0, (order.final_cost || order.estimated_cost || 0) - (order.deposit || 0));
   const vietqrUrl = shopInfo.bank_account && shopInfo.bank_name
     ? `https://img.vietqr.io/image/${shopInfo.bank_name}-${shopInfo.bank_account}-compact2.png?amount=${remaining}&addInfo=${encodeURIComponent("HK " + (order.order_code || order.id))}&accountName=${encodeURIComponent(shopInfo.shop_name || "Hoang Khanh")}`
@@ -139,7 +178,8 @@ export function previewBill(order, parts = [], shopInfo = {}) {
 /**
  * In hóa đơn bán lẻ A5 qua Print Agent, fallback sang previewSaleReceipt
  */
-export async function printSaleReceiptA5(saleOrder, shopInfo = {}) {
+export async function printSaleReceiptA5(saleOrder, shopInfo = null) {
+  if (!shopInfo || Object.keys(shopInfo).length === 0) { shopInfo = await loadShopInfo(); }
   try {
     return await callPrintAgent("/print/sale-receipt", {
       type: "sale_receipt_a5",

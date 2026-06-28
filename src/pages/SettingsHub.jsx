@@ -11,6 +11,7 @@ const RolePermissionPage = lazy(() => import("./RolePermissionPage.jsx"));
 const SettingsPage       = lazy(() => import("./Settings.jsx"));
 const DepartmentPage     = lazy(() => import("./DepartmentPage.jsx"));
 const IntegrationsPage   = lazy(() => import("./IntegrationsPage.jsx"));
+const PrintSettingsTab   = lazy(() => import("./PrintSettingsTab.jsx"));
 
 
 // ── Tabs config ─────────────────────────────────────────────
@@ -37,6 +38,12 @@ const TABS = [
     key:   "integrations",
     label: "Tích hợp",
     icon:  "cable",
+    adminOnly: true,
+  },
+  {
+    key:      "print",
+    label:    "Mẫu in",
+    icon:     "print",
     adminOnly: true,
   },
 ];
@@ -88,6 +95,7 @@ export default function SettingsHub({ user }) {
         {tab === "roles"        && <RolePermissionPage />}
         {tab === "settings"     && <SettingsPage user={user} />}
         {tab === "integrations" && <IntegrationsPage user={user} />}
+        {tab === "print"         && <PrintSettingsTab user={user} />}
       </Suspense>
     </div>
   );
