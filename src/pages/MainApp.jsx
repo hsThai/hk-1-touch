@@ -1827,7 +1827,47 @@ function MainAppContent({ onUserChange }) {
     );
   }
 
-  return (
+  // ─── Header gradient config theo phân hệ (PC topbar) ───
+  const PAGE_HEADER_CONFIG = {
+    "new":              { label:"🔧 Tạo đơn sửa chữa",       grad:["#4f46e5","#3730a3"] },
+    "board":            { label:"📋 Bảng điều phối",           grad:["#4f46e5","#3730a3"] },
+    "tasks":            { label:"📄 Danh sách & Lịch sử đơn", grad:["#4f46e5","#3730a3"] },
+    "ktv_home":         { label:"🔧 Góc KTV",                 grad:["#4f46e5","#3730a3"] },
+    "rec_home":         { label:"📝 Tiếp nhận",               grad:["#4f46e5","#3730a3"] },
+    "sale_order":       { label:"📋 Quản lý đơn bán hàng",    grad:["#059669","#047857"] },
+    "return_order":     { label:"🔄 Xử lý đổi trả",           grad:["#059669","#047857"] },
+    "price_policy":     { label:"💲 Chính sách giá",           grad:["#059669","#047857"] },
+    "wh_home":          { label:"🏭 Kho tổng quan",            grad:["#0284c7","#0369a1"] },
+    "wh_orders":        { label:"📦 Đơn kho",                 grad:["#0284c7","#0369a1"] },
+    "wh_export":        { label:"📤 Xuất kho",                 grad:["#0284c7","#0369a1"] },
+    "wh_import":        { label:"📥 Nhập kho",                 grad:["#0284c7","#0369a1"] },
+    "stock_nxt":        { label:"📊 Báo cáo Nhập-Xuất-Tồn",   grad:["#0284c7","#0369a1"] },
+    "stock_count":      { label:"✅ Kiểm kê kho",             grad:["#0284c7","#0369a1"] },
+    "purchase_order":   { label:"🛒 Đặt hàng NCC",            grad:["#d97706","#b45309"] },
+    "purchase_forecast":{ label:"📈 Dự báo mua hàng",         grad:["#d97706","#b45309"] },
+    "wh_import_ncc":    { label:"📥 Nhập hàng từ NCC",         grad:["#d97706","#b45309"] },
+    "rma":              { label:"↩️ Trả hàng NCC (RMA)",       grad:["#d97706","#b45309"] },
+    "suppliers":        { label:"🏪 Nhà cung cấp",             grad:["#d97706","#b45309"] },
+    "debt_ncc":         { label:"💳 Công nợ NCC",              grad:["#d97706","#b45309"] },
+    "customers":        { label:"👥 Khách hàng",               grad:["#0d9488","#0f766e"] },
+    "cash_journal":     { label:"📒 Sổ quỹ",                   grad:["#e11d48","#be123c"] },
+    "debts":            { label:"💰 Công nợ",                  grad:["#e11d48","#be123c"] },
+    "expense":          { label:"🧾 Chi phí",                  grad:["#e11d48","#be123c"] },
+    "sale_history":     { label:"🧾 Lịch sử bán hàng",         grad:["#e11d48","#be123c"] },
+    "report_profit":    { label:"📈 Báo cáo lợi nhuận",        grad:["#7c3aed","#6d28d9"] },
+    "report_staff":     { label:"👨‍💼 KPI nhân viên",          grad:["#7c3aed","#6d28d9"] },
+    "revenue":          { label:"💹 Doanh thu",                grad:["#7c3aed","#6d28d9"] },
+    "staff":            { label:"👤 Nhân viên",                grad:["#475569","#334155"] },
+    "department":       { label:"🏢 Phòng ban",                grad:["#475569","#334155"] },
+    "role_perm":        { label:"🔑 Vai trò & Phân quyền",     grad:["#475569","#334155"] },
+    "action_log":       { label:"📋 Nhật ký thao tác",         grad:["#475569","#334155"] },
+    "integrations":     { label:"🔗 Tích hợp",                 grad:["#475569","#334155"] },
+    "settings":         { label:"⚙️ Cài đặt",                  grad:["#475569","#334155"] },
+    "print_settings":   { label:"🖨️ Mẫu in & Cài đặt",        grad:["#475569","#334155"] },
+    "print_template":   { label:"🖨️ Xem trước mẫu in",        grad:["#475569","#334155"] },
+  };
+
+    return (
     <>
     {/* ── PC SIDEBAR LAYOUT ── */}
     {isPC && (
@@ -1912,36 +1952,52 @@ function MainAppContent({ onUserChange }) {
         </div>
         {/* Main Content PC */}
         <div style={{ flex:1, overflowY:"auto", display:"flex", flexDirection:"column" }}>
-          {!["cashier_home","wh_manager","wh_app","stock_count","purchase_order",
-   "purchase_forecast","rma",
-   "customers","suppliers","cash_journal","debts","debt_ncc",
-   "report_profit","report_staff","action_log","staff","stock_nxt","sale_history"
-  ].includes(page) && (
-          <div style={{ background:"#fff", borderBottom:"1px solid #e5e7eb", padding:"12px 24px",
-            display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
-            <div style={{ fontWeight:700, fontSize:16, color:"#1e1b4b" }}>
-  {/* Ẩn title khi trang đã có header riêng */}
-  {!["cashier_home","wh_manager","wh_app","stock_count","purchase_order",
-   "purchase_forecast","rma",
-   "customers","suppliers","cash_journal","debts","debt_ncc",
-   "report_profit","report_staff","action_log","staff","stock_nxt","sale_history"
-  ].includes(page) && (
-    navItems.find(n=>n.key===page)?.label || "HK One Touch"
-  )}
-</div>
-            <div style={{ display:"flex", gap:8 }}>
-              <div style={{ position:"relative" }}>
-                <button onClick={() => setShowNotif(v=>!v)} style={{ background:"none", border:"none", color:"#374151", fontSize:22, cursor:"pointer", padding:4 }}>
-                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:24,verticalAlign:"middle",lineHeight:1}}>notifications</span>
-                  {(notifications.length+dbNotifications.length)>0 && <span style={{ position:"absolute", top:-2, right:-2, background:"#ef4444", color:"#fff", borderRadius:"50%", width:16, height:16, fontSize:10, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800 }}>{notifications.length+dbNotifications.length}</span>}
-                </button>
+          {/* ── Gradient Header theo phân hệ — ẩn khi trang có header riêng ── */}
+          {!["cashier_home","wh_manager","wh_app","dashboard"].includes(page) && (() => {
+            const cfg = PAGE_HEADER_CONFIG[page];
+            const [g1, g2] = cfg?.grad || ["#1e1b4b","#312e81"];
+            const label    = cfg?.label || navItems.find(n=>n.key===page)?.label || "HK One Touch";
+            const today    = new Date().toLocaleDateString("vi-VN",{day:"2-digit",month:"2-digit",year:"numeric"});
+            const notifCount = notifications.length + dbNotifications.length;
+            return (
+              <div style={{
+                background:`linear-gradient(135deg,${g1},${g2})`,
+                color:"#fff", padding:"14px 24px 12px",
+                display:"flex", alignItems:"center", justifyContent:"space-between",
+                flexShrink:0, boxShadow:"0 2px 8px rgba(0,0,0,.15)",
+              }}>
+                <div>
+                  <div style={{ fontWeight:900, fontSize:17, letterSpacing:.2 }}>{label}</div>
+                  <div style={{ fontSize:12, opacity:.85, marginTop:2 }}>
+                    {user?.full_name || user?.username || ""} · {today}
+                  </div>
+                </div>
+                <div style={{ display:"flex", gap:8 }}>
+                  <div style={{ position:"relative" }}>
+                    <button onClick={() => setShowNotif(v=>!v)}
+                      style={{ background:"rgba(255,255,255,.18)", border:"none", borderRadius:10,
+                        color:"#fff", width:38, height:38, display:"flex", alignItems:"center",
+                        justifyContent:"center", cursor:"pointer" }}>
+                      <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22,lineHeight:1}}>notifications</span>
+                      {notifCount > 0 && (
+                        <span style={{ position:"absolute", top:4, right:4, background:"#ef4444",
+                          color:"#fff", borderRadius:"50%", width:15, height:15, fontSize:9,
+                          display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800 }}>
+                          {notifCount > 9 ? "9+" : notifCount}
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                  <button onClick={() => setShowQRScan(true)}
+                    style={{ background:"rgba(255,255,255,.18)", border:"none", borderRadius:10,
+                      color:"#fff", width:38, height:38, display:"flex", alignItems:"center",
+                      justifyContent:"center", cursor:"pointer" }}>
+                    <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22,lineHeight:1}}>qr_code_scanner</span>
+                  </button>
+                </div>
               </div>
-              <button onClick={() => setShowQRScan(true)} style={{ background:"none", border:"none", color:"#374151", fontSize:22, cursor:"pointer", padding:4 }}>
-                <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:24,verticalAlign:"middle",lineHeight:1}}>qr_code_scanner</span>
-              </button>
-            </div>
-          </div>
-          )}
+            );
+          })()}
           <div style={{ flex:1, overflowY:"auto" }}>
             <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
               {page==="ktv_home" && <TechnicianHome user={user} orders={orders} setPage={setPage} />}
