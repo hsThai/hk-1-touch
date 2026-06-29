@@ -58,7 +58,35 @@ function ReturnForm({ user, onSave, onClose }) {
     return_date:    new Date().toISOString().slice(0,10),
   });
   const [saving, setSaving] = useState(false);
+  const [custSearch,   setCustSearch]   = useState("");
+  const [custSuggs,    setCustSuggs]    = useState([]);
+  const [showCustDrop, setShowCustDrop] = useState(false);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  // Autocomplete khách hàng
+  useEffect(() => {
+    const q = custSearch.trim();
+    if (q.length < 1) { setCustSuggs([]); return; }
+    const timer = setTimeout(async () => {
+      try {
+        const pbUrl = localStorage.getItem("pb_url") || "http://localhost:8090";
+        const token = localStorage.getItem("staff_token") || "";
+        const res = await fetch(
+          `${pbUrl}/api/collections/customers/records?perPage=200&sort=-id`,
+          { headers: token ? { Authorization: token } : {} }
+        );
+        if (!res.ok) return;
+        const json = await res.json();
+        const items = json.items || [];
+        const filtered = items.filter(c =>
+          (c.full_name||"").toLowerCase().includes(q.toLowerCase()) ||
+          (c.phone||"").includes(q)
+        ).slice(0, 6);
+        setCustSuggs(filtered);
+      } catch {}
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [custSearch]);
 
   async function save() {
     if (!form.customer_name.trim()) { alert("Nhập tên khách hàng"); return; }
@@ -129,10 +157,46 @@ function ReturnForm({ user, onSave, onClose }) {
 
         {/* Thông tin khách */}
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
-          <div>
+          <div style={{ position:"relative" }}>
             <label style={{ fontSize:12, color:"#6b7280", fontWeight:600 }}>Tên khách hàng *</label>
-            <input value={form.customer_name} onChange={e=>set("customer_name",e.target.value)}
-              placeholder="Nguyễn Văn A" style={{ ...INP, marginTop:4 }} />
+            <input
+              value={custSearch || form.customer_name}
+              onChange={e => {
+                setCustSearch(e.target.value);
+                set("customer_name", e.target.value);
+                set("customer_phone", "");
+                setShowCustDrop(true);
+              }}
+              onFocus={() => setShowCustDrop(true)}
+              onBlur={() => setTimeout(() => setShowCustDrop(false), 180)}
+              placeholder="Nguyễn Văn A..."
+              style={{ ...INP, marginTop:4 }}
+            />
+            {showCustDrop && custSuggs.length > 0 && (
+              <div style={{
+                position:"absolute", top:"100%", left:0, right:0, zIndex:100,
+                background:"#fff", border:"1.5px solid #e5e7eb", borderRadius:10,
+                boxShadow:"0 8px 24px rgba(0,0,0,.12)", overflow:"hidden", marginTop:2,
+              }}>
+                {custSuggs.map(c => (
+                  <div key={c.id}
+                    onMouseDown={() => {
+                      set("customer_name",  c.full_name || "");
+                      set("customer_phone", c.phone || "");
+                      setCustSearch(c.full_name || "");
+                      setCustSuggs([]);
+                      setShowCustDrop(false);
+                    }}
+                    style={{ padding:"9px 14px", cursor:"pointer", borderBottom:"1px solid #f3f4f6" }}
+                    onMouseEnter={e => e.currentTarget.style.background="#f5f3ff"}
+                    onMouseLeave={e => e.currentTarget.style.background="#fff"}
+                  >
+                    <div style={{ fontWeight:700, fontSize:13, color:"#1e1b4b" }}>{c.full_name}</div>
+                    {c.phone && <div style={{ fontSize:11, color:"#6b7280" }}>{c.phone}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div>
             <label style={{ fontSize:12, color:"#6b7280", fontWeight:600 }}>SĐT</label>

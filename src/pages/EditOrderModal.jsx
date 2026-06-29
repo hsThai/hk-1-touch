@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { RepairOrder, logHistory } from "./pb.jsx";
 
 export default function EditOrderModal({ order, users, currentUser, onClose, onSave }) {
@@ -21,6 +21,33 @@ export default function EditOrderModal({ order, users, currentUser, onClose, onS
     done_date: order.done_date?order.done_date.substring(0,16):"",
   });
   const [saving, setSaving] = React.useState(false);
+  const [custSearch,   setCustSearch]   = useState(order.customer_name || "");
+  const [custSuggs,    setCustSuggs]    = useState([]);
+  const [showCustDrop, setShowCustDrop] = useState(false);
+
+  useEffect(() => {
+    const q = custSearch.trim();
+    if (q.length < 1) { setCustSuggs([]); return; }
+    const timer = setTimeout(async () => {
+      try {
+        const pbUrl = localStorage.getItem("pb_url") || "http://localhost:8090";
+        const token = localStorage.getItem("staff_token") || "";
+        const res = await fetch(
+          `${pbUrl}/api/collections/customers/records?perPage=200&sort=-id`,
+          { headers: token ? { Authorization: token } : {} }
+        );
+        if (!res.ok) return;
+        const json = await res.json();
+        const filtered = (json.items||[]).filter(c =>
+          (c.full_name||"").toLowerCase().includes(q.toLowerCase()) ||
+          (c.phone||"").includes(q)
+        ).slice(0, 6);
+        setCustSuggs(filtered);
+      } catch {}
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [custSearch]);
+
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const toggleIssue = (issue) => {
     const next = form.issues.includes(issue) ? form.issues.filter(x=>x!==issue) : [...form.issues, issue];
@@ -84,7 +111,46 @@ export default function EditOrderModal({ order, users, currentUser, onClose, onS
           <div style={{...sec,background:"#f0f9ff"}}>
             <div style={{fontWeight:800,fontSize:14,color:"#0369a1",marginBottom:10}}>👤 Khách Hàng</div>
             <div style={row2}>
-              <div style={{flex:2}}><label style={lbl}>Tên khách</label><input value={form.customer_name} onChange={e=>set("customer_name",e.target.value)} style={inp} placeholder="Nguyễn Văn A"/></div>
+              <div style={{flex:2, position:"relative"}}>
+                <label style={lbl}>Tên khách</label>
+                <input
+                  value={custSearch}
+                  onChange={e => {
+                    setCustSearch(e.target.value);
+                    set("customer_name", e.target.value);
+                    set("customer_phone", "");
+                    setShowCustDrop(true);
+                  }}
+                  onFocus={() => setShowCustDrop(true)}
+                  onBlur={() => setTimeout(() => setShowCustDrop(false), 180)}
+                  style={inp} placeholder="Nguyễn Văn A..."
+                />
+                {showCustDrop && custSuggs.length > 0 && (
+                  <div style={{
+                    position:"absolute", top:"100%", left:0, right:0, zIndex:100,
+                    background:"#fff", border:"1.5px solid #e5e7eb", borderRadius:10,
+                    boxShadow:"0 8px 24px rgba(0,0,0,.12)", overflow:"hidden", marginTop:2,
+                  }}>
+                    {custSuggs.map(cu => (
+                      <div key={cu.id}
+                        onMouseDown={() => {
+                          set("customer_name",  cu.full_name || "");
+                          set("customer_phone", cu.phone || "");
+                          setCustSearch(cu.full_name || "");
+                          setCustSuggs([]);
+                          setShowCustDrop(false);
+                        }}
+                        style={{ padding:"9px 14px", cursor:"pointer", borderBottom:"1px solid #f3f4f6" }}
+                        onMouseEnter={e => e.currentTarget.style.background="#f5f3ff"}
+                        onMouseLeave={e => e.currentTarget.style.background="#fff"}
+                      >
+                        <div style={{ fontWeight:700, fontSize:13, color:"#1e1b4b" }}>{cu.full_name}</div>
+                        {cu.phone && <div style={{ fontSize:11, color:"#6b7280" }}>{cu.phone}</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               <div style={{flex:1}}><label style={lbl}>Số điện thoại</label><input value={form.customer_phone} onChange={e=>set("customer_phone",e.target.value)} inputMode="tel" style={inp} placeholder="09xx..."/></div>
             </div>
           </div>
