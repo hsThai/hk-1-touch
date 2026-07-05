@@ -67,6 +67,7 @@ const SaleHistoryPage = lazy(() => import("./SaleHistoryPage").catch(() => ({ de
 const RoleHomePlaceholder  = lazy(() => import("./RoleHomePlaceholder").catch(() => ({ default: () => (
   <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải trang chủ</div>
 ) })));
+const MyTasksPage = lazy(() => import("./MyTasksPage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Việc của tôi</div> })));
 
 
 
@@ -488,6 +489,10 @@ function MainAppContent({ onUserChange }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const isWarehouse  = role === "warehouse";
+  // Permission flags for bottom nav
+  const canCreateRepair = can("repair_order","create");
+  const canViewRepair   = can("repair_order","view");
+  const canViewSale     = can("sale_order","view");
   const isManager    = ["manager","admin","owner","supervisor"].includes(role);
   const isKtv        = role === "technician";
   const isReception  = role === "receptionist";
@@ -542,15 +547,7 @@ function MainAppContent({ onUserChange }) {
       if (sidebarOpen)   { setSidebarOpen(false);  return; }
       if (page !== "board" && page !== "tasks") {
         setPage(
-          user?.role === "technician"   ? "ktv_home"    :
-          user?.role === "receptionist" ? "rec_home"    :
-          user?.role === "warehouse"    ? "wh_home"     :
-          user?.role === "sales"        ? "cashier_home":
-          user?.role === "team_leader"   ? "cashier_home":
-          user?.role === "accountant"   ? "cashier_home":
-          user?.role === "cashier"      ? "cashier_home":
-          user?.role === "owner"        ? "dashboard" :
-          "dashboard"
+"my_tasks"
         );
       }
     };
@@ -660,6 +657,7 @@ function MainAppContent({ onUserChange }) {
   const [qrOrder, setQrOrder] = useState(null);
   const [showQRScan, setShowQRScan] = useState(false);
   const [cashierTab, setCashierTab]   = useState("");  // forceTab cho CashierApp
+  const [showCreateChooser, setShowCreateChooser] = useState(false);  // quick chooser Tạo đơn
   const [newOrderProductQR, setNewOrderProductQR] = useState("");
   const [highlightId, setHighlightId] = useState(null);
   const [createdOrder, setCreatedOrder] = useState(null); // toast xác nhận tạo đơn
@@ -1095,22 +1093,24 @@ function MainAppContent({ onUserChange }) {
     setLoggedOut(false);
     // Ưu tiên default_page từ DB role (nếu có), fallback hardcode
     const DEFAULT_PAGE_MAP = {
-      technician:   "ktv_home",
-      receptionist: "rec_home",
-      warehouse:    "wh_home",
-      accountant:   "role_home",
-      cashier:      "role_home",
-      owner:        "dashboard",
-      admin:        "dashboard",
-      manager:      "dashboard",
-      supervisor:   "role_home",
-      hr:           "role_home",
-      marketing:    "role_home",
-      qa:           "role_home",
-      support:      "role_home",
-      delivery:     "role_home",
-      it:           "role_home",
-      viewer:       "role_home",
+      technician:   "my_tasks",
+      receptionist: "my_tasks",
+      warehouse:    "my_tasks",
+      accountant:   "my_tasks",
+      cashier:      "my_tasks",
+      owner:        "my_tasks",
+      admin:        "my_tasks",
+      manager:      "my_tasks",
+      supervisor:   "my_tasks",
+      hr:           "my_tasks",
+      marketing:    "my_tasks",
+      qa:           "my_tasks",
+      support:      "my_tasks",
+      delivery:     "my_tasks",
+      it:           "my_tasks",
+      viewer:       "my_tasks",
+      sales:        "my_tasks",
+      team_leader:  "my_tasks",
     };
     setPage(DEFAULT_PAGE_MAP[u.role] || "board");
   }} loggedOut={loggedOut} />;
@@ -1347,9 +1347,7 @@ function MainAppContent({ onUserChange }) {
     const items = [];
 
     // 1. TRANG CHỦ
-    if (isKtv)            items.push({ key:"ktv_home",  icon:"home", label:"Trang chủ" });
-    else if (isReception) items.push({ key:"rec_home",  icon:"home", label:"Trang chủ" });
-    else if (isRoleHome)  items.push({ key:"role_home", icon:"home", label:"Trang chủ" });
+    items.push({ key:"my_tasks", icon:"checklist", label:"Việc của tôi" });
 
     // 2. DỊCH VỤ SỬA CHỮA
     if (can("repair_order","create") && !isKtv)
@@ -2000,6 +1998,7 @@ function MainAppContent({ onUserChange }) {
           })()}
           <div style={{ flex:1, overflowY:"auto" }}>
             <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
+              {page==="my_tasks" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><MyTasksPage user={user} orders={orders} setPage={setPage} onNewOrder={()=>setShowNewOrder(true)} onOpenCashier={()=>{setCashierTab("");setPage("cashier_home")}} /></Suspense>}
               {page==="ktv_home" && <TechnicianHome user={user} orders={orders} setPage={setPage} />}
               {page==="rec_home" && <ReceptionHome user={user} orders={orders} setPage={setPage} />}
               {page==="board" && <KanbanBoard />}
@@ -2109,7 +2108,7 @@ function MainAppContent({ onUserChange }) {
                     )}
                     <button onClick={() => {
                         setPage(n.key); setSidebarOpen(false);
-                        if(["board","tasks","ktv_home","rec_home"].includes(n.key)) setDashboardFilter(null);
+                        if(["board","tasks","ktv_home","rec_home","my_tasks"].includes(n.key)) setDashboardFilter(null);
                       }}
                       style={{ width:"100%", textAlign:"left", padding:"14px 16px", borderRadius:12, border:"none",
                         background: active ? "#eef2ff" : "transparent",
@@ -2239,6 +2238,7 @@ function MainAppContent({ onUserChange }) {
       {/* Main content */}
       <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
         <div style={{ paddingBottom:72 }}>
+        {page==="my_tasks" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><MyTasksPage user={user} orders={orders} setPage={setPage} onNewOrder={()=>setShowNewOrder(true)} onOpenCashier={()=>{setCashierTab("");setPage("cashier_home")}} /></Suspense>}
         {page==="ktv_home" && <TechnicianHome user={user} orders={orders} setPage={setPage} />}
         {page==="rec_home" && <ReceptionHome user={user} orders={orders} setPage={setPage} />}
         {page==="board" && <KanbanBoard />}
@@ -2292,69 +2292,111 @@ function MainAppContent({ onUserChange }) {
         </div>
       </Suspense>
 
-      {/* Context Action Bar — cashier_home */}
-      {page === "cashier_home" && (
-        <div style={{ position:"fixed", bottom:0, left:0, right:0, zIndex:50,
-          background:"#fff", borderTop:"2px solid #e5e7eb",
-          paddingBottom:"env(safe-area-inset-bottom)",
-          display:"flex", alignItems:"stretch" }}>
-          {["sales","team_leader"].includes(user?.role) ? (
-            <>
-              <button onClick={() => setCashierTab("sale")}
-                style={{ flex:1, padding:"12px 4px", background:"none", border:"none",
-                  cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
-                <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",color:"#6b7280"}}>receipt_long</span>
-                <span style={{fontSize:10,color:"#6b7280",fontWeight:600}}>Bán hàng</span>
-              </button>
-              <button onClick={() => setCashierTab("shift")}
-                style={{ flex:1, padding:"12px 4px", background:"none", border:"none",
-                  cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
-                <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",color:"#6b7280"}}>balance</span>
-                <span style={{fontSize:10,color:"#6b7280",fontWeight:600}}>Đối soát</span>
-              </button>
-            </>
-          ) : (
-            <>
-              <button onClick={() => setCashierTab("confirm")}
-                style={{ flex:1, padding:"12px 4px", background:"none", border:"none",
-                  cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
-                <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",color:"#f59e0b"}}>pending_actions</span>
-                <span style={{fontSize:10,color:"#f59e0b",fontWeight:700}}>Chờ thu</span>
-              </button>
-              <button onClick={() => setCashierTab("overview")}
-                style={{ flex:1, padding:"12px 4px", background:"none", border:"none",
-                  cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
-                <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",color:"#059669"}}>bar_chart</span>
-                <span style={{fontSize:10,color:"#059669",fontWeight:700}}>Tổng quan</span>
-              </button>
-              <button onClick={() => setPage("cash_journal")}
-                style={{ flex:1, padding:"12px 4px", background:"none", border:"none",
-                  cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
-                <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",color:"#6b7280"}}>menu_book</span>
-                <span style={{fontSize:10,color:"#6b7280",fontWeight:600}}>Sổ quỹ</span>
-              </button>
-              <button onClick={() => setCashierTab("shift")}
-                style={{ flex:1, padding:"12px 4px", background:"none", border:"none",
-                  cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
-                <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",color:"#6b7280"}}>balance</span>
-                <span style={{fontSize:10,color:"#6b7280",fontWeight:600}}>Đối soát</span>
-              </button>
-            </>
+      {/* ═══ UNIFIED BOTTOM NAV — dynamic theo quyền, active state ═══ */}
+      {!isPC && !["wh_manager","wh_app","stock_count"].includes(page) && (
+        <>
+          {/* Quick chooser cho Tạo đơn */}
+          {showCreateChooser && (
+            <div onClick={() => setShowCreateChooser(false)}
+              style={{ position:"fixed", inset:0, zIndex:200, background:"rgba(0,0,0,.4)" }}>
+              <div onClick={e => e.stopPropagation()}
+                style={{ position:"absolute", bottom:60, left:"50%", transform:"translateX(-50%)",
+                  background:"#fff", borderRadius:16, padding:8, minWidth:200,
+                  boxShadow:"0 8px 32px rgba(0,0,0,.2)", display:"flex", flexDirection:"column", gap:4 }}>
+                {canCreateRepair && (
+                  <button onClick={() => { setShowCreateChooser(false); setShowNewOrder(true); }}
+                    style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 16px",
+                      border:"none", background:"none", cursor:"pointer", borderRadius:10, width:"100%" }}>
+                    <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22,color:"#4f46e5"}}>build</span>
+                    <span style={{fontWeight:700,fontSize:14,color:"#1f2937"}}>Sửa chữa</span>
+                  </button>
+                )}
+                {canViewSale && (
+                  <button onClick={() => { setShowCreateChooser(false); setCashierTab("sale"); setPage("cashier_home"); }}
+                    style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 16px",
+                      border:"none", background:"none", cursor:"pointer", borderRadius:10, width:"100%" }}>
+                    <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22,color:"#059669"}}>shopping_cart</span>
+                    <span style={{fontWeight:700,fontSize:14,color:"#1f2937"}}>Bán hàng</span>
+                  </button>
+                )}
+              </div>
+            </div>
           )}
-        </div>
-      )}
 
-      {/* Bottom nav thông thường — các trang khác */}
-      {page !== "cashier_home" && !["wh_manager","wh_app","stock_count"].includes(page) && (
-        <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#fff", borderTop:"1px solid #e5e7eb", display:"flex", zIndex:50, paddingBottom:"env(safe-area-inset-bottom)" }}>
-          {navItems.slice(0,5).map(n => (
-            <button key={n.key} onClick={() => { setPage(n.key); if(n.key==="board"||n.key==="dashboard"||n.key==="tasks"||n.key==="ktv_home"||n.key==="rec_home")setDashboardFilter(null); }}
-              style={{ flex:1, padding:"10px 4px", background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
-              <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",lineHeight:1}}>{n.icon}</span>
-              <span style={{ fontSize: bp==="tablet"?11:10, color:page===n.key?"#4f46e5":"#9ca3af", fontWeight:page===n.key?800:500 }}>{n.label}</span>
+          {/* Bottom nav bar */}
+          <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#fff",
+            borderTop:"1px solid #e5e7eb", display:"flex", zIndex:50,
+            paddingBottom:"env(safe-area-inset-bottom)" }}>
+            {/* Việc của tôi */}
+            <button onClick={() => setPage("my_tasks")}
+              style={{ flex:1, padding:"10px 4px", background:"none", border:"none",
+                cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
+              <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",lineHeight:1,
+                color: page==="my_tasks" ? "#4f46e5" : "#9ca3af"}}>checklist</span>
+              <span style={{ fontSize: bp==="tablet"?11:10,
+                color: page==="my_tasks" ? "#4f46e5" : "#9ca3af",
+                fontWeight: page==="my_tasks" ? 800 : 500 }}>Việc của tôi</span>
             </button>
-          ))}
-        </div>
+
+            {/* Tạo đơn ▾ — chỉ hiện nếu có quyền tạo sửa chữa hoặc xem bán hàng */}
+            {(canCreateRepair || canViewSale) && (
+              <button onClick={() => {
+                if (canCreateRepair && canViewSale) {
+                  setShowCreateChooser(true);
+                } else if (canCreateRepair) {
+                  setShowNewOrder(true);
+                } else if (canViewSale) {
+                  setCashierTab("sale"); setPage("cashier_home");
+                }
+              }}
+                style={{ flex:1, padding:"10px 4px", background:"none", border:"none",
+                  cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
+                <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",lineHeight:1,
+                  color: page==="new" || page==="cashier_home" ? "#4f46e5" : "#9ca3af"}}>add_circle</span>
+                <span style={{ fontSize: bp==="tablet"?11:10,
+                  color: page==="new" || page==="cashier_home" ? "#4f46e5" : "#9ca3af",
+                  fontWeight: page==="new" || page==="cashier_home" ? 800 : 500 }}>Tạo đơn</span>
+              </button>
+            )}
+
+            {/* Đơn sửa — chỉ hiện nếu có quyền view repair */}
+            {canViewRepair && (
+              <button onClick={() => { setPage("tasks"); setDashboardFilter(null); }}
+                style={{ flex:1, padding:"10px 4px", background:"none", border:"none",
+                  cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
+                <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",lineHeight:1,
+                  color: page==="tasks" || page==="board" ? "#4f46e5" : "#9ca3af"}}>list_alt</span>
+                <span style={{ fontSize: bp==="tablet"?11:10,
+                  color: page==="tasks" || page==="board" ? "#4f46e5" : "#9ca3af",
+                  fontWeight: page==="tasks" || page==="board" ? 800 : 500 }}>Đơn sửa</span>
+              </button>
+            )}
+
+            {/* Thu ngân — chỉ hiện nếu có quyền sale_order */}
+            {canViewSale && (
+              <button onClick={() => { setCashierTab(""); setPage("cashier_home"); }}
+                style={{ flex:1, padding:"10px 4px", background:"none", border:"none",
+                  cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
+                <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",lineHeight:1,
+                  color: page==="cashier_home" ? "#4f46e5" : "#9ca3af"}}>point_of_sale</span>
+                <span style={{ fontSize: bp==="tablet"?11:10,
+                  color: page==="cashier_home" ? "#4f46e5" : "#9ca3af",
+                  fontWeight: page==="cashier_home" ? 800 : 500 }}>Thu ngân</span>
+              </button>
+            )}
+
+            {/* Menu — mở drawer */}
+            <button onClick={() => setSidebarOpen(true)}
+              style={{ flex:1, padding:"10px 4px", background:"none", border:"none",
+                cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
+              <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",lineHeight:1,
+                color: sidebarOpen ? "#4f46e5" : "#9ca3af"}}>menu</span>
+              <span style={{ fontSize: bp==="tablet"?11:10,
+                color: sidebarOpen ? "#4f46e5" : "#9ca3af",
+                fontWeight: sidebarOpen ? 800 : 500 }}>Menu</span>
+            </button>
+          </div>
+        </>
       )}
 
       {/* Modals */}
