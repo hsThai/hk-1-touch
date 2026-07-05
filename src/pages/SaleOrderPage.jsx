@@ -424,24 +424,6 @@ export default function SaleOrderPage({ user }) {
         </div>
       )}
 
-      {/* ─── Placeholder giỏ trống ─── */}
-      {cart.length === 0 && !lastOrder && (
-        <div style={{
-          background:"linear-gradient(135deg,#f0fdf4,#ecfdf5)",
-          borderRadius:16, border:"2px dashed #86efac",
-          padding:"40px 20px", textAlign:"center",
-          marginBottom:16,
-        }}>
-          <div style={{ fontSize:48, marginBottom:10, opacity:.6 }}>🛒</div>
-          <div style={{ fontSize:15, fontWeight:800, color:"#059669", marginBottom:6 }}>
-            Giỏ hàng trống
-          </div>
-          <div style={{ fontSize:13, color:"#6b7280" }}>
-            Tìm kiếm linh kiện / phụ kiện ở ô bên trên
-          </div>
-        </div>
-      )}
-
       {/* ─── 1. Search sản phẩm ─── */}
       <div style={{ marginBottom:16, position:"relative" }}>
         <div style={{ position:"relative" }}>
@@ -472,6 +454,24 @@ export default function SaleOrderPage({ user }) {
           </div>
         )}
       </div>
+
+      {/* ─── Placeholder giỏ trống ─── */}
+      {cart.length === 0 && !lastOrder && (
+        <div style={{
+          background:"linear-gradient(135deg,#f0fdf4,#ecfdf5)",
+          borderRadius:16, border:"2px dashed #86efac",
+          padding:"40px 20px", textAlign:"center",
+          marginBottom:16,
+        }}>
+          <div style={{ fontSize:48, marginBottom:10, opacity:.6 }}>🛒</div>
+          <div style={{ fontSize:15, fontWeight:800, color:"#059669", marginBottom:6 }}>
+            Giỏ hàng trống
+          </div>
+          <div style={{ fontSize:13, color:"#6b7280" }}>
+            Tìm kiếm linh kiện / phụ kiện ở ô bên trên
+          </div>
+        </div>
+      )}
 
       {/* ─── 5. Giỏ hàng — chỉ hiện khi có sản phẩm ─── */}
       {cart.length > 0 && (
