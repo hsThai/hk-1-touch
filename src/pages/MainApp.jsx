@@ -2352,10 +2352,10 @@ function MainAppContent({ onUserChange }) {
                 style={{ flex:1, padding:"10px 4px", background:"none", border:"none",
                   cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
                 <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",lineHeight:1,
-                  color: page==="new" || page==="cashier_home" ? "#4f46e5" : "#9ca3af"}}>add_circle</span>
+                  color: page==="new" ? "#4f46e5" : "#9ca3af"}}>add_circle</span>
                 <span style={{ fontSize: bp==="tablet"?11:10,
-                  color: page==="new" || page==="cashier_home" ? "#4f46e5" : "#9ca3af",
-                  fontWeight: page==="new" || page==="cashier_home" ? 800 : 500 }}>Tạo đơn</span>
+                  color: page==="new" ? "#4f46e5" : "#9ca3af",
+                  fontWeight: page==="new" ? 800 : 500 }}>Tạo đơn</span>
               </button>
             )}
 
