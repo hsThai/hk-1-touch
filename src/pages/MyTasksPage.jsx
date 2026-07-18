@@ -305,9 +305,9 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
 
       slaBreaches.forEach(o => result.urgent.push({
         icon: "dangerous",
-        title: `⚠️ Quá hạn SLA: ${o.order_code || ""}`,
-        subtitle: `${o.device_name || ""} · ${o.customer_name || ""} · ${fmtTime(o.received_date)} · (SLA = giới hạn thời gian xử lý đơn ~1300 phút)`,
-        badge: "SLA!", badgeColor: "#dc2626", urgency: "urgent",
+        title: `Quá hạn xử lý: ${o.order_code || ""}`,
+        subtitle: `${o.device_name || ""} · ${o.customer_name || ""} · ${fmtTime(o.received_date)}`,
+        badge: "Quá hạn", badgeColor: "#dc2626", urgency: "urgent",
         onClick: () => setPage("tasks"),
       }));
       choKtv.forEach(o => result.today.push({
@@ -343,7 +343,7 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
       if (slaBreaches.length === 0 && choKtv.length === 0 && choBanGiao.length === 0) {
         result.waiting.push({
           icon: "check_circle", title: "Tất cả ổn",
-          subtitle: "Không có đơn vượt SLA hay chờ xử lý khẩn", urgency: "done",
+          subtitle: "Không có đơn quá hạn hay chờ xử lý khẩn", urgency: "done",
           onClick: () => setPage("dashboard"),
         });
       }
