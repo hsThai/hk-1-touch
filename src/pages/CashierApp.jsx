@@ -254,11 +254,11 @@ export default function CashierApp({ user, onNotif, onQRScan, notifCount=0, forc
 
   // forceTab từ MainApp (MyTasksPage "Chờ thu" → "confirm")
   useEffect(() => {
-    if(forceTab) {
+    if(forceTab && NAV_TABS.some(t => t.key === forceTab)) {
       setTab(forceTab);
-      if(onTabChange) onTabChange("");  // reset để lần sau vẫn trigger
     }
-  }, [forceTab]);
+    if(onTabChange) onTabChange("");  // reset để lần sau vẫn trigger
+  }, [forceTab, NAV_TABS]);
 
   useEffect(() => {
     import("./SaleOrderPage.jsx").then(m => setSaleOrderPage(() => m.default)).catch(()=>{});

@@ -328,7 +328,7 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
           icon: "pending_actions", title: `Đơn bán chờ thu: ${o.order_code || ""}`,
           subtitle: `${o.customer_name || "Khách lẻ"} · ${(o.total || 0).toLocaleString("vi-VN")}đ`,
           badge: "Chờ thu", badgeColor: "#d97706", urgency: "today",
-          onClick: () => setPage("cashier_home"),
+          onClick: () => onOpenCashier ? onOpenCashier("confirm") : setPage("cashier_home"),
         }));
       }
       if (extraData.stockExports) {
