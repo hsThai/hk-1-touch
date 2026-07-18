@@ -242,13 +242,13 @@ export default function CashierApp({ user, onNotif, onQRScan, notifCount=0, forc
   const NAV_TABS = React.useMemo(() => {
     const tabs = [];
     if(["sales","team_leader","manager","admin","owner"].includes(user?.role)){
-      tabs.push({ key:"sale",    label:"🛒 Bán hàng" });
+      tabs.push({ key:"sale",    label:"Bán hàng",  icon:"storefront" });
     }
-    tabs.push({ key:"history", label:"📋 Đơn hàng" });
+    tabs.push({ key:"history", label:"Đơn hàng",  icon:"receipt_long" });
     if(["cashier","accountant","manager","admin","owner"].includes(user?.role)){
-      tabs.push({ key:"confirm", label:"💰 Thu tiền" });
+      tabs.push({ key:"confirm", label:"Thu tiền",  icon:"payments" });
     }
-    tabs.push({ key:"shift", label:"⚖️ Đối soát" });
+    tabs.push({ key:"shift", label:"Đối soát", icon:"balance" });
     return tabs;
   }, [user?.role]);
 
@@ -316,22 +316,34 @@ export default function CashierApp({ user, onNotif, onQRScan, notifCount=0, forc
         </div>
       </div>
 
-      {/* Pill tabs */}
-      <div style={{ background:"#f0fdf4", borderBottom:"1.5px solid #d1fae5",
-        padding:"10px 24px", display:"flex", gap:8 }}>
-        {NAV_TABS.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            style={{
-              height:36, padding:"0 20px", borderRadius:99,
-              border: tab === t.key ? "none" : "1.5px solid #e5e7eb",
-              background: tab === t.key ? "#059669" : "#fff",
-              color: tab === t.key ? "#fff" : "#374151",
-              fontWeight: tab === t.key ? 800 : 500,
-              fontSize:13, cursor:"pointer", transition:"all .15s",
-            }}>
-            {t.label}
-          </button>
-        ))}
+      {/* Pill tabs — icon + text inline, 1 hàng */}
+      <div style={{
+        background:"#f0fdf4", borderBottom:"1.5px solid #d1fae5",
+        padding:"8px 12px", display:"flex", gap:6, overflowX:"auto",
+        WebkitOverflowScrolling:"touch", scrollbarWidth:"none",
+      }}>
+        {NAV_TABS.map(t => {
+          const active = tab === t.key;
+          return (
+            <button key={t.key} onClick={() => setTab(t.key)}
+              style={{
+                display:"flex", alignItems:"center", gap:5, whiteSpace:"nowrap",
+                height:36, padding:"0 14px", borderRadius:99, flexShrink:0,
+                border: active ? "none" : "1.5px solid #d1fae5",
+                background: active ? "#059669" : "#fff",
+                color: active ? "#fff" : "#374151",
+                fontWeight: active ? 800 : 600,
+                fontSize:13, cursor:"pointer", transition:"all .15s",
+                boxShadow: active ? "0 2px 8px rgba(5,150,105,.3)" : "none",
+              }}>
+              <span className="material-icons" style={{
+                fontSize:15, lineHeight:1, fontFamily:"Material Icons",
+                color: active ? "#fff" : "#059669",
+              }}>{t.icon}</span>
+              {t.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Nội dung tab */}
