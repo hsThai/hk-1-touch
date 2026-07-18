@@ -1,6 +1,6 @@
 /* CashierApp.jsx — App 3: Kế toán & Bán hàng lẻ */
 import React, { useState, useEffect } from "react";
-import { RepairOrder, SaleOrder, SaleOrderItem, Expense , CashJournal } from "./pb.jsx";
+import { RepairOrder, SaleOrder, SaleOrderItem, Expense, CashJournal, ShiftReconcile } from "./pb.jsx";
 
 const ALLOWED_ROLES = ["accountant", "cashier", "manager", "admin", "owner", "sales", "team_leader"];
 const DONE_STATUS   = ["Hoàn Thành", "Đã Giao", "Đã Thanh Toán"];
@@ -75,32 +75,43 @@ function OverviewTab({ user }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // ShiftReconcile — Đối soát ca ngày
 // ─────────────────────────────────────────────────────────────────────────────
-function ShiftReconcile({ user }) {
+function ShiftReconcilePage({ user }) {
   const [date, setDate]       = useState(new Date().toISOString().slice(0,10));
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(false);
+  const [actualCash, setActualCash] = useState("");   // Tiền mặt thực đếm
+  const [actualBank, setActualBank] = useState("");   // Tiền CK thực
+  const [reconcileRecord, setReconcileRecord] = useState(null); // Bản ghi đối soát đã lưu
+  const [saving, setSaving] = useState(false);
+  const isManager = user && ["manager","admin"].includes(user.role);
 
   useEffect(() => { load(); }, [date]);
 
   async function load() {
     setLoading(true);
     try {
-      // Dùng CashJournal làm nguồn truth — mỗi giao dịch confirmed đều có journal entry
-      const [repairs, sales, exps, journals] = await Promise.all([
+      const [repairs, sales, exps, journals, reconciles] = await Promise.all([
         RepairOrder.list({ limit:500 }),
         SaleOrder.list({ limit:500 }),
         Expense.list({ limit:200 }),
         CashJournal.list({ limit:1000, sort:"-id" }),
+        ShiftReconcile.list({ limit:50, sort:"-id" }),
       ]);
 
-      // Lọc journal theo ngày đã chọn
-      const dayJournals = (journals||[]).filter(j => (j.journal_date||"").startsWith(date));
+      // Tìm bản ghi đối soát đã lưu cho ngày này
+      const rec = (reconciles||[]).find(r => (r.reconcile_date||"") === date);
+      setReconcileRecord(rec || null);
+      if (rec) {
+        setActualCash(rec.actual_cash != null ? String(rec.actual_cash) : "");
+        setActualBank(rec.actual_bank != null ? String(rec.actual_bank) : "");
+      } else {
+        setActualCash(""); setActualBank("");
+      }
 
-      // Sổ quỹ tiền mặt CA (chỉ cash)
+      const dayJournals = (journals||[]).filter(j => (j.journal_date||"").startsWith(date));
       const cashIn  = dayJournals.filter(j => j.entry_type==="receipt" && (j.payment_method==="cash"||j.payment_method==="Tiền mặt")).reduce((s,j)=>s+(j.amount||0),0);
       const cashOut = dayJournals.filter(j => j.entry_type==="payment" && (j.payment_method==="cash"||j.payment_method==="Tiền mặt")).reduce((s,j)=>s+(j.amount||0),0);
 
-      // Phân loại journal theo nguồn + HTTT
       const repairJournals = dayJournals.filter(j => j.ref_type==="repair_order");
       const saleJournals   = dayJournals.filter(j => j.ref_type==="sale_order");
 
@@ -115,24 +126,24 @@ function ShiftReconcile({ user }) {
       const saleRev    = saleCash + saleBank;
       const totalRev   = repairRev + saleRev;
 
-      // Chi phí trong ngày
       const start = new Date(date); start.setHours(0,0,0,0);
       const end   = new Date(date); end.setHours(23,59,59,999);
       const inDay = d => d && new Date(d) >= start && new Date(d) <= end;
       const dayExp = (exps||[]).filter(e => inDay(e.expense_date||e.created_date||e.created));
       const totalExp = dayExp.reduce((s,e)=>s+(e.amount||0),0);
 
-      // Danh sách đơn để hiển thị (dùng ref_id từ journal để map)
       const repairIds = new Set(repairJournals.map(j=>j.ref_id).filter(Boolean));
       const saleIds   = new Set(saleJournals.map(j=>j.ref_id).filter(Boolean));
       const doneRepairs = (repairs||[]).filter(o => repairIds.has(o.id));
       const paidSales   = (sales||[]).filter(o => saleIds.has(o.id));
 
+      const sysCash = repairCash + saleCash;
+      const sysBank = repairBank + saleBank;
+
       setData({ doneRepairs, paidSales, dayExp,
         repairRev, saleRev, totalRev, totalExp,
         profit: totalRev - totalExp,
-        totalCash: repairCash + saleCash,
-        totalBank: repairBank + saleBank,
+        sysCash, sysBank,
         repairCash, repairBank, saleCash, saleBank,
         deposits: doneRepairs.reduce((s,o)=>s+(o.deposit||0),0),
         cashIn, cashOut, cashNet: cashIn - cashOut,
@@ -142,52 +153,102 @@ function ShiftReconcile({ user }) {
   }
 
   const fmt = n => Number(n||0).toLocaleString("vi-VN")+"đ";
+  const parseNum = s => { const n = parseInt(String(s).replace(/[^\d]/g,"")); return isNaN(n)?0:n; };
+
+  const actualCashNum = parseNum(actualCash);
+  const actualBankNum = parseNum(actualBank);
+  const cashDiff = data ? actualCashNum - data.sysCash : 0;
+  const bankDiff = data ? actualBankNum - data.sysBank : 0;
+  const isLocked = reconcileRecord && reconcileRecord.status === "confirmed";
+
+  async function saveReconcile(status) {
+    if (!data) return;
+    setSaving(true);
+    try {
+      const payload = {
+        reconcile_date: date,
+        sys_cash: data.sysCash,
+        sys_bank: data.sysBank,
+        actual_cash: actualCashNum,
+        actual_bank: actualBankNum,
+        cash_diff: cashDiff,
+        bank_diff: bankDiff,
+        total_revenue: data.totalRev,
+        total_expense: data.totalExp,
+        profit: data.profit,
+        status: status, // "draft" hoặc "confirmed"
+        cashier_id: user.id || "",
+        cashier_name: user.full_name || user.name || "",
+        confirmed_by_id: status === "confirmed" ? (user.id||"") : "",
+        confirmed_by_name: status === "confirmed" ? (user.full_name||user.name||"") : "",
+        confirmed_at: status === "confirmed" ? new Date().toISOString() : "",
+        note: "",
+      };
+      if (reconcileRecord) {
+        await ShiftReconcile.update(reconcileRecord.id, payload);
+      } else {
+        await ShiftReconcile.create(payload);
+      }
+      alert(status === "confirmed" ? "✅ Đã xác nhận đối soát ca!" : "Đã lưu nháp");
+      load();
+    } catch(e) { alert("Lỗi lưu: "+e.message); }
+    setSaving(false);
+  }
 
   function exportCSV() {
     if (!data) return;
-    const BOM = "﻿";
+    const BOM = "\uFEFF";
     const rows = [
-      ["ĐỐI SOÁT CA — " + date], [],
-      ["DOANH THU"], ["Sửa chữa",data.repairRev,"Bán lẻ",data.saleRev,"Tổng",data.totalRev],
-      [], ["THANH TOÁN"],
-      ["TM sửa",data.repairCash,"TM bán",data.saleCash,"Tổng TM",data.totalCash],
-      ["CK sửa",data.repairBank,"CK bán",data.saleBank,"Tổng CK",data.totalBank],
-      [], ["Chi phí",data.totalExp,"Lợi nhuận",data.profit], [],
-      ["ĐƠN SỬA"], ["Mã phiếu","KH","SĐT","Thiết bị","Tổng","Cọc","Còn lại","TT"],
+      ["DOI SOAT CA — " + date], [],
+      ["DOANH THU"], ["Sua chua",data.repairRev,"Ban le",data.saleRev,"Tong",data.totalRev],
+      [], ["THANH TOAN"],
+      ["TM sua",data.repairCash,"TM ban",data.saleCash,"Tong TM",data.sysCash],
+      ["CK sua",data.repairBank,"CK ban",data.saleBank,"Tong CK",data.sysBank],
+      [], ["THUC TE"], ["TM thuc",actualCashNum,"CK thuc",actualBankNum],
+      ["Chenh lech TM",cashDiff,"Chenh lech CK",bankDiff],
+      [], ["Chi phi",data.totalExp,"Loi nhuan",data.profit], [],
+      ["DON SUA"], ["Ma phieu","KH","SDT","Thiet bi","Tong","Coc","Con lai","TT"],
       ...(data.doneRepairs.map(o=>[o.order_code||o.id,o.customer_name,o.customer_phone,o.device_model,o.final_cost||0,o.deposit||0,Math.max(0,(o.final_cost||0)-(o.deposit||0)),o.payment_method||"TM"])),
-      [], ["BÁN LẺ"], ["Mã","Ghi chú","Tổng","TT"],
+      [], ["BAN LE"], ["Ma","Ghi chu","Tong","TT"],
       ...(data.paidSales.map(o=>[o.order_code||o.id,o.note||"",o.total||0,o.payment_method||"TM"])),
-      [], ["CHI PHÍ"], ["Loại","Mô tả","Số tiền"],
-      ...(data.dayExp.map(e=>[e.category||"Khác",e.description||"",e.amount||0])),
-      [], ["SỔ QUỸ TIỀN MẶT CA"],
-      ["Thu TM",data.cashIn,"Chi TM",data.cashOut,"Chênh lệch",data.cashNet],
+      [], ["CHI PHI"], ["Loai","Mo ta","So tien"],
+      ...(data.dayExp.map(e=>[e.category||"Khac",e.description||"",e.amount||0])),
     ];
     const blob = new Blob([BOM+rows.map(r=>r.join(",")).join("\n")],{type:"text/csv;charset=utf-8"});
     const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
     a.download="DoiSoatCa_"+date+".csv"; a.click();
   }
 
+  const inputStyle = { flex:1, border:"1.5px solid #e5e7eb", borderRadius:8, padding:"8px 10px", fontSize:14, outline:"none", textAlign:"right", minWidth:0, boxSizing:"border-box" };
+  const labelStyle = { fontSize:11, color:"#9ca3af", marginBottom:3 };
+
   return (
     <div style={{ padding:"10px 14px 100px" }}>
       <div style={{ marginBottom:12 }}>
-        <div style={{ fontWeight:800, fontSize:17, marginBottom:6 }}>📊 Đối soát ca</div>
+        <div style={{ fontWeight:800, fontSize:17, marginBottom:6, display:"flex", alignItems:"center", gap:8 }}>
+          <span className="material-icons" style={{fontSize:20,fontFamily:"Material Icons"}}>balance</span>
+          Đối soát ca
+          {isLocked && <span style={{fontSize:11,background:"#059669",color:"#fff",padding:"2px 8px",borderRadius:20,fontWeight:700}}>Đã chốt</span>}
+        </div>
         <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-          <input type="date" value={date} onChange={e=>setDate(e.target.value)}
-            style={{ flex:1, border:"1.5px solid #e5e7eb", borderRadius:8, padding:"6px 10px", fontSize:13 }}/>
-          <button onClick={exportCSV}
-            style={{ background:"#4f46e5", color:"#fff", border:"none", borderRadius:8, padding:"7px 12px", fontSize:13, cursor:"pointer", whiteSpace:"nowrap" }}>
-            ⬇️ CSV
+          <input type="date" value={date} onChange={e=>setDate(e.target.value)} disabled={isLocked}
+            style={{ flex:1, border:"1.5px solid #e5e7eb", borderRadius:8, padding:"6px 10px", fontSize:13, minWidth:0, boxSizing:"border-box" }}/>
+          <button onClick={exportCSV} style={{ background:"#4f46e5", color:"#fff", border:"none", borderRadius:8, padding:"7px 12px", fontSize:13, cursor:"pointer", whiteSpace:"nowrap" }}>
+            <span className="material-icons" style={{fontSize:16,fontFamily:"Material Icons",verticalAlign:"middle"}}>download</span> CSV
           </button>
         </div>
       </div>
+
       {loading && <div style={{textAlign:"center",padding:40,color:"#9ca3af"}}>Đang tải...</div>}
+
       {data && !loading && (<>
+        {/* 4 thẻ tổng quan */}
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:16 }}>
           {[
             {label:"Doanh thu", value:fmt(data.totalRev), color:"#4f46e5", bg:"#eef2ff"},
             {label:"Chi phí",   value:fmt(data.totalExp), color:"#dc2626", bg:"#fee2e2"},
             {label:"Lợi nhuận", value:fmt(data.profit),   color:"#059669", bg:"#f0fdf4"},
-            {label:"Tiền mặt",  value:fmt(data.totalCash),color:"#d97706", bg:"#fffbeb"},
+            {label:"Tổng TM hệ thống", value:fmt(data.sysCash), color:"#d97706", bg:"#fffbeb"},
           ].map(c=>(
             <div key={c.label} style={{background:c.bg,borderRadius:12,padding:12}}>
               <div style={{fontSize:12,color:c.color,fontWeight:700}}>{c.label}</div>
@@ -195,8 +256,13 @@ function ShiftReconcile({ user }) {
             </div>
           ))}
         </div>
+
+        {/* Phân loại thanh toán */}
         <div style={{background:"#fff",borderRadius:12,padding:14,marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,.06)"}}>
-          <div style={{fontWeight:700,fontSize:14,marginBottom:10}}>💳 Phân loại thanh toán</div>
+          <div style={{fontWeight:700,fontSize:14,marginBottom:10}}>
+            <span className="material-icons" style={{fontSize:18,fontFamily:"Material Icons",verticalAlign:"middle"}}>payments</span>
+            Phân loại thanh toán
+          </div>
           {[
             {label:"Sửa chữa — Tiền mặt",     v:data.repairCash},
             {label:"Sửa chữa — Chuyển khoản", v:data.repairBank},
@@ -209,12 +275,75 @@ function ShiftReconcile({ user }) {
             </div>
           ))}
           <div style={{display:"flex",justifyContent:"space-between",fontSize:14,padding:"8px 0 0",fontWeight:800,color:"#4f46e5"}}>
-            <span>Tổng tiền mặt thực nhận</span><span>{fmt(data.totalCash)}</span>
+            <span>Tổng tiền mặt (HT)</span><span>{fmt(data.sysCash)}</span>
           </div>
-          {data.deposits>0 && <div style={{fontSize:12,color:"#9ca3af"}}>* Bao gồm cọc: {fmt(data.deposits)}</div>}
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:14,padding:"4px 0 0",fontWeight:800,color:"#0369a1"}}>
+            <span>Tổng chuyển khoản (HT)</span><span>{fmt(data.sysBank)}</span>
+          </div>
         </div>
+
+        {/* NHẬP TIỀN THỰC TẾ — Thu ngân nhập */}
+        <div style={{background:"#fff",borderRadius:12,padding:14,marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,.06)", border: isLocked ? "2px solid #059669" : "1.5px solid #e5e7eb"}}>
+          <div style={{fontWeight:700,fontSize:14,marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
+            <span className="material-icons" style={{fontSize:18,fontFamily:"Material Icons"}}>point_of_sale</span>
+            Kiểm đếm thực tế
+            {isLocked && <span style={{fontSize:11,color:"#059669",fontWeight:700}}>🔒 Đã chốt</span>}
+          </div>
+
+          {/* Tiền mặt thực */}
+          <div style={{marginBottom:12}}>
+            <div style={labelStyle}>Tiền mặt thực đếm</div>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <input type="text" inputMode="numeric" placeholder="0" value={actualCash ? actualCash.toLocaleString("vi-VN") : ""}
+                onChange={e=>setActualCash(e.target.value)} disabled={isLocked}
+                style={{...inputStyle, borderColor: cashDiff!==0 && actualCash!=="" ? "#f59e0b" : inputStyle.borderColor }}/>
+            </div>
+            {data && actualCash !== "" && (
+              <div style={{fontSize:12,marginTop:4,color:cashDiff===0?"#059669":"#f59e0b",fontWeight:600}}>
+                {cashDiff===0 ? "Khớp" : (cashDiff>0 ? `Thừa ${fmt(cashDiff)}` : `Thiếu ${fmt(Math.abs(cashDiff))}`)}
+              </div>
+            )}
+          </div>
+
+          {/* Tiền CK thực */}
+          <div style={{marginBottom:12}}>
+            <div style={labelStyle}>Chuyển khoản thực tế</div>
+            <input type="text" inputMode="numeric" placeholder="0" value={actualBank ? actualBank.toLocaleString("vi-VN") : ""}
+              onChange={e=>setActualBank(e.target.value)} disabled={isLocked}
+              style={{...inputStyle, borderColor: bankDiff!==0 && actualBank!=="" ? "#f59e0b" : inputStyle.borderColor }}/>
+            {data && actualBank !== "" && (
+              <div style={{fontSize:12,marginTop:4,color:bankDiff===0?"#059669":"#f59e0b",fontWeight:600}}>
+                {bankDiff===0 ? "Khớp" : (bankDiff>0 ? `Thừa ${fmt(bankDiff)}` : `Thiếu ${fmt(Math.abs(bankDiff))}`)}
+              </div>
+            )}
+          </div>
+
+          {/* Nút lưu/xác nhận */}
+          {!isLocked && (
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>saveReconcile("draft")} disabled={saving}
+                style={{flex:1,background:"#f3f4f6",border:"1.5px solid #e5e7eb",borderRadius:8,padding:"10px",fontSize:13,cursor:"pointer",fontWeight:600}}>
+                Lưu nháp
+              </button>
+              {isManager && (
+                <button onClick={()=>saveReconcile("confirmed")} disabled={saving}
+                  style={{flex:1,background:"#059669",border:"none",borderRadius:8,padding:"10px",fontSize:13,cursor:"pointer",fontWeight:700,color:"#fff"}}>
+                  Xác nhận & chốt ca
+                </button>
+              )}
+            </div>
+          )}
+          {!isManager && !isLocked && (
+            <div style={{fontSize:11,color:"#9ca3af",marginTop:8,textAlign:"center"}}>Chỉ quản lý mới có quyền chốt ca</div>
+          )}
+        </div>
+
+        {/* Sổ quỹ tiền mặt */}
         <div style={{background:"#fff",borderRadius:12,padding:14,marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,.06)"}}>
-          <div style={{fontWeight:700,fontSize:14,marginBottom:10}}>💰 Tồn quỹ ca này (tiền mặt)</div>
+          <div style={{fontWeight:700,fontSize:14,marginBottom:10}}>
+            <span className="material-icons" style={{fontSize:18,fontFamily:"Material Icons",verticalAlign:"middle"}}>account_balance_wallet</span>
+            Sổ quỹ tiền mặt
+          </div>
           {[
             {label:"Thu tiền mặt",  v:data.cashIn,  color:"#059669"},
             {label:"Chi tiền mặt",  v:data.cashOut, color:"#dc2626"},
@@ -225,13 +354,18 @@ function ShiftReconcile({ user }) {
             </div>
           ))}
           <div style={{display:"flex",justifyContent:"space-between",fontSize:14,padding:"8px 0 0",fontWeight:800,color:data.cashNet>=0?"#059669":"#dc2626"}}>
-            <span>Chênh lệch</span>
+            <span>Chênh lệch quỹ</span>
             <span>{data.cashNet>=0?"+":""}{fmt(data.cashNet)}</span>
           </div>
         </div>
-        <div style={{background:"#fff",borderRadius:12,padding:14,boxShadow:"0 1px 4px rgba(0,0,0,.06)"}}>
-          <div style={{fontWeight:700,fontSize:14,marginBottom:8}}>🔧 Đơn sửa hoàn thành ({data.doneRepairs.length})</div>
-          {data.doneRepairs.length===0 && <div style={{color:"#9ca3af",fontSize:13}}>Chưa có đơn nào hôm nay</div>}
+
+        {/* Đơn sửa */}
+        <div style={{background:"#fff",borderRadius:12,padding:14,marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,.06)"}}>
+          <div style={{fontWeight:700,fontSize:14,marginBottom:8}}>
+            <span className="material-icons" style={{fontSize:18,fontFamily:"Material Icons",verticalAlign:"middle"}}>build</span>
+            Đơn sửa ({data.doneRepairs.length})
+          </div>
+          {data.doneRepairs.length===0 && <div style={{color:"#9ca3af",fontSize:13}}>Chưa có đơn nào</div>}
           {data.doneRepairs.map(o=>(
             <div key={o.id} style={{padding:"8px 0",borderBottom:"1px solid #f3f4f6"}}>
               <div style={{display:"flex",justifyContent:"space-between"}}>
@@ -239,10 +373,36 @@ function ShiftReconcile({ user }) {
                 <span style={{fontWeight:700,color:"#059669"}}>{fmt(o.final_cost)}</span>
               </div>
               <div style={{fontSize:12,color:"#6b7280"}}>{o.customer_name} · {o.device_model}</div>
-              <div style={{fontSize:11,color:"#9ca3af"}}>{o.payment_method||"Tiền mặt"} · Cọc: {fmt(o.deposit)}</div>
+              <div style={{fontSize:11,color:"#9ca3af"}}>{o.payment_method||"Tiền mặt"}</div>
             </div>
           ))}
         </div>
+
+        {/* Bán lẻ */}
+        <div style={{background:"#fff",borderRadius:12,padding:14,boxShadow:"0 1px 4px rgba(0,0,0,.06)"}}>
+          <div style={{fontWeight:700,fontSize:14,marginBottom:8}}>
+            <span className="material-icons" style={{fontSize:18,fontFamily:"Material Icons",verticalAlign:"middle"}}>shopping_bag</span>
+            Bán lẻ ({data.paidSales.length})
+          </div>
+          {data.paidSales.length===0 && <div style={{color:"#9ca3af",fontSize:13}}>Chưa có đơn nào</div>}
+          {data.paidSales.map(o=>(
+            <div key={o.id} style={{padding:"8px 0",borderBottom:"1px solid #f3f4f6"}}>
+              <div style={{display:"flex",justifyContent:"space-between"}}>
+                <span style={{fontWeight:700,fontSize:13}}>{o.order_code||o.id}</span>
+                <span style={{fontWeight:700,color:"#059669"}}>{fmt(o.total)}</span>
+              </div>
+              <div style={{fontSize:11,color:"#9ca3af"}}>{o.payment_method||"Tiền mặt"}{o.seller_name?" · "+o.seller_name:""}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Thông tin chốt ca */}
+        {reconcileRecord && reconcileRecord.confirmed_by_name && (
+          <div style={{marginTop:12,padding:10,background:"#f0fdf4",borderRadius:8,fontSize:12,color:"#059669",textAlign:"center"}}>
+            Ca đã chốt bởi {reconcileRecord.confirmed_by_name}
+            {reconcileRecord.confirmed_at ? " · "+new Date(reconcileRecord.confirmed_at).toLocaleString("vi-VN") : ""}
+          </div>
+        )}
       </>)}
     </div>
   );
@@ -380,7 +540,7 @@ export default function CashierApp({ user, onNotif, onQRScan, notifCount=0, forc
         {tab === "sale"    && (SaleOrderPage     ? <SaleOrderPage user={user} />     : <Fallback />)}
         {tab === "history" && (SaleHistoryPage    ? <SaleHistoryPage user={user} />     : <Fallback />)}
         {tab === "confirm" && (CashierConfirmPage ? <CashierConfirmPage user={user} /> : <Fallback />)}
-        {tab === "shift"   && <ShiftReconcile user={user} />}
+        {tab === "shift"   && <ShiftReconcilePage user={user} />}
       </div>
 
     </div>
