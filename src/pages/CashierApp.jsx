@@ -102,13 +102,15 @@ function ShiftReconcile({ user }) {
       const doneRepairs = (repairs||[]).filter(o =>
         ["Đã Thanh Toán","Hoàn Thành","Đã Giao"].includes(o.status) &&
         inDay(o.paid_at || o.done_date || o.updated_date || o.updated));
-      const paidSales   = (sales||[]).filter(o => ["paid","completed"].includes(o.status) && inDay(o.created_date||o.created));
+      const paidSales   = (sales||[]).filter(o => ["paid","completed"].includes(o.status) && inDay(o.updated_date||o.updated||o.created_date||o.created));
       const dayExp      = (exps||[]).filter(e => inDay(e.expense_date||e.created_date||e.created));
 
-      const repairCash = doneRepairs.filter(o=>!o.payment_method||o.payment_method==="Tiền mặt"||o.payment_method==="cash").reduce((s,o)=>s+(o.final_cost||0),0);
-      const repairBank = doneRepairs.filter(o=>o.payment_method==="Chuyển khoản"||o.payment_method==="transfer").reduce((s,o)=>s+(o.final_cost||0),0);
-      const saleCash   = paidSales.filter(o=>!o.payment_method||o.payment_method==="cash"||o.payment_method==="Tiền mặt").reduce((s,o)=>s+(o.total||0),0);
-      const saleBank   = paidSales.filter(o=>o.payment_method==="transfer"||o.payment_method==="Chuyển khoản").reduce((s,o)=>s+(o.total||0),0);
+      const isCash = m => !m || m==="cash" || m==="Tiền mặt";
+      const isBank = m => m==="transfer" || m==="Chuyển khoản" || m==="bank_transfer";
+      const repairCash = doneRepairs.filter(o=>isCash(o.payment_method)).reduce((s,o)=>s+(o.final_cost||0),0);
+      const repairBank = doneRepairs.filter(o=>isBank(o.payment_method)).reduce((s,o)=>s+(o.final_cost||0),0);
+      const saleCash   = paidSales.filter(o=>isCash(o.payment_method)).reduce((s,o)=>s+(o.total||0),0);
+      const saleBank   = paidSales.filter(o=>isBank(o.payment_method)).reduce((s,o)=>s+(o.total||0),0);
       const totalRev   = doneRepairs.reduce((s,o)=>s+(o.final_cost||0),0) + paidSales.reduce((s,o)=>s+(o.total||0),0);
       const totalExp   = dayExp.reduce((s,e)=>s+(e.amount||0),0);
 
