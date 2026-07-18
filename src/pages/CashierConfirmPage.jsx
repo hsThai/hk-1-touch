@@ -88,7 +88,10 @@ export default function CashierConfirmPage({ user }) {
           created_by_id:user.id,created_by_name:user.full_name||user.name||"",
         });
       }
-      try{ await printSaleReceiptA5({...confirming,payment_method:payMethod,cashier_name:user.full_name||user.name||""}); }catch{}
+      try{
+        const orderItems = items[confirming.id] || [];
+        await printSaleReceiptA5({...confirming,payment_method:payMethod,cashier_name:user.full_name||user.name||"",items:orderItems});
+      }catch{}
       setConfirming(null);
       loadOrders();
     }catch(e){alert("Lỗi xác nhận: "+(e.message||JSON.stringify(e)));}
