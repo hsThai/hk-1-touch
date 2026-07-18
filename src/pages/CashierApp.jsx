@@ -83,6 +83,7 @@ function ShiftReconcilePage({ user }) {
   const [actualBank, setActualBank] = useState("");   // Tiền CK thực
   const [reconcileRecord, setReconcileRecord] = useState(null); // Bản ghi đối soát đã lưu
   const [saving, setSaving] = useState(false);
+  const [reconciledDates, setReconciledDates] = useState({}); // {date: status}
   const isManager = user && ["manager","admin"].includes(user.role);
 
   useEffect(() => { load(); }, [date]);
@@ -97,6 +98,13 @@ function ShiftReconcilePage({ user }) {
         CashJournal.list({ limit:1000, sort:"-id" }),
         ShiftReconcile.list({ limit:50, sort:"-id" }),
       ]);
+
+      // Lưu danh sách ngày đã đối soát
+      const dateMap = {};
+      (reconciles||[]).forEach(r => {
+        if (r.reconcile_date) dateMap[r.reconcile_date] = r.status || "draft";
+      });
+      setReconciledDates(dateMap);
 
       // Tìm bản ghi đối soát đã lưu cho ngày này
       const rec = (reconciles||[]).find(r => (r.reconcile_date||"") === date);
@@ -159,7 +167,7 @@ function ShiftReconcilePage({ user }) {
   const actualBankNum = parseNum(actualBank);
   const cashDiff = data ? actualCashNum - data.sysCash : 0;
   const bankDiff = data ? actualBankNum - data.sysBank : 0;
-  const isLocked = reconcileRecord && reconcileRecord.status === "confirmed";
+  const isLocked = reconcileRecord && (reconcileRecord.status === "confirmed" || reconcileRecord.status === "draft");
 
   async function saveReconcile(status) {
     if (!data) return;
@@ -228,7 +236,11 @@ function ShiftReconcilePage({ user }) {
         <div style={{ fontWeight:800, fontSize:17, marginBottom:6, display:"flex", alignItems:"center", gap:8 }}>
           <span className="material-icons" style={{fontSize:20,fontFamily:"Material Icons"}}>balance</span>
           Đối soát ca
-          {isLocked && <span style={{fontSize:11,background:"#059669",color:"#fff",padding:"2px 8px",borderRadius:20,fontWeight:700}}>Đã chốt</span>}
+          {isLocked && (
+            <span style={{fontSize:11,background:reconcileRecord?.status==="confirmed"?"#059669":"#f59e0b",color:"#fff",padding:"2px 8px",borderRadius:20,fontWeight:700}}>
+              {reconcileRecord?.status==="confirmed" ? "Đã chốt" : "Đã lưu"}
+            </span>
+          )}
         </div>
         <div style={{ display:"flex", gap:8, alignItems:"center" }}>
           <input type="date" value={date} onChange={e=>setDate(e.target.value)} disabled={isLocked}
@@ -237,6 +249,22 @@ function ShiftReconcilePage({ user }) {
             <span className="material-icons" style={{fontSize:16,fontFamily:"Material Icons",verticalAlign:"middle"}}>download</span> CSV
           </button>
         </div>
+        {/* Hiện marker ngày đã đối soát */}
+        {Object.keys(reconciledDates).length > 0 && (
+          <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:8}}>
+            {Object.entries(reconciledDates).sort((a,b)=>b[0].localeCompare(a[0])).map(([d,st])=>(
+              <span key={d} onClick={()=>setDate(d)} style={{
+                fontSize:11,padding:"3px 8px",borderRadius:6,cursor:"pointer",
+                background: st==="confirmed" ? "#f0fdf4" : "#fffbeb",
+                color: st==="confirmed" ? "#059669" : "#f59e0b",
+                border: `1px solid ${st==="confirmed"?"#bbf7d0":"fde68a"}`,
+                fontWeight:600,
+              }}>
+                {d.slice(5)} {st==="confirmed"?"✓":"●"}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {loading && <div style={{textAlign:"center",padding:40,color:"#9ca3af"}}>Đang tải...</div>}
@@ -321,20 +349,14 @@ function ShiftReconcilePage({ user }) {
           {/* Nút lưu/xác nhận */}
           {!isLocked && (
             <div style={{display:"flex",gap:8}}>
-              <button onClick={()=>saveReconcile("draft")} disabled={saving}
-                style={{flex:1,background:"#f3f4f6",border:"1.5px solid #e5e7eb",borderRadius:8,padding:"10px",fontSize:13,cursor:"pointer",fontWeight:600}}>
-                Lưu nháp
+              <button onClick={()=>saveReconcile(isManager ? "confirmed" : "draft")} disabled={saving}
+                style={{flex:1,background:isManager?"#059669":"#4f46e5",border:"none",borderRadius:8,padding:"10px",fontSize:13,cursor:saving?"not-allowed":"pointer",fontWeight:700,color:"#fff",opacity:saving?0.6:1}}>
+                {saving ? "Đang lưu..." : (isManager ? "Xác nhận & chốt ca" : "Lưu đối soát")}
               </button>
-              {isManager && (
-                <button onClick={()=>saveReconcile("confirmed")} disabled={saving}
-                  style={{flex:1,background:"#059669",border:"none",borderRadius:8,padding:"10px",fontSize:13,cursor:"pointer",fontWeight:700,color:"#fff"}}>
-                  Xác nhận & chốt ca
-                </button>
-              )}
             </div>
           )}
           {!isManager && !isLocked && (
-            <div style={{fontSize:11,color:"#9ca3af",marginTop:8,textAlign:"center"}}>Chỉ quản lý mới có quyền chốt ca</div>
+            <div style={{fontSize:11,color:"#9ca3af",marginTop:8,textAlign:"center"}}>Thu ngân lưu nháp — quản lý xác nhận để chốt</div>
           )}
         </div>
 
@@ -397,10 +419,12 @@ function ShiftReconcilePage({ user }) {
         </div>
 
         {/* Thông tin chốt ca */}
-        {reconcileRecord && reconcileRecord.confirmed_by_name && (
-          <div style={{marginTop:12,padding:10,background:"#f0fdf4",borderRadius:8,fontSize:12,color:"#059669",textAlign:"center"}}>
-            Ca đã chốt bởi {reconcileRecord.confirmed_by_name}
-            {reconcileRecord.confirmed_at ? " · "+new Date(reconcileRecord.confirmed_at).toLocaleString("vi-VN") : ""}
+        {reconcileRecord && (
+          <div style={{marginTop:12,padding:10,background:reconcileRecord.status==="confirmed"?"#f0fdf4":"#fffbeb",borderRadius:8,fontSize:12,textAlign:"center",
+            color:reconcileRecord.status==="confirmed"?"#059669":"#f59e0b"}}>
+            {reconcileRecord.status==="confirmed"
+              ? `Ca đã chốt bởi ${reconcileRecord.confirmed_by_name||""}${reconcileRecord.confirmed_at ? " · "+new Date(reconcileRecord.confirmed_at).toLocaleString("vi-VN") : ""}`
+              : `Đã lưu bởi ${reconcileRecord.cashier_name||""}`}
           </div>
         )}
       </>)}
