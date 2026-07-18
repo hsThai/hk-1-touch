@@ -85,45 +85,59 @@ function ShiftReconcile({ user }) {
   async function load() {
     setLoading(true);
     try {
-      const start = new Date(date); start.setHours(0,0,0,0);
-      const end   = new Date(date); end.setHours(23,59,59,999);
-      const inDay = d => d && new Date(d) >= start && new Date(d) <= end;
-
+      // Dùng CashJournal làm nguồn truth — mỗi giao dịch confirmed đều có journal entry
       const [repairs, sales, exps, journals] = await Promise.all([
         RepairOrder.list({ limit:500 }),
         SaleOrder.list({ limit:500 }),
         Expense.list({ limit:200 }),
-        CashJournal.list({ limit:500, sort:"-id" }),
+        CashJournal.list({ limit:1000, sort:"-id" }),
       ]);
-      const dayJournals = (journals||[]).filter(j => (j.journal_date||"").startsWith(date));
-      const cashIn  = dayJournals.filter(j=>j.entry_type==="receipt" &&j.payment_method==="cash").reduce((s,j)=>s+(j.amount||0),0);
-      const cashOut = dayJournals.filter(j=>j.entry_type==="payment" &&j.payment_method==="cash").reduce((s,j)=>s+(j.amount||0),0);
 
-      const doneRepairs = (repairs||[]).filter(o =>
-        ["Đã Thanh Toán","Hoàn Thành","Đã Giao"].includes(o.status) &&
-        inDay(o.paid_at || o.done_date || o.updated_date || o.updated));
-      const paidSales   = (sales||[]).filter(o => ["paid","completed"].includes(o.status) && inDay(o.updated_date||o.updated||o.created_date||o.created));
-      const dayExp      = (exps||[]).filter(e => inDay(e.expense_date||e.created_date||e.created));
+      // Lọc journal theo ngày đã chọn
+      const dayJournals = (journals||[]).filter(j => (j.journal_date||"").startsWith(date));
+
+      // Sổ quỹ tiền mặt CA (chỉ cash)
+      const cashIn  = dayJournals.filter(j => j.entry_type==="receipt" && (j.payment_method==="cash"||j.payment_method==="Tiền mặt")).reduce((s,j)=>s+(j.amount||0),0);
+      const cashOut = dayJournals.filter(j => j.entry_type==="payment" && (j.payment_method==="cash"||j.payment_method==="Tiền mặt")).reduce((s,j)=>s+(j.amount||0),0);
+
+      // Phân loại journal theo nguồn + HTTT
+      const repairJournals = dayJournals.filter(j => j.ref_type==="repair_order");
+      const saleJournals   = dayJournals.filter(j => j.ref_type==="sale_order");
 
       const isCash = m => !m || m==="cash" || m==="Tiền mặt";
       const isBank = m => m==="transfer" || m==="Chuyển khoản" || m==="bank_transfer";
-      const repairCash = doneRepairs.filter(o=>isCash(o.payment_method)).reduce((s,o)=>s+(o.final_cost||0),0);
-      const repairBank = doneRepairs.filter(o=>isBank(o.payment_method)).reduce((s,o)=>s+(o.final_cost||0),0);
-      const saleCash   = paidSales.filter(o=>isCash(o.payment_method)).reduce((s,o)=>s+(o.total||0),0);
-      const saleBank   = paidSales.filter(o=>isBank(o.payment_method)).reduce((s,o)=>s+(o.total||0),0);
-      const totalRev   = doneRepairs.reduce((s,o)=>s+(o.final_cost||0),0) + paidSales.reduce((s,o)=>s+(o.total||0),0);
-      const totalExp   = dayExp.reduce((s,e)=>s+(e.amount||0),0);
+
+      const repairCash = repairJournals.filter(j=>isCash(j.payment_method)).reduce((s,j)=>s+(j.amount||0),0);
+      const repairBank = repairJournals.filter(j=>isBank(j.payment_method)).reduce((s,j)=>s+(j.amount||0),0);
+      const saleCash   = saleJournals.filter(j=>isCash(j.payment_method)).reduce((s,j)=>s+(j.amount||0),0);
+      const saleBank   = saleJournals.filter(j=>isBank(j.payment_method)).reduce((s,j)=>s+(j.amount||0),0);
+      const repairRev  = repairCash + repairBank;
+      const saleRev    = saleCash + saleBank;
+      const totalRev   = repairRev + saleRev;
+
+      // Chi phí trong ngày
+      const start = new Date(date); start.setHours(0,0,0,0);
+      const end   = new Date(date); end.setHours(23,59,59,999);
+      const inDay = d => d && new Date(d) >= start && new Date(d) <= end;
+      const dayExp = (exps||[]).filter(e => inDay(e.expense_date||e.created_date||e.created));
+      const totalExp = dayExp.reduce((s,e)=>s+(e.amount||0),0);
+
+      // Danh sách đơn để hiển thị (dùng ref_id từ journal để map)
+      const repairIds = new Set(repairJournals.map(j=>j.ref_id).filter(Boolean));
+      const saleIds   = new Set(saleJournals.map(j=>j.ref_id).filter(Boolean));
+      const doneRepairs = (repairs||[]).filter(o => repairIds.has(o.id));
+      const paidSales   = (sales||[]).filter(o => saleIds.has(o.id));
 
       setData({ doneRepairs, paidSales, dayExp,
-        repairRev: doneRepairs.reduce((s,o)=>s+(o.final_cost||0),0),
-        saleRev:   paidSales.reduce((s,o)=>s+(o.total||0),0),
-        totalRev, totalExp, profit: totalRev-totalExp,
-        totalCash: repairCash+saleCash, totalBank: repairBank+saleBank,
+        repairRev, saleRev, totalRev, totalExp,
+        profit: totalRev - totalExp,
+        totalCash: repairCash + saleCash,
+        totalBank: repairBank + saleBank,
         repairCash, repairBank, saleCash, saleBank,
         deposits: doneRepairs.reduce((s,o)=>s+(o.deposit||0),0),
-        cashIn, cashOut, cashNet: cashIn-cashOut,
+        cashIn, cashOut, cashNet: cashIn - cashOut,
       });
-    } catch(e){ alert("Lỗi: "+e.message); }
+    } catch(e){ alert("Lỗi tải đối soát: "+e.message); }
     setLoading(false);
   }
 
