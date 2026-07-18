@@ -32,8 +32,14 @@ export default function CashierConfirmPage({ user }) {
   async function loadOrders(){
     setLoading(true);
     try{
-      const all=await SaleOrder.list({limit:200,sort:"-id"});
+      const [all, journals] = await Promise.all([
+        SaleOrder.list({limit:200,sort:"-id"}),
+        CashJournal.list({limit:500,sort:"-id",filter:`(journal_date="${getLocalDate()}")&&(ref_type="sale_order")`}),
+      ]);
       setOrders(all||[]);
+      // Lưu tập ref_id đã thu hôm nay theo journal (chính xác hơn dùng created_date)
+      const todayPaidIds = new Set((journals||[]).map(j=>j.ref_id).filter(Boolean));
+      setTodayPaidIds(todayPaidIds);
     }catch(e){console.warn("load orders:",e.message);}
     setLoading(false);
   }
@@ -48,11 +54,8 @@ export default function CashierConfirmPage({ user }) {
 
   const today=getLocalDate();
   const pending  =orders.filter(o=>o.status==="pending_payment");
-  const doneToday = orders.filter(o => {
-    if (o.status !== "completed") return false;
-    const dateVal = o.updated || o.updated_date || o.created || o.created_date || "";
-    return dateVal.slice(0, 10) === today;
-  });
+  // Dùng journal entries làm nguồn truth — chính xác hơn created_date (đơn cũ có thể thiếu field này)
+  const doneToday = orders.filter(o => o.status === "completed" && todayPaidIds.has(o.id));
 
   function openConfirm(order){
     setConfirming(order);
