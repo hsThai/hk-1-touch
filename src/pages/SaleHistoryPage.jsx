@@ -340,7 +340,7 @@ export default function SaleHistoryPage({ user }) {
     const sel = { height:38, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 10px",
       fontSize:13, outline:"none", background:"#fff", width:"100%" };
     const dateInput = { height:38, borderRadius:10, border:"1.5px solid #e5e7eb",
-      padding:"0 10px", fontSize:13, outline:"none", background:"#fff", width:"100%" };
+      padding:"0 8px", fontSize:12, outline:"none", background:"#fff", width:"100%", boxSizing:"border-box", minWidth:0 };
     return (
       <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:14 }}>
         {/* Hàng 1: Search full width */}
@@ -373,17 +373,17 @@ export default function SaleHistoryPage({ user }) {
             <option value="credit">Ghi nợ</option>
           </select>
         </div>
-        {/* Hàng 3: Từ ngày + Đến ngày */}
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
-          <div>
+        {/* Hàng 3: Từ ngày + Đến ngày — 2 hàng riêng trên mobile */}
+        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+          <div style={{ flex:1 }}>
             <div style={{ fontSize:11, color:"#9ca3af", marginBottom:3, paddingLeft:2 }}>Từ ngày</div>
             <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)}
-              style={{ ...dateInput, appearance:"none", WebkitAppearance:"none" }} />
+              style={{ ...dateInput, width:"100%", boxSizing:"border-box", appearance:"none", WebkitAppearance:"none" }} />
           </div>
-          <div>
+          <div style={{ flex:1 }}>
             <div style={{ fontSize:11, color:"#9ca3af", marginBottom:3, paddingLeft:2 }}>Đến ngày</div>
             <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)}
-              style={{ ...dateInput, appearance:"none", WebkitAppearance:"none" }} />
+              style={{ ...dateInput, width:"100%", boxSizing:"border-box", appearance:"none", WebkitAppearance:"none" }} />
           </div>
         </div>
         {/* Hàng 4: Nút reload */}
