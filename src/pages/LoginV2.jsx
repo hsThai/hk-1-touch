@@ -167,7 +167,7 @@ function useBreakpoint() {
   return bp;
 }
 
-const SPLASH = "https://base44.app/api/apps/69bf5d0a924e0a8766577274/files/mp/public/69bf5d0a924e0a8766577274/cd197582b_robot_splash.webp";
+const SPLASH = "/logo.png";
 // Preload ảnh ngay khi JS parse (không chờ render)
 (function() { const img = new window.Image(); img.src = SPLASH; })();
 const APP_ICON = "/logo.png";
