@@ -5,7 +5,7 @@ import { SaleOrder, SaleOrderItem, CashJournal, DebtVoucher } from "./pb.jsx";
 import { printSaleReceiptA5 } from "../utils/printClient.js";
 
 const PM_COLORS = { cash:"#059669", transfer:"#0369a1", combined:"#7c3aed", credit:"#dc2626" };
-const PM_LABELS = { cash:"💵 Tiền mặt", transfer:"🏦 Chuyển khoản", combined:"🔀 Kết hợp", credit:"💳 Bán chịu" };
+const PM_LABELS = { cash:"💵 Tiền mặt", transfer:"🏦 Chuyển khoản", combined:"🔀 Kết hợp", credit:"💳 Ghi nợ" };
 
 function fmtMoney(n){ return (n||0).toLocaleString("vi-VN")+"đ"; }
 function fmtTime(s){

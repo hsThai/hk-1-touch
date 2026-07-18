@@ -11,12 +11,12 @@ function fmtDateTime(iso) {
     +" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
 }
 
-const PM_LABELS = { cash:"Tiền mặt", transfer:"Chuyển khoản", combo:"Kết hợp", credit:"Bán chịu" };
+const PM_LABELS = { cash:"Tiền mặt", transfer:"Chuyển khoản", combo:"Kết hợp", credit:"Ghi nợ" };
 const PM_COLORS = { cash:"#059669", transfer:"#2563eb", combo:"#7c3aed", credit:"#dc2626" };
 
 function statusBadge(status) {
   if (status === "completed")        return { label:"Hoàn thành",    bg:"#dcfce7", color:"#059669" };
-  if (status === "credit")           return { label:"Bán chịu",      bg:"#fee2e2", color:"#dc2626" };
+  if (status === "credit")           return { label:"Ghi nợ",      bg:"#fee2e2", color:"#dc2626" };
   if (status === "pending_payment")  return { label:"Chờ thu tiền",  bg:"#fef9c3", color:"#ca8a04" };
   if (status === "draft")            return { label:"Báo giá / Tạm", bg:"#eff6ff", color:"#3b82f6" };
   if (status === "cancelled")        return { label:"Đã hủy",        bg:"#f3f4f6", color:"#9ca3af" };
@@ -351,7 +351,7 @@ export default function SaleHistoryPage({ user }) {
           <option value="cash">Tiền mặt</option>
           <option value="transfer">Chuyển khoản</option>
           <option value="combo">Kết hợp</option>
-          <option value="credit">Bán chịu</option>
+          <option value="credit">Ghi nợ</option>
         </select>
         <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)}
           style={{ height:40, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px",
@@ -361,7 +361,7 @@ export default function SaleHistoryPage({ user }) {
           <option value="pending_payment">Chờ thu tiền</option>
           <option value="draft">Báo giá / Tạm</option>
           <option value="cancelled">Đã hủy</option>
-          <option value="credit">Bán chịu</option>
+          <option value="credit">Ghi nợ</option>
         </select>
         <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)}
           style={{ height:40, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px",

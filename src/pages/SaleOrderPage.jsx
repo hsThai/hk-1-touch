@@ -26,7 +26,7 @@ function fmtDateTime(dateStr) {
   return String(d.getDate()).padStart(2,"0") + "/" + String(d.getMonth()+1).padStart(2,"0") + "/" + d.getFullYear() + " " + fmtTime(dateStr);
 }
 
-const PM_LABELS = { cash:"Tiền mặt", transfer:"Chuyển khoản", combo:"Kết hợp", credit:"Bán chịu" };
+const PM_LABELS = { cash:"Tiền mặt", transfer:"Chuyển khoản", combo:"Kết hợp", credit:"Ghi nợ" };
 const PM_COLORS = { cash:"#059669", transfer:"#2563eb", combo:"#7c3aed", credit:"#dc2626" };
 
 const INP = { width:"100%", height:44, borderRadius:12, border:"1.5px solid #e5e7eb", padding:"0 14px", fontSize:14, outline:"none", boxSizing:"border-box", transition:"border-color .15s, box-shadow .15s" };
@@ -409,7 +409,7 @@ export default function SaleOrderPage({ user }) {
               <span style={{ fontWeight:700 }}>
                 {lastOrder.payment_method === "cash" ? "💵 Tiền mặt"
                   : lastOrder.payment_method === "transfer" ? "🏦 Chuyển khoản"
-                  : lastOrder.payment_method === "credit" ? "💳 Bán chịu"
+                  : lastOrder.payment_method === "credit" ? "💳 Ghi nợ"
                   : lastOrder.payment_method}
               </span>
             </div>
