@@ -438,29 +438,38 @@ export default function DebtPage({ user }) {
     return () => window.removeEventListener("resize", fn);
   }, []);  const [tab, setTab] = useState("receivable");
   const TABS = [
-    { key:"receivable", label:"💰 Phải thu" },
-    { key:"payable",    label:"💸 Phải trả" },
-    { key:"overdue",    label:"🔴 Quá hạn" },
+    { key:"receivable", icon:"south_west", label:"Phải thu" },
+    { key:"payable",    icon:"north_east", label:"Phải trả" },
+    { key:"overdue",    icon:"warning",    label:"Quá hạn" },
   ];
   return (
     <div style={{ padding: isPC ? "24px 32px 40px" : "16px 14px 80px", maxWidth:1100, margin:"0 auto" }}>
-      <div style={{ fontWeight:900, fontSize:18, color:"#1e1b4b", marginBottom:16 }}>📒 Quản lý công nợ</div>
+      <div style={{ fontWeight:900, fontSize:18, color:"#1e1b4b", marginBottom:16 }}>Quản lý công nợ</div>
 
-      {/* Tabs */}
-      <div style={{ display:"flex", background:"#f1f5f9", borderRadius:12, padding:4, marginBottom:16 }}>
-        {TABS.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            style={{ flex:1, height:40, borderRadius:10, border:"none",
-              background:tab===t.key?"#fff":"transparent",
-              color:tab===t.key?"#4f46e5":"#6b7280",
-              fontWeight:tab===t.key?800:600, fontSize:13, cursor:"pointer",
-              boxShadow:tab===t.key?"0 1px 4px rgba(0,0,0,.1)":"none",
-              transition:"all .15s",
-            }}>
-            {t.label}
-          </button>
-        ))}
+      {/* Windows-style tabs */}
+      <div style={{ display:"flex", background:"#eef2ff", padding:"8px 8px 0", gap:4, marginBottom:16 }}>
+        {TABS.map(t => {
+          const active = tab === t.key;
+          return (
+            <button key={t.key} onClick={() => setTab(t.key)}
+              style={{
+                flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2,
+                padding:"7px 4px 8px", cursor:"pointer",
+                border: active ? "1.5px solid #c7d2fe" : "1.5px solid transparent",
+                borderBottom: active ? "2px solid #fff" : "1.5px solid #c7d2fe",
+                borderRadius:"10px 10px 0 0",
+                background: active ? "#fff" : "transparent",
+                color: active ? "#4f46e5" : "#6b7280",
+                fontWeight: active ? 800 : 500, fontSize:11, lineHeight:1.2,
+                marginBottom: active ? "-1px" : 0, zIndex: active ? 2 : 1, position:"relative",
+              }}>
+              <span className="material-icons" style={{fontSize:20,lineHeight:1,fontFamily:"Material Icons",color:active?"#4f46e5":"#9ca3af"}}>{t.icon}</span>
+              <span style={{whiteSpace:"nowrap",fontSize:11}}>{t.label}</span>
+            </button>
+          );
+        })}
       </div>
+      <div style={{height:1,background:"#c7d2fe",marginBottom:16}} />
 
       {tab !== "overdue" && <TabContent key={tab} vtype={tab} user={user} />}
       {tab === "overdue" && <OverdueTab user={user} />}

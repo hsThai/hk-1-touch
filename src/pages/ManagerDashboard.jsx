@@ -915,20 +915,25 @@ function InventoryTab({ spareParts, stockImports, ledgerSummary=[] }) {
 // ══════════════════════════════════════════════════════════════
 function PillTabs({ tabs, active, onChange }) {
   return (
-    <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap" }}>
-      {tabs.map(t => (
-        <button key={t.key} onClick={() => onChange(t.key)}
-          style={{
-            padding:"7px 18px", borderRadius:99, border:"none", cursor:"pointer",
-            background: active===t.key ? "#4f46e5" : "#f3f4f6",
-            color:       active===t.key ? "#fff"    : "#374151",
-            fontWeight:  active===t.key ? 700       : 500,
-            fontSize:    13,
-            transition:  "all .15s",
-          }}>
-          {t.label}
-        </button>
-      ))}
+    <div style={{ display:"flex", gap:0, marginBottom:20, borderBottom:"2px solid #f1f5f9" }}>
+      {tabs.map(t => {
+        const isActive = active === t.key;
+        return (
+          <button key={t.key} onClick={() => onChange(t.key)}
+            style={{
+              flex:1, padding:"8px 4px", border:"none", cursor:"pointer",
+              background:"none", fontWeight: isActive ? 800 : 600,
+              color: isActive ? "#4f46e5" : "#6b7280", fontSize:12,
+              borderBottom: isActive ? "3px solid #4f46e5" : "3px solid transparent",
+              marginBottom:-2, display:"flex", flexDirection:"column", alignItems:"center", gap:3,
+            }}>
+            {t.icon && (
+              <span className="material-icons" style={{fontSize:18,lineHeight:1,fontFamily:"Material Icons",color:isActive?"#4f46e5":"#9ca3af"}}>{t.icon}</span>
+            )}
+            <span style={{whiteSpace:"nowrap"}}>{t.label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -1216,9 +1221,9 @@ function CashflowSubTab({ repairOrders, expenses, saleOrders }) {
 function BusinessTab({ repairOrders, saleOrders, expenses, cashJournals=[] }) {
   const [sub, setSub] = useState("revenue");
   const SUB_TABS = [
-    { key:"revenue",  label:"📈 Doanh thu" },
-    { key:"debt",     label:"📋 Công nợ" },
-    { key:"cashflow", label:"💵 Sổ quỹ" },
+    { key:"revenue",  icon:"trending_up",     label:"Doanh thu" },
+    { key:"debt",     icon:"receipt_long",    label:"Công nợ" },
+    { key:"cashflow", icon:"account_balance_wallet", label:"Sổ quỹ" },
   ];
   return (
     <div style={{ padding:"16px 14px 40px" }}>
@@ -1407,10 +1412,10 @@ function ExportSubTab({ sparePartUsages, onApprove }) {
 function InventoryWrapTab({ spareParts, stockImports, ledgerSummary, sparePartUsages, onApproveUsage }) {
   const [sub, setSub] = useState("stock");
   const SUB_TABS = [
-    { key:"stock",      label:"📦 Tồn kho"         },
-    { key:"import",     label:"📥 Nhập kho"         },
-    { key:"export",     label:"📤 Xuất kho"         },
-    { key:"count_hist", label:"📋 Lịch sử kiểm kê"  },
+    { key:"stock",      icon:"inventory_2",  label:"Tồn kho" },
+    { key:"import",     icon:"move_to_inbox", label:"Nhập kho" },
+    { key:"export",     icon:"outbox",        label:"Xuất kho" },
+    { key:"count_hist", icon:"fact_check",    label:"Kiểm kê" },
   ];
   return (
     <div style={{ padding:"16px 14px 40px" }}>
@@ -1610,10 +1615,10 @@ const NAV_TABS = [
 function ReportsTab({ user, repairOrders, saleOrders, spareParts, ledgerSummary, staff=[] }) {
   const [sub, setSub] = React.useState("revenue");
   const SUB_TABS = [
-    { key:"revenue", label:"📈 Doanh thu"     },
-    { key:"nxt",     label:"📦 Nhập-Xuất-Tồn" },
-    { key:"profit",  label:"💹 Lợi nhuận"     },
-    { key:"ktv",     label:"📊 Hiệu suất Nhân viên" },
+    { key:"revenue", icon:"trending_up",  label:"Doanh thu" },
+    { key:"nxt",     icon:"swap_horiz",   label:"Nhập-Xuất-Tồn" },
+    { key:"profit",  icon:"monitoring",   label:"Lợi nhuận" },
+    { key:"ktv",     icon:"bar_chart",    label:"Hiệu suất NV" },
   ];
   return (
     <div style={{ padding:"16px 14px 40px" }}>
@@ -1752,29 +1757,30 @@ export default function ManagerDashboard({ user, initialTab = "overview", onTabC
         </div>
         <div style={{ fontSize:12, color:"#9ca3af", marginTop:2, marginBottom:12 }}>{todayStr()}</div>
 
-        {/* Pill tabs */}
-        <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-          {NAV_TABS.map(n => (
-            <button key={n.key} onClick={() => handleTabChange(n.key)}
-              style={{
-                padding: bp==="pc" ? "7px 18px" : "6px 13px",
-                borderRadius:99, border:"none", cursor:"pointer",
-                background: tab===n.key ? "#4f46e5" : "#f3f4f6",
-                color:      tab===n.key ? "#fff"    : "#374151",
-                fontWeight: tab===n.key ? 700       : 500,
-                fontSize: bp==="pc" ? 13 : 12,
-                display:"flex", alignItems:"center", gap:5,
-                transition:"all .15s",
-                marginBottom:8,
-              }}>
-              <span className="material-icons"
-                style={{fontFamily:"Material Icons",fontSize: bp==="pc" ? 16 : 14,lineHeight:1}}>
-                {n.icon}
-              </span>
-              {n.label}
-            </button>
-          ))}
+        {/* Windows-style tabs */}
+        <div style={{ display:"flex", background:"#eef2ff", padding:"8px 8px 0", gap:4 }}>
+          {NAV_TABS.map(n => {
+            const active = tab === n.key;
+            return (
+              <button key={n.key} onClick={() => handleTabChange(n.key)}
+                style={{
+                  flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2,
+                  padding:"7px 2px 8px", cursor:"pointer",
+                  border: active ? "1.5px solid #c7d2fe" : "1.5px solid transparent",
+                  borderBottom: active ? "2px solid #fff" : "1.5px solid #c7d2fe",
+                  borderRadius:"10px 10px 0 0",
+                  background: active ? "#fff" : "transparent",
+                  color: active ? "#4f46e5" : "#6b7280",
+                  fontWeight: active ? 800 : 500, fontSize:11, lineHeight:1.2,
+                  marginBottom: active ? "-1px" : 0, zIndex: active ? 2 : 1, position:"relative",
+                }}>
+                <span className="material-icons" style={{fontSize:20,lineHeight:1,fontFamily:"Material Icons",color:active?"#4f46e5":"#9ca3af"}}>{n.icon}</span>
+                <span style={{whiteSpace:"nowrap",fontSize:11}}>{n.label}</span>
+              </button>
+            );
+          })}
         </div>
+        <div style={{height:1,background:"#c7d2fe"}} />
       </div>
 
       {/* Content */}

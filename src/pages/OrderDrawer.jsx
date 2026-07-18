@@ -771,12 +771,13 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
         </div>
         {/* Tabs */}
         <div style={{ display:"flex", borderBottom:"1px solid #e5e7eb" }}>
-          {[["info","Thông tin"],...(!isReception && (["manager","admin","owner","supervisor"].includes(currentUser.role)||isMyOrder)?[["parts","Linh kiện"]]:[]),["exports","Phiếu xuất"],["chat","Chat"]].map(([t,lbl]) => (
+          {[["info","description","Thông tin"],...(!isReception && (["manager","admin","owner","supervisor"].includes(currentUser.role)||isMyOrder)?[["parts","build","Linh kiện"]]:[]),["exports","outbox","Phiếu xuất"],["chat","forum","Chat"]].map(([t,icon,lbl]) => (
             <button key={t} onClick={() => setTab(t)}
-              style={{ flex:1, padding:"11px", border:"none", background:"none", fontWeight:700, fontSize:13, cursor:"pointer", borderBottom:tab===t?"3px solid #4f46e5":"3px solid transparent", color:tab===t?"#4f46e5":"#6b7280", position:"relative" }}>
-              {lbl}
+              style={{ flex:1, padding:"8px 4px", border:"none", background:"none", fontWeight:700, fontSize:12, cursor:"pointer", borderBottom:tab===t?"3px solid #4f46e5":"3px solid transparent", color:tab===t?"#4f46e5":"#6b7280", position:"relative", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
+              <span className="material-icons" style={{fontSize:18,lineHeight:1,fontFamily:"Material Icons",color:tab===t?"#4f46e5":"#9ca3af"}}>{icon}</span>
+              <span style={{whiteSpace:"nowrap"}}>{lbl}</span>
               {t==="chat" && chats.length > 0 && (
-                <span style={{ position:"absolute", top:6, right:"calc(50% - 22px)", background:"#4f46e5", color:"#fff", borderRadius:10, fontSize:10, fontWeight:800, padding:"1px 5px", minWidth:16, lineHeight:"14px" }}>
+                <span style={{ position:"absolute", top:4, right:"calc(50% - 22px)", background:"#4f46e5", color:"#fff", borderRadius:10, fontSize:10, fontWeight:800, padding:"1px 5px", minWidth:16, lineHeight:"14px" }}>
                   {chats.length}
                 </span>
               )}

@@ -325,10 +325,11 @@ function OrderDrawer({ order, staff, onClose, onUpdate, onRefresh, allStaff }) {
           )}
 
           <div style={{ display:"flex", borderBottom:"2px solid #f1f5f9" }}>
-            {[{k:"info",l:"📋 Thông tin"},{k:"chat",l:"💬 Chat"}].map(t => (
+            {[{k:"info",icon:"description",l:"Thông tin"},{k:"chat",icon:"forum",l:"Chat"}].map(t => (
               <button key={t.k} onClick={() => setTab(t.k)}
-                style={{ flex:1, height:40, border:"none", background:"none", fontWeight:tab===t.k?800:600, color:tab===t.k?"#4f46e5":"#6b7280", fontSize:13, cursor:"pointer", borderBottom:tab===t.k?"3px solid #4f46e5":"3px solid transparent", marginBottom:-2 }}>
-                {t.l}
+                style={{ flex:1, padding:"8px 4px", border:"none", background:"none", fontWeight:tab===t.k?800:600, color:tab===t.k?"#4f46e5":"#6b7280", fontSize:12, cursor:"pointer", borderBottom:tab===t.k?"3px solid #4f46e5":"3px solid transparent", marginBottom:-2, display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
+                <span className="material-icons" style={{fontSize:18,lineHeight:1,fontFamily:"Material Icons",color:tab===t.k?"#4f46e5":"#9ca3af"}}>{t.icon}</span>
+                <span style={{whiteSpace:"nowrap"}}>{t.l}</span>
               </button>
             ))}
           </div>

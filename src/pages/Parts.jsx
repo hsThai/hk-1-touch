@@ -273,12 +273,13 @@ export default function SparePartModal({ order, currentStaff, onClose, onDone })
           {/* Tabs */}
           <div style={{ display:"flex", gap:0, marginTop:14, borderBottom:"2px solid #e5e7eb" }}>
             {[
-              { key:"list", label:`📦 Danh sách LK` },
-              { key:"used", label:`🔧 Đã dùng (${activeUsages.length})` },
+              { key:"list", icon:"inventory_2", label:`Danh sách LK` },
+              { key:"used", icon:"build",       label:`Đã dùng (${activeUsages.length})` },
             ].map(t => (
               <button key={t.key} onClick={() => setTab(t.key)}
-                style={{ flex:1, height:40, border:"none", background:"none", fontWeight: tab===t.key?800:600, color: tab===t.key?"#4f46e5":"#6b7280", fontSize:13, cursor:"pointer", borderBottom: tab===t.key?"3px solid #4f46e5":"3px solid transparent", marginBottom:-2 }}>
-                {t.label}
+                style={{ flex:1, padding:"8px 4px", border:"none", background:"none", fontWeight: tab===t.key?800:600, color: tab===t.key?"#4f46e5":"#6b7280", fontSize:12, cursor:"pointer", borderBottom: tab===t.key?"3px solid #4f46e5":"3px solid transparent", marginBottom:-2, display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
+                <span className="material-icons" style={{fontSize:18,lineHeight:1,fontFamily:"Material Icons",color:tab===t.key?"#4f46e5":"#9ca3af"}}>{t.icon}</span>
+                <span style={{whiteSpace:"nowrap"}}>{t.label}</span>
               </button>
             ))}
           </div>

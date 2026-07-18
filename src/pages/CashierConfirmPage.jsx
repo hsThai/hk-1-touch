@@ -97,26 +97,40 @@ export default function CashierConfirmPage({ user }) {
 
   const list=tab==="pending"?pending:doneToday;
 
-  function renderTabBtn(key,label){
-    const active=tab===key;
-    return(
-      <button key={key} onClick={()=>setTab(key)} style={{
-        padding:"7px 16px",borderRadius:20,border:"none",cursor:"pointer",
-        background:active?"#059669":"#fff",color:active?"#fff":"#374151",
-        fontWeight:active?800:600,fontSize:13,
-        boxShadow:active?"0 2px 8px rgba(5,150,105,.25)":"0 1px 3px rgba(0,0,0,.08)",
-      }}>{label}</button>
-    );
-  }
+  const CONFIRM_TABS = [
+    { key:"pending", icon:"pending_actions", label:`Chờ xác nhận (${pending.length})` },
+    { key:"done",    icon:"check_circle",     label:`Đã thu hôm nay (${doneToday.length})` },
+  ];
 
   return (
     <div style={{paddingBottom:20}}>
-      {/* Pill tabs */}
-      <div style={{display:"flex",gap:8,padding:"12px 16px",background:"#f0fdf4",borderBottom:"1.5px solid #d1fae5",flexWrap:"wrap",alignItems:"center"}}>
-        {renderTabBtn("pending",`⏳ Chờ xác nhận (${pending.length})`)}
-        {renderTabBtn("done",`✅ Đã thu hôm nay (${doneToday.length})`)}
-        <button onClick={loadOrders} style={{marginLeft:"auto",background:"none",border:"1.5px solid #d1d5db",borderRadius:20,padding:"6px 14px",fontSize:12,fontWeight:700,color:"#6b7280",cursor:"pointer"}}>
-          🔄 Làm mới
+      {/* Windows-style tabs */}
+      <div style={{display:"flex",background:"#f0fdf4",padding:"8px 8px 0",gap:4}}>
+        {CONFIRM_TABS.map(t => {
+          const active = tab === t.key;
+          return (
+            <button key={t.key} onClick={()=>setTab(t.key)} style={{
+              flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2,
+              padding:"7px 4px 8px", cursor:"pointer",
+              border: active ? "1.5px solid #d1fae5" : "1.5px solid transparent",
+              borderBottom: active ? "2px solid #fff" : "1.5px solid #d1fae5",
+              borderRadius:"10px 10px 0 0",
+              background: active ? "#fff" : "transparent",
+              color: active ? "#059669" : "#6b7280",
+              fontWeight: active ? 800 : 500, fontSize:11, lineHeight:1.2,
+              marginBottom: active ? "-1px" : 0, zIndex: active ? 2 : 1, position:"relative",
+            }}>
+              <span className="material-icons" style={{fontSize:20,lineHeight:1,fontFamily:"Material Icons",color:active?"#059669":"#9ca3af"}}>{t.icon}</span>
+              <span style={{whiteSpace:"nowrap",fontSize:11}}>{t.label}</span>
+            </button>
+          );
+        })}
+      </div>
+      <div style={{height:1,background:"#d1fae5",position:"relative",zIndex:1}} />
+      {/* Toolbar */}
+      <div style={{display:"flex",justifyContent:"flex-end",padding:"8px 16px"}}>
+        <button onClick={loadOrders} style={{background:"none",border:"1.5px solid #d1d5db",borderRadius:20,padding:"6px 14px",fontSize:12,fontWeight:700,color:"#6b7280",cursor:"pointer"}}>
+          <span className="material-icons" style={{fontSize:13,verticalAlign:"-2px",marginRight:3}}>refresh</span>Làm mới
         </button>
       </div>
 

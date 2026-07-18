@@ -925,10 +925,11 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
         </div>
         {/* Tabs */}
         <div style={{ display:"flex", borderBottom:"1px solid #e5e7eb" }}>
-          {[["info","📄 Thông tin"],["parts","🔩 Linh kiện"],["chat",`💬 Chat(${chats.length})`],["qr","📱 QR"]].map(([t,lbl]) => (
+          {[["info","description","Thông tin"],["parts","build","Linh kiện"],["chat","forum",`Chat (${chats.length})`],["qr","qr_code","QR"]].map(([t,icon,lbl]) => (
             <button key={t} onClick={() => setTab(t)}
-              style={{ flex:1, padding:"11px", border:"none", background:"none", fontWeight:700, fontSize:13, cursor:"pointer", borderBottom:tab===t?"3px solid #4f46e5":"3px solid transparent", color:tab===t?"#4f46e5":"#6b7280" }}>
-              {lbl}
+              style={{ flex:1, padding:"8px 4px", border:"none", background:"none", fontWeight:700, fontSize:12, cursor:"pointer", borderBottom:tab===t?"3px solid #4f46e5":"3px solid transparent", color:tab===t?"#4f46e5":"#6b7280", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
+              <span className="material-icons" style={{fontSize:18,lineHeight:1,fontFamily:"Material Icons",color:tab===t?"#4f46e5":"#9ca3af"}}>{icon}</span>
+              <span style={{whiteSpace:"nowrap"}}>{lbl}</span>
             </button>
           ))}
         </div>

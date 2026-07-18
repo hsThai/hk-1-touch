@@ -250,20 +250,33 @@ export default function CashJournalPage({ user }) {
         </button>
       </div>
 
-      {/* Tab pills: Sổ quỹ / Phiếu Thu / Phiếu Chi */}
-      <div style={{ display:"flex", gap:8, marginBottom:16, flexWrap:"wrap" }}>
+      {/* Windows-style tabs */}
+      <div style={{ display:"flex", background:"#eef2ff", padding:"8px 8px 0", gap:4, marginBottom:16 }}>
         {[
-          { key:"all", label:"📒 Sổ quỹ"    },
-          { key:"thu", label:"📥 Phiếu Thu"  },
-          { key:"chi", label:"📤 Phiếu Chi"  },
-        ].map(t => (
-          <button key={t.key} onClick={() => setMainTab(t.key)} style={{
-            padding:"6px 18px", borderRadius:20, border:"none", cursor:"pointer", fontWeight:700, fontSize:13,
-            background: mainTab===t.key ? "#4f46e5" : "#f3f4f6",
-            color:      mainTab===t.key ? "#fff"    : "#374151",
-          }}>{t.label}</button>
-        ))}
+          { key:"all", icon:"account_balance_wallet", label:"Sổ quỹ"   },
+          { key:"thu", icon:"south_west",              label:"Phiếu Thu" },
+          { key:"chi", icon:"north_east",              label:"Phiếu Chi" },
+        ].map(t => {
+          const active = mainTab === t.key;
+          return (
+            <button key={t.key} onClick={() => setMainTab(t.key)} style={{
+              flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2,
+              padding:"7px 4px 8px", cursor:"pointer",
+              border: active ? "1.5px solid #c7d2fe" : "1.5px solid transparent",
+              borderBottom: active ? "2px solid #fff" : "1.5px solid #c7d2fe",
+              borderRadius:"10px 10px 0 0",
+              background: active ? "#fff" : "transparent",
+              color: active ? "#4f46e5" : "#6b7280",
+              fontWeight: active ? 800 : 500, fontSize:11, lineHeight:1.2,
+              marginBottom: active ? "-1px" : 0, zIndex: active ? 2 : 1, position:"relative",
+            }}>
+              <span className="material-icons" style={{fontSize:20,lineHeight:1,fontFamily:"Material Icons",color:active?"#4f46e5":"#9ca3af"}}>{t.icon}</span>
+              <span style={{whiteSpace:"nowrap",fontSize:11}}>{t.label}</span>
+            </button>
+          );
+        })}
       </div>
+      <div style={{height:1,background:"#c7d2fe",marginBottom:16}} />
 
       {/* Tổng kết riêng cho tab Thu/Chi */}
       {mainTab !== "all" && (
