@@ -1998,7 +1998,7 @@ function MainAppContent({ onUserChange }) {
           })()}
           <div style={{ flex:1, overflowY:"auto" }}>
             <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
-              {page==="my_tasks" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><MyTasksPage user={user} orders={orders} setPage={setPage} onNewOrder={()=>setShowNewOrder(true)} onOpenCashier={()=>{setCashierTab("");setPage("cashier_home")}} /></Suspense>}
+              {page==="my_tasks" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><MyTasksPage user={user} orders={orders} setPage={setPage} onNewOrder={()=>setShowNewOrder(true)} onOpenCashier={(tab)=>{setCashierTab(tab||"");setPage("cashier_home");}} /></Suspense>}
               {page==="ktv_home" && <TechnicianHome user={user} orders={orders} setPage={setPage} />}
               {page==="rec_home" && <ReceptionHome user={user} orders={orders} setPage={setPage} />}
               {page==="board" && <KanbanBoard />}
@@ -2238,7 +2238,7 @@ function MainAppContent({ onUserChange }) {
       {/* Main content */}
       <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
         <div style={{ paddingBottom:72 }}>
-        {page==="my_tasks" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><MyTasksPage user={user} orders={orders} setPage={setPage} onNewOrder={()=>setShowNewOrder(true)} onOpenCashier={()=>{setCashierTab("");setPage("cashier_home")}} /></Suspense>}
+        {page==="my_tasks" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><MyTasksPage user={user} orders={orders} setPage={setPage} onNewOrder={()=>setShowNewOrder(true)} onOpenCashier={(tab)=>{setCashierTab(tab||"");setPage("cashier_home");}} /></Suspense>}
         {page==="ktv_home" && <TechnicianHome user={user} orders={orders} setPage={setPage} />}
         {page==="rec_home" && <ReceptionHome user={user} orders={orders} setPage={setPage} />}
         {page==="board" && <KanbanBoard />}

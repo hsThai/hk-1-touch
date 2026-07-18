@@ -207,7 +207,7 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
         icon: "pending_actions", title: `Đơn ${o.order_code || ""}`,
         subtitle: `${o.customer_name || "Khách lẻ"} · ${(o.total || 0).toLocaleString("vi-VN")}đ`,
         badge: "Chờ thu", badgeColor: "#dc2626", urgency: "urgent",
-        onClick: () => onOpenCashier ? onOpenCashier() : setPage("cashier_home"),
+        onClick: () => onOpenCashier ? onOpenCashier("confirm") : setPage("cashier_home"),
       }));
       if (pending.length === 0) {
         result.waiting.push({
@@ -304,8 +304,9 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
       const dangSua = orders.filter(o => o.status === "Đang Sửa");
 
       slaBreaches.forEach(o => result.urgent.push({
-        icon: "dangerous", title: `SLA vượt quá ${o.order_code || ""}`,
-        subtitle: `${o.device_name || ""} · ${o.customer_name || ""} · ${fmtTime(o.received_date)}`,
+        icon: "dangerous",
+        title: `⚠️ Quá hạn SLA: ${o.order_code || ""}`,
+        subtitle: `${o.device_name || ""} · ${o.customer_name || ""} · ${fmtTime(o.received_date)} · (SLA = giới hạn thời gian xử lý đơn ~1300 phút)`,
         badge: "SLA!", badgeColor: "#dc2626", urgency: "urgent",
         onClick: () => setPage("tasks"),
       }));
