@@ -373,20 +373,26 @@ export default function SaleHistoryPage({ user }) {
             <option value="credit">Ghi nợ</option>
           </select>
         </div>
-        {/* Hàng 3: Từ ngày + Đến ngày + Nút reload */}
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto", gap:8, alignItems:"end" }}>
+        {/* Hàng 3: Từ ngày + Đến ngày */}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
           <div>
             <div style={{ fontSize:11, color:"#9ca3af", marginBottom:3, paddingLeft:2 }}>Từ ngày</div>
-            <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} style={dateInput} />
+            <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)}
+              style={{ ...dateInput, appearance:"none", WebkitAppearance:"none" }} />
           </div>
           <div>
             <div style={{ fontSize:11, color:"#9ca3af", marginBottom:3, paddingLeft:2 }}>Đến ngày</div>
-            <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} style={dateInput} />
+            <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)}
+              style={{ ...dateInput, appearance:"none", WebkitAppearance:"none" }} />
           </div>
-          <button onClick={load} style={{ height:38, width:38, borderRadius:10,
+        </div>
+        {/* Hàng 4: Nút reload */}
+        <div style={{ display:"flex", justifyContent:"flex-end" }}>
+          <button onClick={load} style={{ height:36, padding:"0 16px", borderRadius:10,
             border:"1.5px solid #e5e7eb", background:"#fff", cursor:"pointer",
-            display:"flex", alignItems:"center", justifyContent:"center" }}>
-            <span className="material-icons" style={{ fontSize:18, fontFamily:"Material Icons", color:"#6b7280" }}>refresh</span>
+            display:"flex", alignItems:"center", gap:6, fontSize:13, color:"#6b7280" }}>
+            <span className="material-icons" style={{ fontSize:16, fontFamily:"Material Icons" }}>refresh</span>
+            Tải lại
           </button>
         </div>
       </div>
