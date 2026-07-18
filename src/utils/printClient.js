@@ -625,7 +625,10 @@ export async function previewSaleReceipt(saleOrder, shopInfo = {}) {
   ${shopInfo.shop_phone   ? `<div class="sub-shop">ĐT: ${shopInfo.shop_phone}</div>` : ""}
   <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-top:4px">
     <div style="flex:1">
-      <div class="doc-title" style="white-space:nowrap;font-size:13px">─── PHIẾU THANH TOÁN ───</div>
+      <div style="text-align:center;margin:4px 0 0">
+        <div class="doc-title" style="white-space:nowrap;font-size:17px;letter-spacing:2px">PHIẾU THANH TOÁN</div>
+        <div style="margin:3px auto 0;width:50%;border-bottom:1.5px solid #555"></div>
+      </div>
     </div>
     <div style="margin-left:10px;text-align:center;flex-shrink:0">
       <img src="${saleQrUrl}" style="width:62px;height:62px;display:block"/>
