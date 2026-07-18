@@ -504,32 +504,7 @@ export default function SaleOrderPage({ user }) {
       )}
 
 
-      {/* ─── 8. Danh sách đơn hôm nay ─── */}
-      <div style={{ background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", overflow:"hidden" }}>
-        <div style={{ padding:"12px 16px", borderBottom:"1px solid #f3f4f6", fontWeight:800, fontSize:14 }}>
-          📋 Đơn bán hôm nay ({todayOrders.length})
-        </div>
-        {todayOrders.length===0
-          ? <div style={{ textAlign:"center", padding:"24px 0", color:"#9ca3af", fontSize:13 }}>Chưa có đơn bán nào hôm nay</div>
-          : todayOrders.map(o => (
-            <div key={o.id} onClick={()=>setDetailOrder(o)}
-              style={{ padding:"12px 16px", borderBottom:"1px solid #f3f4f6", cursor:"pointer",
-                display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <div>
-                <div style={{ fontWeight:700, fontSize:13 }}>{o.order_code}</div>
-                <div style={{ fontSize:12, color:"#6b7280" }}>{fmtTime(o.created_date||o.created)} · {o.customer_name||"Khách lẻ"}</div>
-              </div>
-              <div style={{ textAlign:"right" }}>
-                <div style={{ fontWeight:800, color:"#059669" }}>{fmtMoney(o.total)}</div>
-                <span style={{ fontSize:11, background:(PM_COLORS[o.payment_method]||"#9ca3af")+"22",
-                  color:PM_COLORS[o.payment_method]||"#9ca3af", borderRadius:99, padding:"2px 8px", fontWeight:700 }}>
-                  {PM_LABELS[o.payment_method]||o.payment_method}
-                </span>
-              </div>
-            </div>
-          ))
-        }
-      </div>
+
 
 
       </div>{/* end cột trái */}
