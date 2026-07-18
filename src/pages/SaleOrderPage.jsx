@@ -148,6 +148,7 @@ export default function SaleOrderPage({ user }) {
   const total    = Math.max(0, subtotal - (discount||0));
 
   async function handleSubmit() {
+    if (!custName.trim()) { showToast("⚠️ Vui lòng nhập tên khách hàng!"); return; }
     if (cart.length===0) { showToast("⚠️ Giỏ hàng trống!"); return; }
     if (!payMethod)       { showToast("⚠️ Chưa chọn hình thức thanh toán!"); return; }
     setSubmitting(true);
@@ -165,7 +166,7 @@ export default function SaleOrderPage({ user }) {
         so = await SaleOrder.create({
           order_code:     orderCode,
           created_date:   new Date().toISOString(),
-          customer_name:  custName || "Khách lẻ",
+          customer_name:  custName.trim(),
           customer_phone: custPhone || "",
           subtotal,
           discount:       discount || 0,
@@ -232,6 +233,7 @@ export default function SaleOrderPage({ user }) {
   }
 
   async function handleSaveDraft() {
+    if (!custName.trim()) { showToast("⚠️ Vui lòng nhập tên khách hàng!"); return; }
     if (cart.length === 0) return;
     setSubmitting(true);
     try {
@@ -245,7 +247,7 @@ export default function SaleOrderPage({ user }) {
       }));
       const draft = await SaleOrder.create({
         order_code:     code,
-        customer_name:  custName  || "Khách lẻ",
+        customer_name:  custName.trim(),
         customer_phone: custPhone || "",
         items:          JSON.stringify(itemsPayload),
         subtotal:       sub,
@@ -261,7 +263,7 @@ export default function SaleOrderPage({ user }) {
       });
       setLastDraft({ ...draft, order_code: code, items: itemsPayload,
         subtotal: sub, discount: disc, total,
-        customer_name: custName || "Khách lẻ", payment_method: payMethod||"" });
+        customer_name: custName.trim(), payment_method: payMethod||"" });
       setCart([]); setCustName(""); setCustPhone(""); setDiscount(0);
       setPayMethod(""); setCashAmt(0); setTransferAmt(0);
       showToast("💾 Đã lưu đơn tạm!");
@@ -521,7 +523,7 @@ export default function SaleOrderPage({ user }) {
 
       {/* ─── 2. Khách hàng — luôn hiển thị ─── */}
       <div style={{ marginBottom:16 }}>
-        <label style={{ fontSize:12, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>Khách hàng (tuỳ chọn)</label>
+        <label style={{ fontSize:12, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>Khách hàng *</label>
         {custName ? (
           <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px",
             background:"#f0fdf4", border:"1.5px solid #86efac", borderRadius:12 }}>
@@ -534,7 +536,7 @@ export default function SaleOrderPage({ user }) {
         ) : (
           <div style={{ position:"relative" }}>
             <input value={custSearch} onChange={e=>setCustSearch(e.target.value)}
-              placeholder="Tên hoặc SĐT khách..." style={INP} />
+              placeholder="Nhập tên khách (bắt buộc)..." style={INP} />
             {custSuggestions.length > 0 && (
               <div style={{ position:"absolute", top:48, left:0, right:0, background:"#fff",
                 border:"1.5px solid #e5e7eb", borderRadius:12, zIndex:50,
