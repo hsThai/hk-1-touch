@@ -19,7 +19,7 @@ import { Staff, pbAuth, getPbUrl, setPbUrl, testConnection } from "./pb.jsx";
 
 // Inject PWA manifest + meta tags động
 (function injectPWA() {
-  const ICON192 = "https://base44.app/api/apps/69bf5d0a924e0a8766577274/files/mp/public/69bf5d0a924e0a8766577274/43c978c50_icon-192.png";
+  const ICON192 = "/logo.png";
   const ICON512 = "https://base44.app/api/apps/69bf5d0a924e0a8766577274/files/mp/public/69bf5d0a924e0a8766577274/80c95949e_icon-512.png";
 
   // Manifest blob
@@ -94,7 +94,7 @@ self.addEventListener("push", e => {
   const d = e.data ? e.data.json() : { title:"HK One Touch", body:"Thông báo mới" };
   e.waitUntil(self.registration.showNotification(d.title || "HK One Touch", {
     body: d.body || "",
-    icon: d.icon || "https://base44.app/api/apps/69bf5d0a924e0a8766577274/files/mp/public/69bf5d0a924e0a8766577274/43c978c50_icon-192.png",
+    icon: d.icon || "/logo.png",
     tag: d.tag || "hkapp",
     renotify: true,
     vibrate: [200, 100, 200]
@@ -147,7 +147,7 @@ function clearCred() {
   try { document.cookie = `${SK}=;max-age=0;path=/`; } catch {}
 }
 
-const LOGO = "https://media.base44.com/images/public/69bf5d0a924e0a8766577274/37193b36d_HKlogo.jpg";
+const LOGO = "/logo.png";
 
 function useBreakpoint() {
   const [bp, setBp] = React.useState(() => {
@@ -170,7 +170,7 @@ function useBreakpoint() {
 const SPLASH = "https://base44.app/api/apps/69bf5d0a924e0a8766577274/files/mp/public/69bf5d0a924e0a8766577274/cd197582b_robot_splash.webp";
 // Preload ảnh ngay khi JS parse (không chờ render)
 (function() { const img = new window.Image(); img.src = SPLASH; })();
-const APP_ICON = "https://base44.app/api/apps/69bf5d0a924e0a8766577274/files/mp/public/69bf5d0a924e0a8766577274/43c978c50_icon-192.png";
+const APP_ICON = "/logo.png";
 
 // ── Web Notification API (thông báo hệ thống HĐH) ───────────
 export async function requestNotifPermission() {
