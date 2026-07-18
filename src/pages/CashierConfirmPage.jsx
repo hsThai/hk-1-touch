@@ -22,6 +22,7 @@ export default function CashierConfirmPage({ user }) {
   const [payMethod,setPayMethod]   = useState("");
   const [loading,setLoading]       = useState(false);
   const [submitting,setSubmitting] = useState(false);
+  const [todayPaidIds,setTodayPaidIds] = useState(new Set());
 
   useEffect(()=>{
     loadOrders();
