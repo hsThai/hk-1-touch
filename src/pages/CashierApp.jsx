@@ -316,35 +316,41 @@ export default function CashierApp({ user, onNotif, onQRScan, notifCount=0, forc
         </div>
       </div>
 
-      {/* Pill tabs — icon + text inline, 1 hàng */}
+      {/* Windows-style tabs — icon trên, chữ dưới, chia đều, dính nội dung */}
       <div style={{
-        background:"#f0fdf4", borderBottom:"1.5px solid #d1fae5",
-        padding:"8px 12px", display:"flex", gap:6, overflowX:"auto",
-        WebkitOverflowScrolling:"touch", scrollbarWidth:"none",
+        display:"flex", background:"#f0fdf4",
+        borderBottom:"none", padding:"8px 8px 0", gap:4,
       }}>
         {NAV_TABS.map(t => {
           const active = tab === t.key;
           return (
             <button key={t.key} onClick={() => setTab(t.key)}
               style={{
-                display:"flex", alignItems:"center", gap:5, whiteSpace:"nowrap",
-                height:36, padding:"0 14px", borderRadius:99, flexShrink:0,
-                border: active ? "none" : "1.5px solid #d1fae5",
-                background: active ? "#059669" : "#fff",
-                color: active ? "#fff" : "#374151",
-                fontWeight: active ? 800 : 600,
-                fontSize:13, cursor:"pointer", transition:"all .15s",
-                boxShadow: active ? "0 2px 8px rgba(5,150,105,.3)" : "none",
+                flex:1, display:"flex", flexDirection:"column",
+                alignItems:"center", justifyContent:"center",
+                gap:2, padding:"7px 4px 8px", cursor:"pointer",
+                border: active ? "1.5px solid #d1fae5" : "1.5px solid transparent",
+                borderBottom: active ? "2px solid #fff" : "1.5px solid #d1fae5",
+                borderRadius:"10px 10px 0 0",
+                background: active ? "#fff" : "transparent",
+                color: active ? "#059669" : "#6b7280",
+                fontWeight: active ? 800 : 500,
+                fontSize:11, lineHeight:1.2,
+                transition:"all .15s",
+                marginBottom: active ? "-1px" : 0,
+                zIndex: active ? 2 : 1, position:"relative",
               }}>
               <span className="material-icons" style={{
-                fontSize:15, lineHeight:1, fontFamily:"Material Icons",
-                color: active ? "#fff" : "#059669",
+                fontSize:20, lineHeight:1, fontFamily:"Material Icons",
+                color: active ? "#059669" : "#9ca3af",
               }}>{t.icon}</span>
-              {t.label}
+              <span style={{ whiteSpace:"nowrap", fontSize:11 }}>{t.label}</span>
             </button>
           );
         })}
       </div>
+      {/* Đường viền nối tab với nội dung */}
+      <div style={{ height:1, background:"#d1fae5", position:"relative", zIndex:1 }} />
 
       {/* Nội dung tab */}
       <div style={{ maxWidth: tab==="shift" ? 900 : "100%", margin:"0 auto", padding: (tab==="sale") ? 0 : "20px 24px 60px" }}>
