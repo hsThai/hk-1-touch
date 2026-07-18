@@ -337,43 +337,58 @@ export default function SaleHistoryPage({ user }) {
 
   /* ─── Bộ lọc ─── */
   function FilterBar() {
+    const sel = { height:38, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 10px",
+      fontSize:13, outline:"none", background:"#fff", width:"100%" };
+    const dateInput = { height:38, borderRadius:10, border:"1.5px solid #e5e7eb",
+      padding:"0 10px", fontSize:13, outline:"none", background:"#fff", width:"100%" };
     return (
-      <div style={{ display:"flex", gap:10, marginBottom:16, flexWrap:"wrap" }}>
-        <input value={search} onChange={e=>setSearch(e.target.value)}
-          placeholder="🔍 Mã đơn, tên KH, SĐT, thu ngân..."
-          style={{ flex:"1 1 180px", height:40, borderRadius:10, border:"1.5px solid #e5e7eb",
-            padding:"0 14px", fontSize:13, outline:"none" }}
-        />
-        <select value={filterPM} onChange={e=>setFilterPM(e.target.value)}
-          style={{ height:40, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px",
-            fontSize:13, outline:"none", background:"#fff" }}>
-          <option value="all">Tất cả HTTT</option>
-          <option value="cash">Tiền mặt</option>
-          <option value="transfer">Chuyển khoản</option>
-          <option value="combo">Kết hợp</option>
-          <option value="credit">Ghi nợ</option>
-        </select>
-        <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)}
-          style={{ height:40, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px",
-            fontSize:13, outline:"none", background:"#fff" }}>
-          <option value="all">Tất cả trạng thái</option>
-          <option value="completed">Hoàn thành</option>
-          <option value="pending_payment">Chờ thu tiền</option>
-          <option value="draft">Báo giá / Tạm</option>
-          <option value="cancelled">Đã hủy</option>
-          <option value="credit">Ghi nợ</option>
-        </select>
-        <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)}
-          style={{ height:40, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px",
-            fontSize:13, outline:"none", background:"#fff" }} />
-        <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)}
-          style={{ height:40, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px",
-            fontSize:13, outline:"none", background:"#fff" }} />
-        <button onClick={load}
-          style={{ height:40, padding:"0 16px", borderRadius:10, border:"1.5px solid #e5e7eb",
-            background:"#fff", cursor:"pointer", fontSize:13, fontWeight:700, color:"#374151" }}>
-          🔄
-        </button>
+      <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:14 }}>
+        {/* Hàng 1: Search full width */}
+        <div style={{ position:"relative" }}>
+          <span className="material-icons" style={{
+            position:"absolute", left:10, top:"50%", transform:"translateY(-50%)",
+            fontSize:18, color:"#9ca3af", fontFamily:"Material Icons", pointerEvents:"none"
+          }}>search</span>
+          <input value={search} onChange={e=>setSearch(e.target.value)}
+            placeholder="Mã đơn, tên KH, SĐT, thu ngân..."
+            style={{ width:"100%", height:38, borderRadius:10, border:"1.5px solid #e5e7eb",
+              paddingLeft:44, paddingRight:14, fontSize:13, outline:"none", boxSizing:"border-box" }}
+          />
+        </div>
+        {/* Hàng 2: HTTT + Trạng thái */}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+          <select value={filterPM} onChange={e=>setFilterPM(e.target.value)} style={sel}>
+            <option value="all">Tất cả HTTT</option>
+            <option value="cash">Tiền mặt</option>
+            <option value="transfer">Chuyển khoản</option>
+            <option value="combo">Kết hợp</option>
+            <option value="credit">Ghi nợ</option>
+          </select>
+          <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={sel}>
+            <option value="all">Tất cả trạng thái</option>
+            <option value="completed">Hoàn thành</option>
+            <option value="pending_payment">Chờ thu tiền</option>
+            <option value="draft">Báo giá / Tạm</option>
+            <option value="cancelled">Đã hủy</option>
+            <option value="credit">Ghi nợ</option>
+          </select>
+        </div>
+        {/* Hàng 3: Từ ngày + Đến ngày + Nút reload */}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto", gap:8, alignItems:"end" }}>
+          <div>
+            <div style={{ fontSize:11, color:"#9ca3af", marginBottom:3, paddingLeft:2 }}>Từ ngày</div>
+            <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} style={dateInput} />
+          </div>
+          <div>
+            <div style={{ fontSize:11, color:"#9ca3af", marginBottom:3, paddingLeft:2 }}>Đến ngày</div>
+            <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} style={dateInput} />
+          </div>
+          <button onClick={load} style={{ height:38, width:38, borderRadius:10,
+            border:"1.5px solid #e5e7eb", background:"#fff", cursor:"pointer",
+            display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <span className="material-icons" style={{ fontSize:18, fontFamily:"Material Icons", color:"#6b7280" }}>refresh</span>
+          </button>
+        </div>
       </div>
     );
   }
@@ -396,7 +411,7 @@ export default function SaleHistoryPage({ user }) {
 
   /* ─── Render ─── */
   return (
-    <div style={{ padding: isPC ? "20px 28px 40px" : "20px 16px 80px", maxWidth: isPC ? 1200 : "100%", margin: "0 auto" }}>
+    <div style={{ padding: isPC ? "20px 28px 40px" : "12px 10px 80px", maxWidth: isPC ? 1200 : "100%", margin: "0 auto", width: "100%", boxSizing:"border-box" }}>
       {/* Title + summary */}
       <div style={{ fontWeight:900, fontSize:20, color:"#1e1b4b", marginBottom:4 }}>
         📋 Quản lý đơn bán hàng
