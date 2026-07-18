@@ -46,7 +46,7 @@ export default function CashierConfirmPage({ user }) {
     }catch{}
   }
 
-  const today=new Date().toISOString().slice(0,10);
+  const today=getLocalDate();
   const pending  =orders.filter(o=>o.status==="pending_payment");
   const doneToday = orders.filter(o => {
     if (o.status !== "completed") return false;

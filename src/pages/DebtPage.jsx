@@ -44,7 +44,7 @@ async function recordPayment(voucher, amount, method, note, currentUser) {
   await DebtVoucher.update(voucher.id, { paid_amount: newPaid, remaining: newRemaining, status: newStatus });
   if (method === "cash") {
     await CashJournal.create({
-      journal_date:    new Date().toISOString().slice(0,10),
+      journal_date:    getLocalDate(),
       entry_type:      voucher.voucher_type === "receivable" ? "receipt" : "payment",
       amount:          Number(amount),
       ref_type:        "debt_payment",

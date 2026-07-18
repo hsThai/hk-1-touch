@@ -8,7 +8,7 @@ import {
   RepairChat, Notification, Staff, RepairOrder, Customer,
   SparePart, StockExportRequest, StockImport, StockImportItem,
   StockLedger, ActionLog, CashJournal, DebtVoucher, getPbUrl, getAuth, logHistory
-} from "./pb.jsx";
+, getLocalDate } from "./pb.jsx";
 import { uploadFile } from "./pb.jsx";
 import {
   timeAgo, genOrderId, getKpiTimerInfo,
@@ -772,7 +772,7 @@ function WarehouseImport({ user }) {
       try {
         if (impPaidAmt > 0 && impPayMethod === "cash") {
           await CashJournal.create({
-            journal_date:    new Date().toISOString().slice(0,10),
+            journal_date:    getLocalDate(),
             entry_type:      "payment", amount: impPaidAmt,
             ref_type:        "stock_import", ref_id: imp.id, ref_code: code,
             description:     "Nhập hàng: " + (supplier || "NCC"),

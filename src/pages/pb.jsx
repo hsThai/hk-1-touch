@@ -7,6 +7,15 @@
 
 const DEFAULT_PB_URL = "https://pb.hk1touch.online";
 
+// Helper: lấy ngày theo timezone local (tránh UTC offset bug)
+export function getLocalDate(d) {
+  const dt = d ? new Date(d) : new Date();
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth()+1).padStart(2,"0");
+  const day = String(dt.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+
 export function getPbUrl() {
   try {
     const stored = localStorage.getItem("pb_url");

@@ -1,6 +1,6 @@
 /* ExpensePage.jsx — Quản lý chi phí */
 import React, { useState, useEffect } from "react";
-import { Expense, CashJournal } from "./pb.jsx";
+import { Expense, CashJournal , getLocalDate } from "./pb.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 function fmtDate(dateStr) {
@@ -118,7 +118,7 @@ export default function ExpensePage({ user }) {
       });
       if (exp.payment_method === "cash" || !exp.payment_method) {
         await CashJournal.create({
-          journal_date:    exp.expense_date || new Date().toISOString().slice(0,10),
+          journal_date:    exp.expense_date || getLocalDate(),
           entry_type:      "payment",
           amount:          exp.amount,
           ref_type:        "expense",

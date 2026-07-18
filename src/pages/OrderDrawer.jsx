@@ -13,7 +13,7 @@ const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ defa
     </div>
   </div>
 )})));
-import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage, StockExportRequest, ActionLog, subscribeCollection, getPbUrl, getAuth, logHistory, pbSettings, DebtVoucher, DebtPayment, CashJournal, Customer } from "./pb.jsx";
+import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage, StockExportRequest, ActionLog, subscribeCollection, getPbUrl, getAuth, logHistory, pbSettings, DebtVoucher, DebtPayment, CashJournal, Customer, getLocalDate } from "./pb.jsx";
 import { getNotifSound } from "./notifUtils.js";
 import { uploadFile } from "./pb.jsx";
 
@@ -129,7 +129,7 @@ async function autoCreateOrUpdateDebt(order, finalCost, deposit, payMethod, curr
 
     if (pmKey === "cash" && remaining > 0) {
       await CashJournal.create({
-        journal_date:    new Date().toISOString().slice(0, 10),
+        journal_date:    getLocalDate(),
         entry_type:      "receipt",
         amount:          remaining,
         ref_type:        "repair_order",
