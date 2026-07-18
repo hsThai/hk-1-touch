@@ -20,7 +20,7 @@ import { Staff, pbAuth, getPbUrl, setPbUrl, testConnection } from "./pb.jsx";
 // Inject PWA manifest + meta tags động
 (function injectPWA() {
   const ICON192 = "/logo.png";
-  const ICON512 = "https://base44.app/api/apps/69bf5d0a924e0a8766577274/files/mp/public/69bf5d0a924e0a8766577274/80c95949e_icon-512.png";
+  const ICON512 = "/icon-v2-512.png";
 
   // Manifest blob
   const manifest = {
@@ -29,7 +29,7 @@ import { Staff, pbAuth, getPbUrl, setPbUrl, testConnection } from "./pb.jsx";
     description: "HK One Touch",
     start_url: "/MainApp",
     display: "standalone",
-    background_color: "#ffffff",
+    background_color: "#1e1b4b",
     theme_color: "#1e1b4b",
     orientation: "portrait",
     prefer_related_applications: false,
@@ -68,12 +68,12 @@ import { Staff, pbAuth, getPbUrl, setPbUrl, testConnection } from "./pb.jsx";
   // Apple touch icon
   let touchIcon = document.querySelector('link[rel="apple-touch-icon"]');
   if (!touchIcon) { touchIcon = document.createElement("link"); touchIcon.rel = "apple-touch-icon"; document.head.appendChild(touchIcon); }
-  touchIcon.href = "https://base44.app/api/apps/69bf5d0a924e0a8766577274/files/mp/public/69bf5d0a924e0a8766577274/cd197582b_robot_splash.webp";
+  touchIcon.href = "/icon-v2-192.png";
 
   // Favicon
   let favicon = document.querySelector('link[rel="icon"]');
   if (!favicon) { favicon = document.createElement("link"); favicon.rel = "icon"; document.head.appendChild(favicon); }
-  favicon.href = "https://base44.app/api/apps/69bf5d0a924e0a8766577274/files/mp/public/69bf5d0a924e0a8766577274/cd197582b_robot_splash.webp";
+  favicon.href = "/icon-v2-192.png";
   favicon.type = "image/png";
 
   // Page title
