@@ -236,12 +236,33 @@ function ShiftReconcilePage({ user }) {
         <div style={{ fontWeight:800, fontSize:17, marginBottom:6, display:"flex", alignItems:"center", gap:8 }}>
           <span className="material-icons" style={{fontSize:20,fontFamily:"Material Icons"}}>balance</span>
           Đối soát ca
-          {isLocked && (
-            <span style={{fontSize:11,background:reconcileRecord?.status==="confirmed"?"#059669":"#f59e0b",color:"#fff",padding:"2px 8px",borderRadius:20,fontWeight:700}}>
-              {reconcileRecord?.status==="confirmed" ? "Đã chốt" : "Đã lưu"}
-            </span>
-          )}
         </div>
+        {/* Banner trạng thái đối soát ngày đang xem */}
+        {reconcileRecord?.status === "confirmed" ? (
+          <div style={{display:"flex",alignItems:"center",gap:8,padding:"9px 14px",background:"#f0fdf4",border:"2px solid #86efac",borderRadius:10,marginBottom:8}}>
+            <span className="material-icons" style={{color:"#059669",fontSize:20,fontFamily:"Material Icons"}}>check_circle</span>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:700,fontSize:13,color:"#059669"}}>✅ Đã chốt ca</div>
+              <div style={{fontSize:11,color:"#6b7280"}}>Xác nhận lúc {reconcileRecord.confirmed_at ? new Date(reconcileRecord.confirmed_at).toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"}) : "--"} bởi {reconcileRecord.confirmed_by_name||"Quản lý"}</div>
+            </div>
+          </div>
+        ) : reconcileRecord?.status === "draft" ? (
+          <div style={{display:"flex",alignItems:"center",gap:8,padding:"9px 14px",background:"#fffbeb",border:"2px solid #fcd34d",borderRadius:10,marginBottom:8}}>
+            <span className="material-icons" style={{color:"#f59e0b",fontSize:20,fontFamily:"Material Icons"}}>pending</span>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:700,fontSize:13,color:"#d97706"}}>⏳ Đã lưu nháp — chờ xác nhận</div>
+              <div style={{fontSize:11,color:"#6b7280"}}>Chưa được quản lý chốt ca</div>
+            </div>
+          </div>
+        ) : (
+          <div style={{display:"flex",alignItems:"center",gap:8,padding:"9px 14px",background:"#fef2f2",border:"2px solid #fca5a5",borderRadius:10,marginBottom:8}}>
+            <span className="material-icons" style={{color:"#ef4444",fontSize:20,fontFamily:"Material Icons"}}>radio_button_unchecked</span>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:700,fontSize:13,color:"#dc2626"}}>⚠️ Chưa đối soát</div>
+              <div style={{fontSize:11,color:"#6b7280"}}>Ngày này chưa được kiểm đếm & chốt</div>
+            </div>
+          </div>
+        )}
         <div style={{ display:"flex", gap:8, alignItems:"center" }}>
           <input type="date" value={date} onChange={e=>setDate(e.target.value)} disabled={isLocked}
             style={{ flex:1, border:"1.5px solid #e5e7eb", borderRadius:8, padding:"6px 10px", fontSize:13, minWidth:0, boxSizing:"border-box" }}/>
