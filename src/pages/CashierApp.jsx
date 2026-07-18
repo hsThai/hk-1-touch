@@ -152,15 +152,17 @@ function ShiftReconcile({ user }) {
   }
 
   return (
-    <div style={{ padding:"16px 14px 100px" }}>
-      <div style={{ display:"flex", gap:8, alignItems:"center", marginBottom:16 }}>
-        <div style={{ fontWeight:800, fontSize:17, flex:1 }}>📊 Đối soát ca</div>
-        <input type="date" value={date} onChange={e=>setDate(e.target.value)}
-          style={{ border:"1.5px solid #e5e7eb", borderRadius:8, padding:"6px 10px", fontSize:13 }}/>
-        <button onClick={exportCSV}
-          style={{ background:"#4f46e5", color:"#fff", border:"none", borderRadius:8, padding:"7px 12px", fontSize:13, cursor:"pointer" }}>
-          ⬇️ CSV
-        </button>
+    <div style={{ padding:"10px 14px 100px" }}>
+      <div style={{ marginBottom:12 }}>
+        <div style={{ fontWeight:800, fontSize:17, marginBottom:6 }}>📊 Đối soát ca</div>
+        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+          <input type="date" value={date} onChange={e=>setDate(e.target.value)}
+            style={{ flex:1, border:"1.5px solid #e5e7eb", borderRadius:8, padding:"6px 10px", fontSize:13 }}/>
+          <button onClick={exportCSV}
+            style={{ background:"#4f46e5", color:"#fff", border:"none", borderRadius:8, padding:"7px 12px", fontSize:13, cursor:"pointer", whiteSpace:"nowrap" }}>
+            ⬇️ CSV
+          </button>
+        </div>
       </div>
       {loading && <div style={{textAlign:"center",padding:40,color:"#9ca3af"}}>Đang tải...</div>}
       {data && !loading && (<>
