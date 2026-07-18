@@ -529,7 +529,7 @@ export async function previewBill(order, parts = [], shopInfo = {}) {
 
   <div class="footer">
     ${shopInfo.warranty_note?`<div>🛡️ BH: ${shopInfo.warranty_note}</div>`:""}
-    <div style="margin-top:3px">Cảm ơn quý khách! Hẹn gặp lại 🙏</div>
+    <div style="margin-top:3px">Cảm ơn quý khách! Hẹn gặp lại.</div>
   </div>
 
   <script>window.onload=()=>window.print()</script>
@@ -593,11 +593,11 @@ export async function previewSaleReceipt(saleOrder, shopInfo = {}) {
   ).join("");
 
   const html = `<!DOCTYPE html>
-<html><head><meta charset="utf-8">
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
 <title>PHIEU THANH TOAN ${saleOrder.order_code || ""}</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:"Times New Roman",Times,serif;font-size:13px;max-width:80mm;margin:0 auto;padding:6mm 4mm;color:#111;background:#fff}
+  body{font-family:"Times New Roman",Times,serif;font-size:14px;max-width:96vw;width:96vw;margin:0 auto;padding:4mm 3mm;color:#111;background:#fff}
   .title-shop{font-size:14px;font-weight:bold;text-align:center;text-transform:uppercase;margin-bottom:2px}
   .sub-shop{font-size:11px;text-align:center;margin-bottom:2px}
   .doc-title{font-size:15px;font-weight:bold;text-align:center;margin:6px 0 4px;letter-spacing:1px;text-transform:uppercase}
@@ -625,7 +625,7 @@ export async function previewSaleReceipt(saleOrder, shopInfo = {}) {
   ${shopInfo.shop_phone   ? `<div class="sub-shop">ĐT: ${shopInfo.shop_phone}</div>` : ""}
   <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-top:4px">
     <div style="flex:1">
-      <div class="doc-title">─── Phiếu thanh toán ───</div>
+      <div class="doc-title" style="white-space:nowrap;font-size:13px">─── PHIẾU THANH TOÁN ───</div>
     </div>
     <div style="margin-left:10px;text-align:center;flex-shrink:0">
       <img src="${saleQrUrl}" style="width:62px;height:62px;display:block"/>
@@ -667,7 +667,7 @@ export async function previewSaleReceipt(saleOrder, shopInfo = {}) {
        <div class="total-row"><span>Tiền thừa:</span><span>${fmtMoney((saleOrder.amount_paid||0)-(saleOrder.total||0))}</span></div>` : ""}
 
   <div class="footer">
-    <div>Cảm ơn quý khách! Hẹn gặp lại 🙏</div>
+    <div>Cảm ơn quý khách! Hẹn gặp lại.</div>
   </div>
   <script>window.onload=()=>setTimeout(()=>window.print(),300)</script>
 </body></html>`;
@@ -1043,7 +1043,7 @@ export function getDefaultTemplate(key, shopInfo = {}) {
   </table>
   <hr class="sep-dash"/>
   <div class="grand-row"><span>TỔNG THANH TOÁN:</span><span class="grand-val">250.000 đ</span></div>
-  <div class="footer"><div>Cảm ơn quý khách! Hẹn gặp lại 🙏</div></div>
+  <div class="footer"><div>Cảm ơn quý khách! Hẹn gặp lại.</div></div>
 </body></html>`;
   }
 
