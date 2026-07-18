@@ -362,7 +362,7 @@ export default function SaleOrderPage({ user }) {
           {lastOrder.discount>0 && <div>Giảm giá: -{fmtMoney(lastOrder.discount)}</div>}
           <div><b>Tổng thanh toán: {fmtMoney(lastOrder.total)}</b></div>
           <div>HTTT: {PM_LABELS[lastOrder.payment_method]||lastOrder.payment_method}</div>
-          <div style={{ textAlign:"center", marginTop:8, borderTop:"1px dashed #000", paddingTop:8 }}>Cảm ơn quý khách! 🙏</div>
+          <div style={{ textAlign:"center", marginTop:8, borderTop:"1px dashed #000", paddingTop:8 }}>Cảm ơn quý khách!</div>
         </div>
       )}
 
