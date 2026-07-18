@@ -236,6 +236,7 @@ export default function CashierApp({ user, onNotif, onQRScan, notifCount=0, forc
   const [tab, setTab] = useState(defaultTab);
   const [SaleOrderPage, setSaleOrderPage]             = useState(null);
   const [CashierConfirmPage, setCashierConfirmPage]   = useState(null);
+  const [SaleHistoryPage, setSaleHistoryPage]         = useState(null);
 
   // NAV_TABS dynamic theo role
   const NAV_TABS = React.useMemo(() => {
@@ -243,10 +244,11 @@ export default function CashierApp({ user, onNotif, onQRScan, notifCount=0, forc
     if(["sales","team_leader","manager","admin","owner"].includes(user?.role)){
       tabs.push({ key:"sale",    label:"🛒 Bán hàng" });
     }
+    tabs.push({ key:"history", label:"📋 Đơn hàng" });
     if(["cashier","accountant","manager","admin","owner"].includes(user?.role)){
-      tabs.push({ key:"confirm", label:"💰 Xác nhận Thu" });
+      tabs.push({ key:"confirm", label:"💰 Thu tiền" });
     }
-    tabs.push({ key:"shift", label:"⚖️ Đối soát ca" });
+    tabs.push({ key:"shift", label:"⚖️ Đối soát" });
     return tabs;
   }, [user?.role]);
 
@@ -256,6 +258,7 @@ export default function CashierApp({ user, onNotif, onQRScan, notifCount=0, forc
   useEffect(() => {
     import("./SaleOrderPage.jsx").then(m => setSaleOrderPage(() => m.default)).catch(()=>{});
     import("./CashierConfirmPage.jsx").then(m => setCashierConfirmPage(() => m.default)).catch(()=>{});
+    import("./SaleHistoryPage.jsx").then(m => setSaleHistoryPage(() => m.default)).catch(()=>{});
   }, []);
 
   if (!user || !ALLOWED_ROLES.includes(user.role)) {
@@ -332,8 +335,9 @@ export default function CashierApp({ user, onNotif, onQRScan, notifCount=0, forc
       </div>
 
       {/* Nội dung tab */}
-      <div style={{ maxWidth: tab==="shift" ? 900 : "100%", margin:"0 auto", padding: (tab==="sale"||tab==="confirm") ? 0 : "20px 24px 60px" }}>
+      <div style={{ maxWidth: tab==="shift" ? 900 : "100%", margin:"0 auto", padding: (tab==="sale") ? 0 : "20px 24px 60px" }}>
         {tab === "sale"    && (SaleOrderPage     ? <SaleOrderPage user={user} />     : <Fallback />)}
+        {tab === "history" && (SaleHistoryPage    ? <SaleHistoryPage user={user} />     : <Fallback />)}
         {tab === "confirm" && (CashierConfirmPage ? <CashierConfirmPage user={user} /> : <Fallback />)}
         {tab === "shift"   && <ShiftReconcile user={user} />}
       </div>
