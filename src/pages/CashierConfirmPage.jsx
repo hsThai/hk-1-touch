@@ -1,7 +1,7 @@
 // CashierConfirmPage.jsx — Trang xác nhận thu tiền cho Thu ngân
 // HK One Touch
 import React, { useState, useEffect } from "react";
-import { SaleOrder, SaleOrderItem, CashJournal, DebtVoucher } from "./pb.jsx";
+import { SaleOrder, SaleOrderItem, CashJournal, DebtVoucher, getLocalDate } from "./pb.jsx";
 import { printSaleReceiptA5 } from "../utils/printClient.js";
 
 const PM_COLORS = { cash:"#059669", transfer:"#0369a1", combined:"#7c3aed", credit:"#dc2626" };

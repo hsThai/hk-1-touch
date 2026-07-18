@@ -3,7 +3,7 @@
  * @version 2026-05-29-v1
  */
 import React, { useState, useEffect } from "react";
-import { DebtVoucher, DebtPayment, CashJournal, Supplier } from "./pb.jsx";
+import { DebtVoucher, DebtPayment, CashJournal, Supplier, getLocalDate } from "./pb.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 function fmtDate(s) {
