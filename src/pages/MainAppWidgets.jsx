@@ -161,7 +161,7 @@ const RoleHomePlaceholder = lazy(() => import("./RoleHomePlaceholder.jsx").catch
  * renderMobilePages — Mobile page renders (tách từ MainApp.jsx để giảm dòng)
  */
 export function renderMobilePages(page, user, extraProps = {}) {
-  const { setPage, dashboardTab, notifications = [], dbNotifications = [], setShowNotif, setShowQRScan } = extraProps;
+  const { setPage, dashboardTab, notifications = [], dbNotifications = [], setShowNotif, setShowQRScan, cashierTab, setCashierTab } = extraProps;
   return (
     <>
       {page==="customers" && (
@@ -249,7 +249,7 @@ export function renderMobilePages(page, user, extraProps = {}) {
       {/* === Thu ngân — CashierApp === */}
       {page==="cashier_home" && user && (
         <Suspense fallback={<Loading />}>
-          <CashierApp user={user} />
+          <CashierApp user={user} forceTab={cashierTab||""} onTabChange={setCashierTab||(()=>{})} />
         </Suspense>
       )}
 

@@ -2288,7 +2288,7 @@ function MainAppContent({ onUserChange }) {
           </div>
         )}
         
-        {renderMobilePages(page, user, { setPage, dashboardTab, notifications, dbNotifications, setShowNotif, setShowQRScan })}
+        {renderMobilePages(page, user, { setPage, dashboardTab, notifications, dbNotifications, setShowNotif, setShowQRScan, cashierTab, setCashierTab })}
         </div>
       </Suspense>
 
