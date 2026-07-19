@@ -1160,7 +1160,7 @@ function CashflowSubTab({ repairOrders, expenses, saleOrders }) {
     .filter(o => DONE_ST.includes(o.status) && thisMonth(o.done_date||o.updated))
     .reduce((s,o) => s+(o.final_cost||0), 0);
   const saleRevenue = saleOrders
-    .filter(o => thisMonth(o.created_date||o.created))
+    .filter(o => ["completed","paid"].includes(o.status) && thisMonth(o.created_date||o.created))
     .reduce((s,o) => s+(o.total||0), 0);
   const totalRevenue = repairRevenue + saleRevenue;
   const totalExpense = expenses
@@ -1191,7 +1191,7 @@ function CashflowSubTab({ repairOrders, expenses, saleOrders }) {
         <div style={{ flex:1, minWidth:120, background:"#eff6ff", borderRadius:12, padding:"14px 16px", textAlign:"center" }}>
           <div style={{ fontSize:20 }}>💰</div>
           <div style={{ fontWeight:800, fontSize:18, color:"#1d4ed8" }}>{fmtMoney(cashSummary.balance)}</div>
-          <div style={{ fontSize:11, color:"#6b7280" }}>Số dư hiện tại</div>
+          <div style={{ fontSize:11, color:"#6b7280" }}>Số dư hôm nay</div>
         </div>
       </div>
 
