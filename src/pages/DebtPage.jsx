@@ -3,7 +3,7 @@
  * @version 2026-05-29-v1
  */
 import React, { useState, useEffect } from "react";
-import { DebtVoucher, DebtPayment, CashJournal, Supplier, SaleOrder, getLocalDate } from "./pb.jsx";
+import { DebtVoucher, DebtPayment, CashJournal, Supplier, SaleOrder, SaleOrderItem, getLocalDate } from "./pb.jsx";
 import { printSaleReceiptA5 } from "../utils/printClient.js";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
@@ -208,8 +208,16 @@ function DetailModal({ voucher, user, onClose, onRefresh }) {
           <button onClick={async () => {
             try {
               const so = await SaleOrder.get(voucher.origin_id);
-              const items = await SaleOrderItem.filter({ order_id: voucher.origin_id });
-              await printSaleReceiptA5({ ...so, payment_method:"credit", paid_date: voucher.paid_date || so.paid_date || new Date().toISOString(), items });
+              const its = await SaleOrderItem.filter({ order_id: voucher.origin_id });
+              // Lấy lịch sử thanh toán để ghép vào phiếu
+              const allPays = await DebtPayment.filter({ voucher_id: voucher.id });
+              await printSaleReceiptA5({
+                ...so,
+                payment_method: "credit",
+                paid_date: so.paid_date || new Date().toISOString(),
+                debt_payments: allPays || [],
+                items: its,
+              });
             } catch(e) { alert("Lỗi in phiếu: " + e.message); }
           }}
             style={{ width:"100%", height:44, marginTop:12, background:"#059669", color:"#fff", border:"none", borderRadius:12, fontWeight:800, fontSize:14, cursor:"pointer" }}>

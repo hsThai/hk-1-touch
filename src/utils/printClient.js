@@ -676,6 +676,25 @@ export async function previewSaleReceipt(saleOrder, shopInfo = {}) {
     ? `<div class="total-row"><span>Tiền khách đưa:</span><span>${fmtMoney(saleOrder.amount_paid)}</span></div>
        <div class="total-row"><span>Tiền thừa:</span><span>${fmtMoney((saleOrder.amount_paid||0)-(saleOrder.total||0))}</span></div>` : ""}
 
+  ${saleOrder.payment_method === "credit" ? (() => {
+    const pays = saleOrder.debt_payments || [];
+    const totalPaid = pays.reduce((s,p)=>s+(p.amount||0),0);
+    const remaining = (saleOrder.total||0) - totalPaid;
+    const PM = { cash:"Tiền mặt", transfer:"Chuyển khoản", other:"Khác" };
+    let rows = pays.map(p =>
+      `<div class="total-row" style="font-size:11px">
+        <span>Đã TT ${PM[p.payment_method]||p.payment_method||""} ${p.paid_at ? "(" + new Date(p.paid_at).toLocaleDateString("vi-VN") + ")" : ""}:</span>
+        <span style="color:#059669;font-weight:700">+ ${fmtMoney(p.amount)}</span>
+      </div>`
+    ).join("");
+    let remRow = remaining > 0
+      ? `<div class="total-row" style="font-size:12px;font-weight:800;color:#dc2626"><span>Còn lại:</span><span>${fmtMoney(remaining)}</span></div>`
+      : `<div class="total-row" style="font-size:12px;font-weight:800;color:#059669"><span>Còn lại:</span><span>0đ ✅</span></div>`;
+    return pays.length > 0
+      ? `<hr style="border:none;border-top:1px dashed #ccc;margin:6px 0"/>${rows}${remRow}`
+      : `<div class="total-row" style="font-size:11px;color:#dc2626"><span>Ghi nợ — chưa thanh toán</span><span></span></div>`;
+  })() : ""}
+
   <div class="footer">
     <div>Cảm ơn quý khách! Hẹn gặp lại.</div>
   </div>

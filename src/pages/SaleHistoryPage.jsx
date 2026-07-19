@@ -84,10 +84,17 @@ function DetailContent({ detail, detailItems, onClose }) {
         </>}
 
         {/* Thời gian thanh toán */}
-        {detail.status === "completed" && (detail.updated || detail.updated_date) && <>
-          <span style={{ color:"#9ca3af", fontWeight:600 }}>💳 Thanh toán</span>
+        {detail.status === "completed" && detail.payment_method !== "credit" && (detail.updated || detail.updated_date) && <>
+          <span style={{ color:"#9ca3af", fontWeight:600 }}>💳 Thanh toán lúc</span>
           <span style={{ fontWeight:700, color:"#059669" }}>
             {fmtDateTime(detail.updated || detail.updated_date || "")}
+          </span>
+        </>}
+        {/* Ghi nợ — hiện ngày đã TT nếu có */}
+        {detail.payment_method === "credit" && <>
+          <span style={{ color:"#9ca3af", fontWeight:600 }}>💳 Đã TT nợ</span>
+          <span style={{ fontWeight:700, color: detail.paid_date ? "#059669" : "#dc2626" }}>
+            {detail.paid_date ? fmtDateTime(detail.paid_date) : "Chưa thanh toán"}
           </span>
         </>}
 
