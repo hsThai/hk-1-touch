@@ -398,12 +398,18 @@ export default function SaleHistoryPage({ user }) {
         <div style={{ display:"flex", gap:8, alignItems:"center" }}>
           <div style={{ flex:1 }}>
             <div style={{ fontSize:11, color:"#9ca3af", marginBottom:3, paddingLeft:2 }}>Từ ngày</div>
-            <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)}
+            <input type="date" value={dateFrom} onChange={e=>{
+                setDateFrom(e.target.value);
+                if (!dateTo) setDateTo(e.target.value);
+              }}
               style={{ ...dateInput, width:"100%", boxSizing:"border-box", appearance:"none", WebkitAppearance:"none" }} />
           </div>
           <div style={{ flex:1 }}>
             <div style={{ fontSize:11, color:"#9ca3af", marginBottom:3, paddingLeft:2 }}>Đến ngày</div>
-            <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)}
+            <input type="date" value={dateTo} onChange={e=>{
+                setDateTo(e.target.value);
+                if (!dateFrom) setDateFrom(e.target.value);
+              }}
               style={{ ...dateInput, width:"100%", boxSizing:"border-box", appearance:"none", WebkitAppearance:"none" }} />
           </div>
         </div>

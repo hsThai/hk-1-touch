@@ -387,9 +387,9 @@ function ProfitLossTab({ repairOrders, saleOrders, expenses }) {
       </div>
       {period==="custom" && (
         <div style={{ display:"flex", gap:8, marginBottom:12 }}>
-          <input type="date" value={customStart} onChange={e=>setCustomStart(e.target.value)}
+          <input type="date" value={customStart} onChange={e=>{ setCustomStart(e.target.value); if(!customEnd) setCustomEnd(e.target.value); }}
             style={{ flex:1, border:"1.5px solid #e5e7eb", borderRadius:8, padding:"6px 10px", fontSize:12 }}/>
-          <input type="date" value={customEnd} onChange={e=>setCustomEnd(e.target.value)}
+          <input type="date" value={customEnd} onChange={e=>{ setCustomEnd(e.target.value); if(!customStart) setCustomStart(e.target.value); }}
             style={{ flex:1, border:"1.5px solid #e5e7eb", borderRadius:8, padding:"6px 10px", fontSize:12 }}/>
         </div>
       )}
