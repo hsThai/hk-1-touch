@@ -192,8 +192,15 @@ export default function CashierConfirmPage({ user }) {
               {/* Nút xác nhận */}
               {isPending&&(
                 <div style={{padding:"10px 16px 14px"}}>
-                  <button onClick={()=>openConfirm(o)} style={{width:"100%",padding:"13px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#059669,#047857)",color:"#fff",fontWeight:900,fontSize:15,cursor:"pointer",boxShadow:"0 4px 12px rgba(5,150,105,.3)"}}>
-                    ✅ Xác nhận Thu tiền
+                  <button onClick={()=>openConfirm(o)} style={{width:"100%",padding:"13px",borderRadius:12,border:"none",
+                    background: o.payment_method==="credit"
+                      ? "linear-gradient(135deg,#7c3aed,#6d28d9)"
+                      : "linear-gradient(135deg,#059669,#047857)",
+                    color:"#fff",fontWeight:900,fontSize:15,cursor:"pointer",
+                    boxShadow: o.payment_method==="credit"
+                      ? "0 4px 12px rgba(124,58,237,.3)"
+                      : "0 4px 12px rgba(5,150,105,.3)"}}>
+                    {o.payment_method==="credit" ? "📋 Xác nhận Ghi nợ" : "✅ Xác nhận Thu tiền"}
                   </button>
                 </div>
               )}
@@ -210,7 +217,14 @@ export default function CashierConfirmPage({ user }) {
         <div style={{position:"fixed",inset:0,zIndex:600,background:"rgba(0,0,0,.55)",display:"flex",alignItems:"flex-end",justifyContent:"center"}}
           onClick={e=>e.target===e.currentTarget&&setConfirming(null)}>
           <div style={{background:"#fff",borderRadius:"20px 20px 0 0",width:"100%",maxWidth:480,padding:"20px 20px 32px",maxHeight:"85vh",overflowY:"auto"}}>
-            <div style={{fontWeight:900,fontSize:18,color:"#1e1b4b",marginBottom:16,textAlign:"center"}}>💰 Xác nhận Thu tiền</div>
+            <div style={{fontWeight:900,fontSize:18,color: confirming?.payment_method==="credit"?"#6d28d9":"#1e1b4b",marginBottom:16,textAlign:"center"}}>
+              {confirming?.payment_method==="credit" ? "📋 Xác nhận Ghi nợ" : "💰 Xác nhận Thu tiền"}
+            </div>
+            {confirming?.payment_method==="credit" && (
+              <div style={{background:"#f5f3ff",border:"2px solid #c4b5fd",borderRadius:12,padding:"12px 14px",marginBottom:16,fontSize:13,color:"#5b21b6"}}>
+                ⚠️ Đơn này sẽ được ghi vào <strong>công nợ phải thu</strong>. Khách chưa thanh toán ngay — số tiền sẽ hiển thị trong module Công nợ.
+              </div>
+            )}
             {/* Tóm tắt */}
             <div style={{background:"#f0fdf4",border:"1.5px solid #86efac",borderRadius:14,padding:"14px 16px",marginBottom:16}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
@@ -238,11 +252,12 @@ export default function CashierConfirmPage({ user }) {
                 <span style={{fontWeight:900,fontSize:22,color:"#059669"}}>{fmtMoney(confirming.total)}</span>
               </div>
             </div>
-            {/* HTTT */}
+            {/* HTTT — ẩn khi ghi nợ */}
+            {confirming?.payment_method !== "credit" && (
             <div style={{marginBottom:16}}>
               <div style={{fontSize:13,fontWeight:700,color:"#374151",marginBottom:8}}>Hình thức thanh toán</div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-                {Object.entries(PM_LABELS).map(([key,label])=>(
+                {Object.entries(PM_LABELS).filter(([k])=>k!=="credit").map(([key,label])=>(
                   <button key={key} onClick={()=>setPayMethod(key)} style={{
                     padding:"10px 8px",borderRadius:10,
                     border:`2px solid ${payMethod===key?PM_COLORS[key]:"#e5e7eb"}`,
@@ -253,6 +268,7 @@ export default function CashierConfirmPage({ user }) {
                 ))}
               </div>
             </div>
+            )}
             {/* Buttons */}
             <div style={{display:"flex",gap:10}}>
               <button onClick={()=>setConfirming(null)} style={{flex:1,padding:"13px",borderRadius:12,border:"1.5px solid #e5e7eb",background:"#fff",color:"#6b7280",fontWeight:700,fontSize:14,cursor:"pointer"}}>
@@ -260,12 +276,12 @@ export default function CashierConfirmPage({ user }) {
               </button>
               <button onClick={handleConfirm} disabled={submitting} style={{
                 flex:2,padding:"13px",borderRadius:12,border:"none",
-                background:submitting?"#e5e7eb":"linear-gradient(135deg,#059669,#047857)",
+                background:submitting?"#e5e7eb":confirming?.payment_method==="credit"?"linear-gradient(135deg,#7c3aed,#6d28d9)":"linear-gradient(135deg,#059669,#047857)",
                 color:submitting?"#9ca3af":"#fff",fontWeight:900,fontSize:15,
                 cursor:submitting?"not-allowed":"pointer",
-                boxShadow:submitting?"none":"0 4px 14px rgba(5,150,105,.35)",
+                boxShadow:submitting?"none":confirming?.payment_method==="credit"?"0 4px 14px rgba(124,58,237,.35)":"0 4px 14px rgba(5,150,105,.35)",
               }}>
-                {submitting?"Đang xử lý...":"✅ Xác nhận Thu"}
+                {submitting ? "Đang xử lý..." : confirming?.payment_method==="credit" ? "📋 Xác nhận Ghi nợ" : "✅ Xác nhận Thu tiền"}
               </button>
             </div>
           </div>
