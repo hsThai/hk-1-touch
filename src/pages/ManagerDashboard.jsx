@@ -9,8 +9,8 @@ import { Staff, RepairOrder, SparePart, SaleOrder, Expense,
 
 // ── Constants ──────────────────────────────────────────────
 const ALLOWED = ["manager","admin","owner"];
-const DONE_ST = ["Hoàn Thành","Đã Giao","Đã Thanh Toán"];
-const SKIP_ST = ["Hoàn Thành","Đã Giao","Huỷ","Đã Thanh Toán"];
+const DONE_ST = ["Hoàn Thành","Đã Giao","Đã Thanh Toán","Hoan Thanh","Da Giao","Da Thanh Toan"];
+const SKIP_ST = ["Hoàn Thành","Đã Giao","Huỷ","Đã Thanh Toán","Hoan Thanh","Da Giao","Huy","Da Thanh Toan"];
 
 const STATUS_COLORS = {
   "Mới Nhận":"#2563eb","Chờ KTV":"#7c3aed","KTV Đang Kiểm":"#0891b2",
@@ -428,7 +428,7 @@ function RevenueTab({ repairOrders, saleOrders, expenses }) {
     const lbl = String(day.getDate()).padStart(2,"0")+"/"+String(day.getMonth()+1).padStart(2,"0");
     const rv = repairOrders.filter(o=>DONE_ST.includes(o.status)&&o.done_date&&sameDay(new Date(o.done_date),day))
                            .reduce((s,o)=>s+(o.final_cost||0),0);
-    const sv = saleOrders.filter(o=>o.status==="paid"&&(o.created||o.created_date)&&sameDay(new Date(o.created||o.created_date),day))
+    const sv = saleOrders.filter(o=>["paid","completed"].includes(o.status)&&(o.created_date||o.created)&&sameDay(new Date(o.created_date||o.created),day))
                          .reduce((s,o)=>s+(o.total||0),0);
     return { label:lbl, value:rv+sv };
   });
@@ -1155,7 +1155,7 @@ function CashflowSubTab({ repairOrders, expenses, saleOrders }) {
     const dt = new Date(d);
     return dt.getMonth()===now.getMonth() && dt.getFullYear()===now.getFullYear();
   };
-  const DONE_ST = ["Hoàn Thành","Đã Giao","Đã Thanh Toán"];
+  const DONE_ST = ["Hoàn Thành","Đã Giao","Đã Thanh Toán","Hoan Thanh","Da Giao","Da Thanh Toan"];
   const repairRevenue = repairOrders
     .filter(o => DONE_ST.includes(o.status) && thisMonth(o.done_date||o.updated))
     .reduce((s,o) => s+(o.final_cost||0), 0);
