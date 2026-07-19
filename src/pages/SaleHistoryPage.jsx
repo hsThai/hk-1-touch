@@ -1,7 +1,7 @@
 /* SaleHistoryPage.jsx — Quản lý đơn bán hàng (nâng cấp đầy đủ) */
 import React, { useState, useEffect } from "react";
-import { SaleOrder, SaleOrderItem } from "./pb.jsx";
-import { previewSaleReceipt } from "../utils/printClient.js";
+import { SaleOrder, SaleOrderItem, DebtPayment, DebtVoucher } from "./pb.jsx";
+import { printSaleReceiptA5, previewSaleReceipt } from "../utils/printClient.js";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN")+"đ"; }
 function fmtDateTime(iso) {
@@ -23,17 +23,29 @@ function statusBadge(status) {
   return { label: status||"—", bg:"#f3f4f6", color:"#6b7280" };
 }
 
-function reprintOrder(order, items) {
-  previewSaleReceipt({
-    ...order,
-    items: items.map(it => ({
-      part_name:   it.part_name,
-      sku:         it.sku,
-      qty:         it.qty,
-      unit_price:  it.unit_price,
-      total_price: it.total_price,
-    })),
-  }, {});
+async function reprintOrder(order, items) {
+  try {
+    let debtPays = [];
+    if (order.payment_method === "credit") {
+      const dvs = await DebtVoucher.list({ filter: `origin_id="${order.id}"`, limit: 5 });
+      if (dvs.length > 0) {
+        debtPays = await DebtPayment.list({ filter: `voucher_id="${dvs[0].id}"`, limit: 50 });
+      }
+    }
+    await printSaleReceiptA5({
+      ...order,
+      debt_payments: debtPays,
+      items: items.map(it => ({
+        part_name:   it.part_name,
+        sku:         it.sku,
+        qty:         it.qty,
+        unit_price:  it.unit_price,
+        total_price: it.total_price,
+      })),
+    });
+  } catch(e) {
+    alert("Lỗi in: " + e.message);
+  }
 }
 
 /* ─── Detail Panel / Modal content (dùng chung PC+Mobile) ─── */
