@@ -91,12 +91,13 @@ function ShiftReconcilePage({ user }) {
   async function load() {
     setLoading(true);
     try {
-      const [repairs, sales, exps, journals, reconciles] = await Promise.all([
+      const [repairs, sales, exps, journals, reconciles, allVouchers] = await Promise.all([
         RepairOrder.list({ limit:500 }),
         SaleOrder.list({ limit:500 }),
         Expense.list({ limit:200 }),
         CashJournal.list({ limit:1000, sort:"-id" }),
         ShiftReconcile.list({ limit:50, sort:"-id" }),
+        DebtVoucher.list({ limit:200, sort:"-id" }),
       ]);
 
       // Lưu danh sách ngày đã đối soát
