@@ -45,7 +45,12 @@ async function recordPayment(voucher, amount, method, note, currentUser) {
   await DebtVoucher.update(voucher.id, { paid_amount: newPaid, remaining: newRemaining, status: newStatus });
   // Nếu thanh toán hết và là đơn bán hàng → cập nhật paid_date vào SaleOrder
   if (newStatus === "paid" && voucher.origin_type === "sale_order" && voucher.origin_id) {
-    try { await SaleOrder.update(voucher.origin_id, { paid_date: new Date().toISOString() }); } catch {}
+    try {
+      await SaleOrder.update(voucher.origin_id, {
+        paid_date: new Date().toISOString(),
+        paid_method: method,
+      });
+    } catch {}
   }
   if (method === "cash") {
     await CashJournal.create({
@@ -208,13 +213,13 @@ function DetailModal({ voucher, user, onClose, onRefresh }) {
           <button onClick={async () => {
             try {
               const so = await SaleOrder.get(voucher.origin_id);
-              const its = await SaleOrderItem.filter({ order_id: voucher.origin_id });
-              // Lấy lịch sử thanh toán để ghép vào phiếu
-              const allPays = await DebtPayment.filter({ voucher_id: voucher.id });
+              const its = await SaleOrderItem.list({ filter: `order_id="${voucher.origin_id}"`, limit: 50 });
+              const allPays = await DebtPayment.list({ filter: `voucher_id="${voucher.id}"`, limit: 50 });
               await printSaleReceiptA5({
                 ...so,
                 payment_method: "credit",
                 paid_date: so.paid_date || new Date().toISOString(),
+                paid_method: so.paid_method || (allPays[0] && allPays[0].payment_method) || "cash",
                 debt_payments: allPays || [],
                 items: its,
               });

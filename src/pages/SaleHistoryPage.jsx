@@ -94,7 +94,9 @@ function DetailContent({ detail, detailItems, onClose }) {
         {detail.payment_method === "credit" && <>
           <span style={{ color:"#9ca3af", fontWeight:600 }}>💳 Đã TT nợ</span>
           <span style={{ fontWeight:700, color: detail.paid_date ? "#059669" : "#dc2626" }}>
-            {detail.paid_date ? fmtDateTime(detail.paid_date) : "Chưa thanh toán"}
+            {detail.paid_date
+              ? (detail.paid_method === "transfer" ? "🏦 CK — " : "💵 TM — ") + fmtDateTime(detail.paid_date)
+              : "Chưa thanh toán"}
           </span>
         </>}
 

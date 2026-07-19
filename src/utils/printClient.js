@@ -646,8 +646,8 @@ export async function previewSaleReceipt(saleOrder, shopInfo = {}) {
   ${saleOrder.payment_method === "credit"
     ? `<div class="meta"><span>Thanh toán:</span><span style="font-weight:700;color:#7c3aed">Ghi nợ</span></div>
        ${saleOrder.paid_date
-         ? `<div class="meta"><span>Ngày thanh toán:</span><span style="font-weight:700;color:#059669">${fmtDate(saleOrder.paid_date)}</span></div>`
-         : ""
+         ? `<div class="meta"><span>Đã TT (${saleOrder.paid_method === "transfer" ? "Chuyển khoản" : "Tiền mặt"}):</span><span style="font-weight:700;color:#059669">${fmtDate(saleOrder.paid_date)}</span></div>`
+         : `<div class="meta"><span>Đã TT:</span><span style="color:#dc2626;font-weight:700">Chưa thanh toán</span></div>`
        }`
     : `<div class="meta"><span>Thanh toán:</span><span>${PM_LABELS[saleOrder.payment_method] || saleOrder.payment_method || "Tiền mặt"}</span></div>`
   }
