@@ -273,28 +273,13 @@ function ShiftReconcilePage({ user }) {
           </div>
         )}
         <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-          <input type="date" value={date} onChange={e=>setDate(e.target.value)} disabled={isLocked}
+          <input type="date" value={date} onChange={e=>setDate(e.target.value)}
             style={{ flex:1, border:"1.5px solid #e5e7eb", borderRadius:8, padding:"6px 10px", fontSize:13, minWidth:0, boxSizing:"border-box" }}/>
           <button onClick={exportCSV} style={{ background:"#4f46e5", color:"#fff", border:"none", borderRadius:8, padding:"7px 12px", fontSize:13, cursor:"pointer", whiteSpace:"nowrap" }}>
             <span className="material-icons" style={{fontSize:16,fontFamily:"Material Icons",verticalAlign:"middle"}}>download</span> CSV
           </button>
         </div>
-        {/* Hiện marker ngày đã đối soát */}
-        {Object.keys(reconciledDates).length > 0 && (
-          <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:8}}>
-            {Object.entries(reconciledDates).sort((a,b)=>b[0].localeCompare(a[0])).map(([d,st])=>(
-              <span key={d} onClick={()=>setDate(d)} style={{
-                fontSize:11,padding:"3px 8px",borderRadius:6,cursor:"pointer",
-                background: st==="confirmed" ? "#f0fdf4" : "#fffbeb",
-                color: st==="confirmed" ? "#059669" : "#f59e0b",
-                border: `1px solid ${st==="confirmed"?"#bbf7d0":"fde68a"}`,
-                fontWeight:600,
-              }}>
-                {d.slice(5)} {st==="confirmed"?"✓":"●"}
-              </span>
-            ))}
-          </div>
-        )}
+
       </div>
 
       {loading && <div style={{textAlign:"center",padding:40,color:"#9ca3af"}}>Đang tải...</div>}
