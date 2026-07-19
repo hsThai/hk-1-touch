@@ -278,10 +278,6 @@ ${shopInfo.shop_phone  ?`<div class="sub-shop">📞 ${shopInfo.shop_phone}</div>
         <div style="font-size:18px;font-weight:bold;text-align:center;margin:7px 0 2px;letter-spacing:2px;text-transform:uppercase;text-decoration:underline">Phiếu tiếp nhận máy</div>
         <div style="text-align:center;font-size:11px;color:#888;margin-bottom:5px">Phiếu này là bằng chứng bàn giao thiết bị giữa khách hàng và cửa hàng</div>
       </div>
-      <div style="margin-left:10px;text-align:center;flex-shrink:0">
-        <img src="${orderQrSample}" style="width:68px;height:68px;display:block;border:1px solid #eee"/>
-        <div style="font-size:9px;color:#888;margin-top:2px">HK-001</div>
-      </div>
     </div>
   </div>
   <div style="margin-left:10px;text-align:center;flex-shrink:0">
