@@ -3,7 +3,8 @@
  * @version 2026-05-29-v1
  */
 import React, { useState, useEffect } from "react";
-import { DebtVoucher, DebtPayment, CashJournal, Supplier, getLocalDate } from "./pb.jsx";
+import { DebtVoucher, DebtPayment, CashJournal, Supplier, SaleOrder, getLocalDate } from "./pb.jsx";
+import { printSaleReceiptA5 } from "../utils/printClient.js";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 function fmtDate(s) {
@@ -42,6 +43,10 @@ async function recordPayment(voucher, amount, method, note, currentUser) {
   const newRemaining = Math.max(0, (voucher.total_amount || 0) - newPaid);
   const newStatus    = newRemaining <= 0 ? "paid" : "partial";
   await DebtVoucher.update(voucher.id, { paid_amount: newPaid, remaining: newRemaining, status: newStatus });
+  // Nếu thanh toán hết và là đơn bán hàng → cập nhật paid_date vào SaleOrder
+  if (newStatus === "paid" && voucher.origin_type === "sale_order" && voucher.origin_id) {
+    try { await SaleOrder.update(voucher.origin_id, { paid_date: new Date().toISOString() }); } catch {}
+  }
   if (method === "cash") {
     await CashJournal.create({
       journal_date:    getLocalDate(),
@@ -197,6 +202,18 @@ function DetailModal({ voucher, user, onClose, onRefresh }) {
           <button onClick={() => setShowPay(true)}
             style={{ width:"100%", height:44, marginTop:16, background:"#4f46e5", color:"#fff", border:"none", borderRadius:12, fontWeight:800, fontSize:14, cursor:"pointer" }}>
             {isRec ? "💵 Thu tiền" : "💸 Thanh toán"}
+          </button>
+        )}
+        {voucher.status === "paid" && voucher.origin_type === "sale_order" && (
+          <button onClick={async () => {
+            try {
+              const so = await SaleOrder.get(voucher.origin_id);
+              const items = await SaleOrderItem.filter({ order_id: voucher.origin_id });
+              await printSaleReceiptA5({ ...so, payment_method:"credit", paid_date: voucher.paid_date || so.paid_date || new Date().toISOString(), items });
+            } catch(e) { alert("Lỗi in phiếu: " + e.message); }
+          }}
+            style={{ width:"100%", height:44, marginTop:12, background:"#059669", color:"#fff", border:"none", borderRadius:12, fontWeight:800, fontSize:14, cursor:"pointer" }}>
+            🖨️ In phiếu thanh toán
           </button>
         )}
       </div>
