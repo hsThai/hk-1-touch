@@ -282,7 +282,7 @@ function TabContent({ vtype, user }) {
     setLoading(true);
     try {
       const data = await DebtVoucher.filter({ voucher_type: vtype });
-      setList((data||[]).sort((a,b) => new Date(b.created||0) - new Date(a.created||0)));
+      setList((data||[]).sort((a,b) => (b.id > a.id ? 1 : -1)));
     } catch {}
     if (vtype === "payable") {
       try {

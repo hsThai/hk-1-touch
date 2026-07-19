@@ -345,7 +345,7 @@ function ProfitLossTab({ repairOrders, saleOrders, expenses }) {
   const partsCost = stockExps.filter(x=>x.status==="approved"&&inP(x.updated_date||x.updated)).reduce((s,x)=>s+(x.total_value||0),0);
   const grossProfit = totalRev - partsCost;
 
-  const approvedExp = expenses.filter(e=>e.status==="approved"&&inP(e.expense_date||e.created));
+  const approvedExp = expenses.filter(e=>e.status==="approved"&&inP(e.expense_date||e.created_date||e.created));
   const EXP_CATS = ["salary","rent","utilities","supplies","other"];
   const EXP_LBL  = { salary:"Lương", rent:"Thuê MB", utilities:"Điện nước", supplies:"Vật tư", other:"Khác" };
   const expByCat = EXP_CATS.map(cat=>({
@@ -517,7 +517,7 @@ export default function RevenueReportPage({ user }) {
     saleOrders.filter(o => o.status==="paid" && inPeriod(o.created||o.created_date, period)),
     [saleOrders, period]);
   const periodExp = useMemo(() =>
-    expenses.filter(e => inPeriod(e.expense_date||e.created, period)),
+    expenses.filter(e => inPeriod(e.expense_date||e.created_date||e.created, period)),
     [expenses, period]);
 
   const repairRev = periodRepair.reduce((s,o) => s+(o.final_cost||0), 0);

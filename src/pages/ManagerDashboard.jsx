@@ -138,12 +138,12 @@ function OverviewTab({ repairOrders, saleOrders, spareParts, ledgerSummary=[], c
   const chartData = days7.map(day => {
     const lbl = String(day.getDate()).padStart(2,"0")+"/"+String(day.getMonth()+1).padStart(2,"0");
     const rv = repairOrders.filter(o=>DONE_ST.includes(o.status)&&o.done_date&&sameDay(new Date(o.done_date),day)).reduce((s,o)=>s+(o.final_cost||0),0);
-    const sv = saleOrders.filter(o=>o.status==="paid"&&(o.created||o.created_date)&&sameDay(new Date(o.created||o.created_date),day)).reduce((s,o)=>s+(o.total||0),0);
+    const sv = saleOrders.filter(o=>["paid","completed"].includes(o.status)&&(o.created_date||o.created)&&sameDay(new Date(o.created_date||o.created),day)).reduce((s,o)=>s+(o.total||0),0);
     return { label:lbl, value:rv+sv };
   });
 
   const lowStock = ledgerSummary.filter(p => p.total_qty <= Math.max(p.min_qty, 2));
-  const recent5  = [...repairOrders].sort((a,b)=>new Date(b.created||b.received_date)-new Date(a.created||a.received_date)).slice(0,5);
+  const recent5  = [...repairOrders].sort((a,b)=>new Date(b.received_date||b.created_date||b.created)-new Date(a.received_date||a.created_date||a.created)).slice(0,5);
 
   // ── Section 2: Việc cần làm hôm nay ──────────────────
   const waitingRepair  = repairOrders.filter(o => ["Chờ Khám","Chờ Linh Kiện"].includes(o.status));
@@ -307,7 +307,7 @@ function OverviewTab({ repairOrders, saleOrders, spareParts, ledgerSummary=[], c
                   color:STATUS_COLORS[o.status]||"#6b7280", borderRadius:99, padding:"2px 8px", fontWeight:700 }}>
                   {o.status}
                 </div>
-                <div style={{ fontSize:10, color:"#9ca3af", marginTop:2 }}>{timeAgo(o.created||o.received_date)}</div>
+                <div style={{ fontSize:10, color:"#9ca3af", marginTop:2 }}>{timeAgo(o.received_date||o.created_date||o.created)}</div>
               </div>
             </div>
           ))}
@@ -350,7 +350,7 @@ function RevenueTab({ repairOrders, saleOrders, expenses }) {
   useEffect(() => {
     const now = new Date();
     const fromDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-    SaleOrder.list({ filter: `created>="${fromDate}"`, limit: 500 }).then(orders => {
+    SaleOrder.list({ filter: `created_date>="${fromDate}"`, limit: 500 }).then(orders => {
       const map = {};
       for (const o of orders) {
         const items = o.items || o.products || [];
@@ -371,10 +371,10 @@ function RevenueTab({ repairOrders, saleOrders, expenses }) {
     repairOrders.filter(o=>DONE_ST.includes(o.status)&&inPeriod(o.done_date||o.updated,period)),
     [repairOrders,period]);
   const pSale   = useMemo(() =>
-    saleOrders.filter(o=>o.status==="paid"&&inPeriod(o.created||o.created_date,period)),
+    saleOrders.filter(o=>["paid","completed"].includes(o.status)&&inPeriod(o.created_date||o.created,period)),
     [saleOrders,period]);
   const pExp    = useMemo(() =>
-    expenses.filter(e=>inPeriod(e.expense_date||e.created,period)),
+    expenses.filter(e=>inPeriod(e.expense_date||e.created_date||e.created,period)),
     [expenses,period]);
 
   const repairRev = pRepair.reduce((s,o)=>s+(o.final_cost||0),0);
@@ -404,7 +404,7 @@ function RevenueTab({ repairOrders, saleOrders, expenses }) {
       .filter(o => DONE_ST.includes(o.status) && o.done_date && new Date(o.done_date)>=prevFrom && new Date(o.done_date)<=prevTo)
       .reduce((s,o)=>s+(o.final_cost||0),0);
     const ps = saleOrders
-      .filter(o => o.status==="paid" && (o.created||o.created_date) && new Date(o.created||o.created_date)>=prevFrom && new Date(o.created||o.created_date)<=prevTo)
+      .filter(o => ["paid","completed"].includes(o.status) && (o.created_date||o.created) && new Date(o.created_date||o.created)>=prevFrom && new Date(o.created_date||o.created)<=prevTo)
       .reduce((s,o)=>s+(o.total||0),0);
     return pr + ps;
   }, [period, repairOrders, saleOrders]);
@@ -704,7 +704,7 @@ function StaffKpiTab({ staff, repairOrders }) {
 
 function StaffModal({ staff: s, repairOrders, onClose }) {
   const myOrders = repairOrders.filter(o=>o.assigned_to===s.id);
-  const recent10 = [...myOrders].sort((a,b)=>new Date(b.created||b.received_date)-new Date(a.created||a.received_date)).slice(0,10);
+  const recent10 = [...myOrders].sort((a,b)=>new Date(b.received_date||b.created_date||b.created)-new Date(a.received_date||a.created_date||a.created)).slice(0,10);
   const statusCount = {};
   myOrders.forEach(o=>{ statusCount[o.status]=(statusCount[o.status]||0)+1; });
   const total = myOrders.length || 1;
@@ -1026,7 +1026,7 @@ function DebtSubTab({ repairOrders }) {
       _remaining: o.remaining_amount || o.balance || 0,
       daysDebt: o.done_date
         ? Math.floor((new Date() - new Date(o.done_date)) / 86400000)
-        : (o.created ? Math.floor((new Date() - new Date(o.created)) / 86400000) : null),
+        : (o.created_date ? Math.floor((new Date() - new Date(o.created_date)) / 86400000) : null),
     }))
     .sort((a, b) => (b.daysDebt||0) - (a.daysDebt||0));
 
@@ -1164,7 +1164,7 @@ function CashflowSubTab({ repairOrders, expenses, saleOrders }) {
     .reduce((s,o) => s+(o.total||0), 0);
   const totalRevenue = repairRevenue + saleRevenue;
   const totalExpense = expenses
-    .filter(e => thisMonth(e.expense_date||e.created))
+    .filter(e => thisMonth(e.expense_date||e.created_date||e.created))
     .reduce((s,e) => s+(e.amount||0), 0);
   const balance = totalRevenue - totalExpense;
 
@@ -1332,7 +1332,7 @@ function StaffTab({ staff, repairOrders }) {
 
 // ── TAB 4: Kho & Kế toán ─────────────────────────────────────
 function ImportSubTab({ stockImports }) {
-  const recent = [...stockImports].sort((a,b)=>new Date(b.created)-new Date(a.created)).slice(0,20);
+  const recent = [...stockImports].sort((a,b)=> (b.id > a.id ? 1 : -1)).slice(0,20);
   const STATUS_BADGE = {
     draft:      { label:"Nháp",     bg:"#f3f4f6", cl:"#6b7280" },
     confirmed:  { label:"Xác nhận", bg:"#f0fdf4", cl:"#059669" },
@@ -1362,7 +1362,7 @@ function ImportSubTab({ stockImports }) {
             <div style={{ display:"flex", justifyContent:"space-between", marginTop:8 }}>
               <span style={{ fontSize:12, color:"#9ca3af" }}>
                 {imp.confirmed_at ? new Date(imp.confirmed_at).toLocaleDateString("vi-VN") :
-                  new Date(imp.created).toLocaleDateString("vi-VN")}
+                  new Date(imp.created_date||imp.created).toLocaleDateString("vi-VN")}
               </span>
               <span style={{ fontWeight:800, color:"#059669", fontSize:13 }}>
                 {fmtMoney(imp.total_value||0)}
@@ -1394,7 +1394,7 @@ function ExportSubTab({ sparePartUsages, onApprove }) {
                 {u.warehouse_name||""} · KTV: {u.created_by_name||""} · SL: {u.qty_requested||u.qty||1}
               </div>
               <div style={{ fontSize:11, color:"#9ca3af", marginTop:2 }}>
-                {new Date(u.created).toLocaleDateString("vi-VN")}
+                {new Date(u.created_date||u.created).toLocaleDateString("vi-VN")}
               </div>
             </div>
             <button onClick={() => onApprove(u.id)}
@@ -1450,7 +1450,7 @@ function SettingsLiteTab({ user, repairOrders, customers, spareParts, ledgerSumm
 
   const firstOrder = repairOrders.length > 0
     ? repairOrders.reduce((min,o)=>{
-        const d = new Date(o.created||o.received_date);
+        const d = new Date(o.received_date||o.created_date||o.created);
         return d < min ? d : min;
       }, new Date()) : null;
   const daysActive = firstOrder

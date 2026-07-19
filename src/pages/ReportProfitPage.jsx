@@ -101,17 +101,17 @@ export default function ReportProfitPage({ user }) {
       for (const s of (sales || [])) {
         const amt = Number(s.total_amount || s.final_amount || 0);
         totalSale += amt;
-        addDay(s.created?.slice(0,10), "sale", amt);
+        addDay((s.created_date||s.created||"")?.slice(0,10), "sale", amt);
       }
       for (const e of (expenses || [])) {
         const amt = Number(e.amount || 0);
         totalExpense += amt;
-        addDay(e.created?.slice(0,10), "expense", amt);
+        addDay((e.expense_date||e.created_date||e.created||"")?.slice(0,10), "expense", amt);
       }
       for (const m of (movements || [])) {
         const amt = Number(m.qty_change || 0) * Number(m.unit_price || 0);
         totalCogs += Math.abs(amt);
-        addDay(m.created?.slice(0,10), "cogs", Math.abs(amt));
+        addDay((m.created_date||m.created||"")?.slice(0,10), "cogs", Math.abs(amt));
       }
 
       const totalRevenue = totalRepair + totalSale;
