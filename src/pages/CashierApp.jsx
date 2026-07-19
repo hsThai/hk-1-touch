@@ -1,6 +1,6 @@
 /* CashierApp.jsx — App 3: Kế toán & Bán hàng lẻ */
 import React, { useState, useEffect } from "react";
-import { RepairOrder, SaleOrder, SaleOrderItem, Expense, CashJournal, ShiftReconcile, getLocalDate } from "./pb.jsx";
+import { RepairOrder, SaleOrder, SaleOrderItem, Expense, CashJournal, ShiftReconcile, DebtVoucher, getLocalDate } from "./pb.jsx";
 
 const ALLOWED_ROLES = ["accountant", "cashier", "manager", "admin", "owner", "sales", "team_leader"];
 const DONE_STATUS   = ["Hoàn Thành", "Đã Giao", "Đã Thanh Toán"];
@@ -122,6 +122,7 @@ function ShiftReconcilePage({ user }) {
 
       const repairJournals = dayJournals.filter(j => j.ref_type==="repair_order");
       const saleJournals   = dayJournals.filter(j => j.ref_type==="sale_order");
+      const debtJournals   = dayJournals.filter(j => j.ref_type==="debt_payment");
 
       const isCash = m => !m || m==="cash" || m==="Tiền mặt";
       const isBank = m => m==="transfer" || m==="Chuyển khoản" || m==="bank_transfer";
@@ -130,9 +131,12 @@ function ShiftReconcilePage({ user }) {
       const repairBank = repairJournals.filter(j=>isBank(j.payment_method)).reduce((s,j)=>s+(j.amount||0),0);
       const saleCash   = saleJournals.filter(j=>isCash(j.payment_method)).reduce((s,j)=>s+(j.amount||0),0);
       const saleBank   = saleJournals.filter(j=>isBank(j.payment_method)).reduce((s,j)=>s+(j.amount||0),0);
+      const debtCash = debtJournals.filter(j=>isCash(j.payment_method) && j.entry_type==="receipt").reduce((s,j)=>s+(j.amount||0),0);
+      const debtBank = debtJournals.filter(j=>isBank(j.payment_method) && j.entry_type==="receipt").reduce((s,j)=>s+(j.amount||0),0);
       const repairRev  = repairCash + repairBank;
       const saleRev    = saleCash + saleBank;
-      const totalRev   = repairRev + saleRev;
+      const debtRev    = debtCash + debtBank;
+      const totalRev   = repairRev + saleRev + debtRev;
 
       const start = new Date(date); start.setHours(0,0,0,0);
       const end   = new Date(date); end.setHours(23,59,59,999);
@@ -142,17 +146,19 @@ function ShiftReconcilePage({ user }) {
 
       const repairIds = new Set(repairJournals.map(j=>j.ref_id).filter(Boolean));
       const saleIds   = new Set(saleJournals.map(j=>j.ref_id).filter(Boolean));
+      const debtIds   = new Set(debtJournals.map(j=>j.ref_id).filter(Boolean));
       const doneRepairs = (repairs||[]).filter(o => repairIds.has(o.id));
       const paidSales   = (sales||[]).filter(o => saleIds.has(o.id));
+      const debtVouchers = (allVouchers||[]).filter(v => debtIds.has(v.id));
 
-      const sysCash = repairCash + saleCash;
-      const sysBank = repairBank + saleBank;
+      const sysCash = repairCash + saleCash + debtCash;
+      const sysBank = repairBank + saleBank + debtBank;
 
-      setData({ doneRepairs, paidSales, dayExp,
-        repairRev, saleRev, totalRev, totalExp,
+      setData({ doneRepairs, paidSales, debtVouchers, dayExp,
+        repairRev, saleRev, debtRev, totalRev, totalExp,
         profit: totalRev - totalExp,
         sysCash, sysBank,
-        repairCash, repairBank, saleCash, saleBank,
+        repairCash, repairBank, saleCash, saleBank, debtCash, debtBank,
         deposits: doneRepairs.reduce((s,o)=>s+(o.deposit||0),0),
         cashIn, cashOut, cashNet: cashIn - cashOut,
       });
@@ -208,10 +214,10 @@ function ShiftReconcilePage({ user }) {
     const BOM = "\uFEFF";
     const rows = [
       ["DOI SOAT CA — " + date], [],
-      ["DOANH THU"], ["Sua chua",data.repairRev,"Ban le",data.saleRev,"Tong",data.totalRev],
+      ["DOANH THU"], ["Sua chua",data.repairRev,"Ban le",data.saleRev,"Thu no",data.debtRev||0,"Tong",data.totalRev],
       [], ["THANH TOAN"],
-      ["TM sua",data.repairCash,"TM ban",data.saleCash,"Tong TM",data.sysCash],
-      ["CK sua",data.repairBank,"CK ban",data.saleBank,"Tong CK",data.sysBank],
+      ["TM sua",data.repairCash,"TM ban",data.saleCash,"TM no",data.debtCash||0,"Tong TM",data.sysCash],
+      ["CK sua",data.repairBank,"CK ban",data.saleBank,"CK no",data.debtBank||0,"Tong CK",data.sysBank],
       [], ["THUC TE"], ["TM thuc",actualCashNum,"CK thuc",actualBankNum],
       ["Chenh lech TM",cashDiff,"Chenh lech CK",bankDiff],
       [], ["Chi phi",data.totalExp,"Loi nhuan",data.profit], [],
@@ -219,6 +225,8 @@ function ShiftReconcilePage({ user }) {
       ...(data.doneRepairs.map(o=>[o.order_code||o.id,o.customer_name,o.customer_phone,o.device_model,o.final_cost||0,o.deposit||0,Math.max(0,(o.final_cost||0)-(o.deposit||0)),o.payment_method||"TM"])),
       [], ["BAN LE"], ["Ma","Ghi chu","Tong","TT"],
       ...(data.paidSales.map(o=>[o.order_code||o.id,o.note||"",o.total||0,o.payment_method||"TM"])),
+      [], ["THU NO"], ["Ma PT","Khach hang","Don goc","So tien","Trang thai"],
+      ...((data.debtVouchers||[]).map(v=>[v.voucher_code,v.party_name,v.origin_code||"",v.paid_amount||0,v.status||""])),
       [], ["CHI PHI"], ["Loai","Mo ta","So tien"],
       ...(data.dayExp.map(e=>[e.category||"Khac",e.description||"",e.amount||0])),
     ];
@@ -317,6 +325,8 @@ function ShiftReconcilePage({ user }) {
             {label:"Sửa chữa — Chuyển khoản", v:data.repairBank},
             {label:"Bán lẻ — Tiền mặt",       v:data.saleCash},
             {label:"Bán lẻ — Chuyển khoản",   v:data.saleBank},
+            {label:"Thu nợ — Tiền mặt",       v:data.debtCash||0,  color:"#7c3aed"},
+            {label:"Thu nợ — Chuyển khoản",   v:data.debtBank||0,  color:"#7c3aed"},
           ].map(r=>(
             <div key={r.label} style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"5px 0",borderBottom:"1px solid #f3f4f6"}}>
               <span style={{color:"#6b7280"}}>{r.label}</span>
@@ -422,7 +432,7 @@ function ShiftReconcilePage({ user }) {
         </div>
 
         {/* Bán lẻ */}
-        <div style={{background:"#fff",borderRadius:12,padding:14,boxShadow:"0 1px 4px rgba(0,0,0,.06)"}}>
+        <div style={{background:"#fff",borderRadius:12,padding:14,marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,.06)"}}>
           <div style={{fontWeight:700,fontSize:14,marginBottom:8}}>
             <span className="material-icons" style={{fontSize:18,fontFamily:"Material Icons",verticalAlign:"middle"}}>shopping_bag</span>
             Bán lẻ ({data.paidSales.length})
@@ -438,6 +448,29 @@ function ShiftReconcilePage({ user }) {
             </div>
           ))}
         </div>
+
+        {/* Thu nợ */}
+        {data.debtVouchers && data.debtVouchers.length > 0 && (
+          <div style={{background:"#fff",borderRadius:12,padding:14,marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,.06)",border:"1.5px solid #ddd6fe"}}>
+            <div style={{fontWeight:700,fontSize:14,marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
+              <span className="material-icons" style={{fontSize:18,fontFamily:"Material Icons",color:"#7c3aed"}}>request_quote</span>
+              <span style={{color:"#7c3aed"}}>Thu nợ ({data.debtVouchers.length})</span>
+            </div>
+            {data.debtVouchers.map(v=>(
+              <div key={v.id} style={{padding:"8px 0",borderBottom:"1px solid #f3f4f6"}}>
+                <div style={{display:"flex",justifyContent:"space-between"}}>
+                  <span style={{fontWeight:700,fontSize:13}}>{v.voucher_code}</span>
+                  <span style={{fontWeight:700,color:"#7c3aed"}}>{fmt(v.paid_amount)}</span>
+                </div>
+                <div style={{fontSize:12,color:"#6b7280"}}>{v.party_name} · {v.origin_code||""}</div>
+                <div style={{fontSize:11,color:"#9ca3af"}}>
+                  {v.status==="paid"?"✅ Đã tất toán":v.status==="partial"?"Đang trả dần":"Đang nợ"}
+                  {" · Thu hôm nay: "+fmt((v.paid_amount||0))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Thông tin chốt ca */}
         {reconcileRecord && (
