@@ -643,7 +643,13 @@ export async function previewSaleReceipt(saleOrder, shopInfo = {}) {
   ${saleOrder.cashier_name ? `<div class="meta"><span>Thu ngân:</span><span>${saleOrder.cashier_name}</span></div>` : ""}
   ${saleOrder.seller_name  ? `<div class="meta"><span>Người bán:</span><span>${saleOrder.seller_name}</span></div>` : ""}
   <div class="meta"><span>Khách hàng:</span><span>${saleOrder.customer_name || "Khách lẻ"}${saleOrder.customer_phone ? " — " + saleOrder.customer_phone : ""}</span></div>
-  <div class="meta"><span>Thanh toán:</span><span>${PM_LABELS[saleOrder.payment_method] || saleOrder.payment_method || "Tiền mặt"}</span></div>
+  ${saleOrder.payment_method === "credit"
+    ? `<div class="meta"><span>Thanh toán:</span><span style="font-weight:700;color:#7c3aed">Ghi nợ (Bán chịu)</span></div>
+       <div style="margin:6px 0;padding:7px 10px;border:2px dashed #7c3aed;border-radius:6px;text-align:center;font-size:11px;font-weight:800;color:#7c3aed;letter-spacing:1px">
+         ⚠️ ĐƠN GHI NỢ — CHƯA THANH TOÁN
+       </div>`
+    : `<div class="meta"><span>Thanh toán:</span><span>${PM_LABELS[saleOrder.payment_method] || saleOrder.payment_method || "Tiền mặt"}</span></div>`
+  }
   <hr class="sep-dash"/>
 
   <!-- BẢNG SẢN PHẨM -->
