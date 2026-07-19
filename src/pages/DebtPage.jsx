@@ -213,7 +213,7 @@ function DetailModal({ voucher, user, onClose, onRefresh }) {
           <button onClick={async () => {
             try {
               const so = await SaleOrder.get(voucher.origin_id);
-              const its = await SaleOrderItem.list({ filter: `order_id="${voucher.origin_id}"`, limit: 50 });
+              const its = await SaleOrderItem.list({ filter: `sale_order_id="${voucher.origin_id}"`, limit: 50 });
               const allPays = await DebtPayment.list({ filter: `voucher_id="${voucher.id}"`, limit: 50 });
               await printSaleReceiptA5({
                 ...so,
