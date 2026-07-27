@@ -8,9 +8,9 @@ function fmtMoney(n) {
 
 function getMonthRange(ym) {
   const [y, m] = ym.split("-").map(Number);
-  const from = `${ym}-01 00:00:00`;
+  const from = `${ym}-01`;
   const lastDay = new Date(y, m, 0).getDate();
-  const to = `${ym}-${String(lastDay).padStart(2, "0")} 23:59:59`;
+  const to = `${ym}-${String(lastDay).padStart(2, "0")}`;
   return { from, to };
 }
 
@@ -51,8 +51,8 @@ export default function StockReportNXT({ user }) {
 
       // Movements trong tháng
       const mvParts = [
-        `created>="${from}"`,
-        `created<="${to}"`,
+        `created_date>="${from}"`,
+        `created_date<="${to} 23:59:59"`,
       ];
       if (warehouseId !== "all") mvParts.push(`warehouse_id="${warehouseId}"`);
       const movements = await StockMovement.list({
@@ -68,7 +68,7 @@ export default function StockReportNXT({ user }) {
         const mtype = mv.movement_type || mv.type || "";
         const qty = Number(mv.qty_change || mv.qty || mv.quantity || 0);
         if (mtype === "import" || mtype === "in"  || mtype === "receive") mvMap[key].in  += Math.abs(qty);
-        if (mtype === "export" || mtype === "out" || mtype === "issue")   mvMap[key].out += Math.abs(qty);
+        if (mtype === "export" || mtype === "out" || mtype === "issue" || mtype === "sale") mvMap[key].out += Math.abs(qty);
       }
 
       // Tạo rows
@@ -306,7 +306,7 @@ export default function StockReportNXT({ user }) {
                   {itemHistory.map(h => (
                     <tr key={h.id} style={{ borderBottom:"1px solid #f3f4f6" }}>
                       <td style={{ padding:"8px 10px" }}>
-                        {new Date(h.created||h.created_date).toLocaleDateString("vi-VN")}
+                        {new Date(h.created_date||h.created).toLocaleDateString("vi-VN")}
                       </td>
                       <td style={{ padding:"8px 10px" }}>
                         <span style={{

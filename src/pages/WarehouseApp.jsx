@@ -749,12 +749,66 @@ function WarehouseImport({ user }) {
 
   async function handleDeleteImport(imp) {
     try {
-      // Xóa items trước
       const its = await StockImportItem.list({ filter:`import_id="${imp.id}"`, limit:200 });
-      for (const it of (its||[])) await StockImportItem.delete(it.id).catch(()=>{});
+      // Rollback stock: trừ stock_qty trên SparePart + cập nhật StockLedger
+      for (const it of (its||[])) {
+        try {
+          // Trừ stock_qty trên product_catalog
+          if (it.sku) {
+            const parts = await SparePart.filter({ sku: it.sku });
+            if (parts && parts[0]) {
+              const oldQty = Number(parts[0].stock_qty)||0;
+              const newQty = Math.max(0, oldQty - (Number(it.qty)||0));
+              await SparePart.update(parts[0].id, { stock_qty: newQty });
+            }
+          } else if (it.name) {
+            const parts = await SparePart.filter({ name: it.name });
+            if (parts && parts[0]) {
+              const oldQty = Number(parts[0].stock_qty)||0;
+              const newQty = Math.max(0, oldQty - (Number(it.qty)||0));
+              await SparePart.update(parts[0].id, { stock_qty: newQty });
+            }
+          }
+          // Trừ qty_on_hand trên StockLedger
+          if (it.sku && imp.warehouse_id) {
+            const ledgers = await StockLedger.list({ filter:`sku="${it.sku}" && warehouse_id="${imp.warehouse_id}"`, limit:5 }).catch(()=>[]);
+            if (ledgers && ledgers[0]) {
+              const oldOH = Number(ledgers[0].qty_on_hand)||0;
+              const newOH = Math.max(0, oldOH - (Number(it.qty)||0));
+              await StockLedger.update(ledgers[0].id, {
+                qty_on_hand: newOH,
+                qty_available: Math.max(0, newOH - (Number(ledgers[0].qty_reserved)||0)),
+                note: (ledgers[0].note||"") + " | Xóa phiếu: " + imp.import_code,
+              });
+            }
+          }
+          // Ghi StockMovement (xuất do xóa)
+          await StockMovement.create({
+            movement_code: "MV-DEL-" + Date.now() + "-" + Math.floor(Math.random()*900+100),
+            movement_type: "adjust",
+            warehouse_id: imp.warehouse_id || "",
+            warehouse_name: imp.warehouse_name || "",
+            part_id: "",
+            part_name: it.name || "",
+            sku: it.sku || "",
+            qty_before: Number(it.qty)||0,
+            qty_change: -(Number(it.qty)||0),
+            qty_after: 0,
+            unit_price: Number(it.unit_price)||0,
+            ref_type: "stock_import_delete",
+            ref_id: imp.id,
+            ref_code: imp.import_code,
+            note: "Xóa phiếu nhập " + imp.import_code,
+            created_by_id: user.id,
+            created_by_name: user.name || "",
+            created_date: new Date().toISOString().replace("T"," ").split(".")[0],
+          });
+          await StockImportItem.delete(it.id).catch(()=>{});
+        } catch(e) { console.error("Rollback error:", e); }
+      }
       await StockImport.delete(imp.id);
       setConfirmDelete(null);
-      showToast("✅ Đã xóa phiếu nhập "+imp.import_code);
+      showToast("✅ Đã xóa phiếu nhập "+imp.import_code+" (đã rollback tồn kho)");
       loadImports();
     } catch(e) { showToast("Lỗi xóa: "+e.message); }
   }
@@ -860,7 +914,7 @@ function WarehouseImport({ user }) {
         +String(new Date().getMonth()+1).padStart(2,"0")
         +String(new Date().getDate()).padStart(2,"0")
         +"-"+Math.floor(Math.random()*9000+1000);
-      const totalValue = items.reduce((s,i)=>s+(i.qty*(i.unit_price||0)),0);
+      const totalValue = preTotal;  // reuse preTotal
       const imp = await StockImport.create({
         import_code:code, import_type:importType,
         supplier_name:supplier, supplier_phone:supplierPhone,
@@ -884,7 +938,7 @@ function WarehouseImport({ user }) {
         // Cập nhật tồn kho SparePart
         try {
           if (importType==="device" && it.serial_imei) {
-            // Máy móc có IMEI → tạo record riêng (1 IMEI = 1 record)
+            // Máy móc có IMEI → 1 IMEI = 1 record duy nhất
             const existing = await SparePart.filter({ sku: it.serial_imei });
             if (!existing || existing.length===0) {
               await SparePart.create({
@@ -893,6 +947,12 @@ function WarehouseImport({ user }) {
                 price: it.unit_price||0, stock_qty:it.qty,
                 is_active:true,
                 note:"📦 Hàng trong kho - Chưa bán | Nhập: "+code,
+              });
+            } else {
+              // IMEI đã tồn tại → cộng thêm stock_qty (trường hợp nhập bổ sung)
+              await SparePart.update(existing[0].id, {
+                stock_qty: (Number(existing[0].stock_qty)||0) + Number(it.qty||0),
+                price: it.unit_price || existing[0].price,
               });
             }
           } else if (importType==="spare_part") {
@@ -979,6 +1039,7 @@ function WarehouseImport({ user }) {
           await StockMovement.create({
             movement_code: "MV-" + Date.now() + "-" + Math.floor(Math.random()*900+100),
             movement_type: "import",
+            created_date: new Date().toISOString().replace("T"," ").split(".")[0],
             warehouse_id: warehouseId,
             warehouse_name: warehouseName || "",
             part_id: partId,
@@ -1018,7 +1079,7 @@ function WarehouseImport({ user }) {
         } catch(e) { console.error("PO update error:", e); }
       }
       // KT-2: ghi debt_voucher + cash_journal nếu có nợ NCC
-      const __totalVal = items.reduce((s,i)=>s+(i.qty*(i.unit_price||0)),0);
+      const __totalVal = preTotal;  // reuse preTotal
       try {
         if (impPaidAmt > 0 && impPayMethod === "cash") {
           await CashJournal.create({

@@ -205,6 +205,7 @@ export default function SaleOrderPage({ user }) {
         try {
           await StockMovement.create({
             movement_type: "sale",
+            created_date:  new Date().toISOString().replace("T"," ").split(".")[0],
             part_id:       item.part_id,
             part_name:     item.part_name,
             sku:           item.sku || "",
