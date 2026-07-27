@@ -32,9 +32,14 @@ const RESOURCE_META = {
   supplier:           { label:"Nhà cung cấp",          module:"Kế toán",    icon:"storefront" },
   debt:               { label:"Công nợ",               module:"Kế toán",    icon:"account_balance_wallet" },
   cash_journal:       { label:"Sổ quỹ",               module:"Kế toán",    icon:"menu_book" },
+  purchase_order:     { label:"Đơn mua hàng NCC",      module:"Mua hàng",   icon:"shopping_cart" },
+  profit_report:      { label:"Báo cáo lợi nhuận",     module:"Báo cáo",    icon:"trending_up" },
 };
 
-const MODULES   = [...new Set(Object.values(RESOURCE_META).map(r => r.module))];
+const MODULES   = [
+  "Sửa chữa", "Kho", "Kinh doanh", "Kế toán",
+  "Mua hàng", "Báo cáo", "Quản trị",
+];
 const byModule  = (mod) =>
   Object.entries(RESOURCE_META).filter(([,v]) => v.module === mod).map(([k]) => k);
 

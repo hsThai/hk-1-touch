@@ -40,6 +40,8 @@ const RESOURCES = [
   "debt",              // Công nợ phải thu / phải trả
   "cash_journal",      // Sổ quỹ tiền mặt
   "department",        // Phòng ban
+  "purchase_order",    // Đơn mua hàng NCC
+  "profit_report",     // Báo cáo lợi nhuận
 ];
 
 // Actions chuẩn
@@ -75,6 +77,8 @@ const STATIC_MATRIX = {
     debt:              p(1,1,1,1,1,1),
     cash_journal:      p(1,1,1,1,1,1),
     department:        p(1,1,1,1,1,0),
+    purchase_order:    p(1,1,1,1,1,1),
+    profit_report:     p(1,0,0,0,0,1),
   },
 
   // ── ADMIN: giống owner, trừ một vài setting nhạy cảm ──
@@ -101,6 +105,8 @@ const STATIC_MATRIX = {
     debt:              p(1,1,1,1,1,1),
     cash_journal:      p(1,1,1,1,1,1),
     department:        p(1,1,1,1,1,0),
+    purchase_order:    p(1,1,1,1,1,1),
+    profit_report:     p(1,0,0,0,0,1),
   },
 
   // ── MANAGER: quản lý tổng ──────────────────────────────
@@ -127,6 +133,8 @@ const STATIC_MATRIX = {
     debt:              p(1,1,1,0,1,1),
     cash_journal:      p(1,1,0,0,1,1),
     department:        p(1,1,1,0,0,0),
+    purchase_order:    p(1,1,1,0,1,1),
+    profit_report:     p(1,0,0,0,0,1),
   },
 
   // ── RECEPTIONIST: tiếp tân ─────────────────────────────
@@ -153,6 +161,8 @@ const STATIC_MATRIX = {
     debt:              p(0,0,0,0,0,0),
     cash_journal:      p(0,0,0,0,0,0),
     department:        p(0,0,0,0,0,0),
+    purchase_order:    p(0,0,0,0,0,0),
+    profit_report:     p(0,0,0,0,0,0),
   },
 
   // ── TECHNICIAN: kỹ thuật viên ─────────────────────────
@@ -179,6 +189,8 @@ const STATIC_MATRIX = {
     debt:              p(0,0,0,0,0,0),
     cash_journal:      p(0,0,0,0,0,0),
     department:        p(0,0,0,0,0,0),
+    purchase_order:    p(0,0,0,0,0,0),
+    profit_report:     p(0,0,0,0,0,0),
   },
 
   mm_tech: {
@@ -204,6 +216,8 @@ const STATIC_MATRIX = {
     debt:              p(0,0,0,0,0,0),
     cash_journal:      p(0,0,0,0,0,0),
     department:        p(0,0,0,0,0,0),
+    purchase_order:    p(0,0,0,0,0,0),
+    profit_report:     p(0,0,0,0,0,0),
   },
 
 
@@ -231,6 +245,8 @@ const STATIC_MATRIX = {
     debt:              p(0,0,0,0,0,0),
     cash_journal:      p(0,0,0,0,0,0),
     department:        p(0,0,0,0,0,0),
+    purchase_order:    p(1,1,1,0,1,1),
+    profit_report:     p(0,0,0,0,0,0),
   },
 
   // ── CASHIER: thu ngân ────────────────────────────────
@@ -257,6 +273,8 @@ const STATIC_MATRIX = {
     debt:              p(1,1,1,0,0,1),
     cash_journal:      p(1,0,0,0,0,1),
     department:        p(0,0,0,0,0,0),
+    purchase_order:    p(1,1,0,0,0,1),
+    profit_report:     p(1,0,0,0,0,1),
   },
 
   // ── ACCOUNTANT: kế toán ──────────────────────────────
@@ -283,6 +301,8 @@ const STATIC_MATRIX = {
     debt:              p(1,1,1,0,1,1),
     cash_journal:      p(1,1,0,0,0,1),
     department:        p(0,0,0,0,0,0),
+    purchase_order:    p(1,1,1,0,1,1),
+    profit_report:     p(1,0,0,0,0,1),
   },
 
   // ── VIEWER: chỉ xem ──────────────────────────────────
@@ -309,6 +329,8 @@ const STATIC_MATRIX = {
     debt:              p(1,0,0,0,0,0),
     cash_journal:      p(1,0,0,0,0,0),
     department:        p(1,0,0,0,0,0),
+    purchase_order:    p(1,0,0,0,0,0),
+    profit_report:     p(1,0,0,0,0,0),
   },
 
   // ── SUPPORT: hỗ trợ kỹ thuật ─────────────────────────
@@ -335,6 +357,8 @@ const STATIC_MATRIX = {
     debt:              p(0,0,0,0,0,0),
     cash_journal:      p(0,0,0,0,0,0),
     department:        p(0,0,0,0,0,0),
+    purchase_order:    p(0,0,0,0,0,0),
+    profit_report:     p(0,0,0,0,0,0),
   },
 
   // ── DELIVERY: giao nhận ───────────────────────────────
@@ -361,6 +385,8 @@ const STATIC_MATRIX = {
     debt:              p(0,0,0,0,0,0),
     cash_journal:      p(0,0,0,0,0,0),
     department:        p(0,0,0,0,0,0),
+    purchase_order:    p(0,0,0,0,0,0),
+    profit_report:     p(0,0,0,0,0,0),
   },
 
   // ── MARKETING: marketing ─────────────────────────────
@@ -387,6 +413,8 @@ const STATIC_MATRIX = {
     debt:              p(0,0,0,0,0,0),
     cash_journal:      p(0,0,0,0,0,0),
     department:        p(0,0,0,0,0,0),
+    purchase_order:    p(0,0,0,0,0,0),
+    profit_report:     p(0,0,0,0,0,0),
   },
 
   // ── SUPERVISOR: giám sát ─────────────────────────────
@@ -413,6 +441,8 @@ const STATIC_MATRIX = {
     debt:              p(1,0,0,0,1,1),
     cash_journal:      p(1,0,0,0,0,1),
     department:        p(1,0,0,0,0,0),
+    purchase_order:    p(1,0,0,0,1,1),
+    profit_report:     p(1,0,0,0,0,1),
   },
 
   // ── QA: kiểm soát chất lượng ──────────────────────────
@@ -439,6 +469,8 @@ const STATIC_MATRIX = {
     debt:              p(0,0,0,0,0,0),
     cash_journal:      p(0,0,0,0,0,0),
     department:        p(0,0,0,0,0,0),
+    purchase_order:    p(0,0,0,0,0,0),
+    profit_report:     p(1,0,0,0,0,0),
   },
 
   // ── HR: nhân sự ──────────────────────────────────────
