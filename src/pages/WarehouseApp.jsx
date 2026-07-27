@@ -8,7 +8,7 @@ import {
   RepairChat, Notification, Staff, RepairOrder, Customer,
   SparePart, StockExportRequest, StockImport, StockImportItem,
   StockLedger, ActionLog, CashJournal, DebtVoucher, Supplier,
-  PurchaseOrder, PurchaseOrderItem,
+  PurchaseOrder, PurchaseOrderItem, Warehouse,
   getPbUrl, getAuth, logHistory, getLocalDate } from "./pb.jsx";
 import { uploadFile } from "./pb.jsx";
 import {
@@ -624,6 +624,9 @@ function WarehouseImport({ user }) {
   const [selectedPO, setSelectedPO]       = React.useState(null);
   const [showPOPicker, setShowPOPicker]   = React.useState(false);
   const [poRemaining, setPoRemaining]     = React.useState({}); // { po_id: số items chưa nhận đủ }
+  const [warehouses, setWarehouses]       = React.useState([]);
+  const [warehouseId, setWarehouseId]     = React.useState("");
+  const [warehouseName, setWarehouseName] = React.useState("");
 
   React.useEffect(() => { loadImports(); }, []);
 
@@ -633,6 +636,16 @@ function WarehouseImport({ user }) {
       SparePart.list({ limit:1000 }).then(r=>setAllParts(
         (r||[]).map(p=>({ name:p.name, sku:p.sku||"", cost_price:p.price||0, id:p.id }))
       )).catch(()=>{});
+      // Load danh sách kho
+      Warehouse.list({ sort:"name", limit:50 }).then(r => {
+        const active = (r||[]).filter(w => w.is_active !== false);
+        setWarehouses(active);
+        // Auto-chọn kho đầu tiên nếu chưa chọn
+        if (!warehouseId && active.length > 0) {
+          setWarehouseId(active[0].id);
+          setWarehouseName(active[0].name);
+        }
+      }).catch(()=>{});
       // Load PO đang chờ nhận hàng
       PurchaseOrder.list({ filter:'(status = "confirmed" || status = "partial")', sort:"-id", limit:50 })
         .then(async r => {
@@ -835,6 +848,7 @@ function WarehouseImport({ user }) {
 
   // ── Save ──────────────────────────────────────
   async function handleSave() {
+    if (!warehouseId){ showToast("Chọn kho nhập hàng!"); return; }
     if (!supplier.trim()){ showToast("Nhập tên nhà cung cấp!"); return; }
     if (items.length===0){ showToast("Thêm ít nhất 1 mặt hàng!"); return; }
     if (items.some(it=>!it.name.trim())){ showToast("Mặt hàng chưa nhập tên!"); return; }
@@ -850,6 +864,7 @@ function WarehouseImport({ user }) {
       const imp = await StockImport.create({
         import_code:code, import_type:importType,
         supplier_name:supplier, supplier_phone:supplierPhone,
+        warehouse_id:warehouseId, warehouse_name:warehouseName,
         total_items:items.length, total_value:totalValue,
         status:"confirmed", note, created_by:user.id, created_by_name:user.name,
         confirmed_by: user.id, confirmed_by_name: user.name||"",
@@ -997,6 +1012,11 @@ function WarehouseImport({ user }) {
                   <div style={{ fontSize:12, color:"#6b7280", marginTop:2 }}>
                     {imp.import_type==="device"?"📱 Máy móc":"🔩 Linh kiện"} · {imp.supplier_name}
                   </div>
+                  {imp.warehouse_name && (
+                    <div style={{ fontSize:11, color:"#4f46e5", marginTop:1 }}>
+                      🏭 {imp.warehouse_name}
+                    </div>
+                  )}
                   <div style={{ fontSize:12, color:"#6b7280" }}>
                     {imp.total_items} mặt hàng · {(imp.total_value||0).toLocaleString("vi-VN")}đ
                   </div>
@@ -1051,6 +1071,7 @@ function WarehouseImport({ user }) {
                 {[
                   ["Mã phiếu",        viewDetail.import_code],
                   ["Loại hàng",       viewDetail.import_type==="device"?"📱 Máy móc":"🔩 Linh kiện"],
+                  ["Kho nhập",        viewDetail.warehouse_name||"—"],
                   ["Nhà cung cấp",    viewDetail.supplier_name||"—"],
                   ["SĐT NCC",         viewDetail.supplier_phone||"—"],
                   ["Tổng mặt hàng",   `${viewDetail.total_items} SKU`],
@@ -1254,6 +1275,35 @@ function WarehouseImport({ user }) {
                   )}
                 </div>
               )}
+
+              {/* Kho nhập */}
+              <div style={{ marginBottom:12 }}>
+                <div style={{ fontSize:13, fontWeight:700, marginBottom:6 }}>
+                  <span className="material-icons" style={{fontSize:15,verticalAlign:"middle",marginRight:4,color:"#4f46e5"}}>warehouse</span>
+                  Kho nhập hàng *
+                </div>
+                {warehouses.length === 0 ? (
+                  <div style={{ fontSize:12, color:"#f59e0b", padding:"8px 12px", background:"#fffbeb", borderRadius:8, border:"1px solid #fde68a" }}>
+                    ⚠️ Chưa có kho nào. Vào <strong>Thiết lập → Kho hàng</strong> để thêm kho.
+                  </div>
+                ) : (
+                  <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                    {warehouses.map(w => (
+                      <button key={w.id}
+                        onClick={()=>{ setWarehouseId(w.id); setWarehouseName(w.name); }}
+                        style={{
+                          padding:"8px 16px", borderRadius:10, fontSize:13, fontWeight:700, cursor:"pointer",
+                          border: warehouseId===w.id ? "2px solid #4f46e5" : "1.5px solid #e5e7eb",
+                          background: warehouseId===w.id ? "#ede9fe" : "#f9fafb",
+                          color: warehouseId===w.id ? "#4f46e5" : "#374151",
+                          transition:"all .15s",
+                        }}>
+                        🏭 {w.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {/* NCC */}
               <div style={{ marginBottom:12, position:"relative" }}>
