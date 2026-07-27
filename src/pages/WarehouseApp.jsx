@@ -362,16 +362,6 @@ function WarehouseExport({ user }) {
     setLoading(false);
   }
 
-  async function openDetail(imp) {
-    setViewDetail(imp);
-    setLoadingDetail(true);
-    try {
-      const its = await StockImportItem.list({ filter:`import_id="${imp.id}"`, sort:"-id", limit:200 });
-      setDetailItems(its||[]);
-    } catch { setDetailItems([]); }
-    setLoadingDetail(false);
-  }
-
   function showToast(msg){ setToast(msg); setTimeout(()=>setToast(""),3500); }
 
   async function doConfirmExport() {
@@ -732,6 +722,16 @@ function WarehouseImport({ user }) {
       setImports(data);
     } catch(e){ console.error(e); }
     setLoading(false);
+  }
+
+  async function openDetail(imp) {
+    setViewDetail(imp);
+    setLoadingDetail(true);
+    try {
+      const its = await StockImportItem.list({ filter:`import_id="${imp.id}"`, sort:"-id", limit:200 });
+      setDetailItems(its||[]);
+    } catch { setDetailItems([]); }
+    setLoadingDetail(false);
   }
 
   async function handleDeleteImport(imp) {
