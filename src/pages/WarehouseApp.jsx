@@ -629,8 +629,9 @@ function WarehouseImport({ user }) {
         (r||[]).map(p=>({ name:p.name, sku:p.sku||"", cost_price:p.price||0, id:p.id }))
       )).catch(()=>{});
       // Load PO đang chờ nhận hàng
-      PurchaseOrder.list({ filter:'status="confirmed" || status="partial"', sort:"-id", limit:50 })
-        .then(r=>setPendingPOs(r||[])).catch(()=>{});
+      PurchaseOrder.list({ filter:'(status = "confirmed" || status = "partial")', sort:"-id", limit:50 })
+        .then(r=>setPendingPOs((r||[]).filter(po => po.status === "confirmed" || po.status === "partial")))
+        .catch(()=>{});
     } else {
       setSelectedPO(null);
     }
