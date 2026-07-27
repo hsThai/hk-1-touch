@@ -137,7 +137,7 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
       up.total_price = Number(i.qty_ordered||1) * up.unit_price;
       return { ...i, part_id:part.id, part_name:part.name, sku:part.sku||"", ...up };
     }));
-    setPartSearch(p => ({ ...p, [rowId]:"" }));
+    setPartSearch(p => { const n={...p}; delete n[rowId]; return n; });
     setPartDropdown(null);
   }
 
@@ -292,7 +292,7 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
                           <>
                             <input
                               ref={el => { partInputRefs.current[row.id] = el; }}
-                              value={partSearch[row.id] !== undefined ? partSearch[row.id] : row.part_name}
+                              value={partDropdown === row.id && partSearch[row.id] !== undefined ? partSearch[row.id] : (partSearch[row.id] || row.part_name || "")}
                               onChange={e=>{
                                 setPartSearch(p=>({...p,[row.id]:e.target.value}));
                                 updateRow(row.id,"part_name",e.target.value);
