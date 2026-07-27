@@ -825,6 +825,8 @@ function WarehouseImport({ user }) {
     if (!supplier.trim()){ showToast("Nhập tên nhà cung cấp!"); return; }
     if (items.length===0){ showToast("Thêm ít nhất 1 mặt hàng!"); return; }
     if (items.some(it=>!it.name.trim())){ showToast("Mặt hàng chưa nhập tên!"); return; }
+    const preTotal = items.reduce((s,i)=>s+(Number(i.qty)||0)*(Number(i.unit_price)||0),0);
+    if (impPaidAmt > preTotal) { showToast("Tiền thanh toán không được vượt quá tổng giá trị!"); return; }
     setSaving(true);
     try {
       const code = "PN"+new Date().getFullYear().toString().slice(2)
@@ -849,10 +851,12 @@ function WarehouseImport({ user }) {
           photos:JSON.stringify((it.photos||[]).map(p=>p.url)),
           videos:JSON.stringify((it.videos||[]).map(v=>v.url)),
           note:it.note||"",
+          po_item_id: it.po_item_id || "",
         });
-        // Nếu máy móc có serial_imei → ghi vào SparePart để khi quét QR biết "Chưa bán"
-        if (importType==="device" && it.serial_imei) {
-          try {
+        // Cập nhật tồn kho SparePart
+        try {
+          if (importType==="device" && it.serial_imei) {
+            // Máy móc có IMEI → tạo record riêng (1 IMEI = 1 record)
             const existing = await SparePart.filter({ sku: it.serial_imei });
             if (!existing || existing.length===0) {
               await SparePart.create({
@@ -863,8 +867,27 @@ function WarehouseImport({ user }) {
                 note:"📦 Hàng trong kho - Chưa bán | Nhập: "+code,
               });
             }
-          } catch {}
-        }
+          } else if (importType==="spare_part") {
+            // Linh kiện → tìm theo tên + sku, nếu có thì cộng stock_qty, không thì tạo mới
+            const matchSku = it.sku ? await SparePart.filter({ sku: it.sku }) : [];
+            const matchName = await SparePart.filter({ name: it.name });
+            const existing = matchSku.length > 0 ? matchSku[0] : (matchName.length > 0 ? matchName[0] : null);
+            if (existing) {
+              await SparePart.update(existing.id, {
+                stock_qty: (Number(existing.stock_qty)||0) + Number(it.qty||0),
+                price: it.unit_price || existing.price,
+              });
+            } else {
+              await SparePart.create({
+                name: it.name, sku: it.sku||"",
+                category:"spare_part", unit:"cái",
+                price: it.unit_price||0, stock_qty:it.qty,
+                is_active:true,
+                note:"📦 Nhập: "+code,
+              });
+            }
+          }
+        } catch(e) { console.error("SparePart update error:", e); }
       }
       // Cập nhật qty_received trong PO Item nếu nhập theo PO
       if (selectedPO) {
@@ -874,7 +897,7 @@ function WarehouseImport({ user }) {
             if (it.po_item_id) {
               const poi = poItems.find(p => p.id === it.po_item_id);
               if (poi) {
-                const newReceived = (Number(poi.qty_received)||0) + Number(it.qty)||0;
+                const newReceived = (Number(poi.qty_received)||0) + (Number(it.qty)||0);
                 await PurchaseOrderItem.update(poi.id, { qty_received: newReceived });
               }
             }
