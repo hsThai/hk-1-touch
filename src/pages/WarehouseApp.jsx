@@ -7,7 +7,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   RepairChat, Notification, Staff, RepairOrder, Customer,
   SparePart, StockExportRequest, StockImport, StockImportItem,
-  StockLedger, ActionLog, CashJournal, DebtVoucher, Supplier,
+  StockLedger, StockMovement, ActionLog, CashJournal, DebtVoucher, Supplier,
   PurchaseOrder, PurchaseOrderItem, Warehouse,
   getPbUrl, getAuth, logHistory, getLocalDate } from "./pb.jsx";
 import { uploadFile } from "./pb.jsx";
@@ -916,6 +916,86 @@ function WarehouseImport({ user }) {
             }
           }
         } catch(e) { console.error("SparePart update error:", e); }
+
+        // ── Ghi StockLedger + StockMovement cho thẻ kho ──
+        try {
+          // Tìm part_id (từ record SparePart vừa tạo/cập nhật)
+          let partId = "";
+          let partCat = "spare_part";
+          if (importType === "device" && it.serial_imei) {
+            const found = await SparePart.filter({ sku: it.serial_imei });
+            if (found && found[0]) { partId = found[0].id; partCat = "device_stock"; }
+          } else {
+            const matchSku = it.sku ? await SparePart.filter({ sku: it.sku }) : [];
+            const matchName = await SparePart.filter({ name: it.name });
+            const found = matchSku.length > 0 ? matchSku[0] : (matchName.length > 0 ? matchName[0] : null);
+            if (found) { partId = found.id; partCat = found.category || "spare_part"; }
+          }
+
+          const qtyChange = Number(it.qty||0);
+          const unitP = Number(it.unit_price||0);
+          const now = new Date().toISOString();
+
+          // Tìm ledger hiện có cho part + kho
+          let ledger = null;
+          if (partId && warehouseId) {
+            const ledgers = await StockLedger.list({ filter:`part_id="${partId}" && warehouse_id="${warehouseId}"`, limit:5 }).catch(()=>[]);
+            if (ledgers && ledgers[0]) ledger = ledgers[0];
+          }
+
+          const qtyBefore = ledger ? (Number(ledger.qty_on_hand)||0) : 0;
+          const qtyAfter = qtyBefore + qtyChange;
+
+          if (ledger) {
+            // Cập nhật ledger hiện có
+            await StockLedger.update(ledger.id, {
+              qty_on_hand: qtyAfter,
+              qty_available: qtyAfter - (Number(ledger.qty_reserved)||0),
+              cost_price: unitP || ledger.cost_price || 0,
+              last_movement_at: now,
+              note: (ledger.note||"") + " | Nhập: " + code,
+            });
+          } else {
+            // Tạo ledger mới
+            await StockLedger.create({
+              warehouse_id: warehouseId,
+              warehouse_name: warehouseName || "",
+              part_id: partId,
+              part_name: it.name,
+              sku: it.sku || it.serial_imei || "",
+              category: partCat,
+              unit: "cái",
+              qty_on_hand: qtyAfter,
+              qty_reserved: 0,
+              qty_available: qtyAfter,
+              min_qty: 0,
+              cost_price: unitP,
+              last_movement_at: now,
+              note: "Nhập: " + code,
+            });
+          }
+
+          // Ghi StockMovement (Nhập kho)
+          await StockMovement.create({
+            movement_code: "MV-" + Date.now() + "-" + Math.floor(Math.random()*900+100),
+            movement_type: "import",
+            warehouse_id: warehouseId,
+            warehouse_name: warehouseName || "",
+            part_id: partId,
+            part_name: it.name,
+            sku: it.sku || it.serial_imei || "",
+            qty_before: qtyBefore,
+            qty_change: qtyChange,
+            qty_after: qtyAfter,
+            unit_price: unitP,
+            ref_type: "stock_import",
+            ref_id: imp.id,
+            ref_code: code,
+            note: "Nhập hàng từ " + (supplier || "NCC"),
+            created_by_id: user.id,
+            created_by_name: user.name || "",
+          });
+        } catch(e) { console.error("StockLedger/Movement error:", e); }
       }
       // Cập nhật qty_received trong PO Item nếu nhập theo PO
       if (selectedPO) {
