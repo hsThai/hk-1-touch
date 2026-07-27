@@ -7,8 +7,9 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   RepairChat, Notification, Staff, RepairOrder, Customer,
   SparePart, StockExportRequest, StockImport, StockImportItem,
-  StockLedger, ActionLog, CashJournal, DebtVoucher, getPbUrl, getAuth, logHistory
-, getLocalDate } from "./pb.jsx";
+  StockLedger, ActionLog, CashJournal, DebtVoucher, Supplier,
+  PurchaseOrder, PurchaseOrderItem,
+  getPbUrl, getAuth, logHistory, getLocalDate } from "./pb.jsx";
 import { uploadFile } from "./pb.jsx";
 import {
   timeAgo, genOrderId, getKpiTimerInfo,
@@ -612,6 +613,12 @@ function WarehouseImport({ user }) {
   const [items, setItems]                 = React.useState([]);
   const [saving, setSaving]               = React.useState(false);
   const [allParts, setAllParts]           = React.useState([]);
+  const [supplierSugg, setSupplierSugg]   = React.useState([]);
+  const [showSupplierDrop, setShowSupplierDrop] = React.useState(false);
+  const supplierInputRef = React.useRef(null);
+  const [pendingPOs, setPendingPOs]       = React.useState([]);
+  const [selectedPO, setSelectedPO]       = React.useState(null);
+  const [showPOPicker, setShowPOPicker]   = React.useState(false);
 
   React.useEffect(() => { loadImports(); }, []);
 
@@ -621,8 +628,48 @@ function WarehouseImport({ user }) {
       SparePart.list({ limit:1000 }).then(r=>setAllParts(
         (r||[]).map(p=>({ name:p.name, sku:p.sku||"", cost_price:p.price||0, id:p.id }))
       )).catch(()=>{});
+      // Load PO đang chờ nhận hàng
+      PurchaseOrder.list({ filter:'status="confirmed" || status="partial"', sort:"-id", limit:50 })
+        .then(r=>setPendingPOs(r||[])).catch(()=>{});
+    } else {
+      setSelectedPO(null);
     }
   }, [showForm]);
+
+  // Autocomplete NCC
+  React.useEffect(() => {
+    const q = supplier.trim();
+    if (q.length < 1) { setSupplierSugg([]); return; }
+    const t = setTimeout(async () => {
+      try {
+        const res = await Supplier.list({ limit:200 });
+        setSupplierSugg((res||[]).filter(s =>
+          s.name?.toLowerCase().includes(q.toLowerCase()) || s.phone?.includes(q)
+        ).slice(0,6));
+      } catch {}
+    }, 200);
+    return () => clearTimeout(t);
+  }, [supplier]);
+
+  // Chọn PO → điền form
+  async function applyPO(po) {
+    setSelectedPO(po);
+    setSupplier(po.supplier_name||"");
+    setSupplierPhone(po.supplier_phone||"");
+    setShowPOPicker(false);
+    try {
+      const its = await PurchaseOrderItem.list({ filter:`po_id="${po.id}"`, limit:200 });
+      setItems((its||[]).map(it=>({
+        id: Date.now()+"_"+it.id,
+        name: it.part_name||"", sku: it.sku||"",
+        serial_imei:"", qr_code:"",
+        qty: it.qty_ordered||1,
+        unit_price: it.unit_price||0,
+        total_price: it.total_price||0,
+        condition:"new", photos:[], videos:[], note:""
+      })));
+    } catch { showToast("Lỗi tải danh sách hàng PO"); }
+  }
 
   // Dọn stream khi unmount
   React.useEffect(() => () => stopScan(), []);
@@ -903,11 +950,100 @@ function WarehouseImport({ user }) {
                 </div>
               </div>
 
+              {/* Chọn PO đặt hàng */}
+              {pendingPOs.length > 0 && (
+                <div style={{ marginBottom:14 }}>
+                  <button
+                    onClick={()=>setShowPOPicker(v=>!v)}
+                    style={{ width:"100%", padding:"10px 14px", borderRadius:10,
+                      border:"1.5px dashed #7c3aed", background: selectedPO ? "#f5f3ff" : "#faf5ff",
+                      color:"#7c3aed", fontSize:13, fontWeight:700, cursor:"pointer",
+                      display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                    <span>
+                      📋 {selectedPO ? `Đặt hàng: ${selectedPO.po_code}` : "Nhập theo phiếu đặt hàng (PO)"}
+                    </span>
+                    <span className="material-icons" style={{fontSize:18}}>
+                      {showPOPicker?"expand_less":"expand_more"}
+                    </span>
+                  </button>
+                  {selectedPO && (
+                    <div style={{ marginTop:6, padding:"8px 12px", background:"#f0fdf4", borderRadius:8,
+                      border:"1px solid #bbf7d0", fontSize:12, color:"#059669", display:"flex", justifyContent:"space-between" }}>
+                      <span>✅ Đã load {selectedPO.total_items} mặt hàng từ PO</span>
+                      <button onClick={()=>{ setSelectedPO(null); setItems([]); setSupplier(""); setSupplierPhone(""); }}
+                        style={{ background:"none", border:"none", color:"#dc2626", cursor:"pointer", fontSize:12, fontWeight:700 }}>
+                        Bỏ chọn
+                      </button>
+                    </div>
+                  )}
+                  {showPOPicker && (
+                    <div style={{ marginTop:6, background:"#fff", border:"1.5px solid #e5e7eb",
+                      borderRadius:10, boxShadow:"0 4px 20px rgba(0,0,0,.1)", maxHeight:240, overflowY:"auto" }}>
+                      {pendingPOs.map(po=>(
+                        <div key={po.id} onClick={()=>applyPO(po)}
+                          style={{ padding:"10px 14px", cursor:"pointer", borderBottom:"1px solid #f3f4f6" }}
+                          onMouseEnter={e=>e.currentTarget.style.background="#f5f3ff"}
+                          onMouseLeave={e=>e.currentTarget.style.background=""}>
+                          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                            <div>
+                              <div style={{ fontWeight:700, fontSize:13, color:"#1e1b4b" }}>{po.po_code}</div>
+                              <div style={{ fontSize:12, color:"#6b7280" }}>{po.supplier_name} · {po.total_items} mặt hàng</div>
+                            </div>
+                            <div style={{ fontSize:11, color: po.status==="partial"?"#d97706":"#2563eb",
+                              fontWeight:700, padding:"2px 8px", borderRadius:8,
+                              background: po.status==="partial"?"#fffbeb":"#eff6ff" }}>
+                              {po.status==="partial"?"Nhận một phần":"Chờ nhận"}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* NCC */}
-              <div style={{ marginBottom:12 }}>
+              <div style={{ marginBottom:12, position:"relative" }}>
                 <div style={{ fontSize:13, fontWeight:700, marginBottom:6 }}>Nhà cung cấp *</div>
-                <input value={supplier} onChange={e=>setSupplier(e.target.value)} placeholder="Tên nhà cung cấp..."
-                  style={{ width:"100%", height:42, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+                <input
+                  ref={supplierInputRef}
+                  value={supplier}
+                  onChange={e=>{ setSupplier(e.target.value); setShowSupplierDrop(true); }}
+                  onFocus={()=>setShowSupplierDrop(true)}
+                  onBlur={()=>setTimeout(()=>setShowSupplierDrop(false),180)}
+                  placeholder="Tên nhà cung cấp..."
+                  style={{ width:"100%", height:42, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:14, outline:"none", boxSizing:"border-box" }}
+                />
+                {showSupplierDrop && supplierSugg.length > 0 && (() => {
+                  const el = supplierInputRef.current;
+                  if (!el) return null;
+                  const r = el.getBoundingClientRect();
+                  return (
+                    <div style={{
+                      position:"fixed", top:r.bottom+4, left:r.left, width:r.width,
+                      background:"#fff", border:"1.5px solid #e5e7eb", borderRadius:10,
+                      zIndex:99999, maxHeight:220, overflowY:"auto",
+                      boxShadow:"0 8px 30px rgba(0,0,0,.18)"
+                    }}>
+                      {supplierSugg.map(s=>(
+                        <div key={s.id}
+                          onMouseDown={()=>{
+                            setSupplier(s.name||"");
+                            setSupplierPhone(s.phone||"");
+                            setSupplierSugg([]);
+                            setShowSupplierDrop(false);
+                          }}
+                          style={{ padding:"10px 14px", cursor:"pointer", borderBottom:"1px solid #f3f4f6",
+                            display:"flex", justifyContent:"space-between", alignItems:"center" }}
+                          onMouseEnter={e=>e.currentTarget.style.background="#f5f3ff"}
+                          onMouseLeave={e=>e.currentTarget.style.background=""}>
+                          <div style={{fontWeight:700,fontSize:13,color:"#1e1b4b"}}>{s.name}</div>
+                          {s.phone&&<div style={{fontSize:12,color:"#6b7280"}}>{s.phone}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
               <div style={{ marginBottom:14 }}>
                 <div style={{ fontSize:13, fontWeight:700, marginBottom:6 }}>Số điện thoại</div>
