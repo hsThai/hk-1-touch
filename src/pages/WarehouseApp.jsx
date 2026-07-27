@@ -619,6 +619,7 @@ function WarehouseImport({ user }) {
   const [pendingPOs, setPendingPOs]       = React.useState([]);
   const [selectedPO, setSelectedPO]       = React.useState(null);
   const [showPOPicker, setShowPOPicker]   = React.useState(false);
+  const [poRemaining, setPoRemaining]     = React.useState({}); // { po_id: số items chưa nhận đủ }
 
   React.useEffect(() => { loadImports(); }, []);
 
@@ -630,7 +631,24 @@ function WarehouseImport({ user }) {
       )).catch(()=>{});
       // Load PO đang chờ nhận hàng
       PurchaseOrder.list({ filter:'(status = "confirmed" || status = "partial")', sort:"-id", limit:50 })
-        .then(r=>setPendingPOs((r||[]).filter(po => po.status === "confirmed" || po.status === "partial")))
+        .then(async r => {
+          const pos = (r||[]).filter(po => po.status === "confirmed" || po.status === "partial");
+          setPendingPOs(pos);
+          // Tính số items còn chờ nhận cho từng PO
+          const remainMap = {};
+          for (const po of pos) {
+            try {
+              const its = await PurchaseOrderItem.list({ filter:`po_id="${po.id}"`, sort:"-id", limit:200 });
+              const pendingCount = (its||[]).filter(it => {
+                const ordered = Number(it.qty_ordered)||1;
+                const received = Number(it.qty_received)||0;
+                return received < ordered;
+              }).length;
+              remainMap[po.id] = pendingCount;
+            } catch {}
+          }
+          setPoRemaining(remainMap);
+        })
         .catch(()=>{});
     } else {
       setSelectedPO(null);
@@ -652,23 +670,41 @@ function WarehouseImport({ user }) {
     return () => clearTimeout(t);
   }, [supplier]);
 
-  // Chọn PO → điền form
+  // Chọn PO → điền form (chỉ load hàng chưa nhận đủ)
   async function applyPO(po) {
     setSelectedPO(po);
     setSupplier(po.supplier_name||"");
     setSupplierPhone(po.supplier_phone||"");
     setShowPOPicker(false);
     try {
-      const its = await PurchaseOrderItem.list({ filter:`po_id="${po.id}"`, limit:200 });
-      setItems((its||[]).map(it=>({
-        id: Date.now()+"_"+it.id,
-        name: it.part_name||"", sku: it.sku||"",
-        serial_imei:"", qr_code:"",
-        qty: it.qty_ordered||1,
-        unit_price: it.unit_price||0,
-        total_price: it.total_price||0,
-        condition:"new", photos:[], videos:[], note:""
-      })));
+      const its = await PurchaseOrderItem.list({ filter:`po_id="${po.id}"`, sort:"-id", limit:200 });
+      // Lọc chỉ lấy hàng chưa nhận đủ: qty_received < qty_ordered
+      const pending = (its||[]).filter(it => {
+        const ordered = Number(it.qty_ordered)||1;
+        const received = Number(it.qty_received)||0;
+        return received < ordered;
+      }).map(it => {
+        const ordered = Number(it.qty_ordered)||1;
+        const received = Number(it.qty_received)||0;
+        const remaining = ordered - received;
+        return {
+          id: Date.now()+"_"+it.id,
+          po_item_id: it.id,
+          name: it.part_name||"", sku: it.sku||"",
+          serial_imei:"", qr_code:"",
+          qty: remaining,
+          unit_price: it.unit_price||0,
+          total_price: remaining * (it.unit_price||0),
+          condition:"new", photos:[], videos:[], note:""
+        };
+      });
+      if (pending.length === 0) {
+        showToast("✅ PO này đã nhập đủ hàng!");
+        setSelectedPO(null);
+        return;
+      }
+      setItems(pending);
+      showToast(`Đã load ${pending.length} mặt hàng chưa nhận`);
     } catch { showToast("Lỗi tải danh sách hàng PO"); }
   }
 
@@ -815,6 +851,26 @@ function WarehouseImport({ user }) {
           } catch {}
         }
       }
+      // Cập nhật qty_received trong PO Item nếu nhập theo PO
+      if (selectedPO) {
+        try {
+          const poItems = await PurchaseOrderItem.list({ filter:`po_id="${selectedPO.id}"`, sort:"-id", limit:200 });
+          for (const it of items) {
+            if (it.po_item_id) {
+              const poi = poItems.find(p => p.id === it.po_item_id);
+              if (poi) {
+                const newReceived = (Number(poi.qty_received)||0) + Number(it.qty)||0;
+                await PurchaseOrderItem.update(poi.id, { qty_received: newReceived });
+              }
+            }
+          }
+          const refreshed = await PurchaseOrderItem.list({ filter:`po_id="${selectedPO.id}"`, sort:"-id", limit:200 });
+          const allDone = (refreshed||[]).every(pi => (Number(pi.qty_received)||0) >= (Number(pi.qty_ordered)||1));
+          const anyReceived = (refreshed||[]).some(pi => Number(pi.qty_received||0) > 0);
+          const newPOStatus = allDone ? "completed" : anyReceived ? "partial" : "confirmed";
+          await PurchaseOrder.update(selectedPO.id, { status: newPOStatus });
+        } catch(e) { console.error("PO update error:", e); }
+      }
       // KT-2: ghi debt_voucher + cash_journal nếu có nợ NCC
       const __totalVal = items.reduce((s,i)=>s+(i.qty*(i.unit_price||0)),0);
       try {
@@ -846,6 +902,7 @@ function WarehouseImport({ user }) {
       setShowForm(false); setItems([]);
       setSupplier(""); setSupplierPhone(""); setNote("");
       setImportType("spare_part"); setImpPaidAmt(0); setImpPayMethod("cash");
+      setSelectedPO(null); setShowPOPicker(false);
       loadImports();
     } catch(e){ showToast("Lỗi: "+e.message); }
     setSaving(false);
@@ -980,24 +1037,33 @@ function WarehouseImport({ user }) {
                   {showPOPicker && (
                     <div style={{ marginTop:6, background:"#fff", border:"1.5px solid #e5e7eb",
                       borderRadius:10, boxShadow:"0 4px 20px rgba(0,0,0,.1)", maxHeight:240, overflowY:"auto" }}>
-                      {pendingPOs.map(po=>(
-                        <div key={po.id} onClick={()=>applyPO(po)}
-                          style={{ padding:"10px 14px", cursor:"pointer", borderBottom:"1px solid #f3f4f6" }}
-                          onMouseEnter={e=>e.currentTarget.style.background="#f5f3ff"}
-                          onMouseLeave={e=>e.currentTarget.style.background=""}>
-                          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                            <div>
-                              <div style={{ fontWeight:700, fontSize:13, color:"#1e1b4b" }}>{po.po_code}</div>
-                              <div style={{ fontSize:12, color:"#6b7280" }}>{po.supplier_name} · {po.total_items} mặt hàng</div>
-                            </div>
-                            <div style={{ fontSize:11, color: po.status==="partial"?"#d97706":"#2563eb",
-                              fontWeight:700, padding:"2px 8px", borderRadius:8,
-                              background: po.status==="partial"?"#fffbeb":"#eff6ff" }}>
-                              {po.status==="partial"?"Nhận một phần":"Chờ nhận"}
+                      {pendingPOs.map(po=>{
+                        const remain = poRemaining[po.id];
+                        const done = remain !== undefined && remain === 0;
+                        return (
+                          <div key={po.id} onClick={()=>!done && applyPO(po)}
+                            style={{ padding:"10px 14px", cursor: done?"not-allowed":"pointer",
+                              borderBottom:"1px solid #f3f4f6", opacity: done?0.5:1 }}
+                            onMouseEnter={e=>{ if(!done) e.currentTarget.style.background="#f5f3ff"; }}
+                            onMouseLeave={e=>e.currentTarget.style.background=""}>
+                            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                              <div>
+                                <div style={{ fontWeight:700, fontSize:13, color:"#1e1b4b" }}>{po.po_code}</div>
+                                <div style={{ fontSize:12, color:"#6b7280" }}>
+                                  {po.supplier_name} · {po.total_items} mặt hàng
+                                  {remain !== undefined && !done && <span style={{color:"#d97706",fontWeight:700}}> · còn {remain} chưa nhận</span>}
+                                  {done && <span style={{color:"#059669",fontWeight:700}}> · đã nhận đủ</span>}
+                                </div>
+                              </div>
+                              <div style={{ fontSize:11, color: done?"#059669": po.status==="partial"?"#d97706":"#2563eb",
+                                fontWeight:700, padding:"2px 8px", borderRadius:8,
+                                background: done?"#f0fdf4": po.status==="partial"?"#fffbeb":"#eff6ff" }}>
+                                {done?"✅ Đủ": po.status==="partial"?"Nhận một phần":"Chờ nhận"}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
