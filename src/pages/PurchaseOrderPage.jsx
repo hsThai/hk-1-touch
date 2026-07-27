@@ -1,5 +1,5 @@
 /* PurchaseOrderPage.jsx — Đặt hàng NCC — HK One Touch */
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { PurchaseOrder, PurchaseOrderItem, SparePart, Supplier } from "./pb.jsx";
 
 const fmt = (n) => (n || 0).toLocaleString("vi-VN") + "đ";
@@ -44,6 +44,29 @@ function Toast({ msg }) {
   );
 }
 
+
+// PortalDropdown: render dropdown ở position:fixed tương đối với input ref
+function PortalDropdown({ inputRef, show, children }) {
+  const [rect, setRect] = useState(null);
+  useEffect(() => {
+    if (show && inputRef.current) {
+      const r = inputRef.current.getBoundingClientRect();
+      setRect({ top: r.bottom + 4, left: r.left, width: r.width });
+    }
+  }, [show, inputRef]);
+  if (!show || !rect) return null;
+  return (
+    <div style={{
+      position:"fixed", top:rect.top, left:rect.left, width:rect.width,
+      background:"#fff", border:"1.5px solid #e5e7eb", borderRadius:10,
+      zIndex:99999, maxHeight:240, overflowY:"auto",
+      boxShadow:"0 8px 30px rgba(0,0,0,.18)"
+    }}>
+      {children}
+    </div>
+  );
+}
+
 function POModal({ user, po, onClose, onSaved, allParts }) {
   const isNew = !po;
   const canEdit = isNew || (po?.status === "draft");
@@ -59,6 +82,8 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
   const [showSupplierDrop, setShowSupplierDrop] = useState(false);
   const [partSearch,    setPartSearch]    = useState({});
   const [partDropdown,  setPartDropdown]  = useState(null);
+  const partInputRefs = useRef({});
+  const supplierInputRef = useRef(null);
 
   useEffect(() => {
     if (po?.id) {
@@ -167,7 +192,7 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
   return (
     <div onClick={e=>{if(e.target===e.currentTarget)onClose();}}
       style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.5)", zIndex:1000,
-        display:"flex", alignItems:"flex-start", justifyContent:"center", overflowY:"auto", padding:"16px 8px" }}>
+        display:"flex", alignItems:"flex-start", justifyContent:"center", overflowY:"auto", padding:"16px 8px 60px" }}>
       <div style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:800, boxShadow:"0 20px 60px rgba(0,0,0,.25)", margin:"auto" }}>
         <div style={{ background:"linear-gradient(135deg,#4f46e5,#7c3aed)", borderRadius:"16px 16px 0 0", padding:"18px 20px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
           <div>
@@ -184,6 +209,7 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
             <div style={{ position:"relative" }}>
               <label style={{fontSize:12,fontWeight:600,color:"#6b7280",display:"block",marginBottom:4}}>Tên NCC *</label>
               <input
+                ref={supplierInputRef}
                 value={supplierSearch}
                 onChange={e => { setSupplierSearch(e.target.value); setSupplierName(e.target.value); setShowSupplierDrop(true); }}
                 onFocus={() => setShowSupplierDrop(true)}
@@ -192,12 +218,8 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
                 placeholder="Tên nhà cung cấp..."
                 style={inputStyle(canEdit)}
               />
-              {canEdit && showSupplierDrop && supplierSuggestions.length > 0 && (
-                <div style={{
-                  position:"absolute", top:"100%", left:0, right:0, zIndex:50,
-                  background:"#fff", border:"1.5px solid #e5e7eb", borderRadius:10,
-                  boxShadow:"0 8px 24px rgba(0,0,0,.12)", overflow:"hidden", marginTop:2,
-                }}>
+              {canEdit && (
+                <PortalDropdown inputRef={supplierInputRef} show={showSupplierDrop && supplierSuggestions.length > 0}>
                   {supplierSuggestions.map(s => (
                     <div key={s.id}
                       onMouseDown={() => {
@@ -216,7 +238,7 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
                       {s.phone && <div style={{fontSize:12, color:"#6b7280"}}>{s.phone}</div>}
                     </div>
                   ))}
-                </div>
+                </PortalDropdown>
               )}
             </div>
             {/* SĐT NCC */}
@@ -243,7 +265,7 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
 
           {/* Bảng hàng */}
           <div style={{fontWeight:700,fontSize:14,marginBottom:8,color:"#374151"}}>Danh sách hàng hóa</div>
-          <div style={{overflowX:"auto"}}>
+          <div style={{overflowX:"visible", overflowY:"visible"}}>
             <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
               <thead>
                 <tr style={{background:"#f9fafb"}}>
@@ -269,6 +291,7 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
                         {canEdit ? (
                           <>
                             <input
+                              ref={el => { partInputRefs.current[row.id] = el; }}
                               value={partSearch[row.id] !== undefined ? partSearch[row.id] : row.part_name}
                               onChange={e=>{
                                 setPartSearch(p=>({...p,[row.id]:e.target.value}));
@@ -280,9 +303,9 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
                               placeholder="Tìm linh kiện hoặc nhập tự do..."
                               style={{width:"100%",padding:"7px 10px",borderRadius:7,border:"1.5px solid #e5e7eb",fontSize:13,boxSizing:"border-box"}}
                             />
-                            {partDropdown===row.id && (filteredParts.length>0 || (partSearch[row.id]||"").length===0) && (() => {
+                            {(() => {
                               const q = (partSearch[row.id]||"").toLowerCase();
-                              // Nhóm theo category
+                              const showDrop = partDropdown===row.id && (filteredParts.length>0 || !q);
                               const grouped = {};
                               (q ? filteredParts : allParts.slice(0,80)).forEach(p => {
                                 const cat = p.category || "Khác";
@@ -290,9 +313,9 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
                                 grouped[cat].push(p);
                               });
                               const cats = Object.keys(grouped).sort();
-                              if (cats.length === 0) return null;
+                              const rowRef = { current: partInputRefs.current[row.id] };
                               return (
-                                <div style={{position:"absolute",top:"100%",left:0,right:0,background:"#fff",border:"1.5px solid #e5e7eb",borderRadius:10,zIndex:200,maxHeight:260,overflowY:"auto",boxShadow:"0 8px 24px rgba(0,0,0,.14)"}}>
+                                <PortalDropdown inputRef={rowRef} show={showDrop && cats.length>0}>
                                   {!q && (
                                     <div style={{padding:"7px 12px",fontSize:11,color:"#9ca3af",fontWeight:700,borderBottom:"1px solid #f3f4f6",background:"#f9fafb",letterSpacing:".5px"}}>
                                       📦 CHỌN THEO DANH MỤC
@@ -320,7 +343,7 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
                                   {q && filteredParts.length===0 && (
                                     <div style={{padding:"10px 14px",color:"#9ca3af",fontSize:13,textAlign:"center"}}>Không tìm thấy linh kiện</div>
                                   )}
-                                </div>
+                                </PortalDropdown>
                               );
                             })()}
                           </>
