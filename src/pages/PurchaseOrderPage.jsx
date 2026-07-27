@@ -70,7 +70,7 @@ function PortalDropdown({ inputRef, show, children }) {
 function POModal({ user, po, onClose, onSaved, allParts }) {
   const [isPC] = React.useState(() => typeof window !== 'undefined' && window.innerWidth >= 1024);
   const isNew = !po;
-  const canEdit = isNew || (po?.status === "draft");
+  const canEdit = isNew || po?.status === "draft" || po?.status === "confirmed";
   const [supplierName,  setSupplierName]  = useState(po?.supplier_name  || "");
   const [supplierPhone, setSupplierPhone] = useState(po?.supplier_phone || "");
   const [orderDate,     setOrderDate]     = useState(po?.order_date     || new Date().toISOString().slice(0,10));
@@ -153,7 +153,7 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
       const poData = {
         po_code: poCode, supplier_name: supplierName, supplier_phone: supplierPhone,
         order_date: orderDate, expected_date: expectedDate,
-        status: asDraft ? "draft" : "confirmed",
+        status: asDraft ? "draft" : (po?.status === "confirmed" ? "confirmed" : "confirmed"),
         total_items: items.filter(i=>i.part_name?.trim()).length,
         total_qty: items.reduce((s,i) => s+Number(i.qty_ordered||0), 0),
         total_value: totalValue, note,
@@ -200,6 +200,11 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
             <div style={{ color:"#fff", fontWeight:800, fontSize:17 }}>
               {isNew ? "🛒 Tạo đơn đặt hàng NCC" : `📋 ${po.po_code}`}
             </div>
+            {!isNew && po?.status === "confirmed" && (
+              <div style={{color:"rgba(255,255,255,.8)",fontSize:11,marginTop:4,fontStyle:"italic"}}>
+                ✏️ Đang chỉnh sửa đơn đã xác nhận (chưa nhập hàng)
+              </div>
+            )}
             {!isNew && <div style={{marginTop:6}}><StatusBadge status={po.status} /></div>}
           </div>
           <button onClick={onClose} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:36, height:36, borderRadius:"50%", cursor:"pointer", fontSize:20, fontWeight:700 }}>×</button>
@@ -468,11 +473,11 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
             {canEdit && <>
               <button onClick={()=>handleSave(true)} disabled={saving}
                 style={{padding:"10px 20px",borderRadius:10,border:"1.5px solid #6366f1",background:"#eef2ff",color:"#4f46e5",fontSize:14,fontWeight:700,cursor:"pointer"}}>
-                {saving?"⏳...":"💾 Lưu nháp"}
+                {saving?"⏳...":(po?.status==="confirmed"?"↩️ Huỷ xác nhận":"💾 Lưu nháp")}
               </button>
               <button onClick={()=>handleSave(false)} disabled={saving}
                 style={{padding:"10px 24px",borderRadius:10,border:"none",background:"linear-gradient(135deg,#4f46e5,#7c3aed)",color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer",boxShadow:"0 2px 8px rgba(79,70,229,.4)"}}>
-                {saving?"⏳...":"✅ Xác nhận đặt hàng"}
+                {saving?"⏳...":(po?.status==="confirmed"?"💾 Lưu thay đổi":"✅ Xác nhận đặt hàng")}
               </button>
             </>}
           </div>
@@ -524,7 +529,11 @@ export default function PurchaseOrderPage({ user }) {
 
   async function handleDelete(po, e) {
     e.stopPropagation();
-    if (!window.confirm(`Xoá đơn ${po.po_code}?`)) return;
+    if (po.status === "partial" || po.status === "received") {
+      window.alert("Không thể xoá đơn đã nhập hàng!");
+      return;
+    }
+    if (!window.confirm(`Xoá đơn ${po.po_code}? Hành động này không thể hoàn tác.`)) return;
     try {
       const olds = await PurchaseOrderItem.list({ filter:`po_id="${po.id}"`, limit:200 });
       for (const oi of (olds||[])) await PurchaseOrderItem.delete(oi.id).catch(()=>{});
@@ -607,11 +616,17 @@ export default function PurchaseOrderPage({ user }) {
                 </div>
                 <div style={{textAlign:"right",flexShrink:0}}>
                   <div style={{fontSize:16,fontWeight:800,color:"#4f46e5"}}>{fmt(po.total_value)}</div>
-                  {canManage && po.status==="draft" && (
-                    <button onClick={e=>handleDelete(po,e)}
-                      style={{marginTop:6,padding:"4px 10px",borderRadius:6,border:"1px solid #fca5a5",background:"#fef2f2",color:"#dc2626",fontSize:12,cursor:"pointer",fontWeight:600}}>
-                      Xoá
+                  {canManage && (po.status==="draft" || po.status==="confirmed") && (
+                    <div style={{display:"flex",gap:6,marginTop:6,justifyContent:"flex-end"}}>
+                      <button onClick={e=>{e.stopPropagation();setSelectedPO(po);setShowModal(true);}}
+                        style={{padding:"4px 10px",borderRadius:6,border:"1px solid #a78bfa",background:"#f5f3ff",color:"#7c3aed",fontSize:12,cursor:"pointer",fontWeight:600}}>
+                        ✏️ Sửa
+                      </button>
+                      <button onClick={e=>handleDelete(po,e)}
+                        style={{padding:"4px 10px",borderRadius:6,border:"1px solid #fca5a5",background:"#fef2f2",color:"#dc2626",fontSize:12,cursor:"pointer",fontWeight:600}}>
+                        Xoá
                     </button>
+                    </div>
                   )}
                 </div>
               </div>
