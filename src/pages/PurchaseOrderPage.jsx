@@ -68,6 +68,7 @@ function PortalDropdown({ inputRef, show, children }) {
 }
 
 function POModal({ user, po, onClose, onSaved, allParts }) {
+  const [isPC] = React.useState(() => typeof window !== 'undefined' && window.innerWidth >= 1024);
   const isNew = !po;
   const canEdit = isNew || (po?.status === "draft");
   const [supplierName,  setSupplierName]  = useState(po?.supplier_name  || "");
@@ -192,8 +193,8 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
   return (
     <div onClick={e=>{if(e.target===e.currentTarget)onClose();}}
       style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.5)", zIndex:1000,
-        display:"flex", alignItems:"flex-start", justifyContent:"center", overflowY:"auto", padding:"16px 8px 60px" }}>
-      <div style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:800, boxShadow:"0 20px 60px rgba(0,0,0,.25)", margin:"auto" }}>
+        display:"flex", alignItems:"flex-start", justifyContent:"center", overflowY:"auto", padding: isPC ? "16px 8px 60px" : 0 }}>
+      <div style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:800, boxShadow:"0 20px 60px rgba(0,0,0,.25)", margin:"auto", borderRadius: isPC ? 16 : 0, maxHeight: isPC ? "95vh" : "100vh", overflowY:"auto" }}>
         <div style={{ background:"linear-gradient(135deg,#4f46e5,#7c3aed)", borderRadius:"16px 16px 0 0", padding:"18px 20px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
           <div>
             <div style={{ color:"#fff", fontWeight:800, fontSize:17 }}>
@@ -204,7 +205,7 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
           <button onClick={onClose} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:36, height:36, borderRadius:"50%", cursor:"pointer", fontSize:20, fontWeight:700 }}>×</button>
         </div>
         <div style={{ padding:20 }}>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
+          <div style={{ display:"grid", gridTemplateColumns: isPC ? "1fr 1fr" : "1fr", gap:12, marginBottom:14 }}>
             {/* Tên NCC — autocomplete */}
             <div style={{ position:"relative" }}>
               <label style={{fontSize:12,fontWeight:600,color:"#6b7280",display:"block",marginBottom:4}}>Tên NCC *</label>
@@ -265,128 +266,141 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
 
           {/* Bảng hàng */}
           <div style={{fontWeight:700,fontSize:14,marginBottom:8,color:"#374151"}}>Danh sách hàng hóa</div>
-          <div style={{overflowX:"visible", overflowY:"visible"}}>
-            <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-              <thead>
-                <tr style={{background:"#f9fafb"}}>
-                  {["Tên hàng / SKU","SL đặt",...(!canEdit?["SL nhận"]:[]), "Đơn giá","Thành tiền",...(canEdit?[""]:[])]
-                    .map((h,i)=>(
-                      <th key={i} style={{padding:"8px 10px",textAlign:i===0?"left":"center",fontWeight:600,color:"#6b7280",borderBottom:"1.5px solid #e5e7eb",
-                        ...(i===0?{minWidth:180}:{width:i<3?80:120})}}>
-                        {h}
-                      </th>
-                    ))
-                  }
-                </tr>
-              </thead>
-              <tbody>
-                {items.map(row => {
-                  const filteredParts = allParts.filter(p => {
-                    const q = (partSearch[row.id]||"").toLowerCase();
-                    return !q || p.name.toLowerCase().includes(q) || (p.sku||"").toLowerCase().includes(q) || (p.category||"").toLowerCase().includes(q);
-                  }).slice(0,20);
-                  return (
-                    <tr key={row.id} style={{borderBottom:"1px solid #f3f4f6"}}>
-                      <td style={{padding:"6px 8px",position:"relative"}}>
-                        {canEdit ? (
-                          <>
-                            <input
-                              ref={el => { partInputRefs.current[row.id] = el; }}
-                              value={partDropdown === row.id && partSearch[row.id] !== undefined ? partSearch[row.id] : (partSearch[row.id] || row.part_name || "")}
-                              onChange={e=>{
-                                setPartSearch(p=>({...p,[row.id]:e.target.value}));
-                                updateRow(row.id,"part_name",e.target.value);
-                                setPartDropdown(row.id);
-                              }}
-                              onFocus={()=>setPartDropdown(row.id)}
-                              onBlur={()=>setTimeout(()=>setPartDropdown(null),200)}
-                              placeholder="Tìm linh kiện hoặc nhập tự do..."
-                              style={{width:"100%",padding:"7px 10px",borderRadius:7,border:"1.5px solid #e5e7eb",fontSize:13,boxSizing:"border-box"}}
-                            />
-                            {(() => {
-                              const q = (partSearch[row.id]||"").toLowerCase();
-                              const showDrop = partDropdown===row.id && (filteredParts.length>0 || !q);
-                              const grouped = {};
-                              (q ? filteredParts : allParts.slice(0,80)).forEach(p => {
-                                const cat = p.category || "Khác";
-                                if (!grouped[cat]) grouped[cat] = [];
-                                grouped[cat].push(p);
-                              });
-                              const cats = Object.keys(grouped).sort();
-                              const rowRef = { current: partInputRefs.current[row.id] };
-                              return (
-                                <PortalDropdown inputRef={rowRef} show={showDrop && cats.length>0}>
-                                  {!q && (
-                                    <div style={{padding:"7px 12px",fontSize:11,color:"#9ca3af",fontWeight:700,borderBottom:"1px solid #f3f4f6",background:"#f9fafb",letterSpacing:".5px"}}>
-                                      📦 CHỌN THEO DANH MỤC
+          {/* Header row — chỉ PC */}
+          {isPC && (
+            <div style={{display:"flex",background:"#f9fafb",borderBottom:"1.5px solid #e5e7eb",borderRadius:"8px 8px 0 0",padding:"8px 10px",gap:8,fontSize:12,fontWeight:600,color:"#6b7280"}}>
+              <div style={{flex:1}}>Tên hàng / SKU</div>
+              <div style={{width:70,textAlign:"center"}}>SL đặt</div>
+              {!canEdit && <div style={{width:70,textAlign:"center"}}>SL nhận</div>}
+              <div style={{width:120,textAlign:"right"}}>Đơn giá</div>
+              <div style={{width:120,textAlign:"right"}}>Thành tiền</div>
+              {canEdit && <div style={{width:36}}></div>}
+            </div>
+          )}
+          {/* Item rows */}
+          {items.map(row => {
+            const filteredParts = allParts.filter(p => {
+              const q = (partSearch[row.id]||"").toLowerCase();
+              return !q || p.name.toLowerCase().includes(q) || (p.sku||"").toLowerCase().includes(q) || (p.category||"").toLowerCase().includes(q);
+            }).slice(0,20);
+            return (
+              <div key={row.id} style={{
+                borderBottom:"1px solid #f3f4f6", padding:"10px 8px",
+                display:"flex", flexWrap:"wrap", gap:8, alignItems:"flex-end",
+              }}>
+                {/* Tên hàng — full width trên mobile, flex:1 trên PC */}
+                <div style={{flex:"1 1 100%", minWidth:0, position:"relative"}}>
+                  {!isPC && <div style={{fontSize:11,fontWeight:600,color:"#9ca3af",marginBottom:3}}>Tên hàng</div>}
+                  {canEdit ? (
+                    <>
+                      <input
+                        ref={el => { partInputRefs.current[row.id] = el; }}
+                        value={partDropdown === row.id && partSearch[row.id] !== undefined ? partSearch[row.id] : (partSearch[row.id] || row.part_name || "")}
+                        onChange={e=>{
+                          setPartSearch(p=>({...p,[row.id]:e.target.value}));
+                          updateRow(row.id,"part_name",e.target.value);
+                          setPartDropdown(row.id);
+                        }}
+                        onFocus={()=>setPartDropdown(row.id)}
+                        onBlur={()=>setTimeout(()=>setPartDropdown(null),200)}
+                        placeholder="Tìm linh kiện hoặc nhập tự do..."
+                        style={{width:"100%",padding:"7px 10px",borderRadius:7,border:"1.5px solid #e5e7eb",fontSize:13,boxSizing:"border-box"}}
+                      />
+                      {(() => {
+                        const q = (partSearch[row.id]||"").toLowerCase();
+                        const showDrop = partDropdown===row.id && (filteredParts.length>0 || !q);
+                        const grouped = {};
+                        (q ? filteredParts : allParts.slice(0,80)).forEach(p => {
+                          const cat = p.category || "Khác";
+                          if (!grouped[cat]) grouped[cat] = [];
+                          grouped[cat].push(p);
+                        });
+                        const cats = Object.keys(grouped).sort();
+                        const rowRef = { current: partInputRefs.current[row.id] };
+                        return (
+                          <PortalDropdown inputRef={rowRef} show={showDrop && cats.length>0}>
+                            {!q && (
+                              <div style={{padding:"7px 12px",fontSize:11,color:"#9ca3af",fontWeight:700,borderBottom:"1px solid #f3f4f6",background:"#f9fafb",letterSpacing:".5px"}}>
+                                📦 CHỌN THEO DANH MỤC
+                              </div>
+                            )}
+                            {cats.map(cat => (
+                              <div key={cat}>
+                                <div style={{padding:"5px 12px",fontSize:11,fontWeight:800,color:"#4f46e5",background:"#f5f3ff",borderBottom:"1px solid #ede9fe",letterSpacing:".3px"}}>
+                                  {cat.toUpperCase()} ({grouped[cat].length})
+                                </div>
+                                {grouped[cat].map(p=>(
+                                  <div key={p.id} onMouseDown={()=>selectPart(row.id,p)}
+                                    style={{padding:"8px 14px",cursor:"pointer",borderBottom:"1px solid #f9f9f9",fontSize:13,display:"flex",justifyContent:"space-between",alignItems:"center"}}
+                                    onMouseEnter={e=>e.currentTarget.style.background="#f5f3ff"}
+                                    onMouseLeave={e=>e.currentTarget.style.background=""}>
+                                    <div>
+                                      <span style={{fontWeight:700,color:"#1e1b4b"}}>{p.name}</span>
+                                      {p.sku&&<span style={{fontSize:11,color:"#9ca3af",marginLeft:6}}>SKU: {p.sku}</span>}
                                     </div>
-                                  )}
-                                  {cats.map(cat => (
-                                    <div key={cat}>
-                                      <div style={{padding:"5px 12px",fontSize:11,fontWeight:800,color:"#4f46e5",background:"#f5f3ff",borderBottom:"1px solid #ede9fe",letterSpacing:".3px"}}>
-                                        {cat.toUpperCase()} ({grouped[cat].length})
-                                      </div>
-                                      {grouped[cat].map(p=>(
-                                        <div key={p.id} onMouseDown={()=>selectPart(row.id,p)}
-                                          style={{padding:"8px 14px",cursor:"pointer",borderBottom:"1px solid #f9f9f9",fontSize:13,display:"flex",justifyContent:"space-between",alignItems:"center"}}
-                                          onMouseEnter={e=>e.currentTarget.style.background="#f5f3ff"}
-                                          onMouseLeave={e=>e.currentTarget.style.background=""}>
-                                          <div>
-                                            <span style={{fontWeight:700,color:"#1e1b4b"}}>{p.name}</span>
-                                            {p.sku&&<span style={{fontSize:11,color:"#9ca3af",marginLeft:6}}>SKU: {p.sku}</span>}
-                                          </div>
-                                          {p.price>0 && <span style={{fontSize:12,color:"#059669",fontWeight:700}}>{p.price.toLocaleString("vi-VN")}đ</span>}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  ))}
-                                  {q && filteredParts.length===0 && (
-                                    <div style={{padding:"10px 14px",color:"#9ca3af",fontSize:13,textAlign:"center"}}>Không tìm thấy linh kiện</div>
-                                  )}
-                                </PortalDropdown>
-                              );
-                            })()}
-                          </>
-                        ) : (
-                          <div>
-                            <div style={{fontWeight:600}}>{row.part_name}</div>
-                            {row.sku&&<div style={{fontSize:11,color:"#9ca3af"}}>SKU: {row.sku}</div>}
-                          </div>
-                        )}
-                      </td>
-                      <td style={{padding:"6px 8px",textAlign:"center"}}>
-                        {canEdit
-                          ? <input type="number" min={1} value={row.qty_ordered} onChange={e=>updateRow(row.id,"qty_ordered",Number(e.target.value))}
-                              style={{width:64,padding:"6px 8px",borderRadius:7,border:"1.5px solid #e5e7eb",fontSize:13,textAlign:"center"}} />
-                          : <b>{row.qty_ordered}</b>}
-                      </td>
-                      {!canEdit && (
-                        <td style={{padding:"6px 8px",textAlign:"center"}}>
-                          <b style={{color:row.qty_received>=row.qty_ordered?"#059669":row.qty_received>0?"#d97706":"#6b7280"}}>
-                            {row.qty_received||0}
-                          </b>
-                        </td>
-                      )}
-                      <td style={{padding:"6px 8px",textAlign:"right"}}>
-                        {canEdit
-                          ? <input type="number" min={0} value={row.unit_price} onChange={e=>updateRow(row.id,"unit_price",Number(e.target.value))}
-                              style={{width:110,padding:"6px 8px",borderRadius:7,border:"1.5px solid #e5e7eb",fontSize:13,textAlign:"right"}} />
-                          : <span>{(row.unit_price||0).toLocaleString("vi-VN")}</span>}
-                      </td>
-                      <td style={{padding:"6px 8px",textAlign:"right",fontWeight:700,color:"#4f46e5"}}>
-                        {(row.total_price||0).toLocaleString("vi-VN")}đ
-                      </td>
-                      {canEdit && (
-                        <td style={{padding:"6px 4px",textAlign:"center"}}>
-                          <button onClick={()=>removeRow(row.id)} style={{background:"none",border:"none",color:"#ef4444",fontSize:20,cursor:"pointer",padding:2}}>×</button>
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                                    {p.price>0 && <span style={{fontSize:12,color:"#059669",fontWeight:700}}>{p.price.toLocaleString("vi-VN")}đ</span>}
+                                  </div>
+                                ))}
+                              </div>
+                            ))}
+                            {q && filteredParts.length===0 && (
+                              <div style={{padding:"10px 14px",color:"#9ca3af",fontSize:13,textAlign:"center"}}>Không tìm thấy linh kiện</div>
+                            )}
+                          </PortalDropdown>
+                        );
+                      })()}
+                    </>
+                  ) : (
+                    <div>
+                      <div style={{fontWeight:600}}>{row.part_name}</div>
+                      {row.sku&&<div style={{fontSize:11,color:"#9ca3af"}}>SKU: {row.sku}</div>}
+                    </div>
+                  )}
+                </div>
+                {/* SL đặt */}
+                <div style={{flex:"0 0 auto"}}>
+                  {!isPC && <div style={{fontSize:11,fontWeight:600,color:"#9ca3af",marginBottom:3,textAlign:"center"}}>SL</div>}
+                  {canEdit
+                    ? <input type="number" min={1} value={row.qty_ordered} onChange={e=>updateRow(row.id,"qty_ordered",Number(e.target.value))}
+                        style={{width:70,padding:"7px 8px",borderRadius:7,border:"1.5px solid #e5e7eb",fontSize:13,textAlign:"center",boxSizing:"border-box"}} />
+                    : <div style={{textAlign:"center",fontWeight:700,padding:"7px 0"}}>{row.qty_ordered}</div>}
+                </div>
+                {/* SL nhận — chỉ view mode */}
+                {!canEdit && (
+                  <div style={{flex:"0 0 auto"}}>
+                    {!isPC && <div style={{fontSize:11,fontWeight:600,color:"#9ca3af",marginBottom:3,textAlign:"center"}}>Nhận</div>}
+                    <div style={{textAlign:"center",fontWeight:700,padding:"7px 0",color:row.qty_received>=row.qty_ordered?"#059669":row.qty_received>0?"#d97706":"#6b7280",width:70}}>
+                      {row.qty_received||0}
+                    </div>
+                  </div>
+                )}
+                {/* Đơn giá */}
+                <div style={{flex:"1 1 120px",minWidth:90}}>
+                  {!isPC && <div style={{fontSize:11,fontWeight:600,color:"#9ca3af",marginBottom:3,textAlign:"right"}}>Đơn giá</div>}
+                  {canEdit
+                    ? <input type="number" min={0} value={row.unit_price} onChange={e=>updateRow(row.id,"unit_price",Number(e.target.value))}
+                        style={{width:"100%",padding:"7px 8px",borderRadius:7,border:"1.5px solid #e5e7eb",fontSize:13,textAlign:"right",boxSizing:"border-box"}} />
+                    : <div style={{textAlign:"right",padding:"7px 0"}}>{(row.unit_price||0).toLocaleString("vi-VN")}</div>}
+                </div>
+                {/* Thành tiền */}
+                <div style={{flex:"1 1 120px",minWidth:100}}>
+                  {!isPC && <div style={{fontSize:11,fontWeight:600,color:"#9ca3af",marginBottom:3,textAlign:"right"}}>Thành tiền</div>}
+                  <div style={{textAlign:"right",fontWeight:700,color:"#4f46e5",padding:"7px 0",fontSize:13}}>
+                    {(row.total_price||0).toLocaleString("vi-VN")}đ
+                  </div>
+                </div>
+                {/* Nút xóa */}
+                {canEdit && (
+                  <div style={{flex:"0 0 auto"}}>
+                    <button onClick={()=>removeRow(row.id)}
+                      style={{width:32,height:32,border:"none",background:"#fef2f2",color:"#dc2626",borderRadius:"50%",cursor:"pointer",fontSize:16,fontWeight:700,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                      ×
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
           {canEdit && (
             <button onClick={addRow} style={{marginTop:10,padding:"7px 16px",borderRadius:8,border:"1.5px dashed #a78bfa",background:"#f5f3ff",color:"#7c3aed",fontSize:13,fontWeight:600,cursor:"pointer"}}>
               + Thêm hàng
