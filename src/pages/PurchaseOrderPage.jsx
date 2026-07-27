@@ -378,26 +378,33 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
                 <div style={{flex:"1 1 120px",minWidth:90}}>
                   {!isPC && <div style={{fontSize:11,fontWeight:600,color:"#9ca3af",marginBottom:3,textAlign:"right"}}>Đơn giá</div>}
                   {canEdit
-                    ? <input type="number" min={0} value={row.unit_price} onChange={e=>updateRow(row.id,"unit_price",Number(e.target.value))}
-                        style={{width:"100%",padding:"7px 8px",borderRadius:7,border:"1.5px solid #e5e7eb",fontSize:13,textAlign:"right",boxSizing:"border-box"}} />
+                    ? <input
+                        type="text"
+                        inputMode="numeric"
+                        value={(row.unit_price||0).toLocaleString("vi-VN")}
+                        onChange={e=>{
+                          const raw = e.target.value.replace(/[^0-9]/g,"");
+                          updateRow(row.id,"unit_price", raw ? Number(raw) : 0);
+                        }}
+                        style={{width:"100%",padding:"7px 8px",borderRadius:7,border:"1.5px solid #e5e7eb",fontSize:13,textAlign:"right",boxSizing:"border-box"}}
+                      />
                     : <div style={{textAlign:"right",padding:"7px 0"}}>{(row.unit_price||0).toLocaleString("vi-VN")}</div>}
                 </div>
-                {/* Thành tiền */}
-                <div style={{flex:"1 1 120px",minWidth:100}}>
-                  {!isPC && <div style={{fontSize:11,fontWeight:600,color:"#9ca3af",marginBottom:3,textAlign:"right"}}>Thành tiền</div>}
-                  <div style={{textAlign:"right",fontWeight:700,color:"#4f46e5",padding:"7px 0",fontSize:13}}>
-                    {(row.total_price||0).toLocaleString("vi-VN")}đ
+                {/* Thành tiền + nút xóa cùng hàng */}
+                <div style={{flex:"1 1 120px",minWidth:100,display:"flex",alignItems:"center",gap:6,justifyContent:"flex-end"}}>
+                  <div style={{flex:1}}>
+                    {!isPC && <div style={{fontSize:11,fontWeight:600,color:"#9ca3af",marginBottom:3,textAlign:"right"}}>Thành tiền</div>}
+                    <div style={{textAlign:"right",fontWeight:700,color:"#4f46e5",padding:"7px 0",fontSize:13}}>
+                      {(row.total_price||0).toLocaleString("vi-VN")}đ
+                    </div>
                   </div>
-                </div>
-                {/* Nút xóa */}
-                {canEdit && (
-                  <div style={{flex:"0 0 auto"}}>
+                  {canEdit && (
                     <button onClick={()=>removeRow(row.id)}
-                      style={{width:32,height:32,border:"none",background:"#fef2f2",color:"#dc2626",borderRadius:"50%",cursor:"pointer",fontSize:16,fontWeight:700,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                      style={{width:30,height:30,border:"none",background:"#fef2f2",color:"#dc2626",borderRadius:"50%",cursor:"pointer",fontSize:16,fontWeight:700,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                       ×
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             );
           })}
