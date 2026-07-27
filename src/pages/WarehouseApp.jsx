@@ -362,6 +362,16 @@ function WarehouseExport({ user }) {
     setLoading(false);
   }
 
+  async function openDetail(imp) {
+    setViewDetail(imp);
+    setLoadingDetail(true);
+    try {
+      const its = await StockImportItem.list({ filter:`import_id="${imp.id}"`, sort:"-id", limit:200 });
+      setDetailItems(its||[]);
+    } catch { setDetailItems([]); }
+    setLoadingDetail(false);
+  }
+
   function showToast(msg){ setToast(msg); setTimeout(()=>setToast(""),3500); }
 
   async function doConfirmExport() {
@@ -614,6 +624,9 @@ function WarehouseImport({ user }) {
   const [saving, setSaving]               = React.useState(false);
   const [allParts, setAllParts]           = React.useState([]);
   const [confirmDelete, setConfirmDelete] = React.useState(null); // imp object cần xóa
+  const [viewDetail, setViewDetail]       = React.useState(null); // imp object đang xem chi tiết
+  const [detailItems, setDetailItems]     = React.useState([]);
+  const [loadingDetail, setLoadingDetail] = React.useState(false);
   const [supplierSugg, setSupplierSugg]   = React.useState([]);
   const [showSupplierDrop, setShowSupplierDrop] = React.useState(false);
   const supplierInputRef = React.useRef(null);
@@ -973,7 +986,11 @@ function WarehouseImport({ user }) {
         ) : imports.map(imp => {
           const sc = STATUS_COLOR[imp.status]||STATUS_COLOR.draft;
           return (
-            <div key={imp.id} style={{ background:"#f9fafb", borderRadius:14, padding:"12px 14px", marginBottom:10, border:"1.5px solid #e5e7eb" }}>
+            <div key={imp.id}
+              onClick={()=>openDetail(imp)}
+              style={{ background:"#f9fafb", borderRadius:14, padding:"12px 14px", marginBottom:10, border:"1.5px solid #e5e7eb", cursor:"pointer", transition:"box-shadow .15s" }}
+              onMouseEnter={e=>e.currentTarget.style.boxShadow="0 4px 16px rgba(79,70,229,.12)"}
+              onMouseLeave={e=>e.currentTarget.style.boxShadow="none"}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontWeight:800, fontSize:14 }}>{imp.import_code}</div>
@@ -987,7 +1004,7 @@ function WarehouseImport({ user }) {
                 <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
                   <div style={{ background:sc.bg, color:sc.color, borderRadius:20, padding:"3px 10px", fontSize:11, fontWeight:700 }}>{sc.label}</div>
                   <button
-                    onClick={()=>setConfirmDelete(imp)}
+                    onClick={e=>{e.stopPropagation();setConfirmDelete(imp);}}
                     style={{ background:"#fef2f2", border:"none", color:"#dc2626", borderRadius:8, padding:"4px 8px", fontSize:11, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:3 }}>
                     <span className="material-icons" style={{fontSize:13}}>delete</span>Xóa
                   </button>
@@ -1002,6 +1019,94 @@ function WarehouseImport({ user }) {
           );
         })}
       </div>
+
+      {/* ── Modal Chi Tiết Phiếu Nhập ─────────────────────── */}
+      {viewDetail && (
+        <div style={{ position:"fixed", inset:0, zIndex:600, background:"rgba(0,0,0,.55)", display:"flex", alignItems:"flex-end" }}
+          onClick={e=>{ if(e.target===e.currentTarget) setViewDetail(null); }}>
+          <div style={{ background:"#fff", borderRadius:"24px 24px 0 0", width:"100%", maxHeight:"88vh", display:"flex", flexDirection:"column" }}>
+
+            {/* Header gradient */}
+            <div style={{ background:"linear-gradient(135deg,#6d28d9,#4f46e5)", padding:"16px 18px", borderRadius:"24px 24px 0 0", flexShrink:0 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <div>
+                  <div style={{ color:"#fff", fontWeight:900, fontSize:16 }}>📥 {viewDetail.import_code}</div>
+                  <div style={{ color:"rgba(255,255,255,.75)", fontSize:12, marginTop:2 }}>
+                    {viewDetail.import_type==="device"?"📱 Máy móc":"🔩 Linh kiện"} · {viewDetail.supplier_name}
+                  </div>
+                </div>
+                <button onClick={()=>setViewDetail(null)}
+                  style={{ background:"rgba(255,255,255,.2)", border:"1.5px solid rgba(255,255,255,.35)", color:"#fff", width:36, height:36, borderRadius:"50%", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  <span className="material-icons" style={{fontSize:20}}>close</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Body scroll */}
+            <div style={{ flex:1, overflowY:"auto", padding:"16px 16px 32px" }}>
+
+              {/* Thông tin chung */}
+              <div style={{ background:"#f8f9ff", borderRadius:12, padding:"12px 14px", marginBottom:14, border:"1px solid #e0e7ff" }}>
+                <div style={{ fontWeight:800, fontSize:13, color:"#4f46e5", marginBottom:8 }}>📋 Thông tin phiếu</div>
+                {[
+                  ["Mã phiếu",        viewDetail.import_code],
+                  ["Loại hàng",       viewDetail.import_type==="device"?"📱 Máy móc":"🔩 Linh kiện"],
+                  ["Nhà cung cấp",    viewDetail.supplier_name||"—"],
+                  ["SĐT NCC",         viewDetail.supplier_phone||"—"],
+                  ["Tổng mặt hàng",   `${viewDetail.total_items} SKU`],
+                  ["Tổng giá trị",    `${(viewDetail.total_value||0).toLocaleString("vi-VN")}đ`],
+                  ["Người tạo",       viewDetail.created_by_name||"—"],
+                  ["Ngày nhập",       viewDetail.confirmed_at ? new Date(viewDetail.confirmed_at).toLocaleString("vi-VN") : "—"],
+                  ["Ghi chú",         viewDetail.note||"—"],
+                ].map(([label, val],i)=>(
+                  <div key={i} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0",
+                    borderBottom: i<8?"1px solid #e0e7ff":"none", fontSize:13 }}>
+                    <span style={{ color:"#6b7280" }}>{label}</span>
+                    <span style={{ fontWeight:600, color:"#1f2937", textAlign:"right", maxWidth:"55%" }}>{val}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Danh sách mặt hàng */}
+              <div style={{ fontWeight:800, fontSize:13, color:"#374151", marginBottom:10 }}>
+                📦 Danh sách mặt hàng ({detailItems.length})
+              </div>
+
+              {loadingDetail ? (
+                <div style={{ textAlign:"center", padding:24, color:"#9ca3af" }}>⏳ Đang tải...</div>
+              ) : detailItems.length === 0 ? (
+                <div style={{ textAlign:"center", padding:24, color:"#9ca3af", fontSize:13 }}>Không có dữ liệu</div>
+              ) : detailItems.map((it,i) => (
+                <div key={it.id||i} style={{ background:"#fff", border:"1.5px solid #e5e7eb", borderRadius:12, padding:"12px 14px", marginBottom:10 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontWeight:800, fontSize:13, color:"#1f2937" }}>{it.name}</div>
+                      {it.sku ? <div style={{ fontSize:11, color:"#6b7280", marginTop:2 }}>SKU: {it.sku}</div> : null}
+                      {it.serial_imei ? <div style={{ fontSize:11, color:"#4f46e5", marginTop:1 }}>IMEI/SN: {it.serial_imei}</div> : null}
+                      {it.qr_code ? <div style={{ fontSize:11, color:"#0891b2", marginTop:1 }}>QR: {it.qr_code}</div> : null}
+                    </div>
+                    <div style={{ textAlign:"right", flexShrink:0 }}>
+                      <div style={{ fontWeight:800, fontSize:13, color:"#059669" }}>
+                        {(it.total_price||0).toLocaleString("vi-VN")}đ
+                      </div>
+                      <div style={{ fontSize:11, color:"#6b7280", marginTop:2 }}>
+                        {it.qty} × {(it.unit_price||0).toLocaleString("vi-VN")}đ
+                      </div>
+                    </div>
+                  </div>
+                  {/* Tags */}
+                  <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:8 }}>
+                    <span style={{ background:"#f3f4f6", color:"#374151", borderRadius:20, padding:"2px 10px", fontSize:11, fontWeight:600 }}>
+                      {it.condition==="new"?"✨ Mới":"♻️ Đã dùng"}
+                    </span>
+                    {it.note ? <span style={{ background:"#fef3c7", color:"#92400e", borderRadius:20, padding:"2px 10px", fontSize:11 }}>📝 {it.note}</span> : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirm xóa phiếu nhập */}
       {confirmDelete && (
