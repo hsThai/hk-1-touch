@@ -613,6 +613,7 @@ function WarehouseImport({ user }) {
   const [items, setItems]                 = React.useState([]);
   const [saving, setSaving]               = React.useState(false);
   const [allParts, setAllParts]           = React.useState([]);
+  const [confirmDelete, setConfirmDelete] = React.useState(null); // imp object cần xóa
   const [supplierSugg, setSupplierSugg]   = React.useState([]);
   const [showSupplierDrop, setShowSupplierDrop] = React.useState(false);
   const supplierInputRef = React.useRef(null);
@@ -720,6 +721,18 @@ function WarehouseImport({ user }) {
     setLoading(false);
   }
 
+  async function handleDeleteImport(imp) {
+    try {
+      // Xóa items trước
+      const its = await StockImportItem.list({ filter:`import_id="${imp.id}"`, limit:200 });
+      for (const it of (its||[])) await StockImportItem.delete(it.id).catch(()=>{});
+      await StockImport.delete(imp.id);
+      setConfirmDelete(null);
+      showToast("✅ Đã xóa phiếu nhập "+imp.import_code);
+      loadImports();
+    } catch(e) { showToast("Lỗi xóa: "+e.message); }
+  }
+
   function showToast(msg){ setToast(msg); setTimeout(()=>setToast(""),3500); }
 
   function addItem() {
@@ -823,7 +836,9 @@ function WarehouseImport({ user }) {
         import_code:code, import_type:importType,
         supplier_name:supplier, supplier_phone:supplierPhone,
         total_items:items.length, total_value:totalValue,
-        status:"draft", note, created_by:user.id, created_by_name:user.name,
+        status:"confirmed", note, created_by:user.id, created_by_name:user.name,
+        confirmed_by: user.id, confirmed_by_name: user.name||"",
+        confirmed_at: new Date().toISOString().slice(0,10),
       });
       for (const it of items) {
         await StockImportItem.create({
@@ -909,8 +924,8 @@ function WarehouseImport({ user }) {
   }
 
   const STATUS_COLOR = {
-    draft:     {bg:"#fef3c7",color:"#92400e",label:"📝 Nháp"},
-    confirmed: {bg:"#dbeafe",color:"#1d4ed8",label:"✅ Xác nhận"},
+    draft:     {bg:"#fef3c7",color:"#92400e",  label:"📝 Nháp"},
+    confirmed: {bg:"#dcfce7",color:"#15803d",  label:"✅ Đã nhập"},
   };
 
   return (
@@ -936,8 +951,8 @@ function WarehouseImport({ user }) {
           const sc = STATUS_COLOR[imp.status]||STATUS_COLOR.draft;
           return (
             <div key={imp.id} style={{ background:"#f9fafb", borderRadius:14, padding:"12px 14px", marginBottom:10, border:"1.5px solid #e5e7eb" }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-                <div>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
+                <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontWeight:800, fontSize:14 }}>{imp.import_code}</div>
                   <div style={{ fontSize:12, color:"#6b7280", marginTop:2 }}>
                     {imp.import_type==="device"?"📱 Máy móc":"🔩 Linh kiện"} · {imp.supplier_name}
@@ -946,13 +961,56 @@ function WarehouseImport({ user }) {
                     {imp.total_items} mặt hàng · {(imp.total_value||0).toLocaleString("vi-VN")}đ
                   </div>
                 </div>
-                <div style={{ background:sc.bg, color:sc.color, borderRadius:20, padding:"3px 10px", fontSize:11, fontWeight:700 }}>{sc.label}</div>
+                <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
+                  <div style={{ background:sc.bg, color:sc.color, borderRadius:20, padding:"3px 10px", fontSize:11, fontWeight:700 }}>{sc.label}</div>
+                  <button
+                    onClick={()=>setConfirmDelete(imp)}
+                    style={{ background:"#fef2f2", border:"none", color:"#dc2626", borderRadius:8, padding:"4px 8px", fontSize:11, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:3 }}>
+                    <span className="material-icons" style={{fontSize:13}}>delete</span>Xóa
+                  </button>
+                </div>
               </div>
-              <div style={{ fontSize:11, color:"#9ca3af", marginTop:6 }}>{(imp.created_date && !isNaN(new Date(imp.created_date)) ? new Date(imp.created_date).toLocaleString("vi-VN") : imp.confirmed_at ? new Date(imp.confirmed_at).toLocaleString("vi-VN") : "")}</div>
+              <div style={{ fontSize:11, color:"#9ca3af", marginTop:6 }}>
+                {imp.created_date && !isNaN(new Date(imp.created_date))
+                  ? new Date(imp.created_date).toLocaleString("vi-VN")
+                  : imp.confirmed_at ? new Date(imp.confirmed_at).toLocaleString("vi-VN") : ""}
+              </div>
             </div>
           );
         })}
       </div>
+
+      {/* Confirm xóa phiếu nhập */}
+      {confirmDelete && (
+        <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,.5)",
+          display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:320, width:"100%",
+            boxShadow:"0 20px 60px rgba(0,0,0,.25)" }}>
+            <div style={{ fontSize:18, fontWeight:900, color:"#dc2626", marginBottom:8 }}>🗑️ Xóa phiếu nhập?</div>
+            <div style={{ fontSize:13, color:"#374151", marginBottom:4 }}>
+              <strong>{confirmDelete.import_code}</strong>
+            </div>
+            <div style={{ fontSize:12, color:"#6b7280", marginBottom:20 }}>
+              {confirmDelete.supplier_name} · {confirmDelete.total_items} mặt hàng · {(confirmDelete.total_value||0).toLocaleString("vi-VN")}đ
+            </div>
+            <div style={{ fontSize:12, color:"#ef4444", background:"#fef2f2", borderRadius:8, padding:"8px 12px", marginBottom:20 }}>
+              ⚠️ Hành động này không thể hoàn tác. Toàn bộ dữ liệu phiếu nhập sẽ bị xóa.
+            </div>
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={()=>setConfirmDelete(null)}
+                style={{ flex:1, padding:"10px", borderRadius:10, border:"1.5px solid #e5e7eb",
+                  background:"#f9fafb", fontWeight:700, cursor:"pointer", fontSize:14 }}>
+                Huỷ
+              </button>
+              <button onClick={()=>handleDeleteImport(confirmDelete)}
+                style={{ flex:1, padding:"10px", borderRadius:10, border:"none",
+                  background:"#dc2626", color:"#fff", fontWeight:800, cursor:"pointer", fontSize:14 }}>
+                Xóa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* IMEI Barcode Scanner Modal (dùng cho IMEI/Serial) */}
       {imeiScanFor && (
