@@ -484,8 +484,10 @@ function StockLedgerTab({ user, toast }) {
         location_id: l.location_id, location_code: l.location_code,
         part_id: l.part_id, part_name: l.part_name, sku: l.sku,
         qty_before: l.qty_on_hand, qty_change: diff, qty_after: qty_actual,
+        unit_price: l.cost_price||0,
         note: adjForm.note || "Điều chỉnh thủ công",
         created_by_id: user?.id||"", created_by_name: user?.name||"",
+        created_date: new Date().toISOString().replace("T"," ").split(".")[0],
       });
       toast.show("Đã điều chỉnh tồn kho");
       setAdjustModal(null);
@@ -642,7 +644,7 @@ function TransferTab({ user, toast }) {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ from_warehouse_id:"", to_warehouse_id:"", note:"" });
-  const [items, setItems] = useState([{ part_name:"", sku:"", qty:1, unit_price:0 }]);
+  const [items, setItems] = useState([{ part_id:"", part_name:"", sku:"", qty:1, unit_price:0 }]);
   const [detailModal, setDetailModal] = useState(null);
   const [partSuggestions, setPartSuggestions] = useState([]);
   const [openDrop, setOpenDrop] = useState(-1); // index item đang mở dropdown
@@ -658,7 +660,7 @@ function TransferTab({ user, toast }) {
     Ledger.list({ limit:500 }).then(ledgers => {
       const filtered = ledgers
         .filter(l => l.warehouse_id === form.from_warehouse_id && (l.qty_on_hand||0) > 0)
-        .map(l => ({ name: l.part_name||"", sku: l.sku||"", qty: l.qty_on_hand||0, cost: l.cost_price||0 }));
+        .map(l => ({ part_id: l.part_id||"", name: l.part_name||"", sku: l.sku||"", qty: l.qty_on_hand||0, cost: l.cost_price||0 }));
       setPartSuggestions(filtered);
     }).catch(() => setPartSuggestions([]));
   }, [form.from_warehouse_id]);
@@ -676,17 +678,41 @@ function TransferTab({ user, toast }) {
     const toWH   = warehouses.find(w=>w.id===form.to_warehouse_id);
     const totalValue = items.reduce((s,i)=>s+Number(i.qty)*Number(i.unit_price||0),0);
     try {
+      // Reserve stock tại kho nguồn — tránh bán trùng
+      for (const item of items) {
+        const partId = item.part_id || "";
+        if (!partId && item.sku) {
+          try {
+            const bySku = await Ledger.filter(`sku="${item.sku}" && warehouse_id="${form.from_warehouse_id}"`);
+            if (bySku && bySku[0]) { item.part_id = bySku[0].part_id; }
+          } catch {}
+        }
+        const resolvedId = item.part_id || "";
+        if (resolvedId) {
+          try {
+            const fromLedgers = await Ledger.filter(`warehouse_id="${form.from_warehouse_id}" && part_id="${resolvedId}"`);
+            if (fromLedgers && fromLedgers[0]) {
+              const fl = fromLedgers[0];
+              const newReserved = (Number(fl.qty_reserved)||0) + Number(item.qty);
+              await Ledger.update(fl.id, {
+                qty_reserved: newReserved,
+                qty_available: Math.max(0, (Number(fl.qty_on_hand)||0) - newReserved),
+              });
+            }
+          } catch {}
+        }
+      }
       await Trans.create({
         transfer_code: genCode("TR"),
         from_warehouse_id: form.from_warehouse_id, from_warehouse_name: fromWH?.name||"",
         to_warehouse_id: form.to_warehouse_id, to_warehouse_name: toWH?.name||"",
-        items: items.map(i=>({ part_name:i.part_name, sku:i.sku||"", qty:Number(i.qty), unit_price:Number(i.unit_price||0), total_price:Number(i.qty)*Number(i.unit_price||0) })),
+        items: items.map(i=>({ part_id:i.part_id||"", part_name:i.part_name, sku:i.sku||"", qty:Number(i.qty), unit_price:Number(i.unit_price||0), total_price:Number(i.qty)*Number(i.unit_price||0) })),
         status: "sent", total_items: items.length, total_value: totalValue,
         note: form.note||"",
         requested_by_id: user?.id||"", requested_by_name: user?.name||"",
       });
       toast.show("Đã tạo phiếu chuyển kho");
-      setModal(false); setItems([{ part_name:"", sku:"", qty:1, unit_price:0 }]);
+      setModal(false); setItems([{ part_id:"", part_name:"", sku:"", qty:1, unit_price:0 }]);
       load();
     } catch(e) { toast.show(e.message,"error"); }
   }
@@ -696,57 +722,128 @@ function TransferTab({ user, toast }) {
       // 1. Cập nhật trạng thái phiếu
       await Trans.update(t.id, { status:"received", confirmed_by_id:user?.id||"", confirmed_by_name:user?.name||"", confirmed_at:new Date().toISOString() });
 
-      // 2. Cập nhật stock_ledgers: trừ kho xuất, cộng kho nhận
+      // 2. Cập nhật stock_ledgers + ghi stock_movements
       const items = Array.isArray(t.items) ? t.items : (typeof t.items==="string" ? JSON.parse(t.items||"[]") : []);
+      const now = new Date().toISOString();
+      const mvCode = "TR-" + Date.now() + "-" + Math.floor(Math.random()*900+100);
+
       for (const item of items) {
-        const partId   = item.part_id;
+        const partId   = item.part_id || "";
         const qty      = Number(item.qty) || 0;
         const costPrice= Number(item.unit_price||item.cost_price) || 0;
 
+        // Fallback: nếu không có part_id, tìm theo sku
+        let resolvedPartId = partId;
+        if (!resolvedPartId && item.sku) {
+          try {
+            const bySku = await Ledger.filter(`sku="${item.sku}" && warehouse_id="${t.from_warehouse_id}"`);
+            if (bySku && bySku[0]) resolvedPartId = bySku[0].part_id || "";
+          } catch {}
+        }
+
         // -- Trừ kho xuất --
-        const fromLedgers = await Ledger.filter(`warehouse_id='${t.from_warehouse_id}' && part_id='${partId}'`);
+        const fromLedgers = resolvedPartId
+          ? await Ledger.filter(`warehouse_id='${t.from_warehouse_id}' && part_id='${resolvedPartId}'`)
+          : await Ledger.filter(`warehouse_id='${t.from_warehouse_id}' && sku='${item.sku||""}'`);
+        let fromQtyBefore = 0;
+        let fromQtyAfter = 0;
         if (fromLedgers.length > 0) {
           const fl = fromLedgers[0];
-          const newQty = Math.max(0, (fl.qty_on_hand||0) - qty);
+          fromQtyBefore = Number(fl.qty_on_hand)||0;
+          fromQtyAfter = Math.max(0, fromQtyBefore - qty);
+          const fromReserved = Math.max(0, (Number(fl.qty_reserved)||0) - qty);
           await Ledger.update(fl.id, {
-            qty_on_hand: newQty,
-            qty_available: Math.max(0, newQty - (fl.qty_reserved||0)),
-            last_movement_at: new Date().toISOString(),
+            qty_on_hand: fromQtyAfter,
+            qty_reserved: fromReserved,
+            qty_available: Math.max(0, fromQtyAfter - fromReserved),
+            last_movement_at: now,
           });
         }
 
+        // Ghi movement: xuất từ kho nguồn
+        try {
+          await Move.create({
+            movement_code:  mvCode + "-OUT",
+            movement_type:  "transfer_out",
+            warehouse_id:   t.from_warehouse_id,
+            warehouse_name: t.from_warehouse_name || "",
+            part_id:        resolvedPartId,
+            part_name:      item.part_name||"",
+            sku:            item.sku||"",
+            qty_before:     fromQtyBefore,
+            qty_change:     -qty,
+            qty_after:      fromQtyAfter,
+            unit_price:     costPrice,
+            ref_type:       "stock_transfer",
+            ref_id:         t.id,
+            ref_code:       t.transfer_code,
+            note:           `Chuyển kho → ${t.to_warehouse_name||""}`,
+            created_by_id:  user?.id||"",
+            created_by_name:user?.name||"",
+            created_date:   now.replace("T"," ").split(".")[0],
+          });
+        } catch {}
+
         // -- Cộng kho nhận --
-        const toLedgers = await Ledger.filter(`warehouse_id='${t.to_warehouse_id}' && part_id='${partId}'`);
+        const toLedgers = resolvedPartId
+          ? await Ledger.filter(`warehouse_id='${t.to_warehouse_id}' && part_id='${resolvedPartId}'`)
+          : await Ledger.filter(`warehouse_id='${t.to_warehouse_id}' && sku='${item.sku||""}'`);
+        let toQtyBefore = 0;
+        let toQtyAfter = 0;
         if (toLedgers.length > 0) {
-          // Đã có ledger record → cộng thêm
           const tl = toLedgers[0];
-          const newQty = (tl.qty_on_hand||0) + qty;
+          toQtyBefore = Number(tl.qty_on_hand)||0;
+          toQtyAfter = toQtyBefore + qty;
           await Ledger.update(tl.id, {
-            qty_on_hand: newQty,
-            qty_available: Math.max(0, newQty - (tl.qty_reserved||0)),
-            last_movement_at: new Date().toISOString(),
+            qty_on_hand: toQtyAfter,
+            qty_available: Math.max(0, toQtyAfter - (tl.qty_reserved||0)),
+            last_movement_at: now,
           });
         } else {
-          // Chưa có → tạo mới ledger record cho kho nhận
-          const toWhName = t.to_warehouse_name || "";
+          toQtyBefore = 0;
+          toQtyAfter = qty;
           await Ledger.create({
             warehouse_id: t.to_warehouse_id,
-            warehouse_name: toWhName,
-            part_id: partId,
+            warehouse_name: t.to_warehouse_name || "",
+            part_id: resolvedPartId,
             part_name: item.part_name||"",
             sku: item.sku||"",
             category: item.category||"",
             unit: item.unit||"Cái",
             cost_price: costPrice,
-            qty_on_hand: qty,
+            qty_on_hand: toQtyAfter,
             qty_reserved: 0,
-            qty_available: qty,
+            qty_available: toQtyAfter,
             min_qty: 0,
             location_id: "",
             location_code: "",
-            last_movement_at: new Date().toISOString(),
+            last_movement_at: now,
           });
         }
+
+        // Ghi movement: nhập vào kho nhận
+        try {
+          await Move.create({
+            movement_code:  mvCode + "-IN",
+            movement_type:  "transfer_in",
+            warehouse_id:   t.to_warehouse_id,
+            warehouse_name: t.to_warehouse_name || "",
+            part_id:        resolvedPartId,
+            part_name:      item.part_name||"",
+            sku:            item.sku||"",
+            qty_before:     toQtyBefore,
+            qty_change:     qty,
+            qty_after:      toQtyAfter,
+            unit_price:     costPrice,
+            ref_type:       "stock_transfer",
+            ref_id:         t.id,
+            ref_code:       t.transfer_code,
+            note:           `Nhận chuyển từ ${t.from_warehouse_name||""}`,
+            created_by_id:  user?.id||"",
+            created_by_name:user?.name||"",
+            created_date:   now.replace("T"," ").split(".")[0],
+          });
+        } catch {}
       }
 
       toast.show("✅ Đã xác nhận — tồn kho đã được cập nhật"); load();
@@ -755,7 +852,28 @@ function TransferTab({ user, toast }) {
 
   async function cancel(t) {
     if (!confirm("Hủy phiếu chuyển kho?")) return;
-    try { await Trans.update(t.id, { status:"cancelled" }); toast.show("Đã hủy"); load(); } catch(e) { toast.show(e.message,"error"); }
+    try {
+      // Release reserved stock tại kho nguồn
+      const tItems = Array.isArray(t.items) ? t.items : (typeof t.items==="string" ? JSON.parse(t.items||"[]") : []);
+      for (const item of tItems) {
+        const partId = item.part_id || "";
+        if (partId) {
+          try {
+            const fromLedgers = await Ledger.filter(`warehouse_id="${t.from_warehouse_id}" && part_id="${partId}"`);
+            if (fromLedgers && fromLedgers[0]) {
+              const fl = fromLedgers[0];
+              const newReserved = Math.max(0, (Number(fl.qty_reserved)||0) - Number(item.qty));
+              await Ledger.update(fl.id, {
+                qty_reserved: newReserved,
+                qty_available: Math.max(0, (Number(fl.qty_on_hand)||0) - newReserved),
+              });
+            }
+          } catch {}
+        }
+      }
+      await Trans.update(t.id, { status:"cancelled" });
+      toast.show("Đã hủy"); load();
+    } catch(e) { toast.show(e.message,"error"); }
   }
 
   const statusColor = { draft:"#6b7280", sent:"#2563eb", received:"#059669", cancelled:"#dc2626" };
@@ -1022,14 +1140,23 @@ function DefectTab({ user, warehouses }) {
     setSaving(true);
     try {
       const part = parts.find(p=>p.name===form.part_name);
+      // Lấy qty hiện tại từ ledger
+      let defectQtyBefore = 0;
+      if (part && form.warehouse_id) {
+        const defLedgers = await Ledger.list({ limit:500 });
+        const dl = (defLedgers||[]).find(x=>x.part_id===part.id && x.warehouse_id===form.warehouse_id);
+        if (dl) defectQtyBefore = Number(dl.qty_on_hand)||0;
+      }
+      const defectQty = Math.abs(Number(form.qty)||0);
       await Move.create({
         movement_code: "DEF-"+Date.now(), movement_type:"defect",
         warehouse_id: form.warehouse_id,
         warehouse_name: warehouses.find(w=>w.id===form.warehouse_id)?.name||"",
         part_id: part?.id||"", part_name: form.part_name, sku: part?.sku||form.sku||"",
-        qty_change: -Math.abs(form.qty), qty_before:0, qty_after:0,
+        qty_change: -defectQty, qty_before:defectQtyBefore, qty_after:Math.max(0,defectQtyBefore-defectQty),
         note: `LK lỗi — ${form.reason} | NCC: ${form.supplier_name} | ${form.note}`,
         created_by_name: user?.name||user?.full_name||"",
+        created_date: new Date().toISOString().replace("T"," ").split(".")[0],
       });
       if (part && form.warehouse_id) {
         const ledgers = await Ledger.list({ limit:500 });

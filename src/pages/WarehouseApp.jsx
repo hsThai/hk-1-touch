@@ -782,7 +782,19 @@ function WarehouseImport({ user }) {
               });
             }
           }
-          // Ghi StockMovement (xuất do xóa)
+          // Ghi StockMovement (xuất do xóa) — dùng tồn kho thực tế trước khi xóa
+          let delQtyBefore = 0;
+          let delQtyAfter = 0;
+          if (it.sku && imp.warehouse_id) {
+            try {
+              const delLedgers = await StockLedger.list({ filter:`sku="${it.sku}" && warehouse_id="${imp.warehouse_id}"`, limit:5 }).catch(()=>[]);
+              if (delLedgers && delLedgers[0]) {
+                delQtyBefore = Number(delLedgers[0].qty_on_hand)||0;
+                // qty_after = sau khi đã rollback ở trên = delQtyBefore - qty
+                delQtyAfter = Math.max(0, delQtyBefore - (Number(it.qty)||0));
+              }
+            } catch {}
+          }
           await StockMovement.create({
             movement_code: "MV-DEL-" + Date.now() + "-" + Math.floor(Math.random()*900+100),
             movement_type: "adjust",
@@ -791,9 +803,9 @@ function WarehouseImport({ user }) {
             part_id: "",
             part_name: it.name || "",
             sku: it.sku || "",
-            qty_before: Number(it.qty)||0,
+            qty_before: delQtyBefore,
             qty_change: -(Number(it.qty)||0),
-            qty_after: 0,
+            qty_after: delQtyAfter,
             unit_price: Number(it.unit_price)||0,
             ref_type: "stock_import_delete",
             ref_id: imp.id,

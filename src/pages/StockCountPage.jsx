@@ -687,19 +687,25 @@ function ReviewScreen({ count, user, onBack, onRefresh }) {
       for (const item of onlyDiff) {
         // 1. Update stock_ledger — dùng ledger_id nếu có, fallback tìm theo part_id+warehouse
         try {
+          let ledgerId = item.ledger_id || "";
+          let ledgerReserved = 0;
           if (item.ledger_id) {
+            // Lấy reserved thực tế từ ledger
+            const curLedger = await StockLedger.get(item.ledger_id).catch(()=>null);
+            if (curLedger) ledgerReserved = Number(curLedger.qty_reserved)||0;
             await StockLedger.update(item.ledger_id, {
               qty_on_hand:   Math.max(0, item.qty_actual),
-              qty_available: Math.max(0, item.qty_actual - (item.qty_reserved||0)),
+              qty_available: Math.max(0, item.qty_actual - ledgerReserved),
               last_movement_at: new Date().toISOString(),
             });
           } else {
             const allLedgers = await StockLedger.list({ limit:500 });
             const ledger = (allLedgers||[]).find(l=>l.part_id===item.part_id && l.warehouse_id===count.warehouse_id);
             if (ledger) {
+              ledgerReserved = Number(ledger.qty_reserved)||0;
               await StockLedger.update(ledger.id, {
                 qty_on_hand:   Math.max(0, item.qty_actual),
-                qty_available: Math.max(0, item.qty_actual - (ledger.qty_reserved||0)),
+                qty_available: Math.max(0, item.qty_actual - ledgerReserved),
                 last_movement_at: new Date().toISOString(),
               });
             }
@@ -708,6 +714,7 @@ function ReviewScreen({ count, user, onBack, onRefresh }) {
         // 2. Tạo stock_movement
         try {
           await StockMovement.create({
+            movement_code:  "KC-" + Date.now() + "-" + Math.floor(Math.random()*900+100),
             movement_type:  "count_adjust",
             warehouse_id:   count.warehouse_id,
             warehouse_name: count.warehouse_name,
@@ -724,6 +731,7 @@ function ReviewScreen({ count, user, onBack, onRefresh }) {
             note:           "Điều chỉnh kiểm kho " + count.count_code,
             created_by_id:  user.id||"",
             created_by_name:user.full_name||user.name||"",
+            created_date:   new Date().toISOString().replace("T"," ").split(".")[0],
           });
         } catch {}
       }

@@ -1,6 +1,6 @@
 /* SaleOrderPage.jsx — POS bán hàng lẻ */
 import React, { useState, useEffect, useRef } from "react";
-import { SparePart, SaleOrder, SaleOrderItem, StockMovement, AppSettings, Customer , DebtVoucher, CashJournal } from "./pb.jsx";
+import { SparePart, SaleOrder, SaleOrderItem, StockMovement, StockLedger, AppSettings, Customer , DebtVoucher, CashJournal } from "./pb.jsx";
 import { previewSaleReceipt } from "../utils/printClient.js";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
@@ -202,20 +202,48 @@ export default function SaleOrderPage({ user }) {
       // Bước 3: Trừ stock + tạo movement
       for (const item of cart) {
         try { await SparePart.update(item.part_id, { stock_qty: Math.max(0, item.stock_max - item.qty) }); } catch {}
+        // Update StockLedger (thẻ kho)
+        let ledgerBefore = 0;
+        let ledgerId = "";
+        let ledgerWhId = "";
+        let ledgerWhName = "";
+        try {
+          const ledgers = await StockLedger.list({ filter:`part_id="${item.part_id}"`, limit:5 }).catch(()=>[]);
+          if (ledgers && ledgers[0]) {
+            const l = ledgers[0];
+            ledgerBefore = Number(l.qty_on_hand)||0;
+            ledgerId = l.id;
+            ledgerWhId = l.warehouse_id||"";
+            ledgerWhName = l.warehouse_name||"";
+            const newOnHand = Math.max(0, ledgerBefore - Number(item.qty));
+            const newReserved = Number(l.qty_reserved)||0;
+            await StockLedger.update(l.id, {
+              qty_on_hand: newOnHand,
+              qty_available: Math.max(0, newOnHand - newReserved),
+              last_movement_at: new Date().toISOString(),
+            });
+          }
+        } catch(e) { console.warn("Lỗi update ledger:", e.message); }
+        // Ghi StockMovement với đầy đủ thông tin
         try {
           await StockMovement.create({
-            movement_type: "sale",
-            created_date:  new Date().toISOString().replace("T"," ").split(".")[0],
-            part_id:       item.part_id,
-            part_name:     item.part_name,
-            sku:           item.sku || "",
-            qty_change:    -item.qty,
-            unit_price:    item.unit_price,
-            ref_type:      "sale_order",
-            ref_code:      orderCode,
-            created_by_name: user.full_name || user.name || "",
+            movement_code:  "SL-" + Date.now() + "-" + Math.floor(Math.random()*900+100),
+            movement_type:  "sale",
+            created_date:   new Date().toISOString().replace("T"," ").split(".")[0],
+            warehouse_id:   ledgerWhId,
+            warehouse_name: ledgerWhName,
+            part_id:        item.part_id,
+            part_name:      item.part_name,
+            sku:            item.sku || "",
+            qty_before:     ledgerBefore,
+            qty_change:     -item.qty,
+            qty_after:      Math.max(0, ledgerBefore - Number(item.qty)),
+            unit_price:     item.unit_price,
+            ref_type:       "sale_order",
+            ref_code:       orderCode,
+            created_by_name:user.full_name || user.name || "",
           });
-        } catch(e) { console.warn("Lỗi trừ stock:", e.message); }
+        } catch(e) { console.warn("Lỗi ghi movement:", e.message); }
       }
 
       // Bước 4: Ghi kế toán — ĐÃ CHUYỂN sang CashierConfirmPage (Thu ngân xác nhận thu tiền mới ghi)

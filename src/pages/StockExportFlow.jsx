@@ -120,6 +120,7 @@ export async function confirmWarehouseExport({
               ref_code:       usage.order_code || "",
               note:           `Giao LK đơn ${usage.order_code || usage.order_id}`,
               created_by_name: warehouseStaff.full_name || "",
+              created_date:   new Date().toISOString().replace("T"," ").split(".")[0],
             });
           }
         } catch(err) {
