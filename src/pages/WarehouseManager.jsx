@@ -1558,8 +1558,10 @@ function StockReportTab({ warehouses }) {
 }
 
 
-export default function WarehouseManager({ user, onBack }) {
-  const [tab, setTab]       = useState("warehouses");
+export default function WarehouseManager({ user, onBack, initialTab }) {
+  const _initTab = initialTab || sessionStorage.getItem("wm_initial_tab") || "warehouses";
+  const [tab, setTab]       = useState(_initTab);
+  useEffect(() => { sessionStorage.removeItem("wm_initial_tab"); }, []);
   const [whList, setWhList] = useState([]);
   const toast = useToast();
 

@@ -280,7 +280,7 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
           icon: "warning", title: `${extraData.lowStock} linh kiện sắp hết`,
           subtitle: "Tồn kho ≤ mức tối thiểu",
           badge: "Tồn thấp", badgeColor: "#d97706", urgency: "today",
-          onClick: () => setPage("wh_manager"),
+          onClick: () => { sessionStorage.setItem("wm_initial_tab","ledger"); setPage("wh_manager"); },
         });
       }
       if (pendingExport.length === 0 && overdueBorrow.length === 0 && pendingImport.length === 0) {
