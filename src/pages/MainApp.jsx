@@ -79,7 +79,7 @@ import { NewOrderModal, KPIPage, ProductHistoryModal } from "./OrderForms";
 import LoginPage, { showSystemNotif, requestNotifPermission } from "./LoginV2";
 import { PermissionProvider, usePermission } from "./PermissionContext.jsx";
 import ChangePassword from "./ChangePassword";
-import { renderReportPages, renderPurchaseNccPages, renderSalesPages, renderSetupPages, renderMobilePages } from "./MainAppWidgets.jsx";
+import { renderReportPages, renderPurchaseNccPages, renderSalesPages, renderSetupPages, renderMobilePages, PAGE_PERMS } from "./MainAppWidgets.jsx";
 import {
   WarehouseOrders,
   TechnicianHome,

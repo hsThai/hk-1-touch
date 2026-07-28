@@ -1,11 +1,10 @@
 /* MainAppWidgets.jsx — Render helpers cho các page mới — HK One Touch */
 import React, { Suspense, lazy } from "react";
-import { usePermission } from "./PermissionContext.jsx";
 import { WarehouseImport, WarehouseHome, WarehouseOrders, WarehouseExport } from "./WarehouseApp.jsx";
 
 
 // Page → permission mapping
-const PAGE_PERMS = {
+export const PAGE_PERMS = {
   report_profit:   ["profit_report", "view"],
   report_staff:    ["kpi", "view"],
   purchase_order:  ["purchase_order", "view"],
@@ -40,12 +39,6 @@ const PAGE_PERMS = {
   cashier_home:    ["sale_order", "view"],
 };
 
-function usePageGuard(page) {
-  const { can } = usePermission();
-  const perm = PAGE_PERMS[page];
-  if (!perm) return true; // trang không trong map → cho phép
-  return can(perm[0], perm[1]);
-}
 
 const Loading = () => <div style={{ padding: 40, textAlign: "center", color: "#9ca3af" }}>⏳</div>;
 
@@ -67,7 +60,6 @@ const PurchaseOrderPage = lazy(() => import("./PurchaseOrderPage.jsx").catch(() 
  * Dùng trong cả PC và Mobile layout của MainApp.jsx
  */
 export function renderReportPages(page, user) {
-  if (!usePageGuard(page)) return <NoPermission />;
   return (
     <>
       {page === "report_profit" && user && (
@@ -89,7 +81,6 @@ export function renderReportPages(page, user) {
  * Dùng trong cả PC và Mobile layout của MainApp.jsx
  */
 export function renderPurchaseNccPages(page, user) {
-  if (!usePageGuard(page)) return <NoPermission />;
   return (
     <>
       {page === "purchase_order" && user && (
@@ -143,7 +134,6 @@ const ExpensePage     = lazy(() => import("./ExpensePage.jsx").catch(()=>({ defa
  * renderSalesPages — Bán hàng + Báo cáo doanh thu + Thẻ kho
  */
 export function renderSalesPages(page, user) {
-  if (!usePageGuard(page)) return <NoPermission />;
   return (
     <>
       {page === "return_order" && user && (
@@ -178,7 +168,6 @@ export function renderSalesPages(page, user) {
  * renderSetupPages — Thiết lập: Integrations, ActionLog
  */
 export function renderSetupPages(page, user) {
-  if (!usePageGuard(page)) return <NoPermission />;
   return (
     <>
       {page === "integrations" && (
@@ -210,7 +199,6 @@ const RoleHomePlaceholder = lazy(() => import("./RoleHomePlaceholder.jsx").catch
  * renderMobilePages — Mobile page renders (tách từ MainApp.jsx để giảm dòng)
  */
 export function renderMobilePages(page, user, extraProps = {}) {
-  if (!usePageGuard(page)) return <NoPermission />;
   const { setPage, dashboardTab, notifications = [], dbNotifications = [], setShowNotif, setShowQRScan, cashierTab, setCashierTab } = extraProps;
   return (
     <>
