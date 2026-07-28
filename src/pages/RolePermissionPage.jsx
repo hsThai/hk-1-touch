@@ -113,7 +113,7 @@ export default function RolePermissionPage() {
         const pbUrl = localStorage.getItem("pb_url") || "http://localhost:8090";
         const token = localStorage.getItem("staff_token") || "";
         const res = await fetch(
-          `${pbUrl}/api/collections/staffs/records?perPage=200&fields=id,full_name,role`,
+          `${pbUrl}/api/collections/staff/records?perPage=200&fields=id,full_name,role`,
           { headers: token ? { Authorization: token } : {} }
         );
         if (res.ok) {
