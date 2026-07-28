@@ -2099,7 +2099,7 @@ function MainAppContent({ onUserChange }) {
                   <React.Fragment key={n.key}>
                     {dividerLabel && (
                       <div style={{
-                        fontSize:10, fontWeight:700, color:"#9ca3af",
+                        fontSize:10, fontWeight:700, color:"rgba(255,255,255,.45)",
                         padding:"12px 16px 4px", letterSpacing:"0.1em",
                         textTransform:"uppercase", userSelect:"none",
                       }}>
@@ -2111,8 +2111,8 @@ function MainAppContent({ onUserChange }) {
                         if(["board","tasks","ktv_home","rec_home","my_tasks"].includes(n.key)) setDashboardFilter(null);
                       }}
                       style={{ width:"100%", textAlign:"left", padding:"14px 16px", borderRadius:12, border:"none",
-                        background: active ? "#eef2ff" : "transparent",
-                        color:      active ? "#4f46e5" : "#374151",
+                        background: active ? "rgba(255,255,255,.18)" : "transparent",
+                        color:      active ? "#fff" : "rgba(255,255,255,.78)",
                         fontWeight: active ? 800 : 500,
                         fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", gap:10, marginBottom:2 }}>
                       <span className="material-icons" style={{fontSize:20,fontFamily:"Material Icons",verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>{n.icon}</span>
