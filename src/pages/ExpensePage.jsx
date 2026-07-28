@@ -1,6 +1,6 @@
 /* ExpensePage.jsx — Quản lý chi phí */
 import React, { useState, useEffect } from "react";
-import { Expense, CashJournal , getLocalDate } from "./pb.jsx";
+import { Expense, CashJournal , getLocalDate, logAction } from "./pb.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 function fmtDate(dateStr) {
@@ -73,6 +73,7 @@ export default function ExpensePage({ user }) {
     if (!fAmt || Number(fAmt)<=0) { showToast("⚠️ Vui lòng nhập số tiền hợp lệ"); return; }
     setSubmitting(true);
     try {
+      logAction(user, "add_expense", "expense", "", `Tạo chi phí: ${exp.category||""} — ${exp.amount?.toLocaleString("vi-VN")||""}đ`);
       const savedExp = await Expense.create({
         expense_code:    genCode(),
         category:        fCat,
@@ -151,6 +152,7 @@ export default function ExpensePage({ user }) {
     if (!window.confirm('Xóa chi phí "' + (exp.description||exp.category) + '"?')) return;
     try {
       await Expense.delete(exp.id);
+    logAction(user, "delete", "expense", exp.id, `Xóa chi phí: ${exp.category||""} — ${exp.amount?.toLocaleString("vi-VN")||""}đ`);
       showToast("🗑️ Đã xóa chi phí");
       setExpenses(prev=>prev.filter(e=>e.id!==exp.id));
     } catch(e) { showToast("❌ Lỗi: "+e.message); }

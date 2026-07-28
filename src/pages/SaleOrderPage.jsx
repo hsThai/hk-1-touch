@@ -1,6 +1,6 @@
 /* SaleOrderPage.jsx — POS bán hàng lẻ */
 import React, { useState, useEffect, useRef } from "react";
-import { SparePart, SaleOrder, SaleOrderItem, StockMovement, StockLedger, AppSettings, Customer , DebtVoucher, CashJournal } from "./pb.jsx";
+import { SparePart, SaleOrder, SaleOrderItem, StockMovement, StockLedger, AppSettings, Customer , DebtVoucher, CashJournal, logAction } from "./pb.jsx";
 import { previewSaleReceipt } from "../utils/printClient.js";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
@@ -179,6 +179,7 @@ export default function SaleOrderPage({ user }) {
           status:         "pending_payment",
         });
         console.log("✅ Tạo sale_order thành công:", so);
+        logAction(user, "create_sale", "sale_order", so.id, `Tạo đơn bán ${orderCode}: ${custName} — ${total.toLocaleString("vi-VN")}đ`);
       } catch(e) {
         console.error("❌ Lỗi tạo sale_order:", e);
         showToast("❌ Lỗi tạo đơn: " + (e?.message || e?.data?.message || JSON.stringify(e)));
@@ -304,6 +305,7 @@ export default function SaleOrderPage({ user }) {
   async function handleConfirmDraft(draft) {
     try {
       await SaleOrder.update(draft.id, { status: "pending_payment" });
+      logAction(user, "update", "sale_order", draft.id, `Xác nhận đơn ${draft.order_code}`);
       setLastDraft(null);
       loadTodayOrders();
       showToast("✅ Đơn đã chuyển chờ thu ngân!");
@@ -314,6 +316,7 @@ export default function SaleOrderPage({ user }) {
     if (!window.confirm(`Hủy đơn ${draft.order_code}?`)) return;
     try {
       await SaleOrder.update(draft.id, { status: "cancelled" });
+      logAction(user, "delete", "sale_order", draft.id, `Hủy đơn ${draft.order_code}`);
       setLastDraft(null);
       loadTodayOrders();
       showToast("🗑️ Đã hủy đơn tạm");

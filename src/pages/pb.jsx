@@ -248,7 +248,7 @@ export const Supplier           = makeCollection("suppliers");
 export const ShiftReconcile    = makeCollection("shift_reconciles");
 export const KpiRecord          = makeCollection("kpi_records");
 
-// ── Helper: ghi log lịch sử đơn ──────────────────────────
+// ── Helper: ghi log lịch sử đơn (OrderHistory) ──────────────
 export async function logHistory({ order_id, order_code, action_type, action_label, changed_by_id, changed_by_name, changed_by_role, old_value, new_value, note }) {
   try {
     await OrderHistory.create({
@@ -262,9 +262,28 @@ export async function logHistory({ order_id, order_code, action_type, action_lab
       old_value:       old_value || "",
       new_value:       new_value || "",
       note:            note || "",
+      created_date:    new Date().toISOString(),
     });
   } catch(e) {
-    // silent — không block UI
+    console.warn("[logHistory]", e.message);
+  }
+}
+
+// ── Helper: ghi log thao tác hệ thống (ActionLog) ───────────
+export async function logAction(user, action, target_type, target_id = "", detail = "") {
+  try {
+    await ActionLog.create({
+      staff_id:    user?.id || "",
+      staff_name:  user?.name || user?.full_name || "",
+      staff_role:  user?.role || "",
+      action:      action || "",
+      target_type: target_type || "",
+      target_id:   target_id || "",
+      detail:      detail || "",
+      created_date: new Date().toISOString(),
+    });
+  } catch(e) {
+    console.warn("[logAction]", e.message);
   }
 }
 

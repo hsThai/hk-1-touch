@@ -1,6 +1,7 @@
 /* PurchaseOrderPage.jsx — Đặt hàng NCC — HK One Touch */
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { PurchaseOrder, PurchaseOrderItem, SparePart, Supplier } from "./pb.jsx";
+import { PurchaseOrder, PurchaseOrderItem, SparePart, Supplier, logAction } from "./pb.jsx";
+import { usePermission } from "./PermissionContext.jsx";
 
 const fmt = (n) => (n || 0).toLocaleString("vi-VN") + "đ";
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString("vi-VN") : "—";
@@ -179,6 +180,7 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
           unit_price:Number(it.unit_price)||0, total_price:Number(it.total_price)||0, note:it.note||""
         });
       }
+      logAction(user, po?.id ? "update" : "create_po", "purchase_order", savedPO.id, `${po?.id ? "Sửa" : "Tạo"} PO ${poCode}: ${supplierName} — ${totalValue.toLocaleString("vi-VN")}đ`);
       onSaved?.(); onClose();
     } catch(e) { alert("Lỗi lưu: "+e.message); }
     setSaving(false);
@@ -489,6 +491,10 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
 
 export default function PurchaseOrderPage({ user }) {
 
+  const { can } = usePermission();
+  const canCreatePO = can("purchase_order","create");
+  const canEditPO = can("purchase_order","edit");
+  const canDeletePO = can("purchase_order","delete");
   const [isPC, setIsPC] = React.useState(window.innerWidth >= 1024);
   React.useEffect(() => {
     const fn = () => setIsPC(window.innerWidth >= 1024);
@@ -538,6 +544,7 @@ export default function PurchaseOrderPage({ user }) {
       const olds = await PurchaseOrderItem.list({ filter:`po_id="${po.id}"`, limit:200 });
       for (const oi of (olds||[])) await PurchaseOrderItem.delete(oi.id).catch(()=>{});
       await PurchaseOrder.delete(po.id);
+      logAction(user, "delete", "purchase_order", po.id, `Xóa PO ${po.po_code}: ${po.supplier_name||""}`);
       showToast("✅ Đã xoá"); loadOrders();
     } catch(e) { showToast("❌ Lỗi: "+e.message); }
   }
@@ -622,7 +629,7 @@ export default function PurchaseOrderPage({ user }) {
                         style={{padding:"4px 10px",borderRadius:6,border:"1px solid #a78bfa",background:"#f5f3ff",color:"#7c3aed",fontSize:12,cursor:"pointer",fontWeight:600}}>
                         ✏️ Sửa
                       </button>
-                      <button onClick={e=>handleDelete(po,e)}
+                      <button onClick={e=>handleDelete(po,e)} disabled={!canDeletePO}
                         style={{padding:"4px 10px",borderRadius:6,border:"1px solid #fca5a5",background:"#fef2f2",color:"#dc2626",fontSize:12,cursor:"pointer",fontWeight:600}}>
                         Xoá
                     </button>

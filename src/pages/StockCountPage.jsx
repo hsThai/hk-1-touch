@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Warehouse, WarehouseZone,
          StockLedger, StockMovement,
-         StockCount, StockCountItem } from "./pb.jsx";
+         StockCount, StockCountItem, logAction } from "./pb.jsx";
 
 // ── Helpers ────────────────────────────────────────────────
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
@@ -269,6 +269,7 @@ function CreateCountModal({ user, onClose, onCreated }) {
       if (parts.length===0) { toast.show("Không có linh kiện nào trong kho này","warn"); setSubmitting(false); return; }
 
       // Tạo phiếu kiểm
+      logAction(user, "count_stock", "stock_count", "", `Tạo phiếu kiểm kho`);
       const sc = await StockCount.create({
         count_code:   code,
         warehouse_id: form.warehouse_id,
@@ -736,6 +737,7 @@ function ReviewScreen({ count, user, onBack, onRefresh }) {
         } catch {}
       }
       // 4. Update phiếu kiểm
+      logAction(user, "count_stock", "stock_count", count.id, `Duyệt kiểm kho ${count.count_code||count.id}`);
       await StockCount.update(count.id, {
         status:             "approved",
         approved_by_id:     user.id||"",

@@ -9,7 +9,7 @@ import {
   SparePart, StockExportRequest, StockImport, StockImportItem,
   StockLedger, StockMovement, ActionLog, CashJournal, DebtVoucher, Supplier,
   PurchaseOrder, PurchaseOrderItem, Warehouse,
-  getPbUrl, getAuth, logHistory, getLocalDate } from "./pb.jsx";
+  getPbUrl, getAuth, logHistory, logAction, getLocalDate } from "./pb.jsx";
 import { uploadFile } from "./pb.jsx";
 import {
   timeAgo, genOrderId, getKpiTimerInfo,
@@ -369,6 +369,7 @@ function WarehouseExport({ user }) {
     setConfirming(true);
     try {
       const mediaStr = confirmMedia.map(m=>m.url).join(",");
+      logAction(user, "export_stock", "stock_export", viewReq.id, `Xác nhận xuất: ${viewReq.request_code||viewReq.id}`);
       await StockExportRequest.update(viewReq.id, {
         status:"warehouse_confirmed",
         warehouse_confirmed_by: user.id,
@@ -936,6 +937,7 @@ function WarehouseImport({ user }) {
         confirmed_by: user.id, confirmed_by_name: user.name||"",
         confirmed_at: new Date().toISOString().slice(0,10),
       });
+      logAction(user, "import_stock", "stock_import", imp.id, `Nhập hàng ${code}: ${items.length} mặt hàng — ${totalValue.toLocaleString("vi-VN")}đ`);
       for (const it of items) {
         await StockImportItem.create({
           import_id:imp.id, import_code:code, item_type:importType,
@@ -1088,6 +1090,7 @@ function WarehouseImport({ user }) {
           const anyReceived = (refreshed||[]).some(pi => Number(pi.qty_received||0) > 0);
           const newPOStatus = allDone ? "completed" : anyReceived ? "partial" : "confirmed";
           await PurchaseOrder.update(selectedPO.id, { status: newPOStatus });
+          logAction(user, "import_stock", "purchase_order", selectedPO.id, `Nhập hàng theo PO ${selectedPO.po_code||selectedPO.id}: ${newPOStatus}`);
         } catch(e) { console.error("PO update error:", e); }
       }
       // KT-2: ghi debt_voucher + cash_journal nếu có nợ NCC
@@ -1105,6 +1108,7 @@ function WarehouseImport({ user }) {
         }
         const __remaining = Math.max(0, __totalVal - impPaidAmt);
         if (__remaining > 0) {
+          logAction(user, "pay_debt", "debt_voucher", "", `Thanh toán NCC: ${supplier||""} — ${paidAmount.toLocaleString("vi-VN")}đ`);
           await DebtVoucher.create({
             voucher_code:  "PP-" + String(Date.now()).slice(-6),
             voucher_type:  "payable", party_type: "supplier",

@@ -5,9 +5,9 @@ async function fetchLogs({ page, perPage, search, dateFrom, dateTo }) {
   const base = getPbUrl();
   const { token } = getAuth();
   const filters = [];
-  if (search)   filters.push(`(user_name~"${search}"||action~"${search}")`);
-  if (dateFrom) filters.push(`created>="${dateFrom} 00:00:00"`);
-  if (dateTo)   filters.push(`created<="${dateTo} 23:59:59"`);
+  if (search)   filters.push(`(staff_name~"${search}"||action~"${search}"||target_type~"${search}")`);
+  if (dateFrom) filters.push(`created_date>="${dateFrom} 00:00:00"`);
+  if (dateTo)   filters.push(`created_date<="${dateTo} 23:59:59"`);
   const params = new URLSearchParams({
     page, perPage,
     sort: "-id",
@@ -32,10 +32,23 @@ function fmtDate(s) {
 }
 
 const ACTION_COLOR = {
-  create:  { bg:"#dcfce7", color:"#15803d" },
-  update:  { bg:"#fef9c3", color:"#b45309" },
-  delete:  { bg:"#fee2e2", color:"#dc2626" },
-  login:   { bg:"#eff6ff", color:"#1d4ed8" },
+  create:        { bg:"#dcfce7", color:"#15803d" },
+  create_order:  { bg:"#dcfce7", color:"#15803d" },
+  update:        { bg:"#fef9c3", color:"#b45309" },
+  update_order:  { bg:"#fef9c3", color:"#b45309" },
+  delete:        { bg:"#fee2e2", color:"#dc2626" },
+  delete_order:  { bg:"#fee2e2", color:"#dc2626" },
+  login:         { bg:"#eff6ff", color:"#1d4ed8" },
+  complete_order:{ bg:"#dcfce7", color:"#15803d" },
+  export_stock:  { bg:"#fef9c3", color:"#b45309" },
+  import_stock:  { bg:"#dbeafe", color:"#1d4ed8" },
+  transfer_stock:{ bg:"#e9d5ff", color:"#7c3aed" },
+  count_stock:   { bg:"#fef3c7", color:"#d97706" },
+  create_sale:   { bg:"#dcfce7", color:"#15803d" },
+  pay_debt:      { bg:"#dcfce7", color:"#15803d" },
+  add_expense:   { bg:"#fee2e2", color:"#dc2626" },
+  create_po:     { bg:"#dbeafe", color:"#1d4ed8" },
+  handover:      { bg:"#dcfce7", color:"#15803d" },
 };
 
 export default function ActionLogPage({ user }) {
@@ -145,10 +158,10 @@ export default function ActionLogPage({ user }) {
                     style={{ background: i%2===0 ? "#fff" : "#f9fafb",
                       borderBottom:"1px solid #f3f4f6" }}>
                     <td style={{ padding:"9px 12px", color:"#6b7280", whiteSpace:"nowrap" }}>
-                      {fmtDate(log.created)}
+                      {fmtDate(log.created_date)}
                     </td>
                     <td style={{ padding:"9px 12px", fontWeight:600, color:"#1f2937" }}>
-                      {log.user_name || "—"}
+                      {log.staff_name || "—"}
                     </td>
                     <td style={{ padding:"9px 12px" }}>
                       <span style={{ background:ac.bg, color:ac.color,

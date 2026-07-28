@@ -13,7 +13,8 @@ const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ defa
     </div>
   </div>
 )})));
-import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage, StockExportRequest, ActionLog, subscribeCollection, getPbUrl, getAuth, logHistory, pbSettings, DebtVoucher, DebtPayment, CashJournal, Customer, getLocalDate } from "./pb.jsx";
+import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage, StockExportRequest, ActionLog, subscribeCollection, getPbUrl, getAuth, logHistory, logAction, pbSettings, DebtVoucher, DebtPayment, CashJournal, Customer, getLocalDate } from "./pb.jsx";
+import { usePermission } from "./PermissionContext.jsx";
 import { getNotifSound } from "./notifUtils.js";
 import { uploadFile } from "./pb.jsx";
 
@@ -64,11 +65,7 @@ async function playNotifSound(type) {
   } catch {}
 }
 
-async function logAction(user, action, target_type, target_id="", detail="") {
-  try {
-    await ActionLog.create({ staff_id:user?.id||"", staff_name:user?.name||user?.full_name||"", staff_role:user?.role||"", action, target_type, target_id, detail, logged_at:new Date().toISOString() });
-  } catch(e) { console.warn("logAction:", e.message); }
-}
+
 
 
 
@@ -152,7 +149,7 @@ async function autoCreateOrUpdateDebt(order, finalCost, deposit, payMethod, curr
   }
 }
 
-function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, onGoToPendingAccept }) {
+function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, onGoToPendingAccept, canRepairEdit, canRepairDelete }) {
   const [chatInput, setChatInput] = useState("");
   const [chats, setChats] = useState([]);
   const [chatLoading, setChatLoading] = useState(false);
@@ -729,6 +726,10 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                     // 1. Xóa đơn khỏi PocketBase
                     await RepairOrder.delete(delId);
 
+                    // 1b. Ghi log lịch sử & thao tác trước khi xóa
+                    logHistory({ order_id:"", order_code:orderCode, action_type:"deleted", action_label:"Xóa đơn sửa chữa", changed_by_id:currentUser?.id||"", changed_by_name:currentUser?.name||"", changed_by_role:currentUser?.role||"", old_value:order.status||"", new_value:"Đã xóa", note:`${order.customer_name||""} — ${order.device_model||""}` });
+                    logAction(currentUser, "delete_order", "repair_order", delId, `Xóa đơn ${orderCode}: ${order.customer_name||""} — ${order.device_model||""}`);
+
                     // 2. Thông báo cho tất cả user liên quan
                     const relatedUsers = (users||[]).filter(u => {
                       if (!u?.id || u.id === currentUser.id) return false;
@@ -1277,6 +1278,8 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                   const isMe = msg.sender_id === currentUser.id;
                   const isSystem = msg.message_type === "system";
                   const isManager = ["manager","admin","owner","supervisor"].includes(currentUser.role);
+                  const canEditOrder = canRepairEdit || isManager;
+                  const canDeleteOrder = canRepairDelete || isManager;
                   const msgTs = msg.created || msg.created_date;
                   const msgDateStr = msgTs ? fmtDate(msgTs) : null;
                   const showDateSep = msgDateStr && msgDateStr !== lastDateStr;
@@ -1856,4 +1859,9 @@ export { OrderDrawer };
 const PUBLIC_URL = "https://hk-app-copy-4cefbb7c.base44.app/OrderPublic";
 
 // Inline QR loader — không phụ thuộc module scope của QRComponents
-export default OrderDrawer;
+// Wrapper: inject permission vào props
+function OrderDrawerWithPerm(props) {
+  const { can } = usePermission();
+  return <OrderDrawer {...props} canRepairEdit={can("repair_order","edit")} canRepairDelete={can("repair_order","delete")} />;
+}
+export default OrderDrawerWithPerm;

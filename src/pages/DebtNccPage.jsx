@@ -1,6 +1,6 @@
 /* DebtNccPage.jsx — Công nợ NCC — HK One Touch */
 import React, { useState, useEffect, useCallback } from "react";
-import { Supplier, DebtVoucher, DebtPayment, CashJournal } from "./pb.jsx";
+import { Supplier, DebtVoucher, DebtPayment, CashJournal, logAction } from "./pb.jsx";
 
 const fmt = (n) => (n || 0).toLocaleString("vi-VN") + "đ";
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString("vi-VN") : "—";
@@ -39,6 +39,7 @@ function PaymentModal({ supplier, onClose, onSaved, user }) {
         paid_by_name:  user?.full_name || "",
         paid_at:       new Date().toISOString().slice(0,10),
       });
+      logAction(user, "pay_debt", "debt_payment", supplier.id, `Thanh toán nợ NCC ${supplier.name}: ${amt.toLocaleString("vi-VN")}đ (${method})`);
       // Cập nhật total_debt của NCC
       const newDebt = Math.max(0, (Number(supplier.total_debt)||0) - amt);
       await Supplier.update(supplier.id, { total_debt: newDebt });

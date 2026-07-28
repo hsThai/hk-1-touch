@@ -497,6 +497,8 @@ const STATIC_MATRIX = {
     debt:              p(0,0,0,0,0,0),
     cash_journal:      p(0,0,0,0,0,0),
     department:        p(1,1,1,0,0,0),
+    purchase_order:    p(0,0,0,0,0,0),
+    profit_report:     p(0,0,0,0,0,0),
   },
 
   // ── IT: IT/dev nội bộ ────────────────────────────────
@@ -523,6 +525,8 @@ const STATIC_MATRIX = {
     debt:              p(1,0,0,0,0,0),
     cash_journal:      p(1,0,0,0,0,0),
     department:        p(1,0,0,0,0,0),
+    purchase_order:    p(1,0,0,0,0,0),
+    profit_report:     p(1,0,0,0,0,1),
   },
 
   // ── GUEST: khách ─────────────────────────────────────
@@ -549,6 +553,8 @@ const STATIC_MATRIX = {
     debt:              p(0,0,0,0,0,0),
     cash_journal:      p(0,0,0,0,0,0),
     department:        p(0,0,0,0,0,0),
+    purchase_order:    p(0,0,0,0,0,0),
+    profit_report:     p(0,0,0,0,0,0),
   },
 };
 

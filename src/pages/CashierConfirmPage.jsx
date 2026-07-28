@@ -1,7 +1,7 @@
 // CashierConfirmPage.jsx — Trang xác nhận thu tiền cho Thu ngân
 // HK One Touch
 import React, { useState, useEffect } from "react";
-import { SaleOrder, SaleOrderItem, CashJournal, DebtVoucher, getLocalDate } from "./pb.jsx";
+import { SaleOrder, SaleOrderItem, CashJournal, DebtVoucher, getLocalDate, logAction } from "./pb.jsx";
 import { printSaleReceiptA5 } from "../utils/printClient.js";
 
 const PM_COLORS = { cash:"#059669", transfer:"#0369a1", combined:"#7c3aed", credit:"#dc2626" };
@@ -74,6 +74,7 @@ export default function CashierConfirmPage({ user }) {
         cashier_name: user.full_name||user.name||"",
         payment_method: payMethod,
       });
+      logAction(user, "confirm_payment", "sale_order", confirming.id, `Thu tiền ${confirming.order_code}: ${confirming.total.toLocaleString("vi-VN")}đ (${payMethod})`);
       if(payMethod==="credit"){
         await DebtVoucher.create({
           voucher_code:"PT-BL-"+String(Date.now()).slice(-6),

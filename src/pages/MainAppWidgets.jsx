@@ -1,6 +1,51 @@
 /* MainAppWidgets.jsx — Render helpers cho các page mới — HK One Touch */
 import React, { Suspense, lazy } from "react";
+import { usePermission } from "./PermissionContext.jsx";
 import { WarehouseImport, WarehouseHome, WarehouseOrders, WarehouseExport } from "./WarehouseApp.jsx";
+
+
+// Page → permission mapping
+const PAGE_PERMS = {
+  report_profit:   ["profit_report", "view"],
+  report_staff:    ["kpi", "view"],
+  purchase_order:  ["purchase_order", "view"],
+  wh_import_ncc:   ["stock_import", "view"],
+  debt_ncc:        ["debt", "view"],
+  return_order:    ["sale_order", "view"],
+  price_policy:    ["sale_order", "view"],
+  revenue:         ["revenue_report", "view"],
+  stock_nxt:       ["stock_ledger", "view"],
+  expense:         ["expense", "view"],
+  rma:             ["stock_import", "view"],
+  cash_journal:    ["cash_journal", "view"],
+  stock_count:     ["stock_count", "view"],
+  integrations:   ["settings", "view"],
+  action_log:      ["settings", "view"],
+  customers:       ["customer", "view"],
+  suppliers:       ["supplier", "view"],
+  debts:           ["debt", "view"],
+  department:      ["department", "view"],
+  role_perm:       ["settings", "view"],
+  settings:        ["settings", "view"],
+  print_settings:  ["settings", "view"],
+  print_template:  ["settings", "view"],
+  staff:           ["staff", "view"],
+  sale_order:      ["sale_order", "view"],
+  wh_manager:      ["warehouse_mgr", "view"],
+  wh_import:       ["stock_import", "view"],
+  wh_export:       ["stock_export", "view"],
+  new:             ["repair_order", "create"],
+  board:           ["repair_order", "view"],
+  tasks:           ["repair_order", "view"],
+  cashier_home:    ["sale_order", "view"],
+};
+
+function usePageGuard(page) {
+  const { can } = usePermission();
+  const perm = PAGE_PERMS[page];
+  if (!perm) return true; // trang không trong map → cho phép
+  return can(perm[0], perm[1]);
+}
 
 const Loading = () => <div style={{ padding: 40, textAlign: "center", color: "#9ca3af" }}>⏳</div>;
 
@@ -22,6 +67,7 @@ const PurchaseOrderPage = lazy(() => import("./PurchaseOrderPage.jsx").catch(() 
  * Dùng trong cả PC và Mobile layout của MainApp.jsx
  */
 export function renderReportPages(page, user) {
+  if (!usePageGuard(page)) return <NoPermission />;
   return (
     <>
       {page === "report_profit" && user && (
@@ -43,6 +89,7 @@ export function renderReportPages(page, user) {
  * Dùng trong cả PC và Mobile layout của MainApp.jsx
  */
 export function renderPurchaseNccPages(page, user) {
+  if (!usePageGuard(page)) return <NoPermission />;
   return (
     <>
       {page === "purchase_order" && user && (
@@ -96,6 +143,7 @@ const ExpensePage     = lazy(() => import("./ExpensePage.jsx").catch(()=>({ defa
  * renderSalesPages — Bán hàng + Báo cáo doanh thu + Thẻ kho
  */
 export function renderSalesPages(page, user) {
+  if (!usePageGuard(page)) return <NoPermission />;
   return (
     <>
       {page === "return_order" && user && (
@@ -130,6 +178,7 @@ export function renderSalesPages(page, user) {
  * renderSetupPages — Thiết lập: Integrations, ActionLog
  */
 export function renderSetupPages(page, user) {
+  if (!usePageGuard(page)) return <NoPermission />;
   return (
     <>
       {page === "integrations" && (
@@ -161,6 +210,7 @@ const RoleHomePlaceholder = lazy(() => import("./RoleHomePlaceholder.jsx").catch
  * renderMobilePages — Mobile page renders (tách từ MainApp.jsx để giảm dòng)
  */
 export function renderMobilePages(page, user, extraProps = {}) {
+  if (!usePageGuard(page)) return <NoPermission />;
   const { setPage, dashboardTab, notifications = [], dbNotifications = [], setShowNotif, setShowQRScan, cashierTab, setCashierTab } = extraProps;
   return (
     <>

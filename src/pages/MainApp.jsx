@@ -1,7 +1,7 @@
 /* REBUILD_20260406_1408 */
 /* v4-loginv2-real-db */
 import React, { lazy, Suspense, useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
-import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, StockExportRequest, StockImport, StockImportItem, StockLedger, ActionLog, getPbUrl, getAuth, logHistory, DebtVoucher, CashJournal } from "./pb.jsx";
+import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, StockExportRequest, StockImport, StockImportItem, StockLedger, ActionLog, getPbUrl, getAuth, logHistory, logAction, DebtVoucher, CashJournal } from "./pb.jsx";
 import { uploadFile } from "./pb.jsx";
 import { getNotifSound } from "./notifUtils.js";
 const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ default: ({ onClose }) => (
@@ -1400,7 +1400,15 @@ function MainAppContent({ onUserChange }) {
   function renderManagerSidebar() {
     return (
       <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
-        {MGR_ACCORDIONS.map(acc => {
+        {MGR_ACCORDIONS.filter(acc => {
+          // Ẩn accordion nếu không có item nào được phép
+          const visibleItems = acc.items.filter(sub => {
+            const perm = PAGE_PERMS[sub.key];
+            if (!perm) return true;
+            return can(perm[0], perm[1]);
+          });
+          return visibleItems.length > 0;
+        }).map(acc => {
           const isOpen = openAccordion === acc.key;
           const isAccActive = acc.pages.some(p => {
             if (p.includes("__")) {
@@ -1444,7 +1452,11 @@ function MainAppContent({ onUserChange }) {
               {/* Sub-items */}
               {isOpen && (
                 <div style={{ paddingLeft:12, marginTop:1, marginBottom:2 }}>
-                  {acc.items.map(sub => {
+                  {acc.items.filter(sub => {
+                    const perm = PAGE_PERMS[sub.key];
+                    if (!perm) return true;
+                    return can(perm[0], perm[1]);
+                  }).map(sub => {
                     const isActive = sub.key.includes("__")
                       ? (page === sub.key.split("__")[0] && dashboardTab === sub.key.split("__")[1])
                       : page === sub.key;
@@ -2489,20 +2501,7 @@ function MainAppInner() {
 }
 
 // ─── Log thao tác ───────────────────────────────────────
-async function logAction(user, action, target_type, target_id="", detail="") {
-  try {
-    await ActionLog.create({
-      staff_id:   user?.id||"",
-      staff_name: user?.name||user?.full_name||"",
-      staff_role: user?.role||"",
-      action,
-      target_type,
-      target_id,
-      detail,
-      logged_at: new Date().toISOString(),
-    });
-  } catch(e) { console.warn("logAction:", e.message); }
-}
+
 
 
 export default function MainApp() { return <ErrorBoundary><MainAppInner /></ErrorBoundary>; }

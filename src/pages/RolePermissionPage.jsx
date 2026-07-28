@@ -209,140 +209,130 @@ export default function RolePermissionPage() {
   return (
     <div style={{ paddingBottom:80 }}>
 
-      {/* ── Toolbar: Dropdown + Role info inline + Seed button ── */}
+      {/* ── Toolbar: Dropdown + Seed button ── */}
       <div style={{
-        padding:"10px 16px", display:"flex", alignItems:"center",
-        gap:12, flexWrap:"wrap", borderBottom:"1.5px solid #e5e7eb",
+        padding:"10px 12px 8px", borderBottom:"1.5px solid #e5e7eb",
         background:"#fff", position:"sticky", top:0, zIndex:20,
       }}>
-        {/* Label + Dropdown */}
-        <label style={{ fontSize:13, fontWeight:700, color:"#374151", whiteSpace:"nowrap" }}>
-          🔑 Chọn vai trò:
-        </label>
-        <select
-          value={activeRole || ""}
-          onChange={e => setActiveRole(e.target.value)}
-          style={{
-            height:38, padding:"0 12px 0 10px", borderRadius:10,
-            border:"2px solid #4f46e5", fontSize:14, fontWeight:700,
-            color:"#1e1b4b", background:"#fff", cursor:"pointer",
-            minWidth:190, outline:"none", flexShrink:0,
-          }}>
-          {roles.map(r => (
-            <option key={r.key} value={r.key}>
-              {r.icon || "👤"} {r.label || r.key}
-            </option>
-          ))}
-        </select>
+        {/* Dòng 1: label + dropdown + seed */}
+        <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"nowrap" }}>
+          <label style={{ fontSize:13, fontWeight:700, color:"#374151", whiteSpace:"nowrap", flexShrink:0 }}>
+            🔑 Vai trò:
+          </label>
+          <select
+            value={activeRole || ""}
+            onChange={e => setActiveRole(e.target.value)}
+            style={{
+              flex:1, minWidth:0, height:38, padding:"0 10px",
+              borderRadius:10, border:"2px solid #4f46e5",
+              fontSize:14, fontWeight:700, color:"#1e1b4b",
+              background:"#fff", cursor:"pointer", outline:"none",
+            }}>
+            {roles.map(r => (
+              <option key={r.key} value={r.key}>
+                {r.icon || "👤"} {r.label || r.key}
+              </option>
+            ))}
+          </select>
+          <button onClick={handleSeed} disabled={seeding}
+            style={{
+              flexShrink:0, height:38, padding:"0 12px", borderRadius:10,
+              border:"1.5px solid #e5e7eb", background:"#f9fafb",
+              fontSize:13, fontWeight:700, cursor:"pointer",
+              display:"flex", alignItems:"center", gap:4, whiteSpace:"nowrap",
+            }}>
+            {seeding ? "⏳" : "🌱"} Seed
+          </button>
+        </div>
 
-        {/* Role info inline — icon + tên + mô tả + staff badges */}
+        {/* Dòng 2: Role info card */}
         {activeRoleData && (() => {
           const staffInRole = staffList.filter(s => s.role === activeRole);
           return (
             <div style={{
-              display:"flex", alignItems:"center", gap:8, flex:1,
+              display:"flex", alignItems:"center", gap:8, marginTop:7,
               background: activeRoleData.bg || "#f3f4f6",
-              border:`1.5px solid ${activeRoleData.color || "#e5e7eb"}33`,
-              borderRadius:10, padding:"6px 12px", minWidth:0,
+              border:`1.5px solid ${activeRoleData.color || "#e5e7eb"}44`,
+              borderRadius:10, padding:"6px 10px",
             }}>
               <span style={{ fontSize:20, flexShrink:0 }}>{activeRoleData.icon || "👤"}</span>
-              <div style={{ minWidth:0 }}>
+              <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontWeight:800, fontSize:13, color: activeRoleData.color || "#374151", lineHeight:1.2 }}>
                   {activeRoleData.label || activeRole}
                 </div>
-                <div style={{ fontSize:11, color:"#6b7280", marginTop:1, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                <div style={{ fontSize:11, color:"#6b7280", marginTop:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                   {activeRoleData.description || ""}
                 </div>
               </div>
-              {/* Staff badges */}
-              <div style={{ display:"flex", alignItems:"center", gap:5, flexWrap:"wrap", marginLeft:8 }}>
-                <span style={{ fontSize:11, color:"#9ca3af", whiteSpace:"nowrap", flexShrink:0 }}>
-                  👤 {staffInRole.length}:
+              {/* Staff count + badges */}
+              <div style={{ display:"flex", alignItems:"center", gap:4, flexShrink:0 }}>
+                <span style={{
+                  fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:99,
+                  background: activeRoleData.color || "#6b7280",
+                  color:"#fff", whiteSpace:"nowrap",
+                }}>
+                  👤 {staffInRole.length} người
                 </span>
-                {staffInRole.length === 0
-                  ? <span style={{ fontSize:11, color:"#9ca3af", fontStyle:"italic" }}>Chưa có ai</span>
-                  : staffInRole.slice(0, 5).map(s => (
-                      <span key={s.id} style={{
-                        fontSize:11, fontWeight:700, padding:"1px 8px", borderRadius:99,
-                        background:"#fff", border:`1px solid ${activeRoleData.color || "#e5e7eb"}55`,
-                        color: activeRoleData.color || "#374151", whiteSpace:"nowrap",
-                      }}>
-                        {s.full_name || s.id}
-                      </span>
-                    ))
-                }
-                {staffInRole.length > 5 && (
-                  <span style={{ fontSize:11, color:"#9ca3af" }}>+{staffInRole.length - 5}</span>
-                )}
               </div>
             </div>
           );
         })()}
-
-        {/* Seed button */}
-        <button onClick={handleSeed} disabled={seeding}
-          style={{
-            flexShrink:0, height:38, padding:"0 14px", borderRadius:10,
-            border:"1.5px solid #e5e7eb", background:"#f9fafb",
-            fontSize:13, fontWeight:700, cursor:"pointer",
-            display:"flex", alignItems:"center", gap:5, whiteSpace:"nowrap",
-          }}>
-          {seeding ? "⏳ Đang seed..." : "🌱 Seed"}
-        </button>
       </div>
 
       {/* ── Bảng ma trận scroll 2 chiều ── */}
       <div style={{
-        margin:"0 16px 24px", border:"1.5px solid #e5e7eb",
-        borderRadius:14, overflow:"hidden",
+        margin:"8px 8px 24px", border:"1.5px solid #e5e7eb",
+        borderRadius:12, overflow:"hidden",
       }}>
         <div style={{
           overflowX:"auto", overflowY:"auto",
           WebkitOverflowScrolling:"touch",
-          maxHeight:"calc(100vh - 180px)",
+          maxHeight:"calc(100vh - 200px)",
         }}>
-          <table style={{ width:"100%", borderCollapse:"collapse", minWidth:520 }}>
+          <table style={{ width:"100%", borderCollapse:"collapse", minWidth:440 }}>
 
             {/* Sticky header */}
             <thead>
               <tr style={{ background:"#f8fafc" }}>
                 <th style={{
-                  textAlign:"left", padding:"10px 14px",
+                  textAlign:"left", padding:"9px 10px",
                   fontSize:11, fontWeight:800, color:"#9ca3af",
                   textTransform:"uppercase", letterSpacing:.5,
                   borderBottom:"1.5px solid #e5e7eb",
                   position:"sticky", top:0, left:0, zIndex:12,
-                  background:"#f8fafc", minWidth:180, whiteSpace:"nowrap",
+                  background:"#f8fafc", minWidth:150, whiteSpace:"nowrap",
+                  boxShadow:"2px 0 4px rgba(0,0,0,.04)",
                 }}>
                   Tài nguyên
                 </th>
                 {/* Cột toggle tất cả */}
                 <th style={{
-                  textAlign:"center", padding:"10px 6px",
-                  fontSize:10, fontWeight:800, color:"#4f46e5",
+                  textAlign:"center", padding:"8px 4px",
+                  fontSize:9, fontWeight:800, color:"#4f46e5",
                   textTransform:"uppercase", borderBottom:"1.5px solid #e5e7eb",
                   position:"sticky", top:0, zIndex:11, background:"#f8fafc",
-                  minWidth:52,
+                  minWidth:40, width:40,
                 }}>
                   <span className="material-icons" style={{
-                    fontSize:13, display:"block", margin:"0 auto 2px",
+                    fontSize:13, display:"block", margin:"0 auto 1px",
                     fontFamily:"Material Icons", lineHeight:1,
                   }}>select_all</span>
-                  Tất cả
+                  All
                 </th>
                 {ACTION_LABELS.map(a => (
                   <th key={a.key} style={{
-                    textAlign:"center", padding:"10px 6px",
-                    fontSize:10, fontWeight:800, color:"#6b7280",
+                    textAlign:"center", padding:"8px 2px",
+                    fontSize:9, fontWeight:800, color:"#6b7280",
                     textTransform:"uppercase", borderBottom:"1.5px solid #e5e7eb",
                     position:"sticky", top:0, zIndex:11, background:"#f8fafc",
-                    minWidth:56, whiteSpace:"nowrap",
+                    minWidth:44, width:44, whiteSpace:"nowrap",
                   }}>
                     <span className="material-icons" style={{
-                      fontSize:13, display:"block", margin:"0 auto 2px",
+                      fontSize:16, display:"block", margin:"0 auto 1px",
                       fontFamily:"Material Icons", lineHeight:1,
+                      color:"#9ca3af",
                     }}>{a.icon}</span>
-                    {a.short}
+                    <span style={{ fontSize:9 }}>{a.short}</span>
                   </th>
                 ))}
               </tr>
@@ -402,30 +392,31 @@ export default function RolePermissionPage() {
                         <tr key={resKey} style={{ background:bg, transition:"background .2s" }}>
                           {/* Resource label — sticky left */}
                           <td style={{
-                            padding:"10px 14px", borderTop:"1px solid #f0f0f0",
+                            padding:"8px 10px", borderTop:"1px solid #f0f0f0",
                             position:"sticky", left:0, background:bg, zIndex:5,
+                            boxShadow:"2px 0 4px rgba(0,0,0,.04)",
                           }}>
-                            <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-                              {isSaving && <span style={{ fontSize:10, color:"#d97706" }}>💾</span>}
+                            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                               <span className="material-icons" style={{
-                                fontSize:15, color:"#9ca3af",
+                                fontSize:14, color:"#9ca3af", flexShrink:0,
                                 fontFamily:"Material Icons", lineHeight:1,
                               }}>
                                 {meta.icon}
                               </span>
-                              <span style={{ fontSize:13, fontWeight:600, color:"#374151", whiteSpace:"nowrap" }}>
+                              <span style={{ fontSize:12, fontWeight:600, color:"#374151", whiteSpace:"nowrap" }}>
                                 {meta.label}
                               </span>
+                              {isSaving && <span style={{ fontSize:10, color:"#d97706", flexShrink:0 }}>💾</span>}
                             </div>
                           </td>
 
                           {/* Cột "Tất cả" — toggle hàng */}
-                          <td style={{ textAlign:"center", padding:"10px 6px", borderTop:"1px solid #f0f0f0" }}>
+                          <td style={{ textAlign:"center", padding:"8px 2px", borderTop:"1px solid #f0f0f0" }}>
                             <button
                               onClick={toggleAllForResource}
                               title={allChecked ? "Bỏ tất cả" : "Chọn tất cả"}
                               style={{
-                                width:22, height:22, borderRadius:6,
+                                width:24, height:24, borderRadius:6,
                                 border:"1.5px solid #4f46e5",
                                 background: allChecked ? "#4f46e5" : "#fff",
                                 cursor:"pointer", display:"flex",
@@ -444,14 +435,14 @@ export default function RolePermissionPage() {
                           {/* Checkbox cells */}
                           {ACTION_LABELS.map(a => (
                             <td key={a.key} style={{
-                              textAlign:"center", padding:"10px 6px",
+                              textAlign:"center", padding:"8px 2px",
                               borderTop:"1px solid #f0f0f0",
                             }}>
                               <input
                                 type="checkbox"
                                 checked={!!current[a.key]}
                                 onChange={e => saveCell(activeRole, resKey, a.key, e.target.checked)}
-                                style={{ width:20, height:20, cursor:"pointer", accentColor:"#4f46e5" }}
+                                style={{ width:22, height:22, cursor:"pointer", accentColor:"#4f46e5" }}
                               />
                             </td>
                           ))}

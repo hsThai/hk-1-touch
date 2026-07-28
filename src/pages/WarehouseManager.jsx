@@ -4,7 +4,7 @@
  * Quản lý kho đa điểm — Kho / Zone / Kệ / Tồn kho / Nhập / Xuất / Chuyển / Kiểm kho
  */
 import React, { useState, useEffect, useCallback } from "react";
-import { getPbUrl, getAuth } from "./pb.jsx";
+import { getPbUrl, getAuth, logAction } from "./pb.jsx";
 import StockCountPage from "./StockCountPage.jsx";
 
 // ─── PocketBase helpers ───────────────────────────────────
@@ -702,6 +702,7 @@ function TransferTab({ user, toast }) {
           } catch {}
         }
       }
+      logAction(user, "transfer_stock", "stock_transfer", "", `Tạo phiếu chuyển kho`);
       await Trans.create({
         transfer_code: genCode("TR"),
         from_warehouse_id: form.from_warehouse_id, from_warehouse_name: fromWH?.name||"",
@@ -720,6 +721,7 @@ function TransferTab({ user, toast }) {
   async function confirm(t) {
     try {
       // 1. Cập nhật trạng thái phiếu
+      logAction(user, "transfer_stock", "stock_transfer", t.id, `Xác nhận nhận chuyển kho ${t.transfer_code||t.id}`);
       await Trans.update(t.id, { status:"received", confirmed_by_id:user?.id||"", confirmed_by_name:user?.name||"", confirmed_at:new Date().toISOString() });
 
       // 2. Cập nhật stock_ledgers + ghi stock_movements
@@ -871,6 +873,7 @@ function TransferTab({ user, toast }) {
           } catch {}
         }
       }
+      logAction(user, "update", "stock_transfer", t.id, `Hủy phiếu chuyển kho ${t.transfer_code||t.id}`);
       await Trans.update(t.id, { status:"cancelled" });
       toast.show("Đã hủy"); load();
     } catch(e) { toast.show(e.message,"error"); }
@@ -1353,6 +1356,7 @@ function ShippingTab({ user }) {
 
   async function saveTracking(id) {
     try {
+      logAction(user, "update", "stock_import", id, `Cập nhật phiếu nhập`);
       await Imports.update(id, {
         tracking_code:  form.tracking_code,
         shipping_unit:  form.shipping_unit,
