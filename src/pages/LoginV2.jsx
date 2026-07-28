@@ -250,6 +250,7 @@ export default function LoginV2({ onLogin, loggedOut }) {
             role: rec.role, kpi: rec.kpi_score || 0,
             phone: rec.phone || "", must_change_password: rec.must_change_password,
             avatar_url: rec.avatar_url || "",
+            warehouse_ids: rec.warehouse_ids || [],
           };
         }
       } catch {
@@ -265,6 +266,7 @@ export default function LoginV2({ onLogin, loggedOut }) {
               role: found.role, kpi: found.kpi_score || 0,
               phone: found.phone || "", must_change_password: found.must_change_password,
               avatar_url: found.avatar_url || "",
+              warehouse_ids: found.warehouse_ids || [],
             };
             // Thử lấy token qua pbAuth để SSE realtime hoạt động
             try { await pbAuth.loginStaff(uname, pwd); } catch {}
