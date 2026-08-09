@@ -1061,7 +1061,7 @@ function MainAppContent({ onUserChange }) {
 
       // Lưu các patch đơn xuống PocketBase
       pbPatches.forEach(async ({ pbId, patch }) => {
-        try { await RepairOrder.update(pbId, patch); } catch(e) { console.warn("Order patch error:", e); }
+        try { await RepairOrder.update(pbId, patch); logAction(user, "update_order", "repair_order", pbId, "Batch update: " + Object.keys(patch).join(",")); } catch(e) { console.warn("Order patch error:", e); }
       });
 
       // Gửi thông báo (chỉ lưu vào Notification entity — SSE sẽ push real-time)

@@ -1754,6 +1754,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 new_value: "Đã Giao",
                 note: handoverData.note,
               });
+              logAction(currentUser, "handover", "repair_order", order._id||order.id, "Ban giao don " + (order.order_code||order.id) + " cho khach");
               setShowHandover(false);
               showToast("✅ Bàn giao thành công!");
             }}

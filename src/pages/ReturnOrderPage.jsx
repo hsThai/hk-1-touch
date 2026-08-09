@@ -3,7 +3,7 @@
  * @version 2026-06-01-v1
  */
 import React, { useState, useEffect } from "react";
-import { CashJournal, getPbUrl, getAuth } from "./pb.jsx";
+import { CashJournal, getPbUrl, getAuth, logAction } from "./pb.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 function fmtDate(s) {
@@ -100,6 +100,7 @@ function ReturnForm({ user, onSave, onClose }) {
         body: JSON.stringify({ ...form, created_by: user?.id }),
       });
       if (!res.ok) throw new Error("Lỗi lưu đơn (collection return_orders chưa tồn tại?)");
+      logAction(user, "create_return", "return_order", "", "Tao don doi tra: " + (form.code||"") + " - " + (form.customer_name||""));
 
       // Nếu hoàn tiền → ghi sổ quỹ
       if (form.return_type === "refund" && form.refund_amount > 0) {

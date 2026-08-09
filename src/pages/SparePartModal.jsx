@@ -1,7 +1,7 @@
 /* REBUILD_20260406_1408 */
 /* v3-export-request-flow — fixed JSX */
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { SparePart, SparePartUsage, RepairChat, RepairOrder, Notification, Staff, StockExportRequest, Warehouse, StockLedger } from "./pb.jsx";
+import { SparePart, SparePartUsage, RepairChat, RepairOrder, Notification, Staff, StockExportRequest, Warehouse, StockLedger, logAction } from "./pb.jsx";
 
 function genCode() {
   const n = new Date();
@@ -301,6 +301,7 @@ function RequestDetailModal({viewReq, setViewReq, currentStaff, order, requests,
         warehouse_confirmed_at:new Date().toISOString(),
         warehouse_note:confirmNote, warehouse_media:mediaStr,
       });
+      logAction(currentStaff, "export_stock", "stock_export", viewReq.id, "Kho xac nhan xuat: " + (viewReq.request_code||viewReq.id));
       await Notification.create({user_id:viewReq.requested_by,user_name:viewReq.requested_by_name,title:"📦 Kho đã xuất LK — Xác nhận nhận!",message:`Phiếu ${viewReq.request_code} đã xuất xong`,order_id:order.id,order_code:order.order_code||order.id,type:"export_ready",is_read:false});
       setViewReq(v=>({...v,status:"warehouse_confirmed",warehouse_confirmed_by_name:(currentStaff.full_name||currentStaff.name||""),warehouse_confirmed_at:new Date().toISOString()}));
       setRequests(p=>p.map(r=>r.id===viewReq.id?{...r,status:"warehouse_confirmed"}:r));
@@ -315,6 +316,7 @@ function RequestDetailModal({viewReq, setViewReq, currentStaff, order, requests,
     try {
       const mediaStr=confirmMedia.map(m=>m.url).join(",");
       await StockExportRequest.update(viewReq.id,{status:"ktv_confirmed",ktv_confirmed_by:currentStaff.id,ktv_confirmed_by_name:(currentStaff.full_name||currentStaff.name||""),ktv_confirmed_at:new Date().toISOString(),ktv_note:confirmNote,ktv_media:mediaStr});
+      logAction(currentStaff, "update", "stock_export", viewReq.id, "KTV xac nhan nhan linh kien: " + (viewReq.request_code||viewReq.id));
       setViewReq(v=>({...v,status:"ktv_confirmed",ktv_confirmed_by_name:(currentStaff.full_name||currentStaff.name||""),ktv_confirmed_at:new Date().toISOString()}));
       setRequests(p=>p.map(r=>r.id===viewReq.id?{...r,status:"ktv_confirmed"}:r));
       setConfirmMode(null); setConfirmNote(""); setConfirmMedia([]);
@@ -327,6 +329,7 @@ function RequestDetailModal({viewReq, setViewReq, currentStaff, order, requests,
     setConfirming(true);
     try {
       await StockExportRequest.update(viewReq.id,{status:"returned",return_confirmed_by:currentStaff.id,return_confirmed_by_name:(currentStaff.full_name||currentStaff.name||""),return_confirmed_at:new Date().toISOString(),return_note:confirmNote});
+      logAction(currentStaff, "update", "stock_export", viewReq.id, "Tra linh kien: " + (viewReq.request_code||viewReq.id));
       setViewReq(v=>({...v,status:"returned",return_confirmed_by_name:(currentStaff.full_name||currentStaff.name||""),return_confirmed_at:new Date().toISOString()}));
       setRequests(p=>p.map(r=>r.id===viewReq.id?{...r,status:"returned"}:r));
       setConfirmMode(null); setConfirmNote("");
@@ -538,6 +541,7 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
       const totalValue=enrichedItems.reduce((s,i)=>s+i.total_price,0);
       const code=genCode();
       const req=await StockExportRequest.create({request_code:code,order_id:order.order_code||order.id,order_code:order.order_code||order.id,export_type:exportType,items:enrichedItems,due_datetime:due,return_due_date:ret,status:"pending",requested_by:currentStaff.id,requested_by_name:(currentStaff.full_name||currentStaff.name||""),total_value:totalValue,reminded_15min:false,warehouse_id:selectedWH,warehouse_name:whName});
+      logAction(currentStaff, "export_stock", "stock_export", req.id, "De nghi xuat kho " + code + " - " + exportType + " - " + (order.order_code||order.id));
 
       // Cộng qty_reserved cho từng ledger
       for(const c of enrichedItems){

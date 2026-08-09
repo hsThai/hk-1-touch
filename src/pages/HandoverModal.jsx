@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
-import { RepairOrder, OrderHistory } from "./pb.jsx";
+import { RepairOrder, OrderHistory, logAction, logHistory } from "./pb.jsx";
 
 const CHECKLIST_ITEMS = [
   { key:"device_on",      label:"Máy mở lên được",            required:true },

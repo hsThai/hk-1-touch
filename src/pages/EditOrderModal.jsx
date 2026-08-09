@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { RepairOrder, logHistory } from "./pb.jsx";
+import { RepairOrder, logHistory, logAction } from "./pb.jsx";
 
 export default function EditOrderModal({ order, users, currentUser, onClose, onSave }) {
   const ISSUES_LIST = ["Màn hình","Pin","Sạc","Camera","Loa","Mic","Nút bấm","Wifi","Bluetooth","IC","Bo mạch","Vỏ máy","Khác"];
@@ -93,6 +93,7 @@ export default function EditOrderModal({ order, users, currentUser, onClose, onS
         changed_by_name:currentUser?.name||"", changed_by_role:currentUser?.role||"",
         old_value:order.status||"", new_value:form.status||"", note:changes.join("; "),
       });
+      logAction(currentUser, "update_order", "repair_order", pbId, "Sua don " + (order.order_code||order.id) + ": " + changes.join("; "));
       onSave(updated);
     } catch(e) { alert("Lỗi lưu: "+(e?.message||JSON.stringify(e))); }
     setSaving(false);

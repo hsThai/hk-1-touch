@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { RepairOrder, Customer, RepairChat, Staff, Notification, getPbUrl, getAuth } from "./pb.jsx";
+import { RepairOrder, Customer, RepairChat, Staff, Notification, getPbUrl, getAuth, logAction } from "./pb.jsx";
 
 async function uploadFilePb(file) {
   const formData = new FormData();
@@ -265,6 +265,7 @@ function OrderDrawer({ order, staff, onClose, onUpdate, onRefresh, allStaff }) {
 
   async function changeStatus(newStatus) {
     await RepairOrder.update(order.id, { status:newStatus, ...(newStatus==="Hoàn Thành"?{done_date:new Date().toISOString()}:{}) });
+    logAction(staff, "update_order", "repair_order", order.id, "Doi trang thai -> " + newStatus + " | " + (order.order_code||order.id));
     onUpdate(order.id, { status:newStatus });
     await RepairChat.create({ order_id:order.id, order_code:order.order_code, sender_id:staff.id, sender_name:staff.full_name, message:`🔄 → ${newStatus}`, message_type:"system" }).catch(()=>{});
     setChats(p => [...p, { id:"sys_"+Date.now(), message:`🔄 → ${newStatus}`, message_type:"system", created_date:new Date().toISOString() }]);

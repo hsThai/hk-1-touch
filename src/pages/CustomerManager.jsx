@@ -1,6 +1,6 @@
 /* v1774860462-1148 */
 import { useState, useEffect } from "react";
-import { Customer, RepairOrder } from "./pb.jsx";
+import { Customer, RepairOrder, logAction } from "./pb.jsx";
 
 const EMPTY = { full_name:"", phone:"", address:"", note:"" };
 
@@ -49,9 +49,11 @@ export default function CustomerManager({ onSelectCustomer }) {
     try {
       if (modal.mode==="add") {
         await Customer.create({ ...form, full_name:form.full_name.trim(), phone:form.phone.trim() });
+        logAction(user, "create", "customer", "", "Tao KH: " + form.full_name + " - " + form.phone);
         showToast("✅ Đã thêm khách hàng");
       } else {
         await Customer.update(modal.id, form);
+        logAction(user, "update", "customer", modal.id, "Sua KH: " + form.full_name + " - " + form.phone);
         showToast("✅ Đã cập nhật khách hàng");
       }
       setModal(null); load();

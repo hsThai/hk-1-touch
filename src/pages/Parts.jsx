@@ -1,6 +1,6 @@
 /* v1774860462-8691 */
 import { useState, useEffect } from "react";
-import { SparePart, SparePartUsage, RepairChat, RepairOrder, Warehouse, StockLedger } from "./pb.jsx";
+import { SparePart, SparePartUsage, RepairChat, RepairOrder, Warehouse, StockLedger, logAction } from "./pb.jsx";
 
 // ── Màn hình linh kiện cho KTV ──
 // Props:
@@ -90,6 +90,7 @@ export default function SparePartModal({ order, currentStaff, onClose, onDone })
         warehouse_name: whName,
         ledger_id:     ledger.id,
       });
+      logAction(currentStaff, "create", "spare_part_usage", usage.id, "Yeu cau linh kien: " + (part.name||part.sku||""));
 
       // Cộng qty_reserved vào ledger (giữ chỗ, chưa trừ thật)
       await StockLedger.update(ledger.id, {
@@ -217,6 +218,7 @@ export default function SparePartModal({ order, currentStaff, onClose, onDone })
         done_date:  new Date().toISOString(),
         final_cost: finalCost,
       });
+      logAction(currentStaff, "update_order", "repair_order", order.id, "Cap nhat don tu Parts: " + (order.order_code||order.id));
 
       // Chat thông báo
       await RepairChat.create({

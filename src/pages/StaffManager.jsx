@@ -1,6 +1,6 @@
 /* v1774860462-5573 */
 import { useState, useEffect } from "react";
-import { Staff, Warehouse, Role, ActionLog, RepairOrder, Department } from "./pb.jsx";
+import { Staff, Warehouse, Role, ActionLog, RepairOrder, Department, logAction } from "./pb.jsx";
 import { ROLE_DEFINITIONS } from "./seedRoles.js";
 
 // Fallback tĩnh — dùng khi DB chưa có dữ liệu
@@ -249,6 +249,7 @@ export default function StaffManager({ currentStaff }) {
           department_id: form.department_id || "",
           is_leader: form.is_leader || false,
         });
+        logAction(user, "create_staff", "staff", "", "Tao NV: " + form.full_name + " (" + form.role + ")");
         showToast("✅ Đã tạo tài khoản " + form.full_name);
       } else {
         const patch = {
@@ -264,6 +265,7 @@ export default function StaffManager({ currentStaff }) {
         };
         if (form.password) { patch.password_hash = simpleHash(form.password); patch.must_change_password = true; }
         await Staff.update(modal.id, patch);
+        logAction(user, "update", "staff", modal.id, "Sua NV: " + form.full_name + " (" + form.role + ")");
         showToast("✅ Đã cập nhật " + form.full_name);
       }
       setModal(null);
@@ -274,12 +276,14 @@ export default function StaffManager({ currentStaff }) {
 
   async function toggleActive(s) {
     await Staff.update(s.id, { is_active: !s.is_active });
+    logAction(user, "update", "staff", s.id, (s.is_active ? "Khoa tai khoan: " : "Mo khoa tai khoan: ") + s.full_name);
     showToast(s.is_active ? `🔒 Đã khóa ${s.full_name}` : `🔓 Đã mở khóa ${s.full_name}`);
     load();
   }
 
   async function resetKpi(s) {
     await Staff.update(s.id, { kpi_score: 100 });
+    logAction(user, "update", "staff", s.id, "Reset KPI " + s.full_name + " -> 100");
     showToast(`🔄 Reset KPI ${s.full_name} → 100`);
     load();
   }
