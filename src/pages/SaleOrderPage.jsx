@@ -39,6 +39,10 @@ export default function SaleOrderPage({ user }) {
   const [custPhone,      setCustPhone]      = useState("");
   const [custSearch,     setCustSearch]     = useState("");
   const [custSuggestions,setCustSuggestions]= useState([]);
+  const [showAddCust,    setShowAddCust]    = useState(false);
+  const [newCustName,    setNewCustName]    = useState("");
+  const [newCustPhone,   setNewCustPhone]   = useState("");
+  const [savingNewCust,  setSavingNewCust]  = useState(false);
   const [discount,    setDiscount]    = useState(0);
   const [payMethod,   setPayMethod]   = useState("");
   const [cashAmt,     setCashAmt]     = useState(0);
@@ -93,6 +97,32 @@ export default function SaleOrderPage({ user }) {
     }, 300);
     return () => clearTimeout(t);
   }, [custSearch]);
+
+  function openAddCust() {
+    setNewCustName(custSearch.trim());
+    setNewCustPhone("");
+    setShowAddCust(true);
+  }
+
+  async function saveNewCustomer() {
+    if (!newCustName.trim()) { showToast("⚠️ Vui lòng nhập tên khách hàng!"); return; }
+    setSavingNewCust(true);
+    try {
+      const created = await Customer.create({
+        full_name: newCustName.trim(),
+        phone: newCustPhone.trim() || "",
+      });
+      setCustName(created.full_name || newCustName.trim());
+      setCustPhone(created.phone || newCustPhone.trim() || "");
+      setCustSearch(""); setCustSuggestions([]);
+      setShowAddCust(false);
+      showToast(`✅ Đã thêm khách hàng "${newCustName.trim()}"`);
+    } catch (e) {
+      showToast("⚠️ Lỗi thêm khách hàng: " + (e?.message || ""));
+    } finally {
+      setSavingNewCust(false);
+    }
+  }
 
   async function loadTodayOrders() {
     try {
@@ -566,35 +596,43 @@ export default function SaleOrderPage({ user }) {
               style={{ background:"none", border:"none", color:"#dc2626", fontWeight:800, fontSize:18, cursor:"pointer", lineHeight:1 }}>×</button>
           </div>
         ) : (
-          <div style={{ position:"relative" }}>
-            <input value={custSearch} onChange={e=>setCustSearch(e.target.value)}
-              placeholder="Nhập tên khách (bắt buộc)..." style={INP} />
-            {custSuggestions.length > 0 && (
-              <div style={{ position:"absolute", top:48, left:0, right:0, background:"#fff",
-                border:"1.5px solid #e5e7eb", borderRadius:12, zIndex:50,
-                boxShadow:"0 8px 24px rgba(0,0,0,.12)", maxHeight:220, overflowY:"auto" }}>
-                {custSuggestions.map(c => (
-                  <div key={c.id} onClick={()=>{ setCustName(c.full_name||c.name||""); setCustPhone(c.phone||""); setCustSearch(""); setCustSuggestions([]); }}
-                    style={{ padding:"10px 14px", cursor:"pointer", borderBottom:"1px solid #f3f4f6",
-                      display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                    <div>
-                      <div style={{ fontWeight:700, fontSize:13 }}>{c.full_name||c.name}</div>
-                      <div style={{ fontSize:12, color:"#6b7280" }}>{c.phone}</div>
+          <div style={{ display:"flex", gap:8, alignItems:"flex-start" }}>
+            <div style={{ position:"relative", flex:1 }}>
+              <input value={custSearch} onChange={e=>setCustSearch(e.target.value)}
+                placeholder="Nhập tên khách (bắt buộc)..." style={INP} />
+              {custSuggestions.length > 0 && (
+                <div style={{ position:"absolute", top:48, left:0, right:0, background:"#fff",
+                  border:"1.5px solid #e5e7eb", borderRadius:12, zIndex:50,
+                  boxShadow:"0 8px 24px rgba(0,0,0,.12)", maxHeight:220, overflowY:"auto" }}>
+                  {custSuggestions.map(c => (
+                    <div key={c.id} onClick={()=>{ setCustName(c.full_name||c.name||""); setCustPhone(c.phone||""); setCustSearch(""); setCustSuggestions([]); }}
+                      style={{ padding:"10px 14px", cursor:"pointer", borderBottom:"1px solid #f3f4f6",
+                        display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                      <div>
+                        <div style={{ fontWeight:700, fontSize:13 }}>{c.full_name||c.name}</div>
+                        <div style={{ fontSize:12, color:"#6b7280" }}>{c.phone}</div>
+                      </div>
+                      {c.total_orders > 0 && (
+                        <span style={{ fontSize:11, color:"#4f46e5", background:"#eef2ff", borderRadius:99, padding:"2px 8px", fontWeight:700 }}>
+                          {c.total_orders} đơn
+                        </span>
+                      )}
                     </div>
-                    {c.total_orders > 0 && (
-                      <span style={{ fontSize:11, color:"#4f46e5", background:"#eef2ff", borderRadius:99, padding:"2px 8px", fontWeight:700 }}>
-                        {c.total_orders} đơn
-                      </span>
-                    )}
+                  ))}
+                  <div onClick={()=>{ setCustName(custSearch); setCustPhone(""); setCustSearch(""); setCustSuggestions([]); }}
+                    style={{ padding:"10px 14px", cursor:"pointer", color:"#4f46e5", fontWeight:700, fontSize:13,
+                      borderTop:"1.5px solid #e5e7eb", background:"#f5f3ff" }}>
+                    + Dùng "{custSearch}" (khách mới)
                   </div>
-                ))}
-                <div onClick={()=>{ setCustName(custSearch); setCustPhone(""); setCustSearch(""); setCustSuggestions([]); }}
-                  style={{ padding:"10px 14px", cursor:"pointer", color:"#4f46e5", fontWeight:700, fontSize:13,
-                    borderTop:"1.5px solid #e5e7eb", background:"#f5f3ff" }}>
-                  + Dùng "{custSearch}" (khách mới)
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+            <button onClick={openAddCust} title="Thêm khách hàng mới"
+              style={{ width:44, height:44, flexShrink:0, borderRadius:12, border:"1.5px solid #4f46e5",
+                background:"#eef2ff", color:"#4f46e5", fontSize:22, fontWeight:800, cursor:"pointer",
+                display:"flex", alignItems:"center", justifyContent:"center" }}>
+              +
+            </button>
           </div>
         )}
       </div>
@@ -733,6 +771,33 @@ export default function SaleOrderPage({ user }) {
               style={{ marginTop:16, width:"100%", height:44, background:"#f3f4f6", border:"none", borderRadius:12, fontWeight:700, cursor:"pointer" }}>
               Đóng
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Modal thêm khách hàng mới ─── */}
+      {showAddCust && (
+        <div onClick={()=>setShowAddCust(false)}
+          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.5)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{ background:"#fff", borderRadius:18, padding:24, maxWidth:380, width:"100%", boxShadow:"0 12px 40px rgba(0,0,0,.25)" }}>
+            <div style={{ fontSize:17, fontWeight:900, color:"#1e1b4b", marginBottom:16 }}>➕ Thêm khách hàng mới</div>
+            <label style={{ fontSize:12, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>Tên khách hàng *</label>
+            <input autoFocus value={newCustName} onChange={e=>setNewCustName(e.target.value)}
+              placeholder="Nhập tên khách hàng..." style={{ ...INP, marginBottom:14 }} />
+            <label style={{ fontSize:12, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>Số điện thoại</label>
+            <input value={newCustPhone} onChange={e=>setNewCustPhone(e.target.value)}
+              placeholder="Nhập SĐT (không bắt buộc)..." style={{ ...INP, marginBottom:20 }} />
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={()=>setShowAddCust(false)}
+                style={{ flex:1, height:46, borderRadius:12, border:"1.5px solid #e5e7eb", background:"#f9fafb", fontWeight:700, fontSize:14, cursor:"pointer" }}>
+                Hủy
+              </button>
+              <button onClick={saveNewCustomer} disabled={savingNewCust}
+                style={{ flex:2, height:46, borderRadius:12, border:"none", background:"#4f46e5", color:"#fff", fontWeight:800, fontSize:14, cursor:"pointer" }}>
+                {savingNewCust ? "Đang lưu..." : "Thêm khách hàng"}
+              </button>
+            </div>
           </div>
         </div>
       )}
