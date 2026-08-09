@@ -33,6 +33,9 @@ export const PAGE_PERMS = {
   wh_manager:      ["warehouse_mgr", "view"],
   wh_import:       ["stock_import", "view"],
   wh_export:       ["stock_export", "view"],
+  wh_orders:       ["repair_order", "view"],
+  wh_home:         ["repair_order", "view"],
+  wh_import_ncc:   ["stock_import", "view"],
   new:             ["repair_order", "create"],
   board:           ["repair_order", "view"],
   tasks:           ["repair_order", "view"],
@@ -59,18 +62,16 @@ const PurchaseOrderPage = lazy(() => import("./PurchaseOrderPage.jsx").catch(() 
  * renderReportPages — Render các trang Báo cáo
  * Dùng trong cả PC và Mobile layout của MainApp.jsx
  */
-export function renderReportPages(page, user) {
+export function renderReportPages(page, user, can) {
   return (
     <>
-      {page === "report_profit" && user && (
-        <Suspense fallback={<Loading />}>
-          <ReportProfitPage user={user} />
-        </Suspense>
+      {page === "report_profit" && user && (can && !can("profit_report","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <Suspense fallback={<Loading />}><ReportProfitPage user={user} /></Suspense>
       )}
-      {page === "report_staff" && user && (
-        <Suspense fallback={<Loading />}>
-          <ReportStaffPage user={user} />
-        </Suspense>
+      {page === "report_staff" && user && (can && !can("kpi","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <Suspense fallback={<Loading />}><ReportStaffPage user={user} /></Suspense>
       )}
     </>
   );
@@ -80,21 +81,20 @@ export function renderReportPages(page, user) {
  * renderPurchaseNccPages — Render các trang Mua hàng NCC
  * Dùng trong cả PC và Mobile layout của MainApp.jsx
  */
-export function renderPurchaseNccPages(page, user) {
+export function renderPurchaseNccPages(page, user, can) {
   return (
     <>
-      {page === "purchase_order" && user && (
-        <Suspense fallback={<Loading />}>
-          <PurchaseOrderPage user={user} />
-        </Suspense>
+      {page === "purchase_order" && user && (can && !can("purchase_order","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <Suspense fallback={<Loading />}><PurchaseOrderPage user={user} /></Suspense>
       )}
-      {page === "wh_import_ncc" && user && (
-        <WarehouseImport user={user} />
+      {page === "wh_import_ncc" && user && (can && !can("stock_import","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <WarehouseImport user={user} />
       )}
-      {page === "debt_ncc" && user && (
-        <Suspense fallback={<Loading />}>
-          <DebtNccPage user={user} />
-        </Suspense>
+      {page === "debt_ncc" && user && (can && !can("debt","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <Suspense fallback={<Loading />}><DebtNccPage user={user} /></Suspense>
       )}
     </>
   );
@@ -133,32 +133,40 @@ const ExpensePage     = lazy(() => import("./ExpensePage.jsx").catch(()=>({ defa
 /**
  * renderSalesPages — Bán hàng + Báo cáo doanh thu + Thẻ kho
  */
-export function renderSalesPages(page, user) {
+export function renderSalesPages(page, user, can) {
   return (
     <>
-      {page === "return_order" && user && (
-        <Suspense fallback={<Loading />}><ReturnOrderPage user={user} /></Suspense>
+      {page === "return_order" && user && (can && !can("sale_order","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <Suspense fallback={<Loading />}><ReturnOrderPage user={user} /></Suspense>
       )}
-      {page === "price_policy" && user && (
-        <Suspense fallback={<Loading />}><PricePolicyPage user={user} /></Suspense>
+      {page === "price_policy" && user && (can && !can("sale_order","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <Suspense fallback={<Loading />}><PricePolicyPage user={user} /></Suspense>
       )}
-      {page === "revenue" && user && (
-        <Suspense fallback={<Loading />}><RevenueReportPage user={user} /></Suspense>
+      {page === "revenue" && user && (can && !can("revenue_report","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <Suspense fallback={<Loading />}><RevenueReportPage user={user} /></Suspense>
       )}
-      {page === "stock_nxt" && (
-        <Suspense fallback={<Loading />}><StockReportNXT user={user} /></Suspense>
+      {page === "stock_nxt" && (can && !can("stock_ledger","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <Suspense fallback={<Loading />}><StockReportNXT user={user} /></Suspense>
       )}
-      {page === "expense" && user && (
-        <Suspense fallback={<Loading />}><ExpensePage user={user} /></Suspense>
+      {page === "expense" && user && (can && !can("expense","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <Suspense fallback={<Loading />}><ExpensePage user={user} /></Suspense>
       )}
-      {page === "rma" && user && (
-        <Suspense fallback={<Loading />}><RMAPage user={user} /></Suspense>
+      {page === "rma" && user && (can && !can("stock_import","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <Suspense fallback={<Loading />}><RMAPage user={user} /></Suspense>
       )}
-      {page === "cash_journal" && user && (
-        <Suspense fallback={<Loading />}><CashJournalPage user={user} /></Suspense>
+      {page === "cash_journal" && user && (can && !can("cash_journal","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <Suspense fallback={<Loading />}><CashJournalPage user={user} /></Suspense>
       )}
-      {page === "stock_count" && (
-        <Suspense fallback={<Loading />}><StockCountPage user={user} /></Suspense>
+      {page === "stock_count" && (can && !can("stock_count","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <Suspense fallback={<Loading />}><StockCountPage user={user} /></Suspense>
       )}
     </>
   );
@@ -167,14 +175,16 @@ export function renderSalesPages(page, user) {
 /**
  * renderSetupPages — Thiết lập: Integrations, ActionLog
  */
-export function renderSetupPages(page, user) {
+export function renderSetupPages(page, user, can) {
   return (
     <>
-      {page === "integrations" && (
-        <Suspense fallback={<Loading />}><IntegrationsPage user={user} /></Suspense>
+      {page === "integrations" && (can && !can("settings","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <Suspense fallback={<Loading />}><IntegrationsPage user={user} /></Suspense>
       )}
-      {page === "action_log" && (
-        <Suspense fallback={<Loading />}><ActionLogPage user={user} /></Suspense>
+      {page === "action_log" && (can && !can("settings","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <Suspense fallback={<Loading />}><ActionLogPage user={user} /></Suspense>
       )}
     </>
   );
@@ -199,33 +209,28 @@ const RoleHomePlaceholder = lazy(() => import("./RoleHomePlaceholder.jsx").catch
  * renderMobilePages — Mobile page renders (tách từ MainApp.jsx để giảm dòng)
  */
 export function renderMobilePages(page, user, extraProps = {}) {
-  const { setPage, dashboardTab, notifications = [], dbNotifications = [], setShowNotif, setShowQRScan, cashierTab, setCashierTab } = extraProps;
+  const { setPage, dashboardTab, notifications = [], dbNotifications = [], setShowNotif, setShowQRScan, cashierTab, setCashierTab, setSelectedOrder } = extraProps;
   return (
     <>
-      {page==="customers" && (
-        <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
-          <CustomerManagerPage />
-        </Suspense>
+      {page==="customers" && (extraProps.can && !extraProps.can("customer","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><CustomerManagerPage /></Suspense>
       )}
-      {page==="suppliers" && user && (
-        <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
-          <SupplierPage user={user} />
-        </Suspense>
+      {page==="suppliers" && user && (extraProps.can && !extraProps.can("supplier","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><SupplierPage user={user} /></Suspense>
       )}
-      {page==="debts" && user && (
-        <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
-          <DebtPage user={user} />
-        </Suspense>
+      {page==="debts" && user && (extraProps.can && !extraProps.can("debt","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><DebtPage user={user} /></Suspense>
       )}
-      {page==="department" && (
-        <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
-          <DepartmentPageLazy user={user} />
-        </Suspense>
+      {page==="department" && (extraProps.can && !extraProps.can("department","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}><DepartmentPageLazy user={user} /></Suspense>
       )}
-      {page==="role_perm" && (
-        <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
-          <RolePermissionPageLazy />
-        </Suspense>
+      {page==="role_perm" && (!extraProps.can || !["manager","admin","owner","supervisor"].includes(user?.role)
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}><RolePermissionPageLazy /></Suspense>
       )}
       {page==="integrations" && (
         <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
@@ -237,10 +242,9 @@ export function renderMobilePages(page, user, extraProps = {}) {
           <ActionLogPage user={user} />
         </Suspense>
       )}
-      {page==="sale_order" && user && (
-        <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
-          <SaleHistoryPage user={user} />
-        </Suspense>
+      {page==="sale_order" && user && (extraProps.can && !extraProps.can("sale_order","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}><SaleHistoryPage user={user} /></Suspense>
       )}
 
       {/* === Dashboard === */}
@@ -251,18 +255,21 @@ export function renderMobilePages(page, user, extraProps = {}) {
       )}
 
       {/* === Quản lý nhân viên === */}
-      {page==="staff" && user && (
-        <Suspense fallback={<Loading />}><StaffManagerPage currentStaff={user} /></Suspense>
+      {page==="staff" && user && (extraProps.can && !extraProps.can("staff","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <Suspense fallback={<Loading />}><StaffManagerPage currentStaff={user} /></Suspense>
       )}
 
       {/* === Thiết lập === */}
-      {page==="settings" && user && (
-        <Suspense fallback={<Loading />}><SettingsHub user={user} /></Suspense>
+      {page==="settings" && user && (extraProps.can && !extraProps.can("settings","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <Suspense fallback={<Loading />}><SettingsHub user={user} /></Suspense>
       )}
 
       {/* === In ấn === */}
-      {page==="print_template" && user && (
-        <Suspense fallback={<Loading />}><PrintTemplatePage user={user} /></Suspense>
+      {page==="print_template" && user && (extraProps.can && !extraProps.can("settings","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <Suspense fallback={<Loading />}><PrintTemplatePage user={user} /></Suspense>
       )}
 
       {/* === Kho === */}
@@ -270,24 +277,33 @@ export function renderMobilePages(page, user, extraProps = {}) {
         <WarehouseHome user={user} setPage={setPage} />
       )}
       {page==="wh_orders" && user && (
-        <WarehouseOrders user={user} />
+        <WarehouseOrders user={user} setSelectedOrder={setSelectedOrder||(() => {})} />
       )}
       {page==="wh_export" && user && (
-        <WarehouseExport user={user} />
+        extraProps.can && !extraProps.can("stock_export","view")
+          ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+          : <WarehouseExport user={user} />
       )}
       {page==="wh_import" && user && (
-        <WarehouseImport user={user} />
+        extraProps.can && !extraProps.can("stock_import","view")
+          ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+          : <WarehouseImport user={user} />
       )}
       {page==="wh_manager" && user && setPage && (
         <Suspense fallback={<Loading />}>
-          <WarehouseManagerLazy user={user} onBack={() => setPage("wh_home")} />
+          {extraProps.can && !extraProps.can("warehouse_mgr","view")
+            ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+            : <WarehouseManagerLazy user={user} onBack={() => setPage("wh_home")} />}
         </Suspense>
       )}
 
       {/* === Thu ngân — CashierApp === */}
       {page==="cashier_home" && user && (
         <Suspense fallback={<Loading />}>
-          <CashierApp user={user} forceTab={cashierTab||""} onTabChange={setCashierTab||(()=>{})} />
+          {extraProps.can ? (extraProps.can("sale_order","view")
+            ? <CashierApp user={user} forceTab={cashierTab||""} onTabChange={setCashierTab||(()=>{})} />
+            : <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+          ) : <CashierApp user={user} forceTab={cashierTab||""} onTabChange={setCashierTab||(()=>{})} />}
         </Suspense>
       )}
 
@@ -298,9 +314,9 @@ export function renderMobilePages(page, user, extraProps = {}) {
         </Suspense>
       )}
 
-      {renderSalesPages(page, user)}
-      {renderPurchaseNccPages(page, user)}
-      {renderReportPages(page, user)}
+      {renderSalesPages(page, user, extraProps.can)}
+      {renderPurchaseNccPages(page, user, extraProps.can)}
+      {renderReportPages(page, user, extraProps.can)}
     </>
   );
 }

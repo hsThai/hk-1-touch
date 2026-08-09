@@ -272,6 +272,25 @@ export function useBreakpoint() {
 
 
 // ── 8 accordion Manager theo Excel ──────────────────────
+
+// ── Access Denied fallback component ──────────────────────
+function AccessDenied({ pageName }) {
+  return (
+    <div style={{ padding:60, textAlign:"center", color:"#9ca3af" }}>
+      <span className="material-icons" style={{ fontSize:64, display:"block", marginBottom:12, color:"#ef4444" }}>lock</span>
+      <div style={{ fontWeight:800, fontSize:18, color:"#374151", marginBottom:6 }}>Không có quyền truy cập</div>
+      <div style={{ fontSize:14 }}>{pageName ? `Bạn không có quyền truy cập trang "${pageName}".` : "Vui lòng liên hệ quản lý để được cấp quyền."}</div>
+    </div>
+  );
+}
+
+// ── Page guard: kiểm tra quyền trước khi render page ──────
+function usePageGuard(page, can) {
+  const perm = PAGE_PERMS[page];
+  if (!perm) return true; // trang không có trong PAGE_PERMS → cho phép (trang nội bộ)
+  return can(perm[0], perm[1]);
+}
+
 const MGR_ACCORDIONS = [
   {
     key: "acc_overview",
@@ -1095,7 +1114,7 @@ function MainAppContent({ onUserChange }) {
     const DEFAULT_PAGE_MAP = {
       technician:   "my_tasks",
       receptionist: "my_tasks",
-      warehouse:    "my_tasks",
+      warehouse:    "wh_home",
       accountant:   "my_tasks",
       cashier:      "my_tasks",
       owner:        "my_tasks",
@@ -1336,10 +1355,10 @@ function MainAppContent({ onUserChange }) {
       { key:"wh_home",        icon:"home",                   label:"Trang chủ" },
       { key:"wh_orders",      icon:"chat",                   label:"Chat đơn" },
       { key:"wh_export",      icon:"outbox",                 label:"Phiếu xuất kho" },
-      { key:"wh_import",      icon:"move_to_inbox",          label:"Nhập hàng" },
       { key:"wh_manager",     icon:"warehouse",              label:"Quản lý kho" },
+      { key:"stock_count",    icon:"fact_check",             label:"Kiểm kê kho" },
       { key:"purchase_order", icon:"add_shopping_cart",      label:"Đặt hàng NCC" },
-      { key:"wh_import_ncc",  icon:"move_to_inbox",          label:"Nhập kho (nhận NCC)" },
+      { key:"wh_import_ncc",  icon:"move_to_inbox",          label:"Nhập hàng (NCC)" },
       { key:"rma",            icon:"assignment_return",      label:"Trả hàng NCC" },
       { key:"debt_ncc",       icon:"account_balance_wallet", label:"Công nợ NCC" },
     ];
@@ -1358,7 +1377,7 @@ function MainAppContent({ onUserChange }) {
     // 3. BÁN HÀNG
     if (can("sale_order","view"))
       items.push({ key:"cashier_home", icon:"point_of_sale", label:"Thu ngân (POS)" });
-    if (["owner","admin","manager","team_leader","cashier"].includes(user?.role))
+    if (can("sale_order","view") && !isKtv && !isWarehouse)
       items.push({ key:"return_order", icon:"swap_horiz", label:"Đổi trả & BH" });
 
     // 4. KHO & VẬT TƯ
@@ -1368,11 +1387,13 @@ function MainAppContent({ onUserChange }) {
       items.push({ key:"stock_count", icon:"fact_check", label:"Kiểm kê kho" });
 
     // 5. MUA HÀNG NCC
-    if (["owner","admin","team_leader","warehouse"].includes(user?.role) && !isManager) {
+    if (can("purchase_order","view") && !isManager) {
       items.push({ key:"purchase_order", icon:"add_shopping_cart",      label:"Đặt hàng NCC" });
       items.push({ key:"wh_import_ncc",  icon:"move_to_inbox",          label:"Nhập kho (nhận NCC)" });
       items.push({ key:"rma",            icon:"assignment_return",       label:"Trả hàng NCC (RMA)" });
       items.push({ key:"debt_ncc",       icon:"account_balance_wallet",  label:"Công nợ NCC" });
+    }
+    if (can("supplier","view") && !isManager && !isKtv) {
       items.push({ key:"suppliers",      icon:"storefront",              label:"Danh sách NCC" });
     }
 
@@ -2013,38 +2034,38 @@ function MainAppContent({ onUserChange }) {
               {page==="my_tasks" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><MyTasksPage user={user} orders={orders} setPage={setPage} onNewOrder={()=>setShowNewOrder(true)} onOpenCashier={(tab)=>{setCashierTab(tab||"");setPage("cashier_home");}} /></Suspense>}
               {page==="ktv_home" && <TechnicianHome user={user} orders={orders} setPage={setPage} />}
               {page==="rec_home" && <ReceptionHome user={user} orders={orders} setPage={setPage} />}
-              {page==="board" && <KanbanBoard />}
-              {page==="tasks" && <TaskList />}
-              {page==="new" && <div style={{padding:24}}><button onClick={() => setShowNewOrder(true)} style={{ width:"100%", height:52, background:"linear-gradient(135deg,#4f46e5,#7c3aed)", color:"#fff", border:"none", borderRadius:14, fontWeight:800, fontSize:16, cursor:"pointer" }}>+ Tạo Đơn Mới</button></div>}
-              {page==="customers" && <Suspense fallback={<div style={{padding:32,textAlign:"center"}}>⏳</div>}><CustomerManagerPage /></Suspense>}
+              {page==="board" && (can("repair_order","view") ? <KanbanBoard /> : <AccessDenied pageName="Bảng Kanban" />)}
+              {page==="tasks" && (can("repair_order","view") ? <TaskList /> : <AccessDenied pageName="Danh sách đơn" />)}
+              {page==="new" && (can("repair_order","create") ? <div style={{padding:24}}><button onClick={() => setShowNewOrder(true)} style={{ width:"100%", height:52, background:"linear-gradient(135deg,#4f46e5,#7c3aed)", color:"#fff", border:"none", borderRadius:14, fontWeight:800, fontSize:16, cursor:"pointer" }}>+ Tạo Đơn Mới</button></div> : <AccessDenied pageName="Tạo đơn" />)}
+              {page==="customers" && (can("customer","view") ? <Suspense fallback={<div style={{padding:32,textAlign:"center"}}>⏳</div>}><CustomerManagerPage /></Suspense> : <AccessDenied pageName="Khách hàng" />)}
               {page==="dashboard" && (["manager","admin","owner","supervisor"].includes(user.role) ? <Suspense fallback={<div style={{padding:32}}>⏳</div>}><ManagerDashboard user={user} initialTab={dashboardTab} /></Suspense> : <Dashboard />)}
-              {page==="staff" && <StaffManagerPage currentStaff={user} />}
-              {page==="settings" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><SettingsHub user={user} /></Suspense>}
+              {page==="staff" && (can("staff","view") ? <StaffManagerPage currentStaff={user} /> : <AccessDenied pageName="Nhân viên" />)}
+              {page==="settings" && (can("settings","view") ? <Suspense fallback={<div style={{padding:40}}>⏳</div>}><SettingsHub user={user} /></Suspense> : <AccessDenied pageName="Cài đặt" />)}
               {page==="wh_home" && <WarehouseHome user={user} setPage={setPage} />}
-              {page==="wh_orders" && <WarehouseOrders user={user} users={users} setSelectedOrder={setSelectedOrderSync} />}
-              {page==="wh_export" && <WarehouseExport user={user} />}
-              {page==="wh_import" && <WarehouseImport user={user} />}
-              {page==="wh_manager" && <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"dashboard")} />}
-              {page==="cashier_home" && <CashierApp user={user} onNotif={()=>setShowNotif(v=>!v)} onQRScan={()=>setShowQRScan(true)} notifCount={notifications.length+dbNotifications.length} forceTab={cashierTab} onTabChange={setCashierTab} />}
-              {page==="sale_order" && user && (
+              {page==="wh_orders" && (can("repair_order","view") ? <WarehouseOrders user={user} users={users} setSelectedOrder={setSelectedOrderSync} /> : <AccessDenied pageName="Chat đơn" />)}
+              {page==="wh_export" && (can("stock_export","view") ? <WarehouseExport user={user} /> : <AccessDenied pageName="Xuất kho" />)}
+              {page==="wh_import" && (can("stock_import","view") ? <WarehouseImport user={user} /> : <AccessDenied pageName="Nhập kho" />)}
+              {page==="wh_manager" && (can("warehouse_mgr","view") ? <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"dashboard")} /> : <AccessDenied pageName="Quản lý kho" />)}
+              {page==="cashier_home" && (can("sale_order","view") ? <CashierApp user={user} onNotif={()=>setShowNotif(v=>!v)} onQRScan={()=>setShowQRScan(true)} notifCount={notifications.length+dbNotifications.length} forceTab={cashierTab} onTabChange={setCashierTab} /> : <AccessDenied pageName="Thu ngân" />)}
+              {page==="sale_order" && user && can("sale_order","view") && (
                 <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
                   <SaleHistoryPage user={user} />
                 </Suspense>
               )}
-              {page==="suppliers" && user && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><SupplierPage user={user} /></Suspense>}
-              {page==="debts" && user && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><DebtPage user={user} /></Suspense>}
-              {page==="department" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><DepartmentPageLazy user={user} /></Suspense>}
-              {page==="role_perm" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><RolePermissionPageLazy /></Suspense>}
-              {page==="print_settings" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><SettingsHub user={user} initialTab="print" /></Suspense>}
-              {page==="print_template" && user && <PrintTemplatePage user={user} />}
+              {page==="suppliers" && user && (can("supplier","view") ? <Suspense fallback={<div style={{padding:40}}>⏳</div>}><SupplierPage user={user} /></Suspense> : <AccessDenied pageName="Nhà cung cấp" />)}
+              {page==="debts" && user && (can("debt","view") ? <Suspense fallback={<div style={{padding:40}}>⏳</div>}><DebtPage user={user} /></Suspense> : <AccessDenied pageName="Công nợ" />)}
+              {page==="department" && (can("department","view") ? <Suspense fallback={<div style={{padding:40}}>⏳</div>}><DepartmentPageLazy user={user} /></Suspense> : <AccessDenied pageName="Phòng ban" />)}
+              {page==="role_perm" && (["manager","admin","owner","supervisor"].includes(user?.role) ? <Suspense fallback={<div style={{padding:40}}>⏳</div>}><RolePermissionPageLazy /></Suspense> : <AccessDenied pageName="Vai trò & Quyền" />)}
+              {page==="print_settings" && (can("settings","view") ? <Suspense fallback={<div style={{padding:40}}>⏳</div>}><SettingsHub user={user} initialTab="print" /></Suspense> : <AccessDenied pageName="Mẫu in" />)}
+              {page==="print_template" && user && (can("settings","view") ? <PrintTemplatePage user={user} /> : <AccessDenied pageName="Mẫu in" />)}
               {/* Sales, Kho, Tài chính */}
-              {renderSalesPages(page, user)}
+              {renderSalesPages(page, user, can)}
               {/* Thiết lập (Integrations, ActionLog) */}
-              {renderSetupPages(page, user)}
+              {renderSetupPages(page, user, can)}
               {/* Mua hàng NCC */}
-              {renderPurchaseNccPages(page, user)}
+              {renderPurchaseNccPages(page, user, can)}
               {/* Báo cáo */}
-              {renderReportPages(page, user)}
+              {renderReportPages(page, user, can)}
               {page==="role_home" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><RoleHomePlaceholder user={user} setPage={setPage} orders={orders} /></Suspense>}
             </Suspense>
           </div>
@@ -2137,7 +2158,15 @@ function MainAppContent({ onUserChange }) {
             </div>
             <div style={{ padding:16, borderTop:"1px solid rgba(255,255,255,.15)", display:"flex", flexDirection:"column", gap:8 }}>
               <button onClick={doLogout} style={{ width:"100%", padding:14, background:"rgba(239,68,68,.2)", border:"none", borderRadius:12, color:"#fca5a5", fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>logout</span> Đăng xuất</button>
-              <button onClick={() => { try { window.close(); } catch(e) {} if(!window.closed) { window.location.href = "about:blank"; } }} style={{ width:"100%", padding:12, background:"rgba(255,255,255,.1)", border:"none", borderRadius:12, color:"rgba(255,255,255,.7)", fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>power_settings_new</span> Thoát</button>
+              <button onClick={() => {
+                try { window.close(); } catch(e) {}
+                setTimeout(() => {
+                  if (!window.closed) {
+                    setSidebarOpen(false);
+                    alert("Trình duyệt không cho phép ứng dụng tự đóng.\nVui lòng dùng nút Home hoặc vuốt để tắt ứng dụng.");
+                  }
+                }, 250);
+              }} style={{ width:"100%", padding:12, background:"rgba(255,255,255,.1)", border:"none", borderRadius:12, color:"rgba(255,255,255,.7)", fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>power_settings_new</span> Thoát</button>
             </div>
           </div>
         </div>
@@ -2253,9 +2282,9 @@ function MainAppContent({ onUserChange }) {
         {page==="my_tasks" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><MyTasksPage user={user} orders={orders} setPage={setPage} onNewOrder={()=>setShowNewOrder(true)} onOpenCashier={(tab)=>{setCashierTab(tab||"");setPage("cashier_home");}} /></Suspense>}
         {page==="ktv_home" && <TechnicianHome user={user} orders={orders} setPage={setPage} />}
         {page==="rec_home" && <ReceptionHome user={user} orders={orders} setPage={setPage} />}
-        {page==="board" && <KanbanBoard />}
-        {page==="tasks" && <TaskList />}
-        {page==="new" && (
+        {page==="board" && (can("repair_order","view") ? <KanbanBoard /> : <AccessDenied pageName="Bảng Kanban" />)}
+        {page==="tasks" && (can("repair_order","view") ? <TaskList /> : <AccessDenied pageName="Danh sách đơn" />)}
+        {page==="new" && can("repair_order","create") && (
           <div style={{ padding:"0 0 80px" }}>
             {/* Nút tạo đơn sticky top */}
             <div style={{ padding:"12px 16px 8px", position:"sticky", top:0, zIndex:10, background:"#f8fafc", borderBottom:"1px solid #e5e7eb" }}>
@@ -2300,7 +2329,7 @@ function MainAppContent({ onUserChange }) {
           </div>
         )}
         
-        {renderMobilePages(page, user, { setPage, dashboardTab, notifications, dbNotifications, setShowNotif, setShowQRScan, cashierTab, setCashierTab })}
+        {renderMobilePages(page, user, { setPage, dashboardTab, notifications, dbNotifications, setShowNotif, setShowQRScan, cashierTab, setCashierTab, setSelectedOrder: setSelectedOrderSync, can })}
         </div>
       </Suspense>
 
