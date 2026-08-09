@@ -80,15 +80,32 @@ export default function RolePermissionPage() {
         if (mergedRoles.length > 0) setActiveRole(mergedRoles[0].key);
 
         const map = {};
+        const dupesToDelete = [];
         if (dbPerms && dbPerms.length > 0) {
           dbPerms.forEach(p => {
             if (!map[p.role_key]) map[p.role_key] = {};
-            map[p.role_key][p.resource] = {
-              id: p.id,
-              can_view:!!p.can_view, can_create:!!p.can_create,
-              can_edit:!!p.can_edit, can_delete:!!p.can_delete,
-              can_approve:!!p.can_approve, can_export:!!p.can_export,
-            };
+            const key = p.resource;
+            const existing = map[p.role_key][key];
+            if (existing) {
+              // Bản ghi trùng role_key+resource (do lỗi race condition cũ) → gộp quyền (OR) và đánh dấu xoá bản ghi dư
+              map[p.role_key][key] = {
+                id: existing.id, // giữ bản ghi tạo trước (id nhỏ hơn / cũ hơn)
+                can_view:    existing.can_view    || !!p.can_view,
+                can_create:  existing.can_create  || !!p.can_create,
+                can_edit:    existing.can_edit    || !!p.can_edit,
+                can_delete:  existing.can_delete  || !!p.can_delete,
+                can_approve: existing.can_approve || !!p.can_approve,
+                can_export:  existing.can_export  || !!p.can_export,
+              };
+              dupesToDelete.push({ id: p.id, keepId: existing.id, role_key: p.role_key, resource: key });
+            } else {
+              map[p.role_key][key] = {
+                id: p.id,
+                can_view:!!p.can_view, can_create:!!p.can_create,
+                can_edit:!!p.can_edit, can_delete:!!p.can_delete,
+                can_approve:!!p.can_approve, can_export:!!p.can_export,
+              };
+            }
           });
         } else {
           Object.entries(STATIC_MATRIX).forEach(([roleKey, resources]) => {
@@ -104,6 +121,34 @@ export default function RolePermissionPage() {
           });
         }
         setPerms(map);
+
+        // Tự động dọn dẹp bản ghi trùng (lỗi race condition cũ từ nút "Chọn tất cả")
+        if (dupesToDelete.length > 0) {
+          (async () => {
+            try {
+              // Gộp quyền (đã OR ở trên) và lưu lại vào bản ghi giữ, rồi xoá các bản ghi dư
+              const seen = new Set();
+              for (const dup of dupesToDelete) {
+                const mergeKey = `${dup.role_key}/${dup.resource}`;
+                if (!seen.has(mergeKey)) {
+                  seen.add(mergeKey);
+                  const merged = map[dup.role_key]?.[dup.resource];
+                  if (merged && dup.keepId) {
+                    await RolePermission.update(dup.keepId, {
+                      can_view: merged.can_view, can_create: merged.can_create,
+                      can_edit: merged.can_edit, can_delete: merged.can_delete,
+                      can_approve: merged.can_approve, can_export: merged.can_export,
+                    });
+                  }
+                }
+                await RolePermission.delete(dup.id).catch(()=>{});
+              }
+              showToast(`🧹 Đã tự động dọn ${dupesToDelete.length} bản ghi phân quyền bị trùng (lỗi cũ) và gộp lại quyền chính xác.`, 4000);
+            } catch (e) {
+              console.warn("[RolePermission cleanup]", e.message);
+            }
+          })();
+        }
       } catch (e) {
         showToast("⚠️ Không tải được dữ liệu phân quyền — kiểm tra kết nối PocketBase.");
       }
@@ -131,27 +176,44 @@ export default function RolePermissionPage() {
     setTimeout(() => setToast(""), dur);
   }
 
+  // permsRef giữ bản mới nhất đồng bộ (tránh đọc state cũ khi có nhiều lệnh lưu gọi liên tiếp — nguyên nhân gây trùng bản ghi)
+  const permsRef = React.useRef(perms);
+  useEffect(() => { permsRef.current = perms; }, [perms]);
+
   async function saveCell(roleKey, resource, actionKey, value) {
     const cellKey = `${roleKey}/${resource}`;
     setSaving(p => ({ ...p, [cellKey]: true }));
 
+    const existingBefore = permsRef.current[roleKey]?.[resource];
+
+    const nextResourceState = { ...(existingBefore || {}), [actionKey]: value };
+    permsRef.current = {
+      ...permsRef.current,
+      [roleKey]: { ...(permsRef.current[roleKey] || {}), [resource]: nextResourceState },
+    };
     setPerms(prev => ({
       ...prev,
       [roleKey]: {
         ...(prev[roleKey] || {}),
-        [resource]: { ...(prev[roleKey]?.[resource] || {}), [actionKey]: value },
+        [resource]: nextResourceState,
       },
     }));
 
     try {
-      const existing = perms[roleKey]?.[resource];
-      const payload  = { ...(existing || {}), role_key: roleKey, resource, [actionKey]: value };
+      const payload = { ...(existingBefore || {}), role_key: roleKey, resource, [actionKey]: value };
       delete payload.id;
 
-      if (existing?.id) {
-        await RolePermission.update(existing.id, payload);
+      if (existingBefore?.id) {
+        await RolePermission.update(existingBefore.id, payload);
       } else {
         const created = await RolePermission.create(payload);
+        permsRef.current = {
+          ...permsRef.current,
+          [roleKey]: {
+            ...(permsRef.current[roleKey] || {}),
+            [resource]: { ...(permsRef.current[roleKey]?.[resource] || {}), id: created.id },
+          },
+        };
         setPerms(prev => ({
           ...prev,
           [roleKey]: {
@@ -169,6 +231,57 @@ export default function RolePermissionPage() {
           [resource]: { ...(prev[roleKey]?.[resource] || {}), [actionKey]: !value },
         },
       }));
+    }
+    setSaving(p => { const n = { ...p }; delete n[cellKey]; return n; });
+  }
+
+  // Lưu TOÀN BỘ 6 quyền của 1 resource trong ĐÚNG 1 lệnh duy nhất (tránh gọi saveCell nhiều lần liên tiếp gây trùng bản ghi)
+  async function saveRowAll(roleKey, resource, newVal) {
+    const cellKey = `${roleKey}/${resource}`;
+    setSaving(p => ({ ...p, [cellKey]: true }));
+
+    const existingBefore = permsRef.current[roleKey]?.[resource];
+    const nextResourceState = {
+      id: existingBefore?.id,
+      can_view: newVal, can_create: newVal, can_edit: newVal,
+      can_delete: newVal, can_approve: newVal, can_export: newVal,
+    };
+    permsRef.current = {
+      ...permsRef.current,
+      [roleKey]: { ...(permsRef.current[roleKey] || {}), [resource]: nextResourceState },
+    };
+    setPerms(prev => ({
+      ...prev,
+      [roleKey]: { ...(prev[roleKey] || {}), [resource]: nextResourceState },
+    }));
+
+    try {
+      const payload = {
+        role_key: roleKey, resource,
+        can_view: newVal, can_create: newVal, can_edit: newVal,
+        can_delete: newVal, can_approve: newVal, can_export: newVal,
+      };
+      if (existingBefore?.id) {
+        await RolePermission.update(existingBefore.id, payload);
+      } else {
+        const created = await RolePermission.create(payload);
+        permsRef.current = {
+          ...permsRef.current,
+          [roleKey]: {
+            ...(permsRef.current[roleKey] || {}),
+            [resource]: { ...nextResourceState, id: created.id },
+          },
+        };
+        setPerms(prev => ({
+          ...prev,
+          [roleKey]: {
+            ...(prev[roleKey] || {}),
+            [resource]: { ...nextResourceState, id: created.id },
+          },
+        }));
+      }
+    } catch {
+      showToast("❌ Lỗi lưu quyền — kiểm tra kết nối hoặc quyền PocketBase.");
     }
     setSaving(p => { const n = { ...p }; delete n[cellKey]; return n; });
   }
@@ -385,7 +498,7 @@ export default function RolePermissionPage() {
 
                       function toggleAllForResource() {
                         const newVal = !allChecked;
-                        ACTION_LABELS.forEach(a => saveCell(activeRole, resKey, a.key, newVal));
+                        saveRowAll(activeRole, resKey, newVal);
                       }
 
                       return (
