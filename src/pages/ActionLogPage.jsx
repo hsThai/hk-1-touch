@@ -5,7 +5,7 @@ async function fetchLogs({ page, perPage, search, dateFrom, dateTo }) {
   const base = getPbUrl();
   const { token } = getAuth();
   const filters = [];
-  if (search)   filters.push(`(staff_name~"${search}"||action~"${search}"||target_type~"${search}")`);
+  if (search)   filters.push(`(staff_name~"${search}"||action~"${search}"||target_type~"${search}"||detail~"${search}")`);
   if (dateFrom) filters.push(`created_date>="${dateFrom} 00:00:00"`);
   if (dateTo)   filters.push(`created_date<="${dateTo} 23:59:59"`);
   const params = new URLSearchParams({
@@ -31,6 +31,48 @@ function fmtDate(s) {
   );
 }
 
+// ── Nhãn hành động dễ hiểu (tiếng Việt) ──────────────────────
+const ACTION_LABEL = {
+  create:          "Tạo mới",
+  create_order:    "Tạo đơn sửa chữa",
+  create_staff:    "Tạo nhân viên",
+  create_sale:     "Tạo đơn bán hàng",
+  create_return:   "Tạo đơn đổi trả",
+  create_po:       "Tạo đơn mua hàng",
+  update:          "Cập nhật",
+  update_order:    "Cập nhật đơn sửa chữa",
+  delete:          "Xóa",
+  delete_order:    "Xóa đơn sửa chữa",
+  login:           "Đăng nhập",
+  complete_order:  "Hoàn tất đơn",
+  export_stock:    "Xuất kho",
+  import_stock:    "Nhập kho",
+  transfer_stock:  "Chuyển kho",
+  count_stock:     "Kiểm kho",
+  pay_debt:        "Thanh toán nợ",
+  add_expense:     "Thêm chi phí",
+  handover:        "Bàn giao đơn",
+  confirm_payment: "Xác nhận thu tiền",
+};
+
+// ── Nhãn đối tượng dễ hiểu (tiếng Việt) ──────────────────────
+const TARGET_LABEL = {
+  staff:              "Nhân viên",
+  customer:           "Khách hàng",
+  repair_order:       "Đơn sửa chữa",
+  sale_order:         "Đơn bán hàng",
+  return_order:       "Đơn đổi trả",
+  expense:            "Chi phí",
+  purchase_order:     "Đơn mua hàng (NCC)",
+  stock_import:       "Phiếu nhập kho",
+  stock_export:       "Phiếu xuất kho",
+  stock_transfer:     "Phiếu chuyển kho",
+  stock_count:        "Phiếu kiểm kho",
+  debt_payment:       "Thanh toán công nợ",
+  debt_voucher:       "Phiếu công nợ NCC",
+  spare_part_usage:   "Linh kiện sử dụng",
+};
+
 const ACTION_COLOR = {
   create:         { bg:"#dcfce7", color:"#15803d" },
   create_order:   { bg:"#dcfce7", color:"#15803d" },
@@ -54,6 +96,15 @@ const ACTION_COLOR = {
   confirm_payment:{ bg:"#dcfce7", color:"#15803d" },
 };
 
+function actionLabel(key) {
+  const k = (key||"").toLowerCase();
+  return ACTION_LABEL[k] || key || "—";
+}
+function targetLabel(key) {
+  const k = (key||"").toLowerCase();
+  return TARGET_LABEL[k] || key || "";
+}
+
 export default function ActionLogPage({ user }) {
 
   const [isPC, setIsPC] = React.useState(window.innerWidth >= 1024);
@@ -61,7 +112,8 @@ export default function ActionLogPage({ user }) {
     const fn = () => setIsPC(window.innerWidth >= 1024);
     window.addEventListener("resize", fn);
     return () => window.removeEventListener("resize", fn);
-  }, []);  const [logs, setLogs]       = useState([]);
+  }, []);
+  const [logs, setLogs]       = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
   const [page, setPage]       = useState(1);
@@ -106,13 +158,16 @@ export default function ActionLogPage({ user }) {
 
       {/* Filters */}
       <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 }}>
-        <input
-          placeholder="🔍 Tìm nhân viên, hành động..."
-          value={search}
-          onChange={e => { setSearch(e.target.value); setPage(1); }}
-          style={{ flex:1, minWidth:160, padding:"8px 12px", borderRadius:8,
-            border:"1px solid #e5e7eb", fontSize:14 }}
-        />
+        <div style={{ position:"relative", flex:1, minWidth:160 }}>
+          <span className="material-icons" style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", fontSize:18, color:"#9ca3af" }}>search</span>
+          <input
+            placeholder="Tìm nhân viên, hành động, nội dung..."
+            value={search}
+            onChange={e => { setSearch(e.target.value); setPage(1); }}
+            style={{ width:"100%", boxSizing:"border-box", padding:"8px 12px 8px 44px", borderRadius:8,
+              border:"1px solid #e5e7eb", fontSize:14 }}
+          />
+        </div>
         <input type="date" value={dateFrom}
           onChange={e => { setDateFrom(e.target.value); if(!dateTo) setDateTo(e.target.value); setPage(1); }}
           style={{ padding:"8px 10px", borderRadius:8, border:"1px solid #e5e7eb", fontSize:13 }}
@@ -138,12 +193,13 @@ export default function ActionLogPage({ user }) {
           </div>
           <div style={{ fontSize:13 }}>{error || "Thử thay đổi bộ lọc để xem kết quả"}</div>
         </div>
-      ) : (
+      ) : isPC ? (
+        /* ═══ PC: bảng, cột Ghi chú rộng + không cắt chữ ═══ */
         <div style={{ overflowX:"auto", borderRadius:12, border:"1px solid #e5e7eb" }}>
           <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
             <thead>
               <tr style={{ background:"#f8fafc" }}>
-                {["Thời gian","Nhân viên","Hành động","Đối tượng","Ghi chú"].map(h => (
+                {["Thời gian","Nhân viên","Hành động","Đối tượng","Nội dung / Ghi chú"].map(h => (
                   <th key={h} style={{ padding:"10px 12px", textAlign:"left",
                     fontWeight:700, color:"#374151", borderBottom:"1px solid #e5e7eb",
                     whiteSpace:"nowrap" }}>
@@ -159,34 +215,63 @@ export default function ActionLogPage({ user }) {
                 return (
                   <tr key={log.id || i}
                     style={{ background: i%2===0 ? "#fff" : "#f9fafb",
-                      borderBottom:"1px solid #f3f4f6" }}>
-                    <td style={{ padding:"9px 12px", color:"#6b7280", whiteSpace:"nowrap" }}>
+                      borderBottom:"1px solid #f3f4f6", verticalAlign:"top" }}>
+                    <td style={{ padding:"10px 12px", color:"#6b7280", whiteSpace:"nowrap" }}>
                       {fmtDate(log.created_date)}
                     </td>
-                    <td style={{ padding:"9px 12px", fontWeight:600, color:"#1f2937" }}>
+                    <td style={{ padding:"10px 12px", fontWeight:700, color:"#1f2937", whiteSpace:"nowrap" }}>
                       {log.staff_name || "—"}
                     </td>
-                    <td style={{ padding:"9px 12px" }}>
+                    <td style={{ padding:"10px 12px" }}>
                       <span style={{ background:ac.bg, color:ac.color,
-                        borderRadius:6, padding:"2px 8px", fontSize:12, fontWeight:600,
+                        borderRadius:6, padding:"2px 8px", fontSize:12, fontWeight:700,
                         whiteSpace:"nowrap" }}>
-                        {log.action || "—"}
+                        {actionLabel(log.action)}
                       </span>
                     </td>
-                    <td style={{ padding:"9px 12px", color:"#374151" }}>
-                      {log.target_type
-                        ? `${log.target_type}${log.target_id ? " #" + log.target_id : ""}`
-                        : "—"}
+                    <td style={{ padding:"10px 12px", color:"#374151", whiteSpace:"nowrap" }}>
+                      {targetLabel(log.target_type) || "—"}
                     </td>
-                    <td style={{ padding:"9px 12px", color:"#6b7280", maxWidth:200,
-                      overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                      {log.note || ""}
+                    <td style={{ padding:"10px 12px", color:"#374151", minWidth:260, wordBreak:"break-word" }}>
+                      {log.detail || <span style={{ color:"#9ca3af" }}>—</span>}
                     </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
+        </div>
+      ) : (
+        /* ═══ Mobile: dạng thẻ (card) dễ đọc, gộp Đối tượng + Nội dung ═══ */
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          {logs.map((log, i) => {
+            const actionKey = (log.action||"").toLowerCase();
+            const ac = ACTION_COLOR[actionKey] || { bg:"#eef2ff", color:"#4f46e5" };
+            const tLabel = targetLabel(log.target_type);
+            return (
+              <div key={log.id || i}
+                style={{ background:"#fff", border:"1px solid #e5e7eb", borderRadius:14, padding:"12px 14px" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8, gap:8 }}>
+                  <span style={{ fontWeight:800, fontSize:14, color:"#1f2937" }}>{log.staff_name || "—"}</span>
+                  <span style={{ fontSize:12, color:"#9ca3af", whiteSpace:"nowrap" }}>{fmtDate(log.created_date)}</span>
+                </div>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8, flexWrap:"wrap" }}>
+                  <span style={{ background:ac.bg, color:ac.color,
+                    borderRadius:6, padding:"3px 10px", fontSize:12, fontWeight:700 }}>
+                    {actionLabel(log.action)}
+                  </span>
+                  {tLabel && (
+                    <span style={{ fontSize:12, color:"#6b7280", fontWeight:600 }}>
+                      trên {tLabel}
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize:13.5, color:"#374151", lineHeight:1.5 }}>
+                  {log.detail || <span style={{ color:"#9ca3af" }}>Không có nội dung chi tiết</span>}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
