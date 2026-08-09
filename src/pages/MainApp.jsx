@@ -2041,7 +2041,7 @@ function MainAppContent({ onUserChange }) {
               {page==="board" && (can("repair_order","view") ? <KanbanBoard /> : <AccessDenied pageName="Bảng Kanban" />)}
               {page==="tasks" && (can("repair_order","view") ? <TaskList /> : <AccessDenied pageName="Danh sách đơn" />)}
               {page==="new" && (can("repair_order","create") ? <div style={{padding:24}}><button onClick={() => setShowNewOrder(true)} style={{ width:"100%", height:52, background:"linear-gradient(135deg,#4f46e5,#7c3aed)", color:"#fff", border:"none", borderRadius:14, fontWeight:800, fontSize:16, cursor:"pointer" }}>+ Tạo Đơn Mới</button></div> : <AccessDenied pageName="Tạo đơn" />)}
-              {page==="customers" && (can("customer","view") ? <Suspense fallback={<div style={{padding:32,textAlign:"center"}}>⏳</div>}><CustomerManagerPage /></Suspense> : <AccessDenied pageName="Khách hàng" />)}
+              {page==="customers" && (can("customer","view") ? <Suspense fallback={<div style={{padding:32,textAlign:"center"}}>⏳</div>}><CustomerManagerPage user={user} /></Suspense> : <AccessDenied pageName="Khách hàng" />)}
               {page==="dashboard" && (["manager","admin","owner","supervisor"].includes(user.role) ? <Suspense fallback={<div style={{padding:32}}>⏳</div>}><ManagerDashboard user={user} initialTab={dashboardTab} /></Suspense> : <Dashboard />)}
               {page==="staff" && (can("staff","view") ? <StaffManagerPage currentStaff={user} /> : <AccessDenied pageName="Nhân viên" />)}
               {page==="settings" && (can("settings","view") ? <Suspense fallback={<div style={{padding:40}}>⏳</div>}><SettingsHub user={user} /></Suspense> : <AccessDenied pageName="Cài đặt" />)}

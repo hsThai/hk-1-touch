@@ -214,7 +214,7 @@ export function renderMobilePages(page, user, extraProps = {}) {
     <>
       {page==="customers" && (extraProps.can && !extraProps.can("customer","view")
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
-        : <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><CustomerManagerPage /></Suspense>
+        : <Suspense fallback={<div style={{padding:32,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><CustomerManagerPage user={user} /></Suspense>
       )}
       {page==="suppliers" && user && (extraProps.can && !extraProps.can("supplier","view")
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>

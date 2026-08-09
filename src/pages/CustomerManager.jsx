@@ -4,7 +4,7 @@ import { Customer, RepairOrder, logAction } from "./pb.jsx";
 
 const EMPTY = { full_name:"", phone:"", address:"", note:"" };
 
-export default function CustomerManager({ onSelectCustomer }) {
+export default function CustomerManager({ onSelectCustomer, user }) {
   const [list, setList]   = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch]   = useState("");
