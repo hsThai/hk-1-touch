@@ -291,6 +291,10 @@ function usePageGuard(page, can) {
   return can(perm[0], perm[1]);
 }
 
+// 5 trang thuộc bottom-nav chính. Mọi trang khác (settings/report/kho/PO/...) đều coi là "vào từ Menu"
+// để nút Menu sáng lên nhất quán, tránh trạng thái không nút nào active khi ở trang phụ.
+const MAIN_TAB_PAGES = ["my_tasks", "new", "tasks", "board", "cashier_home"];
+
 const MGR_ACCORDIONS = [
   {
     key: "acc_overview",
@@ -2426,15 +2430,15 @@ function MainAppContent({ onUserChange }) {
               </button>
             )}
 
-            {/* Menu — mở drawer */}
+            {/* Menu — mở drawer. Active khi đang mở drawer HOẶC đang ở trang con ngoài 5 tab chính (settings/report/...) */}
             <button onClick={() => setSidebarOpen(true)}
               style={{ flex:1, padding:"10px 4px", background:"none", border:"none",
                 cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
               <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",lineHeight:1,
-                color: sidebarOpen ? "#4f46e5" : "#9ca3af"}}>menu</span>
+                color: (sidebarOpen || !MAIN_TAB_PAGES.includes(page)) ? "#4f46e5" : "#9ca3af"}}>menu</span>
               <span style={{ fontSize: bp==="tablet"?11:10,
-                color: sidebarOpen ? "#4f46e5" : "#9ca3af",
-                fontWeight: sidebarOpen ? 800 : 500 }}>Menu</span>
+                color: (sidebarOpen || !MAIN_TAB_PAGES.includes(page)) ? "#4f46e5" : "#9ca3af",
+                fontWeight: (sidebarOpen || !MAIN_TAB_PAGES.includes(page)) ? 800 : 500 }}>Menu</span>
             </button>
           </div>
         </>
