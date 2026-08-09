@@ -40,6 +40,10 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
   const [mediaFiles, setMediaFiles] = useState([]);
   const [showQRScan, setShowQRScan]   = useState(false);
   const [showIMEIScan, setShowIMEIScan] = useState(false);
+  const [showAddCust, setShowAddCust]  = useState(false);
+  const [newCustName, setNewCustName]  = useState("");
+  const [newCustPhone, setNewCustPhone] = useState("");
+  const [savingCust, setSavingCust]   = useState(false);
   const [qrMsg, setQrMsg]           = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -48,6 +52,29 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
   const fileRef     = useRef();
 
   const set = (k, v) => setForm(f => ({ ...f, [k]:v }));
+
+  async function saveNewCustomer() {
+    if (!newCustName.trim()) { alert("Vui lòng nhập tên khách hàng!"); return; }
+    setSavingCust(true);
+    try {
+      const created = await Customer.create({ full_name: newCustName.trim(), phone: newCustPhone.trim() || "" });
+      set("customer_id", created.id || "");
+      set("customer_name", created.full_name || newCustName.trim());
+      set("customer_phone", created.phone || newCustPhone.trim() || "");
+      setCustSearch(`${newCustName.trim()}${newCustPhone.trim() ? " — " + newCustPhone.trim() : ""}`);
+      setDbCusts([]);
+      setShowAddCust(false);
+      setNewCustName(""); setNewCustPhone("");
+    } catch (e) {
+      alert("Lỗi thêm khách: " + (e?.message || ""));
+    } finally { setSavingCust(false); }
+  }
+
+  function openAddCustModal() {
+    setNewCustName(custSearch.trim());
+    setNewCustPhone("");
+    setShowAddCust(true);
+  }
 
   useEffect(() => {
     if (custSearch.length < 2) { setDbCusts([]); return; }
@@ -194,8 +221,14 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
             <div style={{ fontWeight:800, fontSize:14, color:"#0369a1", marginBottom:10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <span>Khách Hàng</span>
             </div>
-            <input value={custSearch} onChange={e => { setCustSearch(e.target.value); if(!e.target.value) { set("customer_id",""); set("customer_name",""); set("customer_phone",""); } }}
-              placeholder="0901234567 hoặc Nguyễn Văn A..." style={inp} />
+            <div style={{ display:"flex", gap:8, alignItems:"flex-start" }}>
+              <input value={custSearch} onChange={e => { setCustSearch(e.target.value); if(!e.target.value) { set("customer_id",""); set("customer_name",""); set("customer_phone",""); } }}
+                placeholder="0901234567 hoặc Nguyễn Văn A..." style={{ ...inp, flex:1 }} />
+              <button onClick={openAddCustModal} title="Thêm khách hàng mới"
+                style={{ width:44, height:44, flexShrink:0, borderRadius:12, border:"1.5px solid #0369a1",
+                  background:"#e0f2fe", color:"#0369a1", fontSize:22, fontWeight:800, cursor:"pointer",
+                  display:"flex", alignItems:"center", justifyContent:"center" }}>+</button>
+            </div>
             {custSearch.length>=2 && !form.customer_id && dbCusts.length===0 && (
               <div style={{ marginTop:6, background:"#fffbeb", border:"1px solid #fcd34d", borderRadius:10, padding:"8px 12px", fontSize:12, color:"#92400e" }}>
                 Không tìm thấy. Nhập tên/SĐT để thêm khách mới.
@@ -351,6 +384,33 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
 
         {showQRScan && <QRScanModal orders={orders||[]} onResult={handleQRResult} onClose={() => setShowQRScan(false)} />}
         {showIMEIScan && <IMEIScanModal onResult={imei => { set("imei_serial", imei); setShowIMEIScan(false); }} onClose={() => setShowIMEIScan(false)} />}
+
+        {/* Modal thêm khách hàng mới */}
+        {showAddCust && (
+          <div onClick={()=>setShowAddCust(false)}
+            style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.5)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+            <div onClick={e=>e.stopPropagation()}
+              style={{ background:"#fff", borderRadius:18, padding:24, maxWidth:380, width:"100%", boxShadow:"0 12px 40px rgba(0,0,0,.25)" }}>
+              <div style={{ fontSize:17, fontWeight:900, color:"#0369a1", marginBottom:16 }}>➕ Thêm khách hàng mới</div>
+              <label style={{ fontSize:12, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>Tên khách hàng *</label>
+              <input autoFocus value={newCustName} onChange={e=>setNewCustName(e.target.value)}
+                placeholder="Nhập tên khách hàng..." style={{ ...inp, marginBottom:14 }} />
+              <label style={{ fontSize:12, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>Số điện thoại</label>
+              <input value={newCustPhone} onChange={e=>setNewCustPhone(e.target.value)}
+                placeholder="Nhập SĐT (không bắt buộc)..." style={{ ...inp, marginBottom:20 }} />
+              <div style={{ display:"flex", gap:10 }}>
+                <button onClick={()=>setShowAddCust(false)}
+                  style={{ flex:1, height:46, borderRadius:12, border:"1.5px solid #e5e7eb", background:"#f9fafb", fontWeight:700, fontSize:14, cursor:"pointer" }}>
+                  Hủy
+                </button>
+                <button onClick={saveNewCustomer} disabled={savingCust}
+                  style={{ flex:2, height:46, borderRadius:12, border:"none", background:"#0369a1", color:"#fff", fontWeight:800, fontSize:14, cursor:"pointer" }}>
+                  {savingCust ? "Đang lưu..." : "Thêm khách hàng"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
