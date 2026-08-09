@@ -169,6 +169,7 @@ export default function StaffManager({ currentStaff }) {
   const [warehouses, setWarehouses] = useState([]);
   const [roles, setRoles]           = useState(ROLES_FALLBACK);
   const [depts, setDepts]           = useState([]);
+  const [confirmReset, setConfirmReset] = useState(null); // null | staff record
 
   function roleInfo(roleKey) {
     return roles.find(r => r.value===roleKey) || ROLES_FALLBACK.find(r=>r.value===roleKey) || ROLES_FALLBACK[0];
@@ -372,7 +373,7 @@ export default function StaffManager({ currentStaff }) {
                       {s.is_active ? "🔒 Khóa" : "🔓 Mở"}
                     </button>
                   )}
-                  <button onClick={() => resetKpi(s)}
+                  <button onClick={() => setConfirmReset(s)}
                     style={{ height:36, padding:"0 14px", borderRadius:10, border:"none", background:"#eff6ff", color:"#2563eb", fontWeight:700, fontSize:13, cursor:"pointer" }}>
                     🔄 KPI
                   </button>
@@ -503,6 +504,36 @@ export default function StaffManager({ currentStaff }) {
       )}
 
       </>
+
+      {/* Confirm Reset KPI */}
+      {confirmReset && (
+        <div onClick={() => setConfirmReset(null)}
+          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.45)", zIndex:6000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{ background:"#fff", borderRadius:18, padding:28, maxWidth:380, width:"100%", boxShadow:"0 12px 40px rgba(0,0,0,.25)" }}>
+            <div style={{ textAlign:"center", marginBottom:20 }}>
+              <span className="material-icons" style={{ fontSize:52, color:"#f59e0b" }}>warning</span>
+              <div style={{ fontSize:18, fontWeight:900, color:"#1e1b4b", marginTop:8 }}>Xác nhận reset KPI</div>
+              <div style={{ fontSize:14, color:"#6b7280", marginTop:6 }}>
+                Đặt lại điểm KPI của <b>{confirmReset.full_name}</b> về <b>100</b>?
+              </div>
+              <div style={{ fontSize:13, color:"#dc2626", marginTop:8, fontWeight:600 }}>
+                Hành động này không thể hoàn tác.
+              </div>
+            </div>
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={() => setConfirmReset(null)}
+                style={{ flex:1, height:46, borderRadius:12, border:"1.5px solid #e5e7eb", background:"#f9fafb", fontWeight:700, fontSize:14, cursor:"pointer" }}>
+                Hủy
+              </button>
+              <button onClick={() => { resetKpi(confirmReset); setConfirmReset(null); }}
+                style={{ flex:1, height:46, borderRadius:12, border:"none", background:"#f59e0b", color:"#fff", fontWeight:800, fontSize:14, cursor:"pointer" }}>
+                🔄 Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toast */}
       {toast && (
