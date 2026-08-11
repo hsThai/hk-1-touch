@@ -1446,16 +1446,20 @@ function ShippingTab({ user }) {
 
   async function saveTracking(id) {
     try {
-      logAction(user, "update", "stock_import", id, `Cập nhật phiếu nhập`);
+      const imp = imports.find(i=>i.id===id);
+      // Giữ nguyên status cũ nếu không có received_date — không downgrade từ confirmed → pending
+      const newStatus = form.received_date ? "confirmed" : (imp?.status || "pending");
+      logAction(user, "update", "stock_import", id,
+        `Cập nhật vận đơn: ${form.shipping_unit||""} ${form.tracking_code||""}${form.received_date ? " · Nhận "+form.received_date : ""}`);
       await Imports.update(id, {
         tracking_code:  form.tracking_code,
         shipping_unit:  form.shipping_unit,
         received_date:  form.received_date || null,
         shipping_note:  form.note,
-        status: form.received_date ? "confirmed" : "pending",
+        status: newStatus,
       });
       setEditId(null);
-      setImports(p => p.map(i => i.id===id ? {...i, ...form, status: form.received_date?"confirmed":"pending"} : i));
+      setImports(p => p.map(i => i.id===id ? {...i, ...form, status:newStatus} : i));
       alert("✅ Đã cập nhật vận đơn");
     } catch(e) { alert("Lỗi: "+e.message); }
   }
@@ -1534,17 +1538,16 @@ function StockReportTab({ warehouses }) {
   async function load() {
     setLoading(true);
     try {
-      // Dùng filter thay vì list — nhất quán với StockLedgerTab
       const filterStr = wh ? `warehouse_id='${wh}'` : "";
-      const [l, m] = await Promise.all([
+      const [l, m] = await Promise.allSettled([
         filterStr ? Ledger.filter(filterStr, { limit:1000 }) : Ledger.list({ limit:1000 }),
         filterStr ? Move.filter(filterStr, { limit:500 }) : Move.list({ limit:500 }),
       ]);
-      setLedgers(l||[]);
-      setMovements(m||[]);
+      setLedgers(l.status==="fulfilled" ? (l.value||[]) : null);
+      setMovements(m.status==="fulfilled" ? (m.value||[]) : []);
     } catch(e) {
       console.error("StockReportTab load error:", e);
-      setLedgers(null);   // null = lỗi thật, [] = load OK nhưng không có data
+      setLedgers(null);
       setMovements([]);
     }
     setLoading(false);
@@ -1561,6 +1564,8 @@ function StockReportTab({ warehouses }) {
 
   function exportReport() {
     const BOM = "﻿";
+    // Wrap mỗi field trong double-quote để tránh comma trong tên LK làm hỏng CSV
+    const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const rows = [
       ["BÁO CÁO TỒN KHO — "+new Date().toLocaleDateString("vi-VN")],
       ["Tổng giá trị", totalValue],
@@ -1568,7 +1573,7 @@ function StockReportTab({ warehouses }) {
       ["CHI TIẾT TỒN KHO"],
       ["Kho","Tên LK","SKU","Tồn thực","Reserve","Khả dụng","Tối thiểu","Giá vốn","Giá trị"],
       ...filtLedgers.map(l=>[
-        l.warehouse_name, l.part_name, l.sku||"",
+        l.warehouse_name||"", l.part_name||"", l.sku||"",
         l.qty_on_hand||0, l.qty_reserved||0, l.qty_available||0,
         l.min_qty||0, l.cost_price||0, (l.qty_on_hand||0)*(l.cost_price||0),
       ]),
@@ -1577,7 +1582,8 @@ function StockReportTab({ warehouses }) {
       ["Tên LK","Tổng xuất"],
       ...topList.map(p=>[p.name, p.qty]),
     ];
-    const blob = new Blob([BOM+rows.map(r=>r.join(",")).join("\n")], { type:"text/csv;charset=utf-8" });
+    const csv = rows.map(r => r.map(q).join(",")).join("\n");
+    const blob = new Blob([BOM+csv], { type:"text/csv;charset=utf-8" });
     const a = document.createElement("a"); a.href=URL.createObjectURL(blob);
     a.download = "TonKho_"+new Date().toISOString().slice(0,10)+".csv"; a.click();
   }
