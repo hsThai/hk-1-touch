@@ -2162,15 +2162,6 @@ function MainAppContent({ onUserChange }) {
             </div>
             <div style={{ padding:16, borderTop:"1px solid rgba(255,255,255,.15)", display:"flex", flexDirection:"column", gap:8 }}>
               <button onClick={doLogout} style={{ width:"100%", padding:14, background:"rgba(239,68,68,.2)", border:"none", borderRadius:12, color:"#fca5a5", fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>logout</span> Đăng xuất</button>
-              <button onClick={() => {
-                try { window.close(); } catch(e) {}
-                setTimeout(() => {
-                  if (!window.closed) {
-                    setSidebarOpen(false);
-                    alert("Trình duyệt không cho phép ứng dụng tự đóng.\nVui lòng dùng nút Home hoặc vuốt để tắt ứng dụng.");
-                  }
-                }, 250);
-              }} style={{ width:"100%", padding:12, background:"rgba(255,255,255,.1)", border:"none", borderRadius:12, color:"rgba(255,255,255,.7)", fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>power_settings_new</span> Thoát</button>
             </div>
           </div>
         </div>
