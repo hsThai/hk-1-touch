@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { getPbUrl, getAuth, logAction } from "./pb.jsx";
 import StockCountPage from "./StockCountPage.jsx";
+import PurchaseOrderPage from "./PurchaseOrderPage.jsx";
 
 // ─── PocketBase helpers ───────────────────────────────────
 function makeWHCol(colName) {
@@ -1363,8 +1364,17 @@ function PreorderTab({ user, warehouses }) {
   }
 
   return (
-    <div style={{ padding:"16px 14px 100px" }}>
+    <div style={{ padding:"0 0 40px" }}>
+      {/* Gộp chung: Đặt hàng NCC + LK đặt trước/chờ về kho — cùng 1 màn hình theo yêu cầu */}
+      <div style={{ background:"#fff" }}>
+        <PurchaseOrderPage user={user} />
+      </div>
+
+      <div style={{ height:10, background:"#f3f4f6" }} />
+
+      <div style={{ padding:"16px 14px 100px" }}>
       <div style={{ fontWeight:800, fontSize:17, marginBottom:12 }}>📋 LK đặt trước / chờ về kho</div>
+      <div style={{ fontSize:12, color:"#6b7280", marginTop:-8, marginBottom:12 }}>Linh kiện KTV đang chờ để hoàn tất sửa chữa (khác với đơn đặt NCC ở trên)</div>
       <select value={wh} onChange={e=>setWh(e.target.value)}
         style={{ width:"100%", border:"1.5px solid #e5e7eb", borderRadius:8, padding:"8px 10px", fontSize:13, marginBottom:12 }}>
         <option value="">Tất cả kho</option>
@@ -1409,6 +1419,7 @@ function PreorderTab({ user, warehouses }) {
           <div style={{ textAlign:"center", padding:40, color:"#9ca3af" }}>Không có LK đặt trước</div>
         )}
       </>)}
+      </div>
     </div>
   );
 }
@@ -1648,7 +1659,7 @@ export default function WarehouseManager({ user, onBack, initialTab }) {
     { key:"transfer",   icon:"🔄", label:"Chuyển kho" },
     { key:"count",      icon:"📋", label:"Kiểm kho" },
     { key:"defect",     icon:"⚠️", label:"LK lỗi" },
-    { key:"preorder",   icon:"📋", label:"Đặt trước" },
+    { key:"preorder",   icon:"📋", label:"Đặt trước / NCC" },
     { key:"shipping",   icon:"🚚", label:"Vận đơn" },
     { key:"wh_report",  icon:"📊", label:"Báo cáo" },
   ];
