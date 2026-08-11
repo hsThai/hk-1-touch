@@ -58,6 +58,7 @@ const Notif    = makeWHCol("notifications");
 const Imports  = makeWHCol("stock_imports");
 const Count    = makeWHCol("stock_counts");
 const CountItem= makeWHCol("stock_count_items");
+const Supplier = makeWHCol("suppliers");
 
 // ─── Styles ───────────────────────────────────────────────
 const S = {
@@ -1116,16 +1117,63 @@ function PartNameInput({ value, onChange, parts=[], placeholder="Tên linh kiệ
   );
 }
 
+// ─── SupplierNameInput — Autocomplete tên NCC ───────────────────────────────
+function SupplierNameInput({ value, onChange, suppliers=[], placeholder="Nhà cung cấp...", style={} }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState(value||"");
+
+  useEffect(() => { setQ(value||""); }, [value]);
+
+  const filtered = (suppliers||[]).filter(s =>
+    !q || s.name?.toLowerCase().includes(q.toLowerCase()) || (s.phone||"").includes(q)
+  ).slice(0, 10);
+
+  return (
+    <div style={{ position:"relative" }}>
+      <input
+        value={q}
+        onChange={e => { setQ(e.target.value); onChange(e.target.value, null); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 180)}
+        placeholder={placeholder}
+        autoComplete="off"
+        style={{ width:"100%", height:38, borderRadius:8, border:"1.5px solid #e5e7eb", padding:"0 10px", fontSize:13, outline:"none", boxSizing:"border-box", ...style }}
+      />
+      {open && q.trim() && filtered.length > 0 && (
+        <div style={{
+          position:"absolute", top:"100%", left:0, right:0, zIndex:10000,
+          background:"#fff", border:"1.5px solid #e5e7eb", borderRadius:10,
+          boxShadow:"0 8px 24px rgba(0,0,0,.12)", maxHeight:200, overflowY:"auto", marginTop:2,
+        }}>
+          {filtered.map((s,i) => (
+            <div key={s.id||i}
+              onMouseDown={() => { setQ(s.name); onChange(s.name, s); setOpen(false); }}
+              style={{ padding:"9px 14px", cursor:"pointer", borderBottom:"1px solid #f3f4f6", display:"flex", justifyContent:"space-between", alignItems:"center" }}
+              onMouseEnter={e=>e.currentTarget.style.background="#f5f3ff"}
+              onMouseLeave={e=>e.currentTarget.style.background="#fff"}
+            >
+              <div style={{ fontWeight:600, fontSize:13 }}>{s.name}</div>
+              {s.phone && <div style={{ fontSize:11, color:"#9ca3af" }}>{s.phone}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DefectTab({ user, warehouses }) {
-  const [list,    setList]    = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showAdd, setShowAdd] = useState(false);
-  const [parts,   setParts]   = useState([]);
-  const [saving,  setSaving]  = useState(false);
+  const [list,      setList]      = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [showAdd,   setShowAdd]   = useState(false);
+  const [parts,     setParts]     = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [saving,    setSaving]    = useState(false);
   const [form, setForm] = useState({ part_name:"", sku:"", qty:1, reason:"", supplier_name:"", note:"", warehouse_id:"" });
 
   useEffect(() => {
     Catalog.list({ limit:300 }).then(p=>setParts(p||[])).catch(()=>{});
+    Supplier.list({ limit:300 }).then(s=>setSuppliers(s||[])).catch(()=>{});
     loadList();
   }, []);
 
@@ -1140,35 +1188,55 @@ function DefectTab({ user, warehouses }) {
 
   async function submit() {
     if (!form.part_name.trim() || form.qty < 1) { alert("Nhập tên LK và số lượng"); return; }
+    if (!form.warehouse_id) { alert("Vui lòng chọn kho trước khi ghi nhận lỗi"); return; }
     setSaving(true);
     try {
-      const part = parts.find(p=>p.name===form.part_name);
-      // Lấy qty hiện tại từ ledger
-      let defectQtyBefore = 0;
-      if (part && form.warehouse_id) {
-        const defLedgers = await Ledger.list({ limit:500 });
-        const dl = (defLedgers||[]).find(x=>x.part_id===part.id && x.warehouse_id===form.warehouse_id);
-        if (dl) defectQtyBefore = Number(dl.qty_on_hand)||0;
-      }
+      // So khớp không phân biệt hoa/thường + khoảng trắng dư, tránh bỏ lỡ trừ tồn kho do gõ sai/thừa dấu cách
+      const typedName = form.part_name.trim().toLowerCase();
+      const part = parts.find(p => (p.name||"").trim().toLowerCase() === typedName);
+
       const defectQty = Math.abs(Number(form.qty)||0);
+      let defectQtyBefore = 0;
+      let ledgerRecord = null;
+      if (part) {
+        const ledgers = await Ledger.list({ limit:500 });
+        ledgerRecord = (ledgers||[]).find(x=>x.part_id===part.id && x.warehouse_id===form.warehouse_id);
+        defectQtyBefore = Number(ledgerRecord?.qty_on_hand)||0;
+        if (defectQty > defectQtyBefore) {
+          const proceed = confirm(`⚠️ Số lượng lỗi (${defectQty}) lớn hơn tồn kho hiện có (${defectQtyBefore}) của "${part.name}" tại kho này.\nHệ thống sẽ đưa tồn kho về 0. Vẫn tiếp tục?`);
+          if (!proceed) { setSaving(false); return; }
+        }
+      } else {
+        const proceed = confirm(`⚠️ Không tìm thấy "${form.part_name}" trong danh mục linh kiện/vật tư.\nGhi nhận sẽ được lưu làm nhật ký lỗi nhưng KHÔNG tự trừ tồn kho. Vẫn tiếp tục?`);
+        if (!proceed) { setSaving(false); return; }
+      }
+
+      // Ghép ghi chú, bỏ các phần trống để tránh hiển thị "| NCC: |" xấu
+      const noteParts = [`LK lỗi — ${form.reason?.trim() || "Không rõ lý do"}`];
+      if (form.supplier_name?.trim()) noteParts.push(`NCC: ${form.supplier_name.trim()}`);
+      if (form.note?.trim()) noteParts.push(form.note.trim());
+      const fullNote = noteParts.join(" | ");
+
       await Move.create({
         movement_code: "DEF-"+Date.now(), movement_type:"defect",
         warehouse_id: form.warehouse_id,
         warehouse_name: warehouses.find(w=>w.id===form.warehouse_id)?.name||"",
-        part_id: part?.id||"", part_name: form.part_name, sku: part?.sku||form.sku||"",
+        part_id: part?.id||"", part_name: form.part_name.trim(), sku: part?.sku||form.sku||"",
         qty_change: -defectQty, qty_before:defectQtyBefore, qty_after:Math.max(0,defectQtyBefore-defectQty),
-        note: `LK lỗi — ${form.reason} | NCC: ${form.supplier_name} | ${form.note}`,
+        note: fullNote,
         created_by_name: user?.name||user?.full_name||"",
         created_date: new Date().toISOString().replace("T"," ").split(".")[0],
       });
-      if (part && form.warehouse_id) {
-        const ledgers = await Ledger.list({ limit:500 });
-        const l = (ledgers||[]).find(x=>x.part_id===part.id && x.warehouse_id===form.warehouse_id);
-        if (l) await Ledger.update(l.id, {
-          qty_on_hand:  Math.max(0,(l.qty_on_hand||0)-form.qty),
-          qty_available: Math.max(0,(l.qty_available||0)-form.qty),
+
+      if (part && ledgerRecord) {
+        await Ledger.update(ledgerRecord.id, {
+          qty_on_hand:   Math.max(0,(ledgerRecord.qty_on_hand||0)-defectQty),
+          qty_available: Math.max(0,(ledgerRecord.qty_available||0)-defectQty),
         });
       }
+
+      logAction(user, "update", "stock_ledger", part?.id||"", `Ghi nhận LK lỗi/trả NCC: ${form.part_name.trim()} x${defectQty} — ${fullNote}`);
+
       alert("✅ Đã ghi nhận");
       setShowAdd(false);
       setForm({ part_name:"", sku:"", qty:1, reason:"", supplier_name:"", note:"", warehouse_id:"" });
@@ -1208,13 +1276,19 @@ function DefectTab({ user, warehouses }) {
           {[
             {ph:"SKU",          key:"sku"},
             {ph:"Lý do lỗi",    key:"reason"},
-            {ph:"Nhà cung cấp", key:"supplier_name"},
             {ph:"Ghi chú",      key:"note"},
           ].map(f=>(
             <input key={f.key} placeholder={f.ph} value={form[f.key]}
               onChange={e=>setForm(v=>({...v,[f.key]:e.target.value}))}
               style={{ width:"100%", border:"1.5px solid #e5e7eb", borderRadius:8, padding:"8px 10px", fontSize:13, marginBottom:8, boxSizing:"border-box" }}/>
           ))}
+          <SupplierNameInput
+            value={form.supplier_name}
+            suppliers={suppliers}
+            placeholder="Nhà cung cấp (gợi ý từ danh sách NCC)..."
+            onChange={(name) => setForm(v => ({ ...v, supplier_name: name }))}
+            style={{ marginBottom:8 }}
+          />
           <input type="number" placeholder="Số lượng *" value={form.qty} min={1}
             onChange={e=>setForm(v=>({...v,qty:+e.target.value}))}
             style={{ width:"100%", border:"1.5px solid #e5e7eb", borderRadius:8, padding:"8px 10px", fontSize:13, marginBottom:12, boxSizing:"border-box" }}/>
