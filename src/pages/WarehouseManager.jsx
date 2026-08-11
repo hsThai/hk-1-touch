@@ -7,6 +7,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { getPbUrl, getAuth, logAction } from "./pb.jsx";
 import StockCountPage from "./StockCountPage.jsx";
 import PurchaseOrderPage from "./PurchaseOrderPage.jsx";
+import RMAPage from "./RMAPage.jsx";
 
 // ─── PocketBase helpers ───────────────────────────────────
 function makeWHCol(colName) {
@@ -1318,6 +1319,10 @@ function DefectTab({ user, warehouses }) {
           <div style={{ fontSize:11, color:"#9ca3af" }}>{m.warehouse_name} · {new Date(m.created_date||m.created).toLocaleDateString("vi-VN")}</div>
         </div>
       ))}
+
+      {/* Phần RMA — Trả hàng NCC chính thức (tạo phiếu, theo dõi đổi trả/hoàn tiền) */}
+      <div style={{ height:10, background:"transparent" }} />
+      <RMAPage user={user} />
     </div>
   );
 }
@@ -1658,7 +1663,7 @@ export default function WarehouseManager({ user, onBack, initialTab }) {
     { key:"ledger",     icon:"📊", label:"Tồn kho" },
     { key:"transfer",   icon:"🔄", label:"Chuyển kho" },
     { key:"count",      icon:"📋", label:"Kiểm kho" },
-    { key:"defect",     icon:"⚠️", label:"LK lỗi" },
+    { key:"defect",     icon:"⚠️", label:"LK lỗi / RMA" },
     { key:"preorder",   icon:"📋", label:"Đặt trước / NCC" },
     { key:"shipping",   icon:"🚚", label:"Vận đơn" },
     { key:"wh_report",  icon:"📊", label:"Báo cáo" },

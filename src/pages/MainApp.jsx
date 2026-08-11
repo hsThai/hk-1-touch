@@ -345,11 +345,10 @@ const MGR_ACCORDIONS = [
     key: "acc_purchase",
     icon: "shopping_cart",
     label: "Mua hàng (NCC)",
-    pages: ["purchase_order","wh_import_ncc","rma","debt_ncc","suppliers"],
+    pages: ["purchase_order","wh_import_ncc","debt_ncc","suppliers"],
     items: [
       { key:"purchase_order", icon:"add_shopping_cart",      label:"Đặt hàng NCC" },
       { key:"wh_import_ncc",  icon:"move_to_inbox",          label:"Nhập kho (nhận hàng)" },
-      { key:"rma",            icon:"assignment_return",      label:"Trả hàng NCC (RMA)" },
       { key:"debt_ncc",       icon:"account_balance_wallet", label:"Công nợ NCC" },
       { key:"suppliers",      icon:"storefront",             label:"Danh sách NCC" },
     ],
@@ -1363,7 +1362,6 @@ function MainAppContent({ onUserChange }) {
       { key:"stock_count",    icon:"fact_check",             label:"Kiểm kê kho" },
       { key:"purchase_order", icon:"add_shopping_cart",      label:"Đặt hàng NCC" },
       { key:"wh_import_ncc",  icon:"move_to_inbox",          label:"Nhập hàng (NCC)" },
-      { key:"rma",            icon:"assignment_return",      label:"Trả hàng NCC" },
       { key:"debt_ncc",       icon:"account_balance_wallet", label:"Công nợ NCC" },
     ];
 
@@ -1394,7 +1392,6 @@ function MainAppContent({ onUserChange }) {
     if (can("purchase_order","view") && !isManager) {
       items.push({ key:"purchase_order", icon:"add_shopping_cart",      label:"Đặt hàng NCC" });
       items.push({ key:"wh_import_ncc",  icon:"move_to_inbox",          label:"Nhập kho (nhận NCC)" });
-      items.push({ key:"rma",            icon:"assignment_return",       label:"Trả hàng NCC (RMA)" });
       items.push({ key:"debt_ncc",       icon:"account_balance_wallet",  label:"Công nợ NCC" });
     }
     if (can("supplier","view") && !isManager && !isKtv) {
