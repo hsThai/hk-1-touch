@@ -33,6 +33,11 @@ export const PAGE_PERMS = {
   wh_manager:      ["warehouse_mgr", "view"],
   wh_import:       ["stock_import", "view"],
   wh_export:       ["stock_export", "view"],
+  wh_ledger:       ["stock_ledger", "view"],
+  wh_defect:       ["stock_import", "view"],
+  wh_preorder:     ["stock_import", "view"],
+  wh_shipping:     ["stock_import", "view"],
+  wh_report:       ["stock_ledger", "view"],
   wh_orders:       ["repair_order", "view"],
   wh_home:         ["repair_order", "view"],
   wh_import_ncc:   ["stock_import", "view"],
@@ -201,6 +206,11 @@ const ManagerDashboard    = lazy(() => import("./ManagerDashboard.jsx").catch(()
 const StaffManagerPage    = lazy(() => import("./StaffManager.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Nhân viên</div> })));
 const SettingsHub         = lazy(() => import("./SettingsHub.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Cài đặt</div> })));
 const WarehouseManagerLazy = lazy(() => import("./WarehouseManager.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Quản lý kho</div> })));
+const WhLedgerPageLazy   = lazy(() => import("./WarehouseManager.jsx").then(m => ({ default: m.WhLedgerPage })).catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Tồn kho</div> })));
+const WhDefectPageLazy   = lazy(() => import("./WarehouseManager.jsx").then(m => ({ default: m.WhDefectPage })).catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải LK lỗi</div> })));
+const WhPreorderPageLazy = lazy(() => import("./WarehouseManager.jsx").then(m => ({ default: m.WhPreorderPage })).catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải LK đặt trước</div> })));
+const WhShippingPageLazy = lazy(() => import("./WarehouseManager.jsx").then(m => ({ default: m.WhShippingPage })).catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Vận đơn</div> })));
+const WhReportPageLazy   = lazy(() => import("./WarehouseManager.jsx").then(m => ({ default: m.WhReportPage })).catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Báo cáo kho</div> })));
 const CashierApp          = lazy(() => import("./CashierApp.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Thu ngân</div> })));
 const PrintTemplatePage   = lazy(() => import("./PrintTemplatePage.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Mẫu in</div> })));
 const RoleHomePlaceholder = lazy(() => import("./RoleHomePlaceholder.jsx").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Trang chủ</div> })));
@@ -294,6 +304,41 @@ export function renderMobilePages(page, user, extraProps = {}) {
           {extraProps.can && !extraProps.can("warehouse_mgr","view")
             ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
             : <WarehouseManagerLazy user={user} onBack={() => setPage("wh_home")} />}
+        </Suspense>
+      )}
+      {page==="wh_ledger" && user && (
+        <Suspense fallback={<Loading />}>
+          {extraProps.can && !extraProps.can("stock_ledger","view")
+            ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+            : <WhLedgerPageLazy user={user} />}
+        </Suspense>
+      )}
+      {page==="wh_defect" && user && (
+        <Suspense fallback={<Loading />}>
+          {extraProps.can && !extraProps.can("stock_import","view")
+            ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+            : <WhDefectPageLazy user={user} />}
+        </Suspense>
+      )}
+      {page==="wh_preorder" && user && (
+        <Suspense fallback={<Loading />}>
+          {extraProps.can && !extraProps.can("stock_import","view")
+            ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+            : <WhPreorderPageLazy user={user} />}
+        </Suspense>
+      )}
+      {page==="wh_shipping" && user && (
+        <Suspense fallback={<Loading />}>
+          {extraProps.can && !extraProps.can("stock_import","view")
+            ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+            : <WhShippingPageLazy user={user} />}
+        </Suspense>
+      )}
+      {page==="wh_report" && user && (
+        <Suspense fallback={<Loading />}>
+          {extraProps.can && !extraProps.can("stock_ledger","view")
+            ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+            : <WhReportPageLazy user={user} />}
         </Suspense>
       )}
 

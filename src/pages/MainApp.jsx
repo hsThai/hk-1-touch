@@ -332,13 +332,18 @@ const MGR_ACCORDIONS = [
     key: "acc_warehouse",
     icon: "warehouse",
     label: "Kho & Vật tư",
-    pages: ["wh_manager","wh_import","wh_export","stock_nxt","stock_count"],
+    pages: ["wh_manager","wh_ledger","wh_import","wh_export","stock_nxt","stock_count","wh_defect","wh_preorder","wh_shipping","wh_report"],
     items: [
-      { key:"wh_manager",  icon:"warehouse",     label:"Danh mục hàng & dịch vụ" },
-      { key:"wh_import",   icon:"move_to_inbox", label:"Nhập kho" },
-      { key:"wh_export",   icon:"outbox",        label:"Xuất kho" },
-      { key:"stock_nxt",   icon:"assessment",    label:"Thẻ kho (Lịch sử NXT)" },
-      { key:"stock_count", icon:"fact_check",    label:"Kiểm kê kho" },
+      { key:"wh_manager",  icon:"warehouse",      label:"Thiết lập kho" },
+      { key:"wh_ledger",   icon:"inventory_2",    label:"Tồn kho" },
+      { key:"wh_import",   icon:"move_to_inbox",  label:"Nhập kho" },
+      { key:"wh_export",   icon:"outbox",         label:"Xuất kho" },
+      { key:"stock_nxt",   icon:"assessment",     label:"Thẻ kho (NXT)" },
+      { key:"stock_count", icon:"fact_check",     label:"Kiểm kê kho" },
+      { key:"wh_defect",   icon:"warning",        label:"LK lỗi / RMA" },
+      { key:"wh_preorder", icon:"pending_actions", label:"LK đặt trước" },
+      { key:"wh_shipping", icon:"local_shipping", label:"Vận đơn" },
+      { key:"wh_report",   icon:"bar_chart",      label:"Báo cáo kho" },
     ],
   },
   {
@@ -1358,9 +1363,14 @@ function MainAppContent({ onUserChange }) {
       { key:"wh_home",        icon:"home",                   label:"Trang chủ" },
       { key:"wh_orders",      icon:"chat",                   label:"Chat đơn" },
       { key:"wh_export",      icon:"outbox",                 label:"Phiếu xuất kho" },
-      { key:"wh_manager",     icon:"warehouse",              label:"Quản lý kho" },
+      { key:"wh_manager",     icon:"warehouse",              label:"Thiết lập kho" },
+      { key:"wh_ledger",     icon:"inventory_2",            label:"Tồn kho" },
       { key:"stock_count",    icon:"fact_check",             label:"Kiểm kê kho" },
       { key:"purchase_order", icon:"add_shopping_cart",      label:"Đặt hàng NCC" },
+      { key:"wh_defect",     icon:"warning",                label:"LK lỗi / RMA" },
+      { key:"wh_preorder",   icon:"pending_actions",        label:"LK đặt trước" },
+      { key:"wh_shipping",   icon:"local_shipping",         label:"Vận đơn" },
+      { key:"wh_report",     icon:"bar_chart",              label:"Báo cáo kho" },
       { key:"wh_import_ncc",  icon:"move_to_inbox",          label:"Nhập hàng (NCC)" },
       { key:"debt_ncc",       icon:"account_balance_wallet", label:"Công nợ NCC" },
     ];
@@ -1384,9 +1394,19 @@ function MainAppContent({ onUserChange }) {
 
     // 4. KHO & VẬT TƯ
     if (can("warehouse_mgr","view") && !isManager)
-      items.push({ key:"wh_manager",  icon:"warehouse",  label:"Quản lý kho" });
+      items.push({ key:"wh_manager",  icon:"warehouse",       label:"Thiết lập kho" });
+    if (can("stock_ledger","view") && !isManager)
+      items.push({ key:"wh_ledger",   icon:"inventory_2",     label:"Tồn kho" });
     if (can("stock_count","view") && !isManager && !isRoleHome)
       items.push({ key:"stock_count", icon:"fact_check", label:"Kiểm kê kho" });
+    if (can("stock_import","view") && !isManager)
+      items.push({ key:"wh_defect",   icon:"warning",         label:"LK lỗi / RMA" });
+    if (can("stock_import","view") && !isManager)
+      items.push({ key:"wh_preorder", icon:"pending_actions", label:"LK đặt trước" });
+    if (can("stock_import","view") && !isManager)
+      items.push({ key:"wh_shipping", icon:"local_shipping",  label:"Vận đơn" });
+    if (can("stock_ledger","view") && !isManager)
+      items.push({ key:"wh_report",   icon:"bar_chart",       label:"Báo cáo kho" });
 
     // 5. MUA HÀNG NCC
     if (can("purchase_order","view") && !isManager) {
@@ -1927,6 +1947,11 @@ function MainAppContent({ onUserChange }) {
                   "return_order":      "🛒 Bán hàng",
                   "price_policy":      "🛒 Bán hàng",
                   "wh_manager":        "Kho & Vật tư",
+                  "wh_ledger":        "Kho & Vật tư",
+                  "wh_defect":        "Kho & Vật tư",
+                  "wh_preorder":      "Kho & Vật tư",
+                  "wh_shipping":      "Kho & Vật tư",
+                  "wh_report":        "Kho & Vật tư",
                   "stock_count":       "Kho & Vật tư",
                   "purchase_forecast": "Kho & Vật tư",
                   "rma":               "Kho & Vật tư",
@@ -2046,7 +2071,7 @@ function MainAppContent({ onUserChange }) {
               {page==="wh_orders" && (can("repair_order","view") ? <WarehouseOrders user={user} users={users} setSelectedOrder={setSelectedOrderSync} /> : <AccessDenied pageName="Chat đơn" />)}
               {page==="wh_export" && (can("stock_export","view") ? <WarehouseExport user={user} /> : <AccessDenied pageName="Xuất kho" />)}
               {page==="wh_import" && (can("stock_import","view") ? <WarehouseImport user={user} /> : <AccessDenied pageName="Nhập kho" />)}
-              {page==="wh_manager" && (can("warehouse_mgr","view") ? <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"dashboard")} /> : <AccessDenied pageName="Quản lý kho" />)}
+              {page==="wh_manager" && (can("warehouse_mgr","view") ? <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"dashboard")} /> : <AccessDenied pageName="Thiết lập kho" />)}
               {page==="cashier_home" && (can("sale_order","view") ? <CashierApp user={user} onNotif={()=>setShowNotif(v=>!v)} onQRScan={()=>setShowQRScan(true)} notifCount={notifications.length+dbNotifications.length} forceTab={cashierTab} onTabChange={setCashierTab} /> : <AccessDenied pageName="Thu ngân" />)}
               {page==="sale_order" && user && can("sale_order","view") && (
                 <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
@@ -2113,6 +2138,11 @@ function MainAppContent({ onUserChange }) {
                     "return_order":      "🛒 Bán hàng",
                     "price_policy":      "🛒 Bán hàng",
                     "wh_manager":        "Kho & Vật tư",
+                    "wh_ledger":        "Kho & Vật tư",
+                    "wh_defect":        "Kho & Vật tư",
+                    "wh_preorder":      "Kho & Vật tư",
+                    "wh_shipping":      "Kho & Vật tư",
+                    "wh_report":        "Kho & Vật tư",
                     "stock_count":       "Kho & Vật tư",
                     "purchase_forecast": "Kho & Vật tư",
                     "rma":               "Kho & Vật tư",
@@ -2326,7 +2356,7 @@ function MainAppContent({ onUserChange }) {
       </Suspense>
 
       {/* ═══ UNIFIED BOTTOM NAV — dynamic theo quyền, active state ═══ */}
-      {!isPC && !["wh_manager","wh_app","stock_count"].includes(page) && (
+      {!isPC && !["wh_manager","wh_app","stock_count","wh_ledger","wh_defect","wh_preorder","wh_shipping","wh_report"].includes(page) && (
         <>
           {/* Quick chooser cho Tạo đơn */}
           {showCreateChooser && (

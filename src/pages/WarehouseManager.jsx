@@ -1370,13 +1370,6 @@ function PreorderTab({ user, warehouses }) {
 
   return (
     <div style={{ padding:"0 0 40px" }}>
-      {/* Gộp chung: Đặt hàng NCC + LK đặt trước/chờ về kho — cùng 1 màn hình theo yêu cầu */}
-      <div style={{ background:"#fff" }}>
-        <PurchaseOrderPage user={user} />
-      </div>
-
-      <div style={{ height:10, background:"#f3f4f6" }} />
-
       <div style={{ padding:"16px 14px 100px" }}>
       <div style={{ fontWeight:800, fontSize:17, marginBottom:12 }}>📋 LK đặt trước / chờ về kho</div>
       <div style={{ fontSize:12, color:"#6b7280", marginTop:-8, marginBottom:12 }}>Linh kiện KTV đang chờ để hoàn tất sửa chữa (khác với đơn đặt NCC ở trên)</div>
@@ -1654,6 +1647,40 @@ function StockReportTab({ warehouses }) {
 }
 
 
+// ── Shared header cho các trang kho tách riêng ──
+function WhPageHeader({ icon, title, subtitle }) {
+  return (
+    <div style={{ background:"linear-gradient(135deg,#4338ca,#6366f1)", padding:"14px 16px", borderRadius:"0 0 16px 16px", marginBottom:0 }}>
+      <div style={{ fontWeight:800, fontSize:17, color:"#fff" }}>{icon} {title}</div>
+      {subtitle && <div style={{ fontSize:12, color:"#e0e7ff", marginTop:2 }}>{subtitle}</div>}
+    </div>
+  );
+}
+
+// ── Standalone page wrappers (để render trong sidebar, không cần WarehouseManager full) ──
+export function WhLedgerPage({ user }) {
+  const toast = useToast();
+  return (<><WhPageHeader icon="📊" title="Tồn kho" subtitle="Xem tồn thực tế theo vị trí kệ" /><StockLedgerTab user={user} toast={toast} /><toast.ToastContainer /></>);
+}
+export function WhDefectPage({ user }) {
+  const [whList, setWhList] = useState([]);
+  useEffect(()=>{ WH.list({limit:100}).then(d=>setWhList(d||[])).catch(()=>{}); },[]);
+  return (<><WhPageHeader icon="⚠️" title="LK lỗi / RMA" subtitle="Linh kiện lỗi & Trả hàng NCC" /><DefectTab user={user} warehouses={whList} /></>);
+}
+export function WhPreorderPage({ user }) {
+  const [whList, setWhList] = useState([]);
+  useEffect(()=>{ WH.list({limit:100}).then(d=>setWhList(d||[])).catch(()=>{}); },[]);
+  return (<><WhPageHeader icon="📋" title="LK đặt trước" subtitle="Linh kiện KTV đang chờ về kho" /><PreorderTab user={user} warehouses={whList} /></>);
+}
+export function WhShippingPage({ user }) {
+  return (<><WhPageHeader icon="🚚" title="Vận đơn" subtitle="Theo dõi mã vận đơn & nhận hàng" /><ShippingTab user={user} /></>);
+}
+export function WhReportPage({ user }) {
+  const [whList, setWhList] = useState([]);
+  useEffect(()=>{ WH.list({limit:100}).then(d=>setWhList(d||[])).catch(()=>{}); },[]);
+  return (<><WhPageHeader icon="📊" title="Báo cáo kho" subtitle="Tổng hợp tồn kho & cảnh báo hết hàng" /><StockReportTab warehouses={whList} /></>);
+}
+
 export default function WarehouseManager({ user, onBack, initialTab }) {
   const _initTab = initialTab || sessionStorage.getItem("wm_initial_tab") || "warehouses";
   const [tab, setTab]       = useState(_initTab);
@@ -1666,13 +1693,7 @@ export default function WarehouseManager({ user, onBack, initialTab }) {
   const TABS = [
     { key:"warehouses", icon:"🏭", label:"Danh sách kho" },
     { key:"zones",      icon:"📦", label:"Khu vực & Kệ" },
-    { key:"ledger",     icon:"📊", label:"Tồn kho" },
     { key:"transfer",   icon:"🔄", label:"Chuyển kho" },
-    { key:"count",      icon:"📋", label:"Kiểm kho" },
-    { key:"defect",     icon:"⚠️", label:"LK lỗi / RMA" },
-    { key:"preorder",   icon:"📋", label:"Đặt trước / NCC" },
-    { key:"shipping",   icon:"🚚", label:"Vận đơn" },
-    { key:"wh_report",  icon:"📊", label:"Báo cáo" },
   ];
 
   return (
@@ -1699,13 +1720,7 @@ export default function WarehouseManager({ user, onBack, initialTab }) {
       <div style={S.body}>
         {tab==="warehouses" && <WarehouseTab user={user} toast={toast} />}
         {tab==="zones"      && <ZoneLocationTab user={user} toast={toast} />}
-        {tab==="ledger"     && <StockLedgerTab user={user} toast={toast} />}
         {tab==="transfer"   && <TransferTab user={user} toast={toast} />}
-        {tab==="count"      && <StockCountPage user={user} />}
-        {tab==="defect"     && <DefectTab user={user} warehouses={whList} />}
-        {tab==="preorder"   && <PreorderTab user={user} warehouses={whList} />}
-        {tab==="shipping"   && <ShippingTab user={user}/>}
-        {tab==="wh_report"  && <StockReportTab warehouses={whList}/>}
       </div>
 
       <toast.ToastContainer />
