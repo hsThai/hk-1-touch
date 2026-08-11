@@ -1327,101 +1327,6 @@ function DefectTab({ user, warehouses }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PreorderTab — LK đặt trước / chờ về kho
-// ─────────────────────────────────────────────────────────────────────────────
-function PreorderTab({ user, warehouses }) {
-  const [usages,   setUsages]   = useState([]);
-  const [reserved, setReserved] = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [wh,       setWh]       = useState("");
-
-  useEffect(() => { loadList(); }, [wh]);
-
-  async function loadList() {
-    setLoading(true);
-    try {
-      const [u, l] = await Promise.all([
-        Usage.list({ limit:300, sort:"-id" }),
-        Ledger.list({ limit:500 }),
-      ]);
-      setUsages((u||[]).filter(x=>x.status==="pending"||x.status==="requested"));
-      setReserved((l||[]).filter(x=>(x.qty_reserved||0)>0 && (!wh||x.warehouse_id===wh)));
-    } catch {}
-    setLoading(false);
-  }
-
-  async function markArrived(usage) {
-    if (!window.confirm(`Xác nhận ${usage.part_name} đã về kho?`)) return;
-    try {
-      await Usage.update(usage.id, { status:"approved" });
-      if (usage.order_id) await Notif.create({
-        user_id:  usage.requested_by||"",
-        title:    `📦 LK về kho: ${usage.part_name}`,
-        message:  `LK đặt trước cho đơn ${usage.order_code||usage.order_id} đã về kho.`,
-        order_id: usage.order_id,
-        type:     "stock_arrived",
-        is_read:  false,
-      });
-      alert("✅ Đã cập nhật — đã thông báo KTV");
-      loadList();
-    } catch(e) { alert("Lỗi: "+e.message); }
-  }
-
-  return (
-    <div style={{ padding:"0 0 40px" }}>
-      <div style={{ padding:"16px 14px 100px" }}>
-      <div style={{ fontWeight:800, fontSize:17, marginBottom:12 }}>📋 LK đặt trước / chờ về kho</div>
-      <div style={{ fontSize:12, color:"#6b7280", marginTop:-8, marginBottom:12 }}>Linh kiện KTV đang chờ để hoàn tất sửa chữa (khác với đơn đặt NCC ở trên)</div>
-      <select value={wh} onChange={e=>setWh(e.target.value)}
-        style={{ width:"100%", border:"1.5px solid #e5e7eb", borderRadius:8, padding:"8px 10px", fontSize:13, marginBottom:12 }}>
-        <option value="">Tất cả kho</option>
-        {warehouses.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}
-      </select>
-
-      {loading && <div style={{ textAlign:"center", padding:20, color:"#9ca3af" }}>Đang tải...</div>}
-      {!loading && (<>
-        {usages.length > 0 && (<>
-          <div style={{ fontWeight:700, fontSize:14, marginBottom:8, color:"#d97706" }}>⏳ KTV đang chờ LK ({usages.length})</div>
-          {usages.map(u=>(
-            <div key={u.id} style={{ background:"#fffbeb", border:"1px solid #fcd34d", borderRadius:10, padding:12, marginBottom:8 }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-                <div>
-                  <div style={{ fontWeight:700, fontSize:14 }}>{u.part_name}</div>
-                  <div style={{ fontSize:12, color:"#6b7280" }}>Đơn: {u.order_code||u.order_id} · SL: {u.qty_requested||1}</div>
-                  <div style={{ fontSize:11, color:"#9ca3af" }}>{new Date(u.created_date||u.created).toLocaleDateString("vi-VN")}</div>
-                </div>
-                <button onClick={()=>markArrived(u)}
-                  style={{ background:"#059669", color:"#fff", border:"none", borderRadius:6, padding:"6px 10px", fontSize:12, cursor:"pointer" }}>
-                  ✅ Đã về
-                </button>
-              </div>
-            </div>
-          ))}
-        </>)}
-
-        {reserved.length > 0 && (<>
-          <div style={{ fontWeight:700, fontSize:14, marginBottom:8, color:"#4f46e5", marginTop:16 }}>🔒 Đang reserve ({reserved.length})</div>
-          {reserved.map(l=>(
-            <div key={l.id} style={{ background:"#eef2ff", borderRadius:10, padding:12, marginBottom:6 }}>
-              <div style={{ display:"flex", justifyContent:"space-between" }}>
-                <span style={{ fontWeight:700, fontSize:13 }}>{l.part_name}</span>
-                <span style={{ fontSize:13, color:"#4f46e5", fontWeight:700 }}>Reserve: {l.qty_reserved}</span>
-              </div>
-              <div style={{ fontSize:12, color:"#6b7280" }}>{l.warehouse_name} · Tồn: {l.qty_on_hand}</div>
-            </div>
-          ))}
-        </>)}
-
-        {usages.length===0 && reserved.length===0 && (
-          <div style={{ textAlign:"center", padding:40, color:"#9ca3af" }}>Không có LK đặt trước</div>
-        )}
-      </>)}
-      </div>
-    </div>
-  );
-}
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ShippingTab — Mã vận đơn / Theo dõi ship
@@ -1666,11 +1571,6 @@ export function WhDefectPage({ user }) {
   const [whList, setWhList] = useState([]);
   useEffect(()=>{ WH.list({limit:100}).then(d=>setWhList(d||[])).catch(()=>{}); },[]);
   return (<><WhPageHeader icon="⚠️" title="LK lỗi / RMA" subtitle="Linh kiện lỗi & Trả hàng NCC" /><DefectTab user={user} warehouses={whList} /></>);
-}
-export function WhPreorderPage({ user }) {
-  const [whList, setWhList] = useState([]);
-  useEffect(()=>{ WH.list({limit:100}).then(d=>setWhList(d||[])).catch(()=>{}); },[]);
-  return (<><WhPageHeader icon="📋" title="LK đặt trước" subtitle="Linh kiện KTV đang chờ về kho" /><PreorderTab user={user} warehouses={whList} /></>);
 }
 export function WhShippingPage({ user }) {
   return (<><WhPageHeader icon="🚚" title="Vận đơn" subtitle="Theo dõi mã vận đơn & nhận hàng" /><ShippingTab user={user} /></>);

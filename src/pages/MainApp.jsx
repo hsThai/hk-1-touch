@@ -332,7 +332,7 @@ const MGR_ACCORDIONS = [
     key: "acc_warehouse",
     icon: "warehouse",
     label: "Kho & Vật tư",
-    pages: ["wh_manager","wh_ledger","wh_import","wh_export","stock_nxt","stock_count","wh_defect","wh_preorder","wh_shipping","wh_report"],
+    pages: ["wh_manager","wh_ledger","wh_import","wh_export","stock_nxt","stock_count","wh_defect","wh_shipping","wh_report"],
     items: [
       { key:"wh_manager",  icon:"warehouse",      label:"Thiết lập kho" },
       { key:"wh_ledger",   icon:"inventory_2",    label:"Tồn kho" },
@@ -341,7 +341,6 @@ const MGR_ACCORDIONS = [
       { key:"stock_nxt",   icon:"assessment",     label:"Thẻ kho (NXT)" },
       { key:"stock_count", icon:"fact_check",     label:"Kiểm kê kho" },
       { key:"wh_defect",   icon:"warning",        label:"LK lỗi / RMA" },
-      { key:"wh_preorder", icon:"pending_actions", label:"LK đặt trước" },
       { key:"wh_shipping", icon:"local_shipping", label:"Vận đơn" },
       { key:"wh_report",   icon:"bar_chart",      label:"Báo cáo kho" },
     ],
@@ -1368,7 +1367,6 @@ function MainAppContent({ onUserChange }) {
       { key:"stock_count",    icon:"fact_check",             label:"Kiểm kê kho" },
       { key:"purchase_order", icon:"add_shopping_cart",      label:"Đặt hàng NCC" },
       { key:"wh_defect",     icon:"warning",                label:"LK lỗi / RMA" },
-      { key:"wh_preorder",   icon:"pending_actions",        label:"LK đặt trước" },
       { key:"wh_shipping",   icon:"local_shipping",         label:"Vận đơn" },
       { key:"wh_report",     icon:"bar_chart",              label:"Báo cáo kho" },
       { key:"wh_import_ncc",  icon:"move_to_inbox",          label:"Nhập hàng (NCC)" },
@@ -1401,8 +1399,6 @@ function MainAppContent({ onUserChange }) {
       items.push({ key:"stock_count", icon:"fact_check", label:"Kiểm kê kho" });
     if (can("stock_import","view") && !isManager)
       items.push({ key:"wh_defect",   icon:"warning",         label:"LK lỗi / RMA" });
-    if (can("stock_import","view") && !isManager)
-      items.push({ key:"wh_preorder", icon:"pending_actions", label:"LK đặt trước" });
     if (can("stock_import","view") && !isManager)
       items.push({ key:"wh_shipping", icon:"local_shipping",  label:"Vận đơn" });
     if (can("stock_ledger","view") && !isManager)
@@ -1949,7 +1945,6 @@ function MainAppContent({ onUserChange }) {
                   "wh_manager":        "Kho & Vật tư",
                   "wh_ledger":        "Kho & Vật tư",
                   "wh_defect":        "Kho & Vật tư",
-                  "wh_preorder":      "Kho & Vật tư",
                   "wh_shipping":      "Kho & Vật tư",
                   "wh_report":        "Kho & Vật tư",
                   "stock_count":       "Kho & Vật tư",
@@ -2140,8 +2135,7 @@ function MainAppContent({ onUserChange }) {
                     "wh_manager":        "Kho & Vật tư",
                     "wh_ledger":        "Kho & Vật tư",
                     "wh_defect":        "Kho & Vật tư",
-                    "wh_preorder":      "Kho & Vật tư",
-                    "wh_shipping":      "Kho & Vật tư",
+                      "wh_shipping":      "Kho & Vật tư",
                     "wh_report":        "Kho & Vật tư",
                     "stock_count":       "Kho & Vật tư",
                     "purchase_forecast": "Kho & Vật tư",
@@ -2356,7 +2350,7 @@ function MainAppContent({ onUserChange }) {
       </Suspense>
 
       {/* ═══ UNIFIED BOTTOM NAV — dynamic theo quyền, active state ═══ */}
-      {!isPC && !["wh_manager","wh_app","stock_count","wh_ledger","wh_defect","wh_preorder","wh_shipping","wh_report"].includes(page) && (
+      {!isPC && !["wh_manager","wh_app","stock_count","wh_ledger","wh_defect","wh_shipping","wh_report"].includes(page) && (
         <>
           {/* Quick chooser cho Tạo đơn */}
           {showCreateChooser && (
