@@ -8,6 +8,7 @@ import { getPbUrl, getAuth, logAction } from "./pb.jsx";
 import StockCountPage from "./StockCountPage.jsx";
 import PurchaseOrderPage from "./PurchaseOrderPage.jsx";
 import RMAPage from "./RMAPage.jsx";
+import { SaleOrder, RepairOrder } from "./pb.jsx";
 
 // ─── PocketBase helpers ───────────────────────────────────
 function makeWHCol(colName) {
@@ -1329,95 +1330,244 @@ function DefectTab({ user, warehouses }) {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ShippingTab — Mã vận đơn / Theo dõi ship
+// ShippingTab — Vận đơn 3 chiều: Nhận hàng / Giao bán / Trả bảo hành
 // ─────────────────────────────────────────────────────────────────────────────
 function ShippingTab({ user }) {
-  const [imports, setImports] = useState([]);
-  const [loading,  setLoading] = useState(true);
-  const [editId,   setEditId]  = useState(null);
-  const [form, setForm] = useState({ tracking_code:"", shipping_unit:"", received_date:"", note:"" });
+  const [tab, setTab] = useState("inbound"); // inbound | sale | warranty
+  const [imports,  setImports]  = useState([]);
+  const [sales,    setSales]    = useState([]);
+  const [repairs,  setRepairs]  = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [editId,   setEditId]   = useState(null);
+  const [editType, setEditType] = useState("");  // "import" | "sale" | "repair"
+  const [form, setForm] = useState({ tracking_code:"", shipping_unit:"", shipping_note:"" });
 
   useEffect(() => {
-    Imports.list({ limit:200, sort:"-id" })
-      .then(d=>setImports(d||[])).catch(()=>{}).finally(()=>setLoading(false));
+    loadData();
   }, []);
 
-  async function saveTracking(id) {
+  async function loadData() {
+    setLoading(true);
     try {
-      const imp = imports.find(i=>i.id===id);
-      // Giữ nguyên status cũ nếu không có received_date — không downgrade từ confirmed → pending
-      const newStatus = form.received_date ? "confirmed" : (imp?.status || "pending");
-      logAction(user, "update", "stock_import", id,
-        `Cập nhật vận đơn: ${form.shipping_unit||""} ${form.tracking_code||""}${form.received_date ? " · Nhận "+form.received_date : ""}`);
-      await Imports.update(id, {
-        tracking_code:  form.tracking_code,
-        shipping_unit:  form.shipping_unit,
-        received_date:  form.received_date || null,
-        shipping_note:  form.note,
-        status: newStatus,
-      });
-      setEditId(null);
-      setImports(p => p.map(i => i.id===id ? {...i, ...form, status:newStatus} : i));
+      const [imp, sale, rep] = await Promise.all([
+        Imports.list({ limit:200, sort:"-id" }).catch(()=>[]),
+        SaleOrder.list({ limit:200, sort:"-id" }).catch(()=>[]),
+        RepairOrder.list({ limit:200, sort:"-id" }).catch(()=>[]),
+      ]);
+      setImports(imp||[]);
+      setSales(sale||[]);
+      setRepairs(rep||[]);
+    } catch {} finally { setLoading(false); }
+  }
+
+  async function saveTracking() {
+    try {
+      const updates = {
+        tracking_code: form.tracking_code,
+        shipping_unit: form.shipping_unit,
+        shipping_note: form.shipping_note,
+      };
+      if (editType === "import") {
+        const imp = imports.find(i=>i.id===editId);
+        await Imports.update(editId, updates);
+        logAction(user, "update", "stock_import", editId,
+          `Cập nhật vận đơn: ${form.shipping_unit||""} ${form.tracking_code||""}`);
+        setImports(p => p.map(i => i.id===editId ? {...i, ...updates} : i));
+      } else if (editType === "sale") {
+        await SaleOrder.update(editId, { ...updates, ship_status: form.tracking_code ? "shipped" : "" });
+        logAction(user, "update", "sale_order", editId,
+          `Giao hàng: ${form.shipping_unit||""} ${form.tracking_code||""}`);
+        setSales(p => p.map(s => s.id===editId ? {...s, ...updates, ship_status: form.tracking_code ? "shipped" : ""} : s));
+      } else if (editType === "repair") {
+        await RepairOrder.update(editId, { ...updates, ship_status: form.tracking_code ? "shipped" : "" });
+        logAction(user, "update", "repair_order", editId,
+          `Gửi trả bảo hành: ${form.shipping_unit||""} ${form.tracking_code||""}`);
+        setRepairs(p => p.map(r => r.id===editId ? {...r, ...updates, ship_status: form.tracking_code ? "shipped" : ""} : r));
+      }
+      setEditId(null); setEditType("");
       alert("✅ Đã cập nhật vận đơn");
     } catch(e) { alert("Lỗi: "+e.message); }
   }
 
-  const STS = { pending:"🚚 Đang vận chuyển", confirmed:"✅ Đã nhận", draft:"📝 Nháp" };
-  const STC = { pending:"#d97706", confirmed:"#059669", draft:"#9ca3af" };
+  function startEdit(id, type, record) {
+    setEditId(id); setEditType(type);
+    setForm({
+      tracking_code: record.tracking_code || "",
+      shipping_unit: record.shipping_unit || "",
+      shipping_note: record.shipping_note || "",
+    });
+  }
+
+  // ── Filter logic ──
+  const inboundList  = imports;  // all imports
+  const saleShipList = sales.filter(s => s.tracking_code || s.ship_status === "shipped" || ["completed","pending_payment"].includes(s.status));
+  const repairShipList = repairs.filter(r => r.tracking_code || r.ship_status === "shipped" || ["done","handover","completed"].includes(r.status));
+
+  const STS_IN = { confirmed:"✅ Đã nhận", pending:"🚚 Đang vận chuyển", draft:"📝 Nháp" };
+  const STC_IN = { confirmed:"#059669", pending:"#d97706", draft:"#9ca3af" };
+  const STS_OUT = { shipped:"📦 Đã gửi", delivered:"✅ Đã giao", "":"⏳ Chưa gửi" };
+
+  const TABS = [
+    { key:"inbound",  label:"📥 Nhận hàng",  count: inboundList.length },
+    { key:"sale",     label:"📤 Giao bán",   count: saleShipList.length },
+    { key:"warranty", label:"🔧 Trả bảo hành", count: repairShipList.length },
+  ];
+
+  function renderTrackingForm() {
+    return (
+      <div style={{ marginTop:10, paddingTop:10, borderTop:"1px dashed #e5e7eb" }}>
+        {[
+          { ph:"Mã vận đơn (GHN123456...)",        key:"tracking_code" },
+          { ph:"Đơn vị vận chuyển (GHN, GHTK...)", key:"shipping_unit" },
+          { ph:"Ghi chú vận đơn",                   key:"shipping_note" },
+        ].map(f=>(
+          <input key={f.key} placeholder={f.ph} value={form[f.key]}
+            onChange={e=>setForm(v=>({...v,[f.key]:e.target.value}))}
+            style={{ width:"100%", border:"1.5px solid #e5e7eb", borderRadius:8, padding:"8px 10px", fontSize:13, marginBottom:6, boxSizing:"border-box" }}/>
+        ))}
+        <button onClick={saveTracking}
+          style={{ background:"#4f46e5", color:"#fff", border:"none", borderRadius:8, padding:"8px 16px", fontSize:13, cursor:"pointer", width:"100%" }}>
+          💾 Lưu vận đơn
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding:"16px 14px 100px" }}>
-      <div style={{ fontWeight:800, fontSize:17, marginBottom:16 }}>🚚 Mã vận đơn / Theo dõi ship</div>
+      {/* Tab switcher */}
+      <div style={{ display:"flex", gap:6, marginBottom:16, overflowX:"auto" }}>
+        {TABS.map(t=>(
+          <button key={t.key} onClick={()=>{ setTab(t.key); setEditId(null); }}
+            style={{
+              flex:"0 0 auto", padding:"8px 14px", borderRadius:10, fontSize:13, fontWeight:700, cursor:"pointer",
+              border: tab===t.key ? "2px solid #4f46e5" : "1.5px solid #e5e7eb",
+              background: tab===t.key ? "#eef2ff" : "#fff",
+              color: tab===t.key ? "#4f46e5" : "#6b7280",
+              display:"flex", alignItems:"center", gap:6,
+            }}>
+            {t.label}
+            <span style={{ background: tab===t.key ? "#4f46e5" : "#e5e7eb", color:"#fff", borderRadius:10, padding:"1px 7px", fontSize:11 }}>{t.count}</span>
+          </button>
+        ))}
+      </div>
+
       {loading && <div style={{ textAlign:"center", padding:20, color:"#9ca3af" }}>Đang tải...</div>}
-      {imports.map(imp=>(
-        <div key={imp.id} style={{ background:"#fff", borderRadius:10, padding:14, marginBottom:10, boxShadow:"0 1px 4px rgba(0,0,0,.06)" }}>
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-            <div>
-              <div style={{ fontWeight:700, fontSize:14 }}>{imp.import_code||imp.id}</div>
-              <div style={{ fontSize:12, color:"#6b7280" }}>{imp.supplier_name||"Chưa có NCC"} · {imp.total_items||0} mặt hàng</div>
+
+      {/* ── INBOUND: Nhận hàng từ NCC ── */}
+      {!loading && tab==="inbound" && inboundList.map(imp=>{
+        const isEdit = editId===imp.id && editType==="import";
+        return (
+          <div key={imp.id} style={{ background:"#fff", borderRadius:10, padding:14, marginBottom:10, boxShadow:"0 1px 4px rgba(0,0,0,.06)" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div>
+                <div style={{ fontWeight:700, fontSize:14 }}>{imp.import_code||imp.id}</div>
+                <div style={{ fontSize:12, color:"#6b7280" }}>{imp.supplier_name||"Chưa có NCC"} · {imp.total_items||0} mặt hàng</div>
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
+                <span style={{ fontSize:11, fontWeight:700, color:STC_IN[imp.status]||"#9ca3af", background:"#f3f4f6", padding:"2px 8px", borderRadius:6 }}>
+                  {STS_IN[imp.status]||imp.status||"Nháp"}
+                </span>
+                <button onClick={()=>{ isEdit ? (setEditId(null), setEditType("")) : startEdit(imp.id,"import",imp) }}
+                  style={{ fontSize:11, color:"#4f46e5", background:"none", border:"none", cursor:"pointer", textDecoration:"underline" }}>
+                  {isEdit?"Đóng":"✏️ Sửa vận đơn"}
+                </button>
+              </div>
             </div>
-            <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
-              <span style={{ fontSize:11, fontWeight:700, color:STC[imp.status]||"#9ca3af", background:"#f3f4f6", padding:"2px 8px", borderRadius:6 }}>
-                {STS[imp.status]||imp.status||"Nháp"}
-              </span>
-              <button onClick={()=>{ setEditId(imp.id===editId?null:imp.id); setForm({ tracking_code:imp.tracking_code||"", shipping_unit:imp.shipping_unit||"", received_date:imp.received_date||"", note:imp.shipping_note||"" }); }}
-                style={{ fontSize:11, color:"#4f46e5", background:"none", border:"none", cursor:"pointer", textDecoration:"underline" }}>
-                {imp.id===editId?"Đóng":"✏️ Sửa vận đơn"}
-              </button>
-            </div>
+            {imp.tracking_code && (
+              <div style={{ fontSize:13, color:"#4f46e5", marginTop:6 }}>
+                📦 {imp.shipping_unit||""} — <b>{imp.tracking_code}</b>
+                {imp.received_date && <span style={{ color:"#059669" }}> · Nhận {new Date(imp.received_date).toLocaleDateString("vi-VN")}</span>}
+              </div>
+            )}
+            {isEdit && renderTrackingForm()}
           </div>
+        );
+      })}
 
-          {imp.tracking_code && (
-            <div style={{ fontSize:13, color:"#4f46e5", marginTop:6 }}>
-              📦 {imp.shipping_unit||""} — <b>{imp.tracking_code}</b>
-              {imp.received_date && <span style={{ color:"#059669" }}> · Nhận {new Date(imp.received_date).toLocaleDateString("vi-VN")}</span>}
+      {/* ── OUTBOUND SALE: Giao bán cho khách xa ── */}
+      {!loading && tab==="sale" && saleShipList.map(so=>{
+        const isEdit = editId===so.id && editType==="sale";
+        const shipSts = STS_OUT[so.ship_status] || STS_OUT[""];
+        return (
+          <div key={so.id} style={{ background:"#fff", borderRadius:10, padding:14, marginBottom:10, boxShadow:"0 1px 4px rgba(0,0,0,.06)" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div>
+                <div style={{ fontWeight:700, fontSize:14 }}>{so.order_code||so.id}</div>
+                <div style={{ fontSize:12, color:"#6b7280" }}>
+                  {so.customer_name||"Khách lẻ"}{so.customer_phone ? " · "+so.customer_phone : ""}
+                </div>
+                <div style={{ fontSize:11, color:"#059669", marginTop:2 }}>{(so.total||0).toLocaleString("vi-VN")}đ</div>
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
+                <span style={{ fontSize:11, fontWeight:700, color: so.ship_status==="shipped" ? "#0369a1" : "#9ca3af", background:"#f3f4f6", padding:"2px 8px", borderRadius:6 }}>
+                  {shipSts}
+                </span>
+                <button onClick={()=>{ isEdit ? (setEditId(null), setEditType("")) : startEdit(so.id,"sale",so) }}
+                  style={{ fontSize:11, color:"#4f46e5", background:"none", border:"none", cursor:"pointer", textDecoration:"underline" }}>
+                  {isEdit?"Đóng":"✏️ Cập nhật vận đơn"}
+                </button>
+              </div>
             </div>
-          )}
+            {so.tracking_code && (
+              <div style={{ fontSize:13, color:"#0369a1", marginTop:6 }}>
+                📦 {so.shipping_unit||""} — <b>{so.tracking_code}</b>
+                {so.shipping_note && <span style={{ color:"#6b7280" }}> · {so.shipping_note}</span>}
+              </div>
+            )}
+            {!so.tracking_code && !isEdit && (
+              <div style={{ fontSize:11, color:"#9ca3af", marginTop:4 }}>⏳ Chưa có vận đơn — nhấn "Cập nhật vận đơn" để thêm</div>
+            )}
+            {isEdit && renderTrackingForm()}
+          </div>
+        );
+      })}
 
-          {editId===imp.id && (
-            <div style={{ marginTop:10, paddingTop:10, borderTop:"1px dashed #e5e7eb" }}>
-              {[
-                { ph:"Mã vận đơn (GHN123456...)",        key:"tracking_code" },
-                { ph:"Đơn vị vận chuyển (GHN, GHTK...)", key:"shipping_unit" },
-                { ph:"Ghi chú",                           key:"note" },
-              ].map(f=>(
-                <input key={f.key} placeholder={f.ph} value={form[f.key]}
-                  onChange={e=>setForm(v=>({...v,[f.key]:e.target.value}))}
-                  style={{ width:"100%", border:"1.5px solid #e5e7eb", borderRadius:8, padding:"8px 10px", fontSize:13, marginBottom:6, boxSizing:"border-box" }}/>
-              ))}
-              <div style={{ fontSize:12, color:"#6b7280", marginBottom:4 }}>Ngày nhận thực tế:</div>
-              <input type="date" value={form.received_date}
-                onChange={e=>setForm(v=>({...v,received_date:e.target.value}))}
-                style={{ width:"100%", border:"1.5px solid #e5e7eb", borderRadius:8, padding:"8px 10px", fontSize:13, marginBottom:8, boxSizing:"border-box" }}/>
-              <button onClick={()=>saveTracking(imp.id)}
-                style={{ background:"#4f46e5", color:"#fff", border:"none", borderRadius:8, padding:"8px 16px", fontSize:13, cursor:"pointer", width:"100%" }}>
-                💾 Lưu vận đơn
-              </button>
+      {/* ── OUTBOUND WARRANTY: Trả bảo hành cho khách ── */}
+      {!loading && tab==="warranty" && repairShipList.map(ro=>{
+        const isEdit = editId===ro.id && editType==="repair";
+        const shipSts = STS_OUT[ro.ship_status] || STS_OUT[""];
+        return (
+          <div key={ro.id} style={{ background:"#fff", borderRadius:10, padding:14, marginBottom:10, boxShadow:"0 1px 4px rgba(0,0,0,.06)" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div>
+                <div style={{ fontWeight:700, fontSize:14 }}>{ro.order_code||ro.id}</div>
+                <div style={{ fontSize:12, color:"#6b7280" }}>
+                  {ro.customer_name||"Khách"}{ro.customer_phone ? " · "+ro.customer_phone : ""}
+                </div>
+                <div style={{ fontSize:11, color:"#6b7280", marginTop:2 }}>
+                  {ro.device_name||""} {ro.device_model||""} · {ro.status||""}
+                </div>
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
+                <span style={{ fontSize:11, fontWeight:700, color: ro.ship_status==="shipped" ? "#0369a1" : "#9ca3af", background:"#f3f4f6", padding:"2px 8px", borderRadius:6 }}>
+                  {shipSts}
+                </span>
+                <button onClick={()=>{ isEdit ? (setEditId(null), setEditType("")) : startEdit(ro.id,"repair",ro) }}
+                  style={{ fontSize:11, color:"#4f46e5", background:"none", border:"none", cursor:"pointer", textDecoration:"underline" }}>
+                  {isEdit?"Đóng":"✏️ Cập nhật vận đơn"}
+                </button>
+              </div>
             </div>
-          )}
-        </div>
-      ))}
-      {!loading && imports.length===0 && <div style={{ textAlign:"center", padding:40, color:"#9ca3af" }}>Chưa có phiếu nhập kho</div>}
+            {ro.tracking_code && (
+              <div style={{ fontSize:13, color:"#0369a1", marginTop:6 }}>
+                📦 {ro.shipping_unit||""} — <b>{ro.tracking_code}</b>
+                {ro.shipping_note && <span style={{ color:"#6b7280" }}> · {ro.shipping_note}</span>}
+              </div>
+            )}
+            {!ro.tracking_code && !isEdit && (
+              <div style={{ fontSize:11, color:"#9ca3af", marginTop:4 }}>⏳ Chưa có vận đơn — nhấn "Cập nhật vận đơn" để gửi trả</div>
+            )}
+            {isEdit && renderTrackingForm()}
+          </div>
+        );
+      })}
+
+      {!loading && (
+        (tab==="inbound" && inboundList.length===0) ||
+        (tab==="sale" && saleShipList.length===0) ||
+        (tab==="warranty" && repairShipList.length===0)
+      ) && <div style={{ textAlign:"center", padding:40, color:"#9ca3af" }}>Chưa có đơn nào</div>}
     </div>
   );
 }
@@ -1573,7 +1723,7 @@ export function WhDefectPage({ user }) {
   return (<><WhPageHeader icon="⚠️" title="LK lỗi / RMA" subtitle="Linh kiện lỗi & Trả hàng NCC" /><DefectTab user={user} warehouses={whList} /></>);
 }
 export function WhShippingPage({ user }) {
-  return (<><WhPageHeader icon="🚚" title="Vận đơn" subtitle="Theo dõi mã vận đơn & nhận hàng" /><ShippingTab user={user} /></>);
+  return (<><WhPageHeader icon="🚚" title="Vận đơn" subtitle="Nhận hàng NCC · Giao bán · Trả bảo hành" /><ShippingTab user={user} /></>);
 }
 export function WhReportPage({ user }) {
   const [whList, setWhList] = useState([]);

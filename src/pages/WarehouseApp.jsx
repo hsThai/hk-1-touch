@@ -629,6 +629,11 @@ function WarehouseImport({ user }) {
   const [warehouseId, setWarehouseId]     = React.useState("");
   const [warehouseName, setWarehouseName] = React.useState("");
 
+  // Vận đơn nhập hàng
+  const [trackingCode, setTrackingCode]     = React.useState("");
+  const [shippingUnit, setShippingUnit]     = React.useState("");
+  const [shippingNote, setShippingNote]     = React.useState("");
+
   React.useEffect(() => { loadImports(); }, []);
 
   // Load catalog khi mở form nhập kho
@@ -936,6 +941,9 @@ function WarehouseImport({ user }) {
         status:"confirmed", note, created_by:user.id, created_by_name:user.name,
         confirmed_by: user.id, confirmed_by_name: user.name||"",
         confirmed_at: new Date().toISOString().slice(0,10),
+        tracking_code: trackingCode || "",
+        shipping_unit: shippingUnit || "",
+        shipping_note: shippingNote || "",
       });
       logAction(user, "import_stock", "stock_import", imp.id, `Nhập hàng ${code}: ${items.length} mặt hàng — ${totalValue.toLocaleString("vi-VN")}đ`);
       for (const it of items) {
@@ -1126,6 +1134,7 @@ function WarehouseImport({ user }) {
       setSupplier(""); setSupplierPhone(""); setNote("");
       setImportType("spare_part"); setImpPaidAmt(0); setImpPayMethod("cash");
       setSelectedPO(null); setShowPOPicker(false);
+      setTrackingCode(""); setShippingUnit(""); setShippingNote("");
       loadImports();
     } catch(e){ showToast("Lỗi: "+e.message); }
     setSaving(false);
@@ -1180,6 +1189,7 @@ function WarehouseImport({ user }) {
                 </div>
                 <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
                   <div style={{ background:sc.bg, color:sc.color, borderRadius:20, padding:"3px 10px", fontSize:11, fontWeight:700 }}>{sc.label}</div>
+                  {imp.tracking_code && <div style={{ fontSize:10, color:"#0369a1", fontWeight:700, marginTop:2 }}>📦 {imp.shipping_unit||""}</div>}
                   <button
                     onClick={e=>{e.stopPropagation();setConfirmDelete(imp);}}
                     style={{ background:"#fef2f2", border:"none", color:"#dc2626", borderRadius:8, padding:"4px 8px", fontSize:11, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:3 }}>
@@ -1235,6 +1245,7 @@ function WarehouseImport({ user }) {
                   ["Tổng giá trị",    `${(viewDetail.total_value||0).toLocaleString("vi-VN")}đ`],
                   ["Người tạo",       viewDetail.created_by_name||"—"],
                   ["Ngày nhập",       viewDetail.confirmed_at ? new Date(viewDetail.confirmed_at).toLocaleString("vi-VN") : "—"],
+                  ["Vận đơn",         viewDetail.tracking_code ? `${viewDetail.shipping_unit||""} — ${viewDetail.tracking_code}` : "—"],
                   ["Ghi chú",         viewDetail.note||"—"],
                 ].map(([label, val],i)=>(
                   <div key={i} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0",
@@ -1683,6 +1694,19 @@ function WarehouseImport({ user }) {
                     )}
                   </div>
               ))}
+
+              {/* Thông tin vận đơn (tuỳ chọn) */}
+              <div style={{ marginBottom:14, padding:"12px 14px", background:"#f0f9ff", borderRadius:12, border:"1.5px solid #bae6fd" }}>
+                <div style={{ fontWeight:800, fontSize:13, color:"#0369a1", marginBottom:8, display:"flex", alignItems:"center", gap:6 }}>
+                  <span className="material-icons" style={{fontSize:16}}>local_shipping</span>Thông tin vận đơn (tuỳ chọn)
+                </div>
+                <input value={trackingCode} onChange={e=>setTrackingCode(e.target.value)} placeholder="Mã vận đơn (GHN123456...)"
+                  style={{ width:"100%", height:38, borderRadius:8, border:"1.5px solid #bae6fd", padding:"0 10px", fontSize:13, outline:"none", boxSizing:"border-box", marginBottom:6 }}/>
+                <input value={shippingUnit} onChange={e=>setShippingUnit(e.target.value)} placeholder="Đơn vị vận chuyển (GHN, GHTK...)"
+                  style={{ width:"100%", height:38, borderRadius:8, border:"1.5px solid #bae6fd", padding:"0 10px", fontSize:13, outline:"none", boxSizing:"border-box", marginBottom:6 }}/>
+                <input value={shippingNote} onChange={e=>setShippingNote(e.target.value)} placeholder="Ghi chú vận đơn..."
+                  style={{ width:"100%", height:38, borderRadius:8, border:"1.5px solid #bae6fd", padding:"0 10px", fontSize:13, outline:"none", boxSizing:"border-box" }}/>
+              </div>
 
               {/* Ghi chú phiếu */}
               <textarea value={note} onChange={e=>setNote(e.target.value)}
