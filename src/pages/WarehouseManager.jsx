@@ -1379,10 +1379,16 @@ function ShippingTab({ user }) {
           `Giao hàng: ${form.shipping_unit||""} ${form.tracking_code||""}`);
         setSales(p => p.map(s => s.id===editId ? {...s, ...updates, ship_status: form.tracking_code ? "shipped" : ""} : s));
       } else if (editType === "repair") {
-        await RepairOrder.update(editId, { ...updates, ship_status: form.tracking_code ? "shipped" : "" });
+        const repairUpdates = {
+          shipping_order_code: form.tracking_code,
+          shipping_provider:   form.shipping_unit,
+          shipping_note:        form.shipping_note,
+          shipping_status:      form.tracking_code ? "shipped" : "",
+        };
+        await RepairOrder.update(editId, repairUpdates);
         logAction(user, "update", "repair_order", editId,
           `Gửi trả bảo hành: ${form.shipping_unit||""} ${form.tracking_code||""}`);
-        setRepairs(p => p.map(r => r.id===editId ? {...r, ...updates, ship_status: form.tracking_code ? "shipped" : ""} : r));
+        setRepairs(p => p.map(r => r.id===editId ? {...r, ...repairUpdates} : r));
       }
       setEditId(null); setEditType("");
       alert("✅ Đã cập nhật vận đơn");
@@ -1391,21 +1397,30 @@ function ShippingTab({ user }) {
 
   function startEdit(id, type, record) {
     setEditId(id); setEditType(type);
-    setForm({
-      tracking_code: record.tracking_code || "",
-      shipping_unit: record.shipping_unit || "",
-      shipping_note: record.shipping_note || "",
-    });
+    if (type === "repair") {
+      setForm({
+        tracking_code: record.shipping_order_code || "",
+        shipping_unit: record.shipping_provider || "",
+        shipping_note: record.shipping_note || "",
+      });
+    } else {
+      setForm({
+        tracking_code: record.tracking_code || "",
+        shipping_unit: record.shipping_unit || "",
+        shipping_note: record.shipping_note || "",
+      });
+    }
   }
 
   // ── Filter logic ──
   const inboundList  = imports;  // all imports
   const saleShipList = sales.filter(s => s.tracking_code || s.ship_status === "shipped" || ["completed","pending_payment"].includes(s.status));
-  const repairShipList = repairs.filter(r => r.tracking_code || r.ship_status === "shipped" || ["done","handover","completed"].includes(r.status));
+  const repairShipList = repairs.filter(r => r.shipping_order_code || r.shipping_status === "shipped" || ["done","handover","completed"].includes(r.status));
 
   const STS_IN = { confirmed:"✅ Đã nhận", pending:"🚚 Đang vận chuyển", draft:"📝 Nháp" };
   const STC_IN = { confirmed:"#059669", pending:"#d97706", draft:"#9ca3af" };
-  const STS_OUT = { shipped:"📦 Đã gửi", delivered:"✅ Đã giao", "":"⏳ Chưa gửi" };
+  const STS_OUT_SALE = { shipped:"📦 Đã gửi", delivered:"✅ Đã giao", "":"⏳ Chưa gửi" };
+  const STS_OUT_REP = { shipped:"📦 Đã gửi", delivered:"✅ Đã giao", "":"⏳ Chưa gửi" };
 
   const TABS = [
     { key:"inbound",  label:"📥 Nhận hàng",  count: inboundList.length },
@@ -1488,7 +1503,7 @@ function ShippingTab({ user }) {
       {/* ── OUTBOUND SALE: Giao bán cho khách xa ── */}
       {!loading && tab==="sale" && saleShipList.map(so=>{
         const isEdit = editId===so.id && editType==="sale";
-        const shipSts = STS_OUT[so.ship_status] || STS_OUT[""];
+        const shipSts = STS_OUT_SALE[so.ship_status] || STS_OUT_SALE[""];
         return (
           <div key={so.id} style={{ background:"#fff", borderRadius:10, padding:14, marginBottom:10, boxShadow:"0 1px 4px rgba(0,0,0,.06)" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
@@ -1526,7 +1541,7 @@ function ShippingTab({ user }) {
       {/* ── OUTBOUND WARRANTY: Trả bảo hành cho khách ── */}
       {!loading && tab==="warranty" && repairShipList.map(ro=>{
         const isEdit = editId===ro.id && editType==="repair";
-        const shipSts = STS_OUT[ro.ship_status] || STS_OUT[""];
+        const shipSts = STS_OUT_REP[ro.shipping_status] || STS_OUT_REP[""];
         return (
           <div key={ro.id} style={{ background:"#fff", borderRadius:10, padding:14, marginBottom:10, boxShadow:"0 1px 4px rgba(0,0,0,.06)" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
@@ -1540,7 +1555,7 @@ function ShippingTab({ user }) {
                 </div>
               </div>
               <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
-                <span style={{ fontSize:11, fontWeight:700, color: ro.ship_status==="shipped" ? "#0369a1" : "#9ca3af", background:"#f3f4f6", padding:"2px 8px", borderRadius:6 }}>
+                <span style={{ fontSize:11, fontWeight:700, color: ro.shipping_status==="shipped" ? "#0369a1" : "#9ca3af", background:"#f3f4f6", padding:"2px 8px", borderRadius:6 }}>
                   {shipSts}
                 </span>
                 <button onClick={()=>{ isEdit ? (setEditId(null), setEditType("")) : startEdit(ro.id,"repair",ro) }}
@@ -1549,13 +1564,13 @@ function ShippingTab({ user }) {
                 </button>
               </div>
             </div>
-            {ro.tracking_code && (
+            {ro.shipping_order_code && (
               <div style={{ fontSize:13, color:"#0369a1", marginTop:6 }}>
-                📦 {ro.shipping_unit||""} — <b>{ro.tracking_code}</b>
+                📦 {ro.shipping_provider||""} — <b>{ro.shipping_order_code}</b>
                 {ro.shipping_note && <span style={{ color:"#6b7280" }}> · {ro.shipping_note}</span>}
               </div>
             )}
-            {!ro.tracking_code && !isEdit && (
+            {!ro.shipping_order_code && !isEdit && (
               <div style={{ fontSize:11, color:"#9ca3af", marginTop:4 }}>⏳ Chưa có vận đơn — nhấn "Cập nhật vận đơn" để gửi trả</div>
             )}
             {isEdit && renderTrackingForm()}
