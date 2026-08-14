@@ -1,13 +1,28 @@
 import React, { useState, useEffect } from "react";
 import { getPbUrl, getAuth } from "./pb.jsx";
 
+// Chuyển "YYYY-MM-DD" (ngày local của user, giờ VN) -> ISO UTC string khớp định dạng
+// đang lưu trong created_date ("...T...Z"). new Date("YYYY-MM-DD") parse theo UTC nên
+// phải tách y/m/d rồi dựng Date theo local timezone của browser mới ra đúng mốc giờ VN.
+function localDateToUtcIso(dateStr, endOfDay = false) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = endOfDay
+    ? new Date(y, m - 1, d, 23, 59, 59, 999)
+    : new Date(y, m - 1, d, 0, 0, 0, 0);
+  return dt.toISOString();
+}
+
 async function fetchLogs({ page, perPage, search, dateFrom, dateTo }) {
   const base = getPbUrl();
   const { token } = getAuth();
   const filters = [];
   if (search)   filters.push(`(staff_name~"${search}"||action~"${search}"||target_type~"${search}"||detail~"${search}")`);
-  if (dateFrom) filters.push(`created_date>="${dateFrom} 00:00:00"`);
-  if (dateTo)   filters.push(`created_date<="${dateTo} 23:59:59"`);
+  // created_date lưu dạng text ISO "YYYY-MM-DDTHH:MM:SS.sssZ" — PocketBase so sánh
+  // filter theo string (lexicographic), nên PHẢI dùng đúng format "T...Z" khớp dữ liệu lưu,
+  // nếu dùng dấu cách (" 00:00:00") thì so sánh string bị lệch và luôn trả về rỗng.
+  // Đồng thời phải quy đổi ngày local (giờ VN) sang UTC để không bị lệch mốc giờ.
+  if (dateFrom) filters.push(`created_date>="${localDateToUtcIso(dateFrom, false)}"`);
+  if (dateTo)   filters.push(`created_date<="${localDateToUtcIso(dateTo, true)}"`);
   const params = new URLSearchParams({
     page, perPage,
     sort: "-id",
