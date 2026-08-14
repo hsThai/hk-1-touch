@@ -1,6 +1,6 @@
 /* CashierApp.jsx — App 3: Kế toán & Bán hàng lẻ */
 import React, { useState, useEffect } from "react";
-import { RepairOrder, SaleOrder, SaleOrderItem, Expense, CashJournal, ShiftReconcile, DebtVoucher, getLocalDate } from "./pb.jsx";
+import { RepairOrder, SaleOrder, SaleOrderItem, Expense, CashJournal, ShiftReconcile, DebtVoucher, logAction, getLocalDate } from "./pb.jsx";
 
 const ALLOWED_ROLES = ["accountant", "cashier", "manager", "admin", "owner", "sales", "team_leader"];
 const DONE_STATUS   = ["Hoàn Thành", "Đã Giao", "Đã Thanh Toán"];
@@ -204,6 +204,7 @@ function ShiftReconcilePage({ user }) {
       } else {
         await ShiftReconcile.create(payload);
       }
+      logAction(user, "shift_reconcile", "shift_reconcile", reconcileRecord?.id||"", `${status==="confirmed"?"Xác nhận":"Lưu nháp"} đối soát ca`);
       alert(status === "confirmed" ? "✅ Đã xác nhận đối soát ca!" : "Đã lưu nháp");
       load();
     } catch(e) { alert("Lỗi lưu: "+e.message); }

@@ -4,7 +4,7 @@
  * @version 2026-05-29-v1
  */
 import { useState, useEffect } from "react";
-import { Department, Staff } from "./pb.jsx";
+import { Department, Staff, logAction } from "./pb.jsx";
 import { ROLE_DEFINITIONS } from "./seedRoles.js";
 
 const ROLE_MAP = Object.fromEntries(ROLE_DEFINITIONS.map(r => [r.key, r]));
@@ -44,7 +44,7 @@ function Badge({ label, color="#4f46e5", bg }) {
   );
 }
 
-function EditModal({ dept, onSave, onClose }) {
+function EditModal({ dept, onSave, onClose, user }) {
   const [form, setForm] = useState(dept
     ? { name:dept.name, code:dept.code, icon:dept.icon||"🏢", color:dept.color||"#4f46e5",
         role_keys: Array.isArray(dept.role_keys) ? dept.role_keys : [], sort_order:dept.sort_order||99 }
@@ -66,8 +66,8 @@ function EditModal({ dept, onSave, onClose }) {
     if (!form.name.trim()) { setErr("Nhập tên phòng ban"); return; }
     setSaving(true);
     try {
-      if (dept && dept.id) await Department.update(dept.id, form);
-      else                 await Department.create(form);
+      if (dept && dept.id) { await Department.update(dept.id, form); logAction(user, "update", "department", dept.id, `Sửa phòng ban: ${form.name||""}`); }
+      else                 { const d = await Department.create(form); logAction(user, "create", "department", d.id, `Tạo phòng ban: ${form.name||""}`); }
       onSave();
     } catch(e) { setErr(e.message||"Lỗi lưu"); }
     setSaving(false);
@@ -160,17 +160,17 @@ function EditModal({ dept, onSave, onClose }) {
   );
 }
 
-function ManageModal({ depts, onClose, onRefresh }) {
+function ManageModal({ depts, onClose, onRefresh, user }) {
   const [editing, setEditing] = useState(null);
 
   async function deleteDept(d) {
     if (!window.confirm(`Xóa phòng ban "${d.name}"?`)) return;
-    try { await Department.delete(d.id); onRefresh(); }
+    try { await Department.delete(d.id); logAction(user, "delete", "department", d.id, `Xóa phòng ban: ${d.name||""}`); onRefresh(); }
     catch(e) { alert("Lỗi xóa: " + e.message); }
   }
 
   if (editing !== null) {
-    return <EditModal
+    return <EditModal user={user}
       dept={editing || null}
       onSave={() => { setEditing(null); onRefresh(); }}
       onClose={() => setEditing(null)}
@@ -390,7 +390,7 @@ export default function DepartmentPage({ user }) {
       )}
 
       {showMgr && (
-        <ManageModal
+        <ManageModal user={user}
           depts={depts}
           onClose={() => setShowMgr(false)}
           onRefresh={() => { setShowMgr(false); load(); }}

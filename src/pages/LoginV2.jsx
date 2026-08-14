@@ -1,6 +1,6 @@
 /* LoginV2 - PocketBase Auth + RememberMe + AutoLogin */
 import React, { useState, useEffect } from "react";
-import { Staff, pbAuth, getPbUrl, setPbUrl, testConnection } from "./pb.jsx";
+import { Staff, pbAuth, getPbUrl, setPbUrl, testConnection, logAction } from "./pb.jsx";
 
 // Inject Material Icons font
 (function injectMaterialIcons() {
@@ -285,6 +285,7 @@ export default function LoginV2({ onLogin, loggedOut }) {
       if (userInfo) {
         if (rememberMe) saveCred(uname, pwd);
         else clearCred();
+        logAction(userInfo, "login", "auth", userInfo.id, `Đăng nhập: ${userInfo.full_name||uname}`);
         onLogin(userInfo);
         return;
       }

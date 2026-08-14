@@ -1,7 +1,7 @@
 /* v1774860462-7212 */
 import React, { useState, useEffect, useRef } from "react";
 import ChangePassword from "./ChangePassword";
-import { AppSettings, getPbUrl, setPbUrl, testConnection } from "./pb.jsx";
+import { AppSettings, getPbUrl, setPbUrl, testConnection, logAction } from "./pb.jsx";
 import { requestNotifPermission, showSystemNotif } from "./LoginV2";
 
 
@@ -123,6 +123,7 @@ export default function Settings({ user }) {
       const list = await AppSettings.filter({ key });
       if (list.length > 0) await AppSettings.update(list[0].id, { value });
       else await AppSettings.create({ key, value, label: key, group: key.startsWith("notif_") ? "notification" : "shop" });
+      logAction(user, "update_setting", "app_settings", key, `Đổi cấu hình: ${key}`);
     } catch {}
   }
 

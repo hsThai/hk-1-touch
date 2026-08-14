@@ -1108,6 +1108,7 @@ function MainAppContent({ onUserChange }) {
     </div>
   );
   const doLogout = () => {
+    if (user) logAction(user, "logout", "auth", user.id, `Đăng xuất: ${user.full_name||user.name||""}`);
     setUser(null);
     onUserChange?.(null);
     setLoggedOut(true);

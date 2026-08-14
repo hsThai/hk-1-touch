@@ -1,6 +1,6 @@
 /* Stock Export Request Flow - KTV tạo đề nghị xuất */
 import React, { useState } from "react";
-import { StockExportRequest, SparePartUsage, RepairChat, StockLedger, StockMovement } from "./pb.jsx";
+import { StockExportRequest, SparePartUsage, RepairChat, StockLedger, StockMovement, logAction } from "./pb.jsx";
 
 export async function createExportRequest({
   order,
@@ -49,6 +49,7 @@ export async function createExportRequest({
       total_value: totalValue,
       reminded_15min: false,
     });
+    logAction(currentStaff, "create_export", "stock_export", request.id, `Tạo phiếu xuất ${requestCode}: ${items.length} LK — ${totalValue.toLocaleString("vi-VN")}đ`);
 
     // Gửi notif cho tất cả NV kho
     // (backend sẽ handle)
@@ -87,6 +88,7 @@ export async function confirmWarehouseExport({
       warehouse_media: JSON.stringify(mediaUrls || []),
     });
 
+    logAction(warehouseStaff, "confirm_export", "stock_export", requestId, `Kho xác nhận xuất: ${requestCode||requestId}`);
     // Trừ tồn kho thật + bỏ reserved + tạo stock_movement cho từng usage
     if (usages && usages.length > 0) {
       for (const usage of usages) {
@@ -151,7 +153,7 @@ export async function confirmKtvReceived({
       ktv_note: note,
       ktv_media: JSON.stringify(mediaUrls || []),
     });
-
+    logAction(ktvStaff, "receive_parts", "stock_export", requestId, `KTV xác nhận nhận: ${requestId}`);
     return updated;
   } catch (e) {
     console.error("Lỗi xác nhận nhận:", e);

@@ -1,7 +1,7 @@
 /* v3-rebuild-1774864528 */
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, SparePartUsage } from "./pb.jsx";
-import { uploadFile } from "./pb.jsx";
+import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, SparePartUsage, logAction } from "./pb.jsx";
+import { uploadFile, getAuth } from "./pb.jsx";
 
 import { timeAgo, genOrderId, getKpiTimerInfo } from "./MediaViewer";
 import { QRScanModal, IMEIScanModal } from "./QRComponents.jsx";
@@ -58,6 +58,8 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
     setSavingCust(true);
     try {
       const created = await Customer.create({ full_name: newCustName.trim(), phone: newCustPhone.trim() || "" });
+      const _a = getAuth(); const _u = (users||[]).find(u => u.id === _a.userId) || {id:_a.userId};
+      logAction(_u, "create", "customer", created.id, `Tạo KH nhanh: ${newCustName.trim()} — ${newCustPhone.trim()||""}`);
       set("customer_id", created.id || "");
       set("customer_name", created.full_name || newCustName.trim());
       set("customer_phone", created.phone || newCustPhone.trim() || "");

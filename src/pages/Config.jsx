@@ -1,6 +1,6 @@
 /* v1774860462-7212 */
 import { useState, useEffect, useRef } from "react";
-import { AppSettings } from "./pb.js";
+import { AppSettings, logAction, getAuth } from "./pb.jsx";
 
 
 const SHOP_KEYS = [
@@ -122,6 +122,7 @@ export default function Settings() {
       const list = await AppSettings.filter({ key });
       if (list.length > 0) await AppSettings.update(list[0].id, { value });
       else await AppSettings.create({ key, value, label: key, group: key.startsWith("notif_") ? "notification" : "shop" });
+      const a = getAuth(); logAction({id:a.userId, name:"", role:""}, "update_setting", "app_settings", key, `Đổi cấu hình: ${key} = ${value}`);
     } catch {}
   }
 

@@ -3,7 +3,7 @@
  * @version 2026-06-01-v1
  */
 import React, { useState, useEffect, useMemo } from "react";
-import { SparePart } from "./pb.jsx";
+import { SparePart, logAction } from "./pb.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 
@@ -36,6 +36,7 @@ function EditPriceModal({ item, onSave, onClose }) {
         cost_price:      Number(cost),
         price:           Number(retail),
       });
+      logAction(user, "update_price", "spare_part", item.id, `Đổi giá: ${item.name||item.sku||""} → ${Number(retail).toLocaleString("vi-VN")}đ`);
       onSave();
     } catch(e) { alert("Lỗi: " + e.message); }
     setSaving(false);

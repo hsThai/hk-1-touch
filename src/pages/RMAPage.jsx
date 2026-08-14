@@ -4,7 +4,7 @@
  * Cho phép ghi nhận và theo dõi linh kiện trả lại nhà cung cấp (DOA, lỗi, sai spec)
  */
 import React, { useState, useEffect } from "react";
-import { SparePart, StockLedger, Supplier } from "./pb.jsx";
+import { SparePart, StockLedger, Supplier, logAction } from "./pb.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 function fmtDate(s) {
@@ -68,7 +68,7 @@ function CreateRMAModal({ user, suppliers, spareParts, onClose, onCreated }) {
         category:     part?.category || "",
         unit:         part?.unit || "",
       });
-
+      logAction(user, "create_rma", "stock_ledger", "", `RMA: ${part?.name||""} — ${reasonLabel} → ${supplier?.name||"NCC"}`);
       onCreated?.();
       onClose();
     } catch(e) {

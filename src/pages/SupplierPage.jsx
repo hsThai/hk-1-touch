@@ -3,7 +3,7 @@
  * @version 2026-05-29-v1
  */
 import React, { useState, useEffect } from "react";
-import { Supplier, StockImport } from "./pb.jsx";
+import { Supplier, StockImport, logAction } from "./pb.jsx";
 
 const TYPES = {
   goods:    { label:"🏭 Hàng hóa",   color:"#d97706", bg:"#fef3c7" },
@@ -32,8 +32,8 @@ function SupplierModal({ init, onSave, onClose }) {
     if (!form.name.trim()) { setErr("Nhập tên nhà cung cấp"); return; }
     setSaving(true);
     try {
-      if (init && init.id) await Supplier.update(init.id, form);
-      else                  await Supplier.create(form);
+      if (init && init.id) { await Supplier.update(init.id, form); logAction(user, "update", "supplier", init.id, `Sửa NCC: ${form.name||""}`); }
+      else                  { const s = await Supplier.create(form); logAction(user, "create", "supplier", s.id, `Tạo NCC: ${form.name||""}`); }
       onSave();
     } catch(e) { setErr(e.message || "Lỗi lưu"); }
     setSaving(false);
@@ -142,7 +142,7 @@ export default function SupplierPage({ user }) {
 
   async function del(s) {
     if (!window.confirm(`Xóa nhà cung cấp "${s.name}"?`)) return;
-    try { await Supplier.delete(s.id); showToast("🗑️ Đã xóa"); setList(l => l.filter(x => x.id !== s.id)); }
+    try { await Supplier.delete(s.id); logAction(user, "delete", "supplier", s.id, `Xóa NCC: ${s.name||""}`); showToast("🗑️ Đã xóa"); setList(l => l.filter(x => x.id !== s.id)); }
     catch(e) { showToast("❌ " + e.message); }
   }
 

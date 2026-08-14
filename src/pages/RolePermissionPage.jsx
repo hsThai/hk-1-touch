@@ -4,7 +4,7 @@
  * toggle hàng "Chọn tất cả", staff badge, checkbox lớn mobile-friendly
  */
 import React, { useState, useEffect } from "react";
-import { Role, RolePermission, Staff } from "./pb.jsx";
+import { Role, RolePermission, Staff, logAction, getAuth } from "./pb.jsx";
 import { ROLE_DEFINITIONS } from "./seedRoles.js";
 import { STATIC_MATRIX } from "./PermissionContext.jsx";
 
@@ -54,6 +54,8 @@ const ACTION_LABELS = [
 
 // ── Component ─────────────────────────────────────────────
 export default function RolePermissionPage() {
+  const _auth = getAuth();
+  const _user = { id: _auth.userId, name: "", role: "" };
   const [roles,      setRoles]      = useState([]);
   const [perms,      setPerms]      = useState({});
   const [staffList,  setStaffList]  = useState([]);
@@ -197,8 +199,10 @@ export default function RolePermissionPage() {
 
       if (existingBefore?.id) {
         await RolePermission.update(existingBefore.id, payload);
+        logAction(_user, "update_permission", "role_permission", existingBefore.id, `Đổi quyền: ${roleKey}/${resource}/${actionKey} → ${value}`);
       } else {
         const created = await RolePermission.create(payload);
+        logAction(_user, "update_permission", "role_permission", created.id, `Cấp quyền: ${roleKey}/${resource}/${actionKey} → ${value}`);
         permsRef.current = {
           ...permsRef.current,
           [roleKey]: {
@@ -255,8 +259,10 @@ export default function RolePermissionPage() {
       };
       if (existingBefore?.id) {
         await RolePermission.update(existingBefore.id, payload);
+        logAction(_user, "update_permission", "role_permission", existingBefore.id, `Toggle all: ${roleKey}/${resource} → ${newVal?"on":"off"}`);
       } else {
         const created = await RolePermission.create(payload);
+        logAction(_user, "update_permission", "role_permission", created.id, `Toggle all: ${roleKey}/${resource} → ${newVal?"on":"off"}`);
         permsRef.current = {
           ...permsRef.current,
           [roleKey]: {
@@ -284,6 +290,7 @@ export default function RolePermissionPage() {
     try {
       const { seedAll } = await import("./seedRoles.js");
       await seedAll(msg => showToast(msg, 1500));
+      logAction(_user, "seed_permissions", "role_permission", "", "Seed toàn bộ ma trận phân quyền");
       const dbPerms = await RolePermission.list({ limit: 2000 });
       const map = {};
       dbPerms.forEach(p => {

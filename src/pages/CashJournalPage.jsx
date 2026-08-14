@@ -3,7 +3,7 @@
  * @version 2026-05-29-v1
  */
 import React, { useState, useEffect, useMemo } from "react";
-import { CashJournal } from "./pb.jsx";
+import { CashJournal, logAction } from "./pb.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 function fmtDate(s) {
@@ -41,6 +41,8 @@ function ManualEntryModal({ user, onSave, onClose }) {
         created_by_id:   user.id,
         created_by_name: user.full_name || user.name || "",
       });
+      logAction(user, form.entry_type==="receipt"?"add_receipt":"add_payment", "cash_journal", "",
+        `${form.entry_type==="receipt"?"Thu":"Chi"}: ${Number(form.amount).toLocaleString("vi-VN")}đ — ${form.description}`);
       onSave();
     } catch(e) { setErr(e.message || "Lỗi lưu"); }
     setSaving(false);

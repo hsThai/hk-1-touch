@@ -3,7 +3,7 @@
  * @version 2026-05-29-v1
  */
 import React, { useState, useEffect } from "react";
-import { DebtVoucher, DebtPayment, CashJournal, Supplier, SaleOrder, SaleOrderItem, getLocalDate } from "./pb.jsx";
+import { DebtVoucher, DebtPayment, CashJournal, Supplier, SaleOrder, SaleOrderItem, getLocalDate, logAction } from "./pb.jsx";
 import { printSaleReceiptA5 } from "../utils/printClient.js";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
@@ -43,6 +43,7 @@ async function recordPayment(voucher, amount, method, note, currentUser) {
   const newRemaining = Math.max(0, (voucher.total_amount || 0) - newPaid);
   const newStatus    = newRemaining <= 0 ? "paid" : "partial";
   await DebtVoucher.update(voucher.id, { paid_amount: newPaid, remaining: newRemaining, status: newStatus });
+  logAction(currentUser, "pay_debt", "debt_payment", voucher.id, `${voucher.voucher_type==="receivable"?"Thu nợ":"Trả nợ"} ${voucher.party_name}: ${Number(amount).toLocaleString("vi-VN")}đ (${method})`);
   // Nếu thanh toán hết và là đơn bán hàng → cập nhật paid_date vào SaleOrder
   if (newStatus === "paid" && voucher.origin_type === "sale_order" && voucher.origin_id) {
     try {

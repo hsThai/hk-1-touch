@@ -3,7 +3,7 @@
  * Lưu vào app_settings (PocketBase)
  */
 import React, { useState, useEffect } from "react";
-import { AppSettings } from "./pb.jsx";
+import { AppSettings, logAction } from "./pb.jsx";
 import {
   previewReceiptForm, previewBill, previewSaleReceipt,
   previewWarrantyLabel, previewSparePartLabel,
@@ -98,6 +98,7 @@ export default function PrintSettingsTab({ user }) {
       const list = await AppSettings.filter({ key });
       if (list && list.length > 0) await AppSettings.update(list[0].id, { value });
       else await AppSettings.create({ key, value, label:key, group:"print" });
+      logAction(user, "update_setting", "print_settings", key, `Lưu cấu hình in: ${key}`);
     } catch(e) { console.error("Lỗi lưu setting", key, e); }
   }
 
@@ -154,6 +155,7 @@ export default function PrintSettingsTab({ user }) {
       if (list && list.length > 0) await AppSettings.update(list[0].id, { value:editHtml });
       else await AppSettings.create({ key:`print_tpl_${editKey}`, value:editHtml, label:`Template ${editKey}`, group:"print" });
       setTplStatus(p => ({ ...p, [editKey]:"custom" }));
+      logAction(user, "update_template", "print_settings", editKey, `Sửa mẫu in: ${editKey}`);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch(e) { alert("Lỗi lưu: " + e.message); }
@@ -166,6 +168,7 @@ export default function PrintSettingsTab({ user }) {
       const list = await AppSettings.filter({ key:`print_tpl_${tplKey}` });
       if (list && list.length > 0) await AppSettings.update(list[0].id, { value:"" });
       setTplStatus(p => ({ ...p, [tplKey]:"default" }));
+      logAction(user, "reset_template", "print_settings", tplKey, `Reset mẫu in: ${tplKey}`);
       if (editKey === tplKey) setEditKey(null);
     } catch(e) { alert("Lỗi: " + e.message); }
   }
@@ -177,6 +180,7 @@ export default function PrintSettingsTab({ user }) {
       const list = await AppSettings.filter({ key:`print_tpl_${tplKey}_disabled` });
       if (list && list.length > 0) await AppSettings.update(list[0].id, { value:newVal });
       else await AppSettings.create({ key:`print_tpl_${tplKey}_disabled`, value:newVal, label:`Disable ${tplKey}`, group:"print" });
+      logAction(user, "toggle_template", "print_settings", tplKey, `${isDisabled?"Bật":"Tắt"} mẫu in: ${tplKey}`);
       setTplStatus(p => ({ ...p, [tplKey]: isDisabled ? (p[tplKey] === "disabled" ? "default" : "default") : "disabled" }));
     } catch(e) { alert("Lỗi: " + e.message); }
   }
