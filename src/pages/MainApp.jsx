@@ -1366,6 +1366,8 @@ function MainAppContent({ onUserChange }) {
         { key:"customers",      icon:"group",                  label:"Khách hàng",       perm:["customer","view"] },
         { key:"wh_manager",     icon:"warehouse",              label:"Thiết lập kho",    perm:["warehouse_mgr","view"] },
         { key:"wh_ledger",      icon:"inventory_2",            label:"Tồn kho",          perm:["stock_ledger","view"] },
+        { key:"stock_nxt",      icon:"assessment",             label:"Thẻ kho (NXT)",    perm:["stock_ledger","view"] },
+        { key:"wh_export",      icon:"outbox",                 label:"Xuất kho",         perm:["stock_export","view"] },
         { key:"stock_count",    icon:"fact_check",             label:"Kiểm kê kho",      perm:["stock_count","view"] },
         { key:"purchase_order", icon:"add_shopping_cart",      label:"Đặt hàng NCC",     perm:["purchase_order","view"] },
         { key:"suppliers",      icon:"storefront",             label:"Danh sách NCC",    perm:["supplier","view"] },
@@ -1393,13 +1395,21 @@ function MainAppContent({ onUserChange }) {
     if (can("sale_order","view"))
       items.push({ key:"cashier_home", icon:"point_of_sale", label:"Thu ngân (POS)" });
     if (can("sale_order","view") && !isKtv && !isWarehouse)
-      items.push({ key:"return_order", icon:"swap_horiz", label:"Đổi trả & BH" });
+      items.push({ key:"sale_order",   icon:"receipt_long",  label:"Đơn bán hàng" });
+    if (can("sale_order","view") && !isKtv && !isWarehouse)
+      items.push({ key:"return_order", icon:"swap_horiz",    label:"Đổi trả & BH" });
+    if (can("sale_order","view") && !isKtv && !isWarehouse)
+      items.push({ key:"price_policy", icon:"price_change",  label:"Chính sách giá" });
 
     // 4. KHO & VẬT TƯ
     if (can("warehouse_mgr","view") && !isManager)
       items.push({ key:"wh_manager",  icon:"warehouse",       label:"Thiết lập kho" });
     if (can("stock_ledger","view") && !isManager)
       items.push({ key:"wh_ledger",   icon:"inventory_2",     label:"Tồn kho" });
+    if (can("stock_export","view") && !isManager)
+      items.push({ key:"wh_export",   icon:"outbox",          label:"Xuất kho" });
+    if (can("stock_ledger","view") && !isManager)
+      items.push({ key:"stock_nxt",   icon:"assessment",      label:"Thẻ kho (NXT)" });
     if (can("stock_count","view") && !isManager && !isRoleHome)
       items.push({ key:"stock_count", icon:"fact_check", label:"Kiểm kê kho" });
     if (can("stock_import","view") && !isManager)
@@ -1429,12 +1439,28 @@ function MainAppContent({ onUserChange }) {
       items.push({ key:"cash_journal", icon:"menu_book",              label:"Sổ quỹ" });
     if (can("debt","view") && !isManager)
       items.push({ key:"debts",        icon:"account_balance_wallet", label:"Công nợ KH" });
+    if (can("expense","view") && !isManager)
+      items.push({ key:"expense",      icon:"receipt",                label:"Thu / Chi" });
 
-    // 8. THIẾT LẬP
+    // 8. BÁO CÁO
+    if (can("revenue_report","view") && !isManager)
+      items.push({ key:"revenue",       icon:"bar_chart",   label:"Doanh thu" });
+    if (can("profit_report","view") && !isManager)
+      items.push({ key:"report_profit", icon:"trending_up", label:"Lợi nhuận" });
+    if (can("kpi","view") && !isManager)
+      items.push({ key:"report_staff",  icon:"people",      label:"KPI Nhân viên" });
+
+    // 9. THIẾT LẬP
     if (can("staff","view") && !isManager)
       items.push({ key:"staff",    icon:"person",   label:"Nhân viên" });
-    if (can("settings","view") && !isManager)
+    if (can("department","view") && !isManager)
+      items.push({ key:"department", icon:"account_tree",  label:"Phòng ban" });
+    if (can("settings","view") && !isManager) {
       items.push({ key:"settings", icon:"settings", label:"Cài đặt" });
+      items.push({ key:"print_settings", icon:"print", label:"Mẫu in" });
+      items.push({ key:"integrations",   icon:"cable", label:"Tích hợp" });
+      items.push({ key:"action_log",     icon:"history", label:"Nhật ký thao tác" });
+    }
 
     return items;
   })();
@@ -1945,21 +1971,35 @@ function MainAppContent({ onUserChange }) {
                   "new":               "Dịch vụ Sửa chữa",
                   "board":             "Dịch vụ Sửa chữa",
                   "tasks":             "Dịch vụ Sửa chữa",
-                  "cashier_home":      "🛒 Thu ngân (POS)",
+                  "cashier_home":      "🛒 Bán hàng",
+                  "sale_order":        "🛒 Bán hàng",
                   "return_order":      "🛒 Bán hàng",
                   "price_policy":      "🛒 Bán hàng",
-                  "wh_manager":        "Kho & Vật tư",
-                  "wh_ledger":        "Kho & Vật tư",
-                  "wh_defect":        "Kho & Vật tư",
-                  "wh_shipping":      "Kho & Vật tư",
-                  "wh_report":        "Kho & Vật tư",
-                  "stock_count":       "Kho & Vật tư",
-                  "purchase_forecast": "Kho & Vật tư",
-                  "rma":               "Kho & Vật tư",
-                  "customers":         "👥 Đối tác",
-                  "suppliers":         "👥 Đối tác",
+                  "wh_manager":        "📦 Kho & Vật tư",
+                  "wh_ledger":         "📦 Kho & Vật tư",
+                  "wh_export":         "📦 Kho & Vật tư",
+                  "stock_nxt":          "📦 Kho & Vật tư",
+                  "stock_count":        "📦 Kho & Vật tư",
+                  "wh_defect":         "📦 Kho & Vật tư",
+                  "wh_shipping":       "📦 Kho & Vật tư",
+                  "wh_report":         "📦 Kho & Vật tư",
+                  "purchase_order":     "🛒 Mua hàng (NCC)",
+                  "wh_import_ncc":     "🛒 Mua hàng (NCC)",
+                  "debt_ncc":           "🛒 Mua hàng (NCC)",
+                  "suppliers":          "👥 Đối tác",
+                  "customers":          "👥 Đối tác",
                   "cash_journal":      "💰 Kế toán",
                   "debts":             "💰 Kế toán",
+                  "expense":           "💰 Kế toán",
+                  "revenue":            "📊 Báo cáo",
+                  "report_profit":      "📊 Báo cáo",
+                  "report_staff":       "📊 Báo cáo",
+                  "staff":              "⚙️ Thiết lập",
+                  "department":        "⚙️ Thiết lập",
+                  "settings":          "⚙️ Thiết lập",
+                  "print_settings":    "⚙️ Thiết lập",
+                  "integrations":      "⚙️ Thiết lập",
+                  "action_log":        "⚙️ Thiết lập",
                 };
                 const label = groups[item.key];
                 if (label && !shownDividers.has(label)) {
@@ -2135,21 +2175,35 @@ function MainAppContent({ onUserChange }) {
                     "new":               "Dịch vụ Sửa chữa",
                     "board":             "Dịch vụ Sửa chữa",
                     "tasks":             "Dịch vụ Sửa chữa",
-                    "cashier_home":      "🛒 Thu ngân (POS)",
+                    "cashier_home":      "🛒 Bán hàng",
+                    "sale_order":        "🛒 Bán hàng",
                     "return_order":      "🛒 Bán hàng",
                     "price_policy":      "🛒 Bán hàng",
-                    "wh_manager":        "Kho & Vật tư",
-                    "wh_ledger":        "Kho & Vật tư",
-                    "wh_defect":        "Kho & Vật tư",
-                      "wh_shipping":      "Kho & Vật tư",
-                    "wh_report":        "Kho & Vật tư",
-                    "stock_count":       "Kho & Vật tư",
-                    "purchase_forecast": "Kho & Vật tư",
-                    "rma":               "Kho & Vật tư",
-                    "customers":         "👥 Đối tác",
-                    "suppliers":         "👥 Đối tác",
+                    "wh_manager":        "📦 Kho & Vật tư",
+                    "wh_ledger":         "📦 Kho & Vật tư",
+                    "wh_export":         "📦 Kho & Vật tư",
+                    "stock_nxt":          "📦 Kho & Vật tư",
+                    "stock_count":        "📦 Kho & Vật tư",
+                    "wh_defect":         "📦 Kho & Vật tư",
+                    "wh_shipping":       "📦 Kho & Vật tư",
+                    "wh_report":         "📦 Kho & Vật tư",
+                    "purchase_order":     "🛒 Mua hàng (NCC)",
+                    "wh_import_ncc":     "🛒 Mua hàng (NCC)",
+                    "debt_ncc":           "🛒 Mua hàng (NCC)",
+                    "suppliers":          "👥 Đối tác",
+                    "customers":          "👥 Đối tác",
                     "cash_journal":      "💰 Kế toán",
                     "debts":             "💰 Kế toán",
+                    "expense":           "💰 Kế toán",
+                    "revenue":            "📊 Báo cáo",
+                    "report_profit":      "📊 Báo cáo",
+                    "report_staff":       "📊 Báo cáo",
+                    "staff":              "⚙️ Thiết lập",
+                    "department":        "⚙️ Thiết lập",
+                    "settings":          "⚙️ Thiết lập",
+                    "print_settings":    "⚙️ Thiết lập",
+                    "integrations":      "⚙️ Thiết lập",
+                    "action_log":        "⚙️ Thiết lập",
                   };
                   const label = groups[n.key];
                   if (label && !shownDividers.has(label)) {
