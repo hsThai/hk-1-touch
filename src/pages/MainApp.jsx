@@ -1357,21 +1357,24 @@ function MainAppContent({ onUserChange }) {
 
   // navItems dùng can() để lọc quyền
   const navItems = (() => {
-    // ── WAREHOUSE — menu riêng ──────────────────────────────
-    if (isWarehouse) return [
-      { key:"wh_home",        icon:"home",                   label:"Trang chủ" },
-      { key:"wh_orders",      icon:"chat",                   label:"Chat đơn" },
-      { key:"wh_export",      icon:"outbox",                 label:"Phiếu xuất kho" },
-      { key:"wh_manager",     icon:"warehouse",              label:"Thiết lập kho" },
-      { key:"wh_ledger",     icon:"inventory_2",            label:"Tồn kho" },
-      { key:"stock_count",    icon:"fact_check",             label:"Kiểm kê kho" },
-      { key:"purchase_order", icon:"add_shopping_cart",      label:"Đặt hàng NCC" },
-      { key:"wh_defect",     icon:"warning",                label:"LK lỗi / RMA" },
-      { key:"wh_shipping",   icon:"local_shipping",         label:"Vận đơn" },
-      { key:"wh_report",     icon:"bar_chart",              label:"Báo cáo kho" },
-      { key:"wh_import_ncc",  icon:"move_to_inbox",          label:"Nhập hàng (NCC)" },
-      { key:"debt_ncc",       icon:"account_balance_wallet", label:"Công nợ NCC" },
-    ];
+    // ── WAREHOUSE — menu riêng, LỌC theo can() (khớp PAGE_PERMS) ──
+    if (isWarehouse) {
+      const whItems = [
+        { key:"wh_home",        icon:"home",                   label:"Trang chủ" }, // trang nội bộ, luôn hiện
+        { key:"wh_orders",      icon:"chat",                   label:"Chat đơn",         perm:["repair_order","view"] },
+        { key:"wh_export",      icon:"outbox",                 label:"Phiếu xuất kho",   perm:["stock_export","view"] },
+        { key:"wh_manager",     icon:"warehouse",              label:"Thiết lập kho",    perm:["warehouse_mgr","view"] },
+        { key:"wh_ledger",      icon:"inventory_2",            label:"Tồn kho",          perm:["stock_ledger","view"] },
+        { key:"stock_count",    icon:"fact_check",             label:"Kiểm kê kho",      perm:["stock_count","view"] },
+        { key:"purchase_order", icon:"add_shopping_cart",      label:"Đặt hàng NCC",     perm:["purchase_order","view"] },
+        { key:"wh_defect",      icon:"warning",                label:"LK lỗi / RMA",     perm:["stock_import","view"] },
+        { key:"wh_shipping",    icon:"local_shipping",         label:"Vận đơn",          perm:["stock_import","view"] },
+        { key:"wh_report",      icon:"bar_chart",              label:"Báo cáo kho",      perm:["stock_ledger","view"] },
+        { key:"wh_import_ncc",  icon:"move_to_inbox",          label:"Nhập hàng (NCC)",  perm:["stock_import","view"] },
+        { key:"debt_ncc",       icon:"account_balance_wallet", label:"Công nợ NCC",      perm:["debt","view"] },
+      ];
+      return whItems.filter(it => !it.perm || can(it.perm[0], it.perm[1]));
+    }
 
     const items = [];
 
@@ -1404,12 +1407,13 @@ function MainAppContent({ onUserChange }) {
     if (can("stock_ledger","view") && !isManager)
       items.push({ key:"wh_report",   icon:"bar_chart",       label:"Báo cáo kho" });
 
-    // 5. MUA HÀNG NCC
-    if (can("purchase_order","view") && !isManager) {
+    // 5. MUA HÀNG NCC — mỗi mục lọc theo permission riêng (khớp PAGE_PERMS)
+    if (can("purchase_order","view") && !isManager)
       items.push({ key:"purchase_order", icon:"add_shopping_cart",      label:"Đặt hàng NCC" });
+    if (can("stock_import","view") && !isManager)
       items.push({ key:"wh_import_ncc",  icon:"move_to_inbox",          label:"Nhập kho (nhận NCC)" });
+    if (can("debt","view") && !isManager)
       items.push({ key:"debt_ncc",       icon:"account_balance_wallet",  label:"Công nợ NCC" });
-    }
     if (can("supplier","view") && !isManager && !isKtv) {
       items.push({ key:"suppliers",      icon:"storefront",              label:"Danh sách NCC" });
     }
