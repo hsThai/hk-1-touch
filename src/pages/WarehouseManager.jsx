@@ -274,8 +274,15 @@ function ZoneLocationTab({ user, toast }) {
     const code = form.code.trim() || form.name.replace(/\s+/g,"").toUpperCase().slice(0,4);
     const data = { warehouse_id:selWH, warehouse_name:wh?.name||"", name:form.name, code, description:form.description||"", is_active:true };
     try {
-      if (editObj) { await Zone.update(editObj.id, data); toast.show("Đã cập nhật khu vực"); }
-      else { await Zone.create(data); toast.show("Đã tạo khu vực"); }
+      if (editObj) {
+        await Zone.update(editObj.id, data);
+        logAction(user, "update", "warehouse_zone", editObj.id, `Sửa khu vực: ${form.name} (${code}) — ${wh?.name||""}`);
+        toast.show("Đã cập nhật khu vực");
+      } else {
+        const created = await Zone.create(data);
+        logAction(user, "create", "warehouse_zone", created.id, `Tạo khu vực: ${form.name} (${code}) — ${wh?.name||""}`);
+        toast.show("Đã tạo khu vực");
+      }
       setModal(null);
       Zone.filter(`warehouse_id='${selWH}'`).then(setZones);
     } catch(e) { toast.show(e.message,"error"); }
@@ -293,8 +300,15 @@ function ZoneLocationTab({ user, toast }) {
       capacity: Number(form.capacity)||0, note: form.note||"", is_active:true,
     };
     try {
-      if (editObj) { await Loc.update(editObj.id, data); toast.show("Đã cập nhật vị trí"); }
-      else { await Loc.create(data); toast.show("Đã tạo vị trí kệ"); }
+      if (editObj) {
+        await Loc.update(editObj.id, data);
+        logAction(user, "update", "warehouse_location", editObj.id, `Sửa kệ: ${code} — ${form.zone_name||""} / ${wh?.name||""}`);
+        toast.show("Đã cập nhật vị trí");
+      } else {
+        const created = await Loc.create(data);
+        logAction(user, "create", "warehouse_location", created.id, `Tạo kệ: ${code} — ${form.zone_name||""} / ${wh?.name||""}`);
+        toast.show("Đã tạo vị trí kệ");
+      }
       setModal(null);
       Loc.filter(`warehouse_id='${selWH}'`).then(setLocations);
     } catch(e) { toast.show(e.message,"error"); }
@@ -304,12 +318,22 @@ function ZoneLocationTab({ user, toast }) {
     const hasLoc = locations.some(l=>l.zone_id===z.id);
     if (hasLoc) return toast.show("Xóa hết vị trí trong khu vực trước","warn");
     if (!confirm(`Xóa khu vực "${z.name}"?`)) return;
-    try { await Zone.delete(z.id); toast.show("Đã xóa"); Zone.filter(`warehouse_id='${selWH}'`).then(setZones); } catch(e){ toast.show(e.message,"error"); }
+    try {
+      await Zone.delete(z.id);
+      logAction(user, "delete", "warehouse_zone", z.id, `Xóa khu vực: ${z.name} (${z.code}) — ${wh?.name||""}`);
+      toast.show("Đã xóa");
+      Zone.filter(`warehouse_id='${selWH}'`).then(setZones);
+    } catch(e){ toast.show(e.message,"error"); }
   }
 
   async function deleteLoc(l) {
     if (!confirm(`Xóa vị trí "${l.code}"?`)) return;
-    try { await Loc.delete(l.id); toast.show("Đã xóa"); Loc.filter(`warehouse_id='${selWH}'`).then(setLocations); } catch(e){ toast.show(e.message,"error"); }
+    try {
+      await Loc.delete(l.id);
+      logAction(user, "delete", "warehouse_location", l.id, `Xóa kệ: ${l.code} — ${l.zone_name||""} / ${wh?.name||""}`);
+      toast.show("Đã xóa");
+      Loc.filter(`warehouse_id='${selWH}'`).then(setLocations);
+    } catch(e){ toast.show(e.message,"error"); }
   }
 
   return (

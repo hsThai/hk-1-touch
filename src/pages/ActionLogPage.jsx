@@ -119,6 +119,9 @@ const TARGET_LABEL = {
   price_policy:       "Chính sách giá",
   print_template:     "Mẫu in",
   rma:                "Phiếu RMA",
+  warehouse:         "Kho",
+  warehouse_zone:    "Khu vực kho",
+  warehouse_location:"Vị trí kệ",
 };
 
 const ACTION_COLOR = {
