@@ -1362,20 +1362,22 @@ function MainAppContent({ onUserChange }) {
       const whItems = [
         { key:"wh_home",        icon:"home",                   label:"Trang chủ" }, // trang nội bộ, luôn hiện
         { key:"wh_orders",      icon:"chat",                   label:"Chat đơn",         perm:["repair_order","view"] },
-        { key:"wh_export",      icon:"outbox",                 label:"Phiếu xuất kho",   perm:["stock_export","view"] },
-        { key:"customers",      icon:"group",                  label:"Khách hàng",       perm:["customer","view"] },
+        // ── Kho & Vật tư (nhóm liền mạch, không chèn item khác nhóm) ──
+        { key:"wh_export",      icon:"outbox",                 label:"Xuất kho",         perm:["stock_export","view"] },
         { key:"wh_manager",     icon:"warehouse",              label:"Thiết lập kho",    perm:["warehouse_mgr","view"] },
         { key:"wh_ledger",      icon:"inventory_2",            label:"Tồn kho",          perm:["stock_ledger","view"] },
         { key:"stock_nxt",      icon:"assessment",             label:"Thẻ kho (NXT)",    perm:["stock_ledger","view"] },
-        { key:"wh_export",      icon:"outbox",                 label:"Xuất kho",         perm:["stock_export","view"] },
         { key:"stock_count",    icon:"fact_check",             label:"Kiểm kê kho",      perm:["stock_count","view"] },
-        { key:"purchase_order", icon:"add_shopping_cart",      label:"Đặt hàng NCC",     perm:["purchase_order","view"] },
-        { key:"suppliers",      icon:"storefront",             label:"Danh sách NCC",    perm:["supplier","view"] },
         { key:"wh_defect",      icon:"warning",                label:"LK lỗi / RMA",     perm:["stock_import","view"] },
         { key:"wh_shipping",    icon:"local_shipping",         label:"Vận đơn",          perm:["stock_import","view"] },
         { key:"wh_report",      icon:"bar_chart",              label:"Báo cáo kho",      perm:["stock_ledger","view"] },
+        // ── Mua hàng (NCC) ──
+        { key:"purchase_order", icon:"add_shopping_cart",      label:"Đặt hàng NCC",     perm:["purchase_order","view"] },
         { key:"wh_import_ncc",  icon:"move_to_inbox",          label:"Nhập hàng (NCC)",  perm:["stock_import","view"] },
         { key:"debt_ncc",       icon:"account_balance_wallet", label:"Công nợ NCC",      perm:["debt","view"] },
+        // ── Đối tác ──
+        { key:"suppliers",      icon:"storefront",             label:"Danh sách NCC",    perm:["supplier","view"] },
+        { key:"customers",      icon:"group",                  label:"Khách hàng",       perm:["customer","view"] },
       ];
       return whItems.filter(it => !it.perm || can(it.perm[0], it.perm[1]));
     }
