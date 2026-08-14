@@ -83,6 +83,7 @@ async function autoCreateOrUpdateDebt(order, finalCost, deposit, payMethod, curr
       await DebtVoucher.update(v.id, {
         total_amount: totalAmt, paid_amount: totalAmt, remaining: 0, status: "paid",
       });
+      logAction(currentUser, "update", "debt_voucher", v.id, `Cập nhật công nợ: ${order.order_code||order.id} — ${totalAmt.toLocaleString("vi-VN")}đ`);
       if (remaining > 0) {
         await DebtPayment.create({
           voucher_id: v.id, voucher_code: v.voucher_code,
@@ -103,6 +104,7 @@ async function autoCreateOrUpdateDebt(order, finalCost, deposit, payMethod, curr
         total_amount: totalAmt, paid_amount: totalAmt, remaining: 0, status: "paid",
         created_by_id: currentUser.id, created_by_name: currentUser.full_name || currentUser.name || "",
       });
+      logAction(currentUser, "create", "debt_voucher", v.id, `Tạo phiếu công nợ: ${voucherCode} — ${order.customer_name} — ${totalAmt.toLocaleString("vi-VN")}đ`);
       if (depositAmt > 0) {
         await DebtPayment.create({
           voucher_id: v.id, voucher_code: voucherCode,
@@ -125,7 +127,7 @@ async function autoCreateOrUpdateDebt(order, finalCost, deposit, payMethod, curr
     }
 
     if (pmKey === "cash" && remaining > 0) {
-      await CashJournal.create({
+      const cj = await CashJournal.create({
         journal_date:    getLocalDate(),
         entry_type:      "receipt",
         amount:          remaining,
@@ -137,6 +139,7 @@ async function autoCreateOrUpdateDebt(order, finalCost, deposit, payMethod, curr
         created_by_id:   currentUser.id,
         created_by_name: currentUser.full_name || currentUser.name || "",
       });
+      logAction(currentUser, "confirm_payment", "cash_journal", cj.id, `Thu tiền sửa: ${order.order_code||order.id} — ${remaining.toLocaleString("vi-VN")}đ`);
     }
 
     await RepairOrder.update(order.id, {
@@ -144,6 +147,7 @@ async function autoCreateOrUpdateDebt(order, finalCost, deposit, payMethod, curr
       paid_at:        new Date().toISOString(),
       paid_final:     remaining,
     });
+    logAction(currentUser, "confirm_payment", "repair_order", order.id, `Giao máy + thanh toán: ${order.order_code||order.id} — ${totalAmt.toLocaleString("vi-VN")}đ`);
   } catch(e) {
     console.error("autoCreateOrUpdateDebt error:", e);
   }
@@ -648,6 +652,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
         total_spent:  (cust.total_spent||0) + (ord.final_cost||ord.estimated_cost||0),
         total_orders: (cust.total_orders||0) + 1,
       });
+      logAction(currentUser, "update", "customer", cust.id, `Cập nhật stats: ${cust.full_name||cust.phone} — +${ord.final_cost||ord.estimated_cost||0}đ`);
     } catch(e) { console.warn("updateCustomerStats:", e.message); }
   }
 

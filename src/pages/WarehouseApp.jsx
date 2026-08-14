@@ -825,6 +825,7 @@ function WarehouseImport({ user }) {
         } catch(e) { console.error("Rollback error:", e); }
       }
       await StockImport.delete(imp.id);
+      logAction(user, "delete", "stock_import", imp.id, `Xóa phiếu nhập ${imp.import_code} (rollback tồn kho)`);
       setConfirmDelete(null);
       showToast("✅ Đã xóa phiếu nhập "+imp.import_code+" (đã rollback tồn kho)");
       loadImports();

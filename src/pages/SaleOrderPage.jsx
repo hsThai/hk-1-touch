@@ -116,6 +116,7 @@ export default function SaleOrderPage({ user }) {
       setCustPhone(created.phone || newCustPhone.trim() || "");
       setCustSearch(""); setCustSuggestions([]);
       setShowAddCust(false);
+      logAction(user, "create_customer", "customer", created.id, `Tạo khách hàng: ${newCustName.trim()} — ${newCustPhone.trim()||""}`);
       showToast(`✅ Đã thêm khách hàng "${newCustName.trim()}"`);
     } catch (e) {
       showToast("⚠️ Lỗi thêm khách hàng: " + (e?.message || ""));
@@ -326,6 +327,7 @@ export default function SaleOrderPage({ user }) {
         customer_name: custName.trim(), payment_method: payMethod||"" });
       setCart([]); setCustName(""); setCustPhone(""); setDiscount(0);
       setPayMethod(""); setCashAmt(0); setTransferAmt(0);
+      logAction(user, "create", "sale_order", draft.id, `Lưu đơn tạm: ${code} — ${custName.trim()} — ${total.toLocaleString("vi-VN")}đ`);
       showToast("💾 Đã lưu đơn tạm!");
       loadTodayOrders();
     } catch(e) { showToast("❌ Lỗi lưu tạm: " + e.message); }

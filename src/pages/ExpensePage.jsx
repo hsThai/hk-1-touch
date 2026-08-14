@@ -92,7 +92,7 @@ export default function ExpensePage({ user }) {
         `✅ Đã lưu chi phí "${fDesc||fCat}" — ${Number(fAmt).toLocaleString("vi-VN")}đ\n\nGhi vào Sổ quỹ ngay không?`
       );
       if (ok) {
-        CashJournal.create({
+        const cj = await CashJournal.create({
           journal_date:    fDate,
           entry_type:      "payment",
           amount:          Number(fAmt),
@@ -102,7 +102,8 @@ export default function ExpensePage({ user }) {
           payment_method:  "cash",
           created_by_id:   user.id || "",
           created_by_name: user.full_name || user.name || "",
-        }).catch(() => {}); // KHÔNG crash nếu lỗi
+        });
+        logAction(user, "add_expense", "cash_journal", cj.id, `Ghi sổ quỹ chi phí: ${fDesc||fCat} — ${Number(fAmt).toLocaleString("vi-VN")}đ`);
       }
     } catch(e) { showToast("❌ Lỗi: "+e.message); }
     setSubmitting(false);
@@ -131,6 +132,7 @@ export default function ExpensePage({ user }) {
           created_by_name: user.full_name || user.name || "",
         });
       }
+      logAction(user, "update", "expense", exp.id, `Duyệt chi phí: ${exp.description||exp.category} — ${exp.amount?.toLocaleString("vi-VN")||""}đ`);
       showToast("✅ Đã duyệt chi phí");
       loadExpenses();
     } catch(e) { showToast("❌ Lỗi: " + e.message); }
@@ -141,6 +143,7 @@ export default function ExpensePage({ user }) {
     if (!window.confirm('Từ chối chi phí "' + (exp.description || exp.category) + '"?')) return;
     try {
       await Expense.update(exp.id, { status:"rejected" });
+      logAction(user, "update", "expense", exp.id, `Từ chối chi phí: ${exp.description||exp.category}`);
       showToast("❌ Đã từ chối chi phí");
       loadExpenses();
     } catch(e) { showToast("❌ Lỗi: " + e.message); }

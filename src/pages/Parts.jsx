@@ -140,6 +140,7 @@ export default function SparePartModal({ order, currentStaff, onClose, onDone })
         status: "issued",
         warehouse_confirmed_by: currentStaff.full_name,
       });
+      logAction(currentStaff, "update", "spare_part_usage", usage.id, `Xác nhận xuất tạm: ${usage.part_name} × ${usage.qty_requested}`);
       setUsages(prev => prev.map(u => u.id===usage.id ? {...u, status:"issued", warehouse_confirmed_by: currentStaff.full_name} : u));
       showToast("✅ Đã xác nhận xuất tạm");
 
@@ -169,6 +170,7 @@ export default function SparePartModal({ order, currentStaff, onClose, onDone })
         total_price:  qtyUsed * usage.unit_price,
         status:       qtyUsed === 0 ? "returned" : "issued",
       });
+      logAction(currentStaff, "update", "spare_part_usage", usage.id, `Trả linh kiện: ${usage.part_name} × ${actualQtyReturn} (dùng ${qtyUsed})`);
       setUsages(prev => prev.map(u => u.id===usage.id ? {
         ...u, qty_returned: actualQtyReturn, qty_used: qtyUsed,
         total_price: qtyUsed * usage.unit_price,
@@ -194,6 +196,7 @@ export default function SparePartModal({ order, currentStaff, onClose, onDone })
     try {
       const total = newQty * usage.unit_price;
       await SparePartUsage.update(usage.id, { qty_requested: newQty, qty_used: newQty, total_price: total });
+      logAction(currentStaff, "update", "spare_part_usage", usage.id, `Sửa số lượng: ${usage.part_name} → ${newQty}`);
       setUsages(prev => prev.map(u => u.id===usage.id ? {...u, qty_requested:newQty, qty_used:newQty, total_price:total} : u));
     } catch {}
   }
@@ -206,6 +209,7 @@ export default function SparePartModal({ order, currentStaff, onClose, onDone })
       const activeUsages = usages.filter(u => u.status !== "returned");
       for (const u of activeUsages) {
         await SparePartUsage.update(u.id, { status: "finalized" });
+        logAction(currentStaff, "update", "spare_part_usage", u.id, `Finalize: ${u.part_name} × ${u.qty_used||u.qty_requested}`);
       }
 
       // Tính final_cost

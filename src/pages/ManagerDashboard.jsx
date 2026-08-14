@@ -5,7 +5,7 @@ const StockReportNXT    = React.lazy(() => import("./StockReportNXT.jsx").catch(
 
 import { Staff, RepairOrder, SparePart, SaleOrder, Expense,
          StockLedger, Warehouse, Customer, AppSettings, StockImport, SparePartUsage,
-         DebtVoucher, CashJournal } from "./pb.jsx";
+         DebtVoucher, CashJournal, logAction } from "./pb.jsx";
 
 // ── Constants ──────────────────────────────────────────────
 const ALLOWED = ["manager","admin","owner"];
@@ -1240,7 +1240,7 @@ function initials(name) {
   return (name||"?").split(" ").slice(-2).map(w=>w[0]||"").join("").toUpperCase() || "?";
 }
 
-function StaffListSubTab({ staff: staffList, onStaffUpdate }) {
+function StaffListSubTab({ staff: staffList, onStaffUpdate, user }) {
   const [toast, setToast] = useState("");
   function showToast(msg) { setToast(msg); setTimeout(()=>setToast(""),3000); }
 
@@ -1248,6 +1248,7 @@ function StaffListSubTab({ staff: staffList, onStaffUpdate }) {
     try {
       await Staff.update(s.id, { is_active:!s.is_active });
       onStaffUpdate(s.id, { is_active:!s.is_active });
+      logAction(user, "update", "staff", s.id, `${s.is_active?"Khóa":"Mở khóa"}: ${s.full_name}`);
       showToast((s.is_active?"Đã khoá":"Đã mở khoá")+" "+s.full_name);
     } catch(e) { showToast("❌ "+e.message); }
   }
@@ -1256,6 +1257,7 @@ function StaffListSubTab({ staff: staffList, onStaffUpdate }) {
     try {
       await Staff.update(s.id, { kpi_score:0 });
       onStaffUpdate(s.id, { kpi_score:0 });
+      logAction(user, "update", "staff", s.id, `Reset KPI → 0: ${s.full_name}`);
       showToast("✅ Đã đặt lại KPI "+s.full_name);
     } catch(e) { showToast("❌ "+e.message); }
   }
@@ -1718,6 +1720,7 @@ export default function ManagerDashboard({ user, initialTab = "overview", onTabC
     try {
       await SparePartUsage.update(id, { status:"approved" });
       setSparePartUsages(prev => prev.map(u => u.id===id ? {...u, status:"approved"} : u));
+      logAction(user, "update", "spare_part_usage", id, `Duyệt linh kiện: ${id}`);
     } catch(e) { alert("Lỗi duyệt: "+e.message); }
   }
 

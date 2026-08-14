@@ -1,6 +1,6 @@
 /* v1774860462-2019 */
 import { useState } from "react";
-import { Staff } from "./pb.js";
+import { Staff, logAction } from "./pb.js";
 
 export default function ChangePassword({ staff, onDone }) {
   const [newPass, setNewPass] = useState("");
@@ -18,6 +18,7 @@ export default function ChangePassword({ staff, onDone }) {
     setLoading(true);
     try {
       await Staff.update(staff.id, { password_hash: simpleHash(newPass), must_change_password: false });
+      logAction(staff, "update", "staff", staff.id, `Đổi mật khẩu lần đầu: ${staff.full_name}`);
       onDone({ ...staff, password_hash: simpleHash(newPass), must_change_password: false });
     } catch { setError("Lỗi lưu mật khẩu. Thử lại!"); }
     setLoading(false);

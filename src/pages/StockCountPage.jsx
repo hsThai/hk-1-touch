@@ -458,6 +458,7 @@ function CountingScreen({ count: initCount, user, onBack, onRefresh }) {
       await StockCount.update(count.id, { counted_locations: countedCnt });
       setCount(prev => ({ ...prev, counted_locations: countedCnt }));
       toast.show("✅ Đã xác nhận");
+      logAction(user, "update", "stock_count_item", item.id, `Kiểm kê: ${item.part_name||item.sku||""} — SL: ${qtyActual} (chênh ${diff>=0?"+":""}${diff})`);
     } catch(e) { toast.show("❌ "+e.message, "error"); }
     setSaving(prev => ({ ...prev, [item.id]: false }));
   }
@@ -477,6 +478,7 @@ function CountingScreen({ count: initCount, user, onBack, onRefresh }) {
         total_discrepancy_value: totalDiffVal,
       });
       toast.show("✅ Đã hoàn tất phiếu kiểm — chờ duyệt");
+      logAction(user, "update", "stock_count", count.id, `Hoàn tất kiểm kê: ${count.count_code||count.id}`);
       setTimeout(() => { onRefresh(); onBack(); }, 1000);
     } catch(e) { toast.show("❌ "+e.message, "error"); }
   }
@@ -758,6 +760,7 @@ function ReviewScreen({ count, user, onBack, onRefresh }) {
     if (!window.confirm("Từ chối và trả về để kiểm lại?")) return;
     try {
       await StockCount.update(count.id, { status:"counting" });
+      logAction(user, "update", "stock_count", count.id, `Từ chối kiểm kê: ${count.count_code||count.id}`);
       toast.show("↩️ Đã trả về kiểm lại");
       setTimeout(() => { onRefresh(); onBack(); }, 800);
     } catch(e) { toast.show("❌ "+e.message,"error"); }

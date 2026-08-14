@@ -164,14 +164,14 @@ function WarehouseTab({ user, toast }) {
     const code = form.code.trim() || form.name.trim().toUpperCase().replace(/\s+/g,"-");
     const data = { ...form, code, is_active:true };
     try {
-      if (editing) { await WH.update(editing.id, data); toast.show("Đã cập nhật kho"); }
-      else { await WH.create(data); toast.show("Đã tạo kho mới"); }
+      if (editing) { await WH.update(editing.id, data); logAction(user, "update", "warehouse", editing.id, `Sửa kho: ${form.name} (${code})`); toast.show("Đã cập nhật kho"); }
+      else { const wh = await WH.create(data); logAction(user, "create", "warehouse", wh.id, `Tạo kho: ${form.name} (${code})`); toast.show("Đã tạo kho mới"); }
       setModal(null); load();
     } catch(e) { toast.show(e.message,"error"); }
   }
 
   async function toggleActive(w) {
-    try { await WH.update(w.id, { is_active: !w.is_active }); load(); } catch(e) { toast.show(e.message,"error"); }
+    try { await WH.update(w.id, { is_active: !w.is_active }); logAction(user, "update", "warehouse", w.id, `${w.is_active?"Khóa":"Kích hoạt"} kho: ${w.name}`); load(); } catch(e) { toast.show(e.message,"error"); }
   }
 
   return (
@@ -518,6 +518,7 @@ function StockLedgerTab({ user, toast }) {
         created_date: new Date().toISOString().replace("T"," ").split(".")[0],
       });
       toast.show("Đã điều chỉnh tồn kho");
+      logAction(user, "update", "stock_ledger", l.id, `Điều chỉnh tồn kho: ${l.part_name||l.sku||""} — ${l.qty_on_hand} → ${qty_actual} (${diff>=0?"+":""}${diff})`);
       setAdjustModal(null);
       Ledger.filter(`warehouse_id='${selWH}'`).then(setLedger);
     } catch(e) { toast.show(e.message,"error"); }

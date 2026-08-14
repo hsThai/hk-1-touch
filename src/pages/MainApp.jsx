@@ -1186,6 +1186,7 @@ function MainAppContent({ onUserChange }) {
       // accept_stage đã có trong directFields - không cần làm gì thêm
       if (Object.keys(pbPatch).length > 0) {
         const saved = await RepairOrder.update(pbId, pbPatch);
+        logAction(user, "update_order", "repair_order", pbId, `Cập nhật đơn: ${Object.keys(pbPatch).join(", ")}`);
         // Sau khi PB lưu thành công → map lại từ PB để đảm bảo đồng bộ
         if (saved && saved.id) {
           const fresh = mapPbOrder(saved, STATUS_DISPLAY, PRIORITY_DISPLAY);
@@ -1198,6 +1199,7 @@ function MainAppContent({ onUserChange }) {
         const staffRec = users.find(u => u.id === kpiEvent.userId);
         if (staffRec?._id) {
           await Staff.update(staffRec._id, { kpi_score: Math.max(0, (staffRec.kpi||0) + kpiEvent.delta) });
+          logAction(user, "update", "staff", staffRec._id, `KPI ${kpiEvent.delta>=0?"+":""}${kpiEvent.delta}: ${staffRec.full_name||staffRec.name||""}`);
         }
       }
     } catch(e) {
@@ -1254,6 +1256,7 @@ function MainAppContent({ onUserChange }) {
         const saved2 = await RepairOrder.create(pbData2);
         data._id = saved2.id;
         data._pbSaved = true;
+        logAction(user, "create_order", "repair_order", saved2.id, `${data.device_model||""} — ${data.customer_name||""} (fallback)`);
         logHistory({
           order_id:        saved2.id,
           order_code:      data.id,

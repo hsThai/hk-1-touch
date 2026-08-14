@@ -1,6 +1,6 @@
 /* SaleHistoryPage.jsx — Quản lý đơn bán hàng (nâng cấp đầy đủ) */
 import React, { useState, useEffect } from "react";
-import { SaleOrder, SaleOrderItem, DebtPayment, DebtVoucher } from "./pb.jsx";
+import { SaleOrder, SaleOrderItem, DebtPayment, DebtVoucher, logAction } from "./pb.jsx";
 import { printSaleReceiptA5, previewSaleReceipt } from "../utils/printClient.js";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN")+"đ"; }
@@ -258,6 +258,7 @@ export default function SaleHistoryPage({ user }) {
     if (!window.confirm(`Xác nhận khách đồng ý đơn ${order.order_code}?`)) return;
     try {
       await SaleOrder.update(order.id, { status: "pending_payment" });
+      logAction(user, "update", "sale_order", order.id, `Xác nhận đơn ${order.order_code} từ lịch sử`);
       load();
     } catch(e) { alert("Lỗi: " + e.message); }
   }
@@ -266,6 +267,7 @@ export default function SaleHistoryPage({ user }) {
     if (!window.confirm(`Hủy đơn ${order.order_code}?`)) return;
     try {
       await SaleOrder.update(order.id, { status: "cancelled" });
+      logAction(user, "delete", "sale_order", order.id, `Hủy đơn ${order.order_code} từ lịch sử`);
       load();
     } catch(e) { alert("Lỗi: " + e.message); }
   }

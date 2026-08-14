@@ -4,7 +4,7 @@
  * @version 2026-05-29-v1
  */
 import React, { useState, useEffect } from "react";
-import { AppSettings } from "./pb.jsx";
+import { AppSettings, logAction } from "./pb.jsx";
 
 // ── Helpers ─────────────────────────────────────────────────
 async function loadSettings() {

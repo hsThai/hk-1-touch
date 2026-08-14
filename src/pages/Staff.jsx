@@ -1,6 +1,6 @@
 /* v1774860462-5573 */
 import { useState, useEffect } from "react";
-import { Staff } from "./pb.js";
+import { Staff, logAction } from "./pb.js";
 
 const ROLES = [
   { value:"owner",        label:"Chủ cơ sở",        color:"#1e1b4b", bg:"#ede9fe", icon:"🏢" },
@@ -60,7 +60,7 @@ export default function StaffManager({ currentStaff }) {
     setSaving(true);
     try {
       if (modal.mode==="add") {
-        await Staff.create({
+        const createdStaff = await Staff.create({
           full_name: form.full_name.trim(),
           phone: form.phone.trim(),
           username: form.username.trim(),
@@ -71,6 +71,7 @@ export default function StaffManager({ currentStaff }) {
           kpi_score: 100,
           note: form.note,
         });
+        logAction(user, "create_staff", "staff", createdStaff.id, `Tạo nhân viên: ${form.full_name} (${form.role})`);
         showToast("✅ Đã tạo tài khoản " + form.full_name);
       } else {
         const patch = {
@@ -82,6 +83,7 @@ export default function StaffManager({ currentStaff }) {
           note: form.note,
         };
         if (form.password) { patch.password_hash = simpleHash(form.password); patch.must_change_password = true; }
+        logAction(user, "update", "staff", modal.id, `Sửa nhân viên: ${form.full_name} — role: ${form.role}`);
         await Staff.update(modal.id, patch);
         showToast("✅ Đã cập nhật " + form.full_name);
       }
@@ -93,12 +95,14 @@ export default function StaffManager({ currentStaff }) {
 
   async function toggleActive(s) {
     await Staff.update(s.id, { is_active: !s.is_active });
+    logAction(user, "update", "staff", s.id, `${s.is_active ? "Khóa" : "Mở khóa"} tài khoản: ${s.full_name}`);
     showToast(s.is_active ? `🔒 Đã khóa ${s.full_name}` : `🔓 Đã mở khóa ${s.full_name}`);
     load();
   }
 
   async function resetKpi(s) {
     await Staff.update(s.id, { kpi_score: 100 });
+    logAction(user, "update", "staff", s.id, `Reset KPI: ${s.full_name} → 100`);
     showToast(`🔄 Reset KPI ${s.full_name} → 100`);
     load();
   }

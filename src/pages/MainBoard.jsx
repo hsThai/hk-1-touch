@@ -506,7 +506,7 @@ function NewOrderModal({ staff, onClose, onCreated }) {
       const orderCode = "SC" + Date.now().toString().slice(-8);
       const allIssues = [...issues];
       if (form.issue_description.trim()) allIssues.push(form.issue_description.trim());
-      await RepairOrder.create({
+      const newOrder = await RepairOrder.create({
         order_code: orderCode,
         customer_name: form.customer_name.trim(),
         customer_phone: form.customer_phone.trim(),
@@ -526,8 +526,10 @@ function NewOrderModal({ staff, onClose, onCreated }) {
       });
       const existing = await Customer.filter({ phone: form.customer_phone.trim() });
       if (!existing || existing.length === 0) {
-        await Customer.create({ full_name:form.customer_name.trim(), phone:form.customer_phone.trim() }).catch(()=>{});
+        const newCust = await Customer.create({ full_name:form.customer_name.trim(), phone:form.customer_phone.trim() }).catch(()=>null);
+        if (newCust) logAction(staff, "create_customer", "customer", newCust.id, `Tạo KH: ${form.customer_name.trim()} — ${form.customer_phone.trim()}`);
       }
+      logAction(staff, "create_order", "repair_order", newOrder.id, `Tạo nhanh: ${orderCode} — ${form.customer_name} — ${form.device_model}`);
       onCreated();
     } catch { setErr("Lỗi tạo đơn, thử lại nhé!"); }
     setSaving(false);

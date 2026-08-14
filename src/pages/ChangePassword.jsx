@@ -1,6 +1,6 @@
 /* ChangePassword - Đổi mật khẩu cho user hiện tại */
 import React, { useState } from "react";
-import { Staff, pbAuth, getPbUrl, getAuth } from "./pb.jsx";
+import { Staff, pbAuth, getPbUrl, getAuth, logAction } from "./pb.jsx";
 
 export default function ChangePassword({ user, onClose, onSuccess, forceChange = false }) {
   const [oldPw, setOldPw] = useState("");
@@ -64,6 +64,7 @@ export default function ChangePassword({ user, onClose, onSuccess, forceChange =
           password_hash: hashedNew,
           must_change_password: false,
         });
+        logAction(user, "update", "staff", user.id, `Đổi mật khẩu (fallback): ${user.full_name||user.name||""}`);
       }
 
       setSuccess(true);
