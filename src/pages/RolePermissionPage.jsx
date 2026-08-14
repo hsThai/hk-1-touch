@@ -4,7 +4,7 @@
  * toggle hàng "Chọn tất cả", staff badge, checkbox lớn mobile-friendly
  */
 import React, { useState, useEffect } from "react";
-import { Role, RolePermission } from "./pb.jsx";
+import { Role, RolePermission, Staff } from "./pb.jsx";
 import { ROLE_DEFINITIONS } from "./seedRoles.js";
 import { STATIC_MATRIX } from "./PermissionContext.jsx";
 
@@ -155,16 +155,8 @@ export default function RolePermissionPage() {
 
       // Load staff list để hiện badge nhân viên
       try {
-        const pbUrl = localStorage.getItem("pb_url") || "http://localhost:8090";
-        const token = localStorage.getItem("staff_token") || "";
-        const res = await fetch(
-          `${pbUrl}/api/collections/staff/records?perPage=200&fields=id,full_name,role`,
-          { headers: token ? { Authorization: token } : {} }
-        );
-        if (res.ok) {
-          const json = await res.json();
-          setStaffList(json.items || []);
-        }
+        const staffData = await Staff.list({ limit: 200, fields: "id,full_name,role" });
+        setStaffList(staffData || []);
       } catch {}
 
       setLoading(false);
