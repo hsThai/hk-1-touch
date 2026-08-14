@@ -285,7 +285,10 @@ export default function LoginV2({ onLogin, loggedOut }) {
       if (userInfo) {
         if (rememberMe) saveCred(uname, pwd);
         else clearCred();
-        logAction(userInfo, "login", "auth", userInfo.id, `Đăng nhập: ${userInfo.full_name||uname}`);
+        // Chỉ ghi log khi user thực sự nhập tay (không log khi auto-restore session từ cookie)
+        if (!isAuto) {
+          logAction(userInfo, "login", "auth", userInfo.id, `Đăng nhập: ${userInfo.full_name||uname}`);
+        }
         onLogin(userInfo);
         return;
       }
