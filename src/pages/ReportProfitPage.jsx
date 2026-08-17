@@ -55,30 +55,32 @@ export default function ReportProfitPage({ user }) {
     if (!from || !to) return;
     setLoading(true);
     try {
-      const fromDT = from + "T00:00:00Z";
-      const toDT   = to   + "T23:59:59Z";
+      const fromDT = from + " 00:00:00";
+      const toDT   = to   + " 23:59:59";
 
-      // Doanh thu sửa chữa (done)
+      // Doanh thu sửa chữa (done) — status thực tế lưu dạng tiếng Việt (có/không dấu)
+      const DONE_STATUSES = ["Hoàn Thành","Đã Giao","Hoan Thanh","Da Giao"];
+      const statusFilter = DONE_STATUSES.map(s => `status="${s}"`).join(" || ");
       const repairs = await RepairOrder.list({
-        filter: `status="done" && done_date>="${from}" && done_date<="${to}"`,
+        filter: `(${statusFilter}) && done_date>="${fromDT}" && done_date<="${toDT}"`,
         limit: 2000
       }).catch(() => []);
 
-      // Doanh thu bán hàng (completed)
+      // Doanh thu bán hàng (completed) — dùng created_date, KHÔNG dùng 'created'
       const sales = await SaleOrder.list({
-        filter: `status="completed" && created>="${fromDT}" && created<="${toDT}"`,
+        filter: `status="completed" && created_date>="${fromDT}" && created_date<="${toDT}"`,
         limit: 2000
       }).catch(() => []);
 
-      // Chi phí (approved)
+      // Chi phí (approved) — dùng expense_date (ngày phát sinh chi phí thực tế)
       const expenses = await Expense.list({
-        filter: `status="approved" && created>="${fromDT}" && created<="${toDT}"`,
+        filter: `status="approved" && expense_date>="${from}" && expense_date<="${to}"`,
         limit: 2000
       }).catch(() => []);
 
-      // Giá vốn linh kiện (xuất kho cho đơn sửa chữa)
+      // Giá vốn linh kiện (xuất kho cho đơn sửa chữa) — movement_type thực tế là "usage"
       const movements = await StockMovement.list({
-        filter: `movement_type="export" && created>="${fromDT}" && created<="${toDT}"`,
+        filter: `movement_type="usage" && created_date>="${fromDT}" && created_date<="${toDT}"`,
         limit: 2000
       }).catch(() => []);
 
