@@ -277,7 +277,6 @@ function TabContent({ vtype, user }) {
   const [loading,   setLoading]   = useState(true);
   const [detail,    setDetail]    = useState(null);
   const [filter,    setFilter]    = useState("all");
-  const [suppliers, setSuppliers] = useState([]);
 
   async function load() {
     setLoading(true);
@@ -285,19 +284,23 @@ function TabContent({ vtype, user }) {
       const data = await DebtVoucher.filter({ voucher_type: vtype });
       setList((data||[]).sort((a,b) => (b.id > a.id ? 1 : -1)));
     } catch {}
-    if (vtype === "payable") {
-      try {
-        const sups = await Supplier.list({ limit:200 });
-        setSuppliers(sups || []);
-      } catch {}
-    }
     setLoading(false);
   }
 
   useEffect(() => { load(); }, [vtype]);
 
   const filtered = filter === "all" ? list : list.filter(v => v.status === filter);
-  const suppliersWithDebt = suppliers.filter(s => (s.total_debt||0) > 0);
+  // Tổng hợp công nợ NCC — tính trực tiếp từ debt_vouchers (list), KHÔNG dùng
+  // Supplier.total_debt vì field đó không được ghi ở đâu trong hệ thống.
+  const supplierDebtMap = {};
+  if (vtype === "payable") {
+    list.filter(v => v.status !== "cancelled").forEach(v => {
+      const key = v.party_name || "—";
+      if (!supplierDebtMap[key]) supplierDebtMap[key] = { name:key, totalDebt:0 };
+      supplierDebtMap[key].totalDebt += Number(v.remaining||0);
+    });
+  }
+  const suppliersWithDebt = Object.values(supplierDebtMap).filter(s => s.totalDebt > 0).sort((a,b)=>b.totalDebt-a.totalDebt);
 
   return (
     <div style={{ padding:"12px 0 80px" }}>
@@ -321,11 +324,11 @@ function TabContent({ vtype, user }) {
               </thead>
               <tbody>
                 {suppliersWithDebt.map(s => (
-                  <tr key={s.id} style={{ borderBottom:"1px solid #f3f4f6" }}>
+                  <tr key={s.name} style={{ borderBottom:"1px solid #f3f4f6" }}>
                     <td style={{ padding:"8px 12px", fontWeight:600 }}>{s.name}</td>
-                    <td style={{ padding:"8px 12px", color:"#6b7280" }}>{s.supplier_type || "—"}</td>
+                    <td style={{ padding:"8px 12px", color:"#6b7280" }}>NCC</td>
                     <td style={{ padding:"8px 12px", textAlign:"right", fontWeight:800, color:"#dc2626" }}>
-                      {(s.total_debt||0).toLocaleString("vi-VN")}đ
+                      {(s.totalDebt||0).toLocaleString("vi-VN")}đ
                     </td>
                     <td style={{ padding:"8px 12px", textAlign:"center" }}>
                       <span style={{ padding:"2px 10px", borderRadius:20, fontSize:11, fontWeight:700, background:"#fee2e2", color:"#dc2626" }}>

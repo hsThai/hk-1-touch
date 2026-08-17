@@ -1,9 +1,21 @@
-/* DebtNccPage.jsx — Công nợ NCC — HK One Touch */
+/* DebtNccPage.jsx — Công nợ NCC — HK One Touch
+   Rewritten 2026-08-17: nguồn dữ liệu công nợ thực tế là 'debt_vouchers'
+   (được tạo tự động khi nhập hàng còn nợ NCC ở WarehouseApp.jsx), KHÔNG phải
+   Supplier.total_debt — field đó không hề được ghi ở bất kỳ đâu trong hệ thống.
+*/
 import React, { useState, useEffect, useCallback } from "react";
-import { Supplier, DebtVoucher, DebtPayment, CashJournal, logAction } from "./pb.jsx";
+import { DebtVoucher, DebtPayment, CashJournal, logAction, getLocalDate } from "./pb.jsx";
 
 const fmt = (n) => (n || 0).toLocaleString("vi-VN") + "đ";
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString("vi-VN") : "—";
+
+const STATUS = {
+  open:      { label:"🔴 Chưa TT",    color:"#dc2626", bg:"#fee2e2" },
+  partial:   { label:"🟡 TT 1 phần",  color:"#d97706", bg:"#fef3c7" },
+  paid:      { label:"🟢 Đã TT",      color:"#059669", bg:"#dcfce7" },
+  overdue:   { label:"⛔ Quá hạn",    color:"#7c2d12", bg:"#fee2e2" },
+  cancelled: { label:"⚫ Đã hủy",     color:"#6b7280", bg:"#f3f4f6" },
+};
 
 function StatCard({ icon, label, value, color, bg }) {
   return (
@@ -16,48 +28,54 @@ function StatCard({ icon, label, value, color, bg }) {
   );
 }
 
-function PaymentModal({ supplier, onClose, onSaved, user }) {
-  const [amount,  setAmount]  = useState("");
-  const [method,  setMethod]  = useState("cash");
-  const [note,    setNote]    = useState("");
-  const [saving,  setSaving]  = useState(false);
+// ── Ghi nhận thanh toán cho 1 phiếu công nợ (đồng bộ với DebtPage.jsx) ─────
+async function recordPayment(voucher, amount, method, note, user) {
+  await DebtPayment.create({
+    voucher_id:      voucher.id,
+    voucher_code:    voucher.voucher_code,
+    party_name:      voucher.party_name,
+    amount:          Number(amount),
+    payment_method:  method,
+    paid_at:         new Date().toISOString(),
+    note,
+    created_by_id:   user?.id || "",
+    created_by_name: user?.full_name || user?.name || "",
+  });
+  const newPaid      = (voucher.paid_amount || 0) + Number(amount);
+  const newRemaining = Math.max(0, (voucher.total_amount || 0) - newPaid);
+  const newStatus     = newRemaining <= 0 ? "paid" : "partial";
+  await DebtVoucher.update(voucher.id, { paid_amount:newPaid, remaining:newRemaining, status:newStatus });
+  logAction(user, "pay_debt", "debt_voucher", voucher.id, `Trả nợ NCC ${voucher.party_name}: ${Number(amount).toLocaleString("vi-VN")}đ (${method})`);
+  if (method === "cash" || method === "transfer") {
+    await CashJournal.create({
+      journal_date:    getLocalDate(),
+      entry_type:      "payment", amount: Number(amount),
+      ref_type:        "debt_payment", ref_id: voucher.id, ref_code: voucher.voucher_code,
+      description:     "Trả nợ NCC: " + voucher.party_name,
+      payment_method:  method,
+      created_by_id:   user?.id || "",
+      created_by_name: user?.full_name || user?.name || "",
+    });
+  }
+}
+
+function PaymentModal({ voucher, onClose, onSaved, user }) {
+  const [amount, setAmount] = useState(String(voucher.remaining || 0));
+  const [method, setMethod] = useState("cash");
+  const [note,   setNote]   = useState("");
+  const [saving, setSaving] = useState(false);
+  const [err,    setErr]    = useState("");
 
   async function handlePay() {
     const amt = Number(amount);
-    if (!amt || amt <= 0) { alert("Nhập số tiền hợp lệ"); return; }
+    if (!amt || amt <= 0) { setErr("Nhập số tiền hợp lệ"); return; }
+    if (amt > (voucher.remaining || 0)) { setErr("Số tiền vượt quá số còn lại của phiếu này"); return; }
     setSaving(true);
     try {
-      // Tạo debt_payment
-      await DebtPayment.create({
-        supplier_id:   supplier.id,
-        supplier_name: supplier.name,
-        amount:        amt,
-        payment_method: method,
-        type:          "payable",
-        note,
-        paid_by:       user?.id || "",
-        paid_by_name:  user?.full_name || "",
-        paid_at:       new Date().toISOString().slice(0,10),
-      });
-      logAction(user, "pay_debt", "debt_payment", supplier.id, `Thanh toán nợ NCC ${supplier.name}: ${amt.toLocaleString("vi-VN")}đ (${method})`);
-      // Cập nhật total_debt của NCC
-      const newDebt = Math.max(0, (Number(supplier.total_debt)||0) - amt);
-      await Supplier.update(supplier.id, { total_debt: newDebt });
-      // Ghi sổ quỹ
-      if (method === "cash") {
-        await CashJournal.create({
-          type:        "expense",
-          category:    "Trả nợ NCC",
-          amount:      amt,
-          note:        `Thanh toán nợ NCC: ${supplier.name}. ${note}`,
-          ref_type:    "debt_payment",
-          created_by:  user?.id || "",
-          created_by_name: user?.full_name || "",
-        });
-      }
+      await recordPayment(voucher, amt, method, note, user);
       onSaved?.();
       onClose();
-    } catch(e) { alert("Lỗi: " + e.message); }
+    } catch(e) { setErr("Lỗi: " + e.message); }
     setSaving(false);
   }
 
@@ -68,7 +86,8 @@ function PaymentModal({ supplier, onClose, onSaved, user }) {
       <div style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:420,
         boxShadow:"0 20px 60px rgba(0,0,0,.25)", padding:24 }}>
         <div style={{ fontWeight:800, fontSize:16, marginBottom:4 }}>💳 Ghi nhận thanh toán NCC</div>
-        <div style={{ fontSize:13, color:"#6b7280", marginBottom:18 }}>{supplier.name}</div>
+        <div style={{ fontSize:13, color:"#6b7280", marginBottom:4 }}>{voucher.party_name}</div>
+        <div style={{ fontSize:12, color:"#9ca3af", marginBottom:18 }}>Phiếu {voucher.voucher_code} · {voucher.origin_code || ""}</div>
 
         <div style={{ marginBottom:14 }}>
           <label style={{ fontSize:12, fontWeight:600, color:"#6b7280", display:"block", marginBottom:4 }}>Số tiền thanh toán *</label>
@@ -77,7 +96,7 @@ function PaymentModal({ supplier, onClose, onSaved, user }) {
             style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:"1.5px solid #e5e7eb",
               fontSize:15, fontWeight:700, boxSizing:"border-box" }} />
           <div style={{ fontSize:12, color:"#9ca3af", marginTop:3 }}>
-            Còn nợ: {fmt(supplier.total_debt)}
+            Còn nợ phiếu này: {fmt(voucher.remaining)}
           </div>
         </div>
 
@@ -98,6 +117,8 @@ function PaymentModal({ supplier, onClose, onSaved, user }) {
             style={{ width:"100%", padding:"9px 12px", borderRadius:8, border:"1.5px solid #e5e7eb",
               fontSize:14, resize:"vertical", boxSizing:"border-box" }} />
         </div>
+
+        {err && <div style={{ color:"#dc2626", fontSize:13, marginBottom:12 }}>⚠️ {err}</div>}
 
         <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
           <button onClick={onClose} disabled={saving}
@@ -125,12 +146,13 @@ export default function DebtNccPage({ user }) {
     window.addEventListener("resize", fn);
     return () => window.removeEventListener("resize", fn);
   }, []);
-  const [suppliers, setSuppliers] = useState([]);
-  const [history,   setHistory]   = useState([]);
+  const [vouchers,  setVouchers]  = useState([]);
+  const [payments,  setPayments]  = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [payTarget, setPayTarget] = useState(null);
+  const [expanded,  setExpanded]  = useState(null); // party_name đang mở rộng danh sách phiếu
   const [toast,     setToast]     = useState("");
-  const [activeTab, setActiveTab] = useState("list"); // list | history
+  const [activeTab, setActiveTab] = useState("list");
 
   const showToast = (msg) => { setToast(msg); setTimeout(()=>setToast(""), 3000); };
 
@@ -139,27 +161,38 @@ export default function DebtNccPage({ user }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [sups, pays] = await Promise.all([
-        Supplier.list({ sort:"-total_debt", limit:200 }).catch(()=>[]),
-        DebtPayment.list({ filter:'type="payable"', sort:"-id", limit:100 }).catch(()=>[]),
-      ]);
-      setSuppliers(sups || []);
-      setHistory(pays || []);
+      const vs = await DebtVoucher.filter({ voucher_type:"payable" }, { sort:"-id", limit:500 }).catch(()=>[]);
+      setVouchers(vs || []);
+      const ids = new Set((vs||[]).map(v=>v.id));
+      const pays = await DebtPayment.list({ sort:"-id", limit:500 }).catch(()=>[]);
+      setPayments((pays||[]).filter(p => ids.has(p.voucher_id)));
     } catch(e) { console.error(e); }
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  const totalDebt   = suppliers.reduce((s,x) => s + Number(x.total_debt||0), 0);
-  const paidMonth   = (() => {
+  // Nhóm theo NCC (party_name) — chỉ tính các phiếu chưa hủy
+  const bySupplier = {};
+  vouchers.filter(v => v.status !== "cancelled").forEach(v => {
+    const key = v.party_name || "—";
+    if (!bySupplier[key]) bySupplier[key] = { name:key, vouchers:[], totalDebt:0, totalEver:0 };
+    bySupplier[key].vouchers.push(v);
+    bySupplier[key].totalDebt += Number(v.remaining || 0);
+    bySupplier[key].totalEver += Number(v.total_amount || 0);
+  });
+  const supplierList = Object.values(bySupplier).sort((a,b) => b.totalDebt - a.totalDebt);
+  const supplierListWithDebt = supplierList.filter(s => s.totalDebt > 0);
+
+  const totalDebtEver = vouchers.filter(v=>v.status!=="cancelled").reduce((s,v) => s + Number(v.total_amount||0), 0);
+  const remaining     = vouchers.filter(v=>v.status!=="cancelled").reduce((s,v) => s + Number(v.remaining||0), 0);
+  const paidMonth = (() => {
     const now = new Date();
     const ym  = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
-    return history
-      .filter(p => p.paid_at?.startsWith(ym))
+    return payments
+      .filter(p => (p.paid_at||"").slice(0,7) === ym)
       .reduce((s,p) => s + Number(p.amount||0), 0);
   })();
-  const remaining = Math.max(0, totalDebt - paidMonth);
 
   return (
     <div style={{ padding: isPC ? "24px 32px 40px" : "16px 14px 80px", maxWidth:1100, margin:"0 auto" }}>
@@ -176,9 +209,9 @@ export default function DebtNccPage({ user }) {
 
       {/* Stat cards */}
       <div style={{ display:"flex", gap:12, flexWrap:"wrap", marginBottom:20 }}>
-        <StatCard icon="🏦" label="Tổng nợ NCC"         value={fmt(totalDebt)}   color="#dc2626" bg="#fef2f2" />
-        <StatCard icon="✅" label="Đã trả tháng này"     value={fmt(paidMonth)}   color="#059669" bg="#f0fdf4" />
-        <StatCard icon="⏳" label="Còn phải trả"         value={fmt(remaining)}   color="#d97706" bg="#fffbeb" />
+        <StatCard icon="🏦" label="Tổng nợ NCC (lũy kế)" value={fmt(totalDebtEver)} color="#4f46e5" bg="#eef2ff" />
+        <StatCard icon="✅" label="Đã trả tháng này"     value={fmt(paidMonth)}    color="#059669" bg="#f0fdf4" />
+        <StatCard icon="⏳" label="Còn phải trả"         value={fmt(remaining)}    color="#d97706" bg="#fffbeb" />
       </div>
 
       {/* Tabs */}
@@ -198,37 +231,66 @@ export default function DebtNccPage({ user }) {
       {loading ? (
         <div style={{ textAlign:"center", padding:40, color:"#9ca3af" }}>⏳ Đang tải...</div>
       ) : activeTab === "list" ? (
-        suppliers.filter(s => Number(s.total_debt||0) > 0).length === 0 ? (
+        supplierListWithDebt.length === 0 ? (
           <div style={{ textAlign:"center", padding:40, color:"#9ca3af" }}>
             <div style={{ fontSize:40, marginBottom:8 }}>🎉</div>
             <div style={{ fontWeight:600 }}>Không có công nợ NCC nào</div>
           </div>
         ) : (
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-            {suppliers.filter(s => Number(s.total_debt||0) > 0).map(s => (
-              <div key={s.id} style={{ background:"#fff", border:"1.5px solid #e5e7eb", borderRadius:14, padding:"14px 16px",
-                display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
-                <div>
-                  <div style={{ fontWeight:700, fontSize:15, color:"#1e1b4b" }}>{s.name}</div>
-                  {s.phone && <div style={{ fontSize:12, color:"#6b7280" }}>{s.phone}</div>}
-                </div>
-                <div style={{ textAlign:"right" }}>
-                  <div style={{ fontSize:18, fontWeight:800, color:"#dc2626" }}>{fmt(s.total_debt)}</div>
-                  {canManage && (
-                    <button onClick={() => setPayTarget(s)}
-                      style={{ marginTop:6, padding:"5px 14px", borderRadius:8, border:"none",
-                        background:"linear-gradient(135deg,#4f46e5,#7c3aed)", color:"#fff",
-                        fontSize:12, fontWeight:700, cursor:"pointer" }}>
-                      Thanh toán
-                    </button>
+            {supplierListWithDebt.map(s => {
+              const openVouchers = s.vouchers.filter(v => (v.remaining||0) > 0).sort((a,b)=>(a.id>b.id?1:-1));
+              const isOpen = expanded === s.name;
+              return (
+                <div key={s.name} style={{ background:"#fff", border:"1.5px solid #e5e7eb", borderRadius:14, overflow:"hidden" }}>
+                  <div onClick={() => setExpanded(isOpen ? null : s.name)}
+                    style={{ padding:"14px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, cursor:"pointer" }}>
+                    <div>
+                      <div style={{ fontWeight:700, fontSize:15, color:"#1e1b4b" }}>{s.name}</div>
+                      <div style={{ fontSize:12, color:"#6b7280" }}>{openVouchers.length} phiếu chưa trả hết</div>
+                    </div>
+                    <div style={{ textAlign:"right" }}>
+                      <div style={{ fontSize:18, fontWeight:800, color:"#dc2626" }}>{fmt(s.totalDebt)}</div>
+                      <div style={{ fontSize:11, color:"#9ca3af" }}>{isOpen ? "▲ Thu gọn" : "▼ Xem chi tiết"}</div>
+                    </div>
+                  </div>
+                  {isOpen && (
+                    <div style={{ borderTop:"1px solid #f3f4f6" }}>
+                      {openVouchers.map(v => {
+                        const st = STATUS[v.status] || STATUS.open;
+                        return (
+                          <div key={v.id} style={{ padding:"10px 16px", display:"flex", alignItems:"center", justifyContent:"space-between",
+                            gap:10, borderBottom:"1px solid #f9fafb" }}>
+                            <div>
+                              <div style={{ fontSize:13, fontWeight:700 }}>{v.voucher_code} {v.origin_code ? `· ${v.origin_code}` : ""}</div>
+                              <div style={{ fontSize:11, color:"#9ca3af" }}>
+                                Tổng {fmt(v.total_amount)} · Đã trả {fmt(v.paid_amount)} ·{" "}
+                                <span style={{ color:st.color, fontWeight:700 }}>{st.label}</span>
+                              </div>
+                            </div>
+                            <div style={{ textAlign:"right", display:"flex", alignItems:"center", gap:8 }}>
+                              <div style={{ fontSize:14, fontWeight:800, color:"#dc2626" }}>{fmt(v.remaining)}</div>
+                              {canManage && (
+                                <button onClick={(e) => { e.stopPropagation(); setPayTarget(v); }}
+                                  style={{ padding:"5px 12px", borderRadius:8, border:"none",
+                                    background:"linear-gradient(135deg,#4f46e5,#7c3aed)", color:"#fff",
+                                    fontSize:12, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>
+                                  Trả
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )
       ) : (
-        history.length === 0 ? (
+        payments.length === 0 ? (
           <div style={{ textAlign:"center", padding:40, color:"#9ca3af" }}>Chưa có lịch sử thanh toán</div>
         ) : (
           <div style={{ overflowX:"auto" }}>
@@ -242,15 +304,15 @@ export default function DebtNccPage({ user }) {
                 </tr>
               </thead>
               <tbody>
-                {history.map(p => (
+                {payments.map(p => (
                   <tr key={p.id} style={{ borderBottom:"1px solid #f3f4f6" }}>
-                    <td style={{ padding:"8px 10px", fontWeight:600 }}>{p.supplier_name || "—"}</td>
+                    <td style={{ padding:"8px 10px", fontWeight:600 }}>{p.party_name || "—"}</td>
                     <td style={{ padding:"8px 10px", textAlign:"right", fontWeight:700, color:"#059669" }}>{fmt(p.amount)}</td>
                     <td style={{ padding:"8px 10px", color:"#6b7280" }}>
                       {p.payment_method === "cash" ? "💵 Tiền mặt" : p.payment_method === "transfer" ? "🏦 Chuyển khoản" : p.payment_method}
                     </td>
                     <td style={{ padding:"8px 10px", color:"#374151" }}>{fmtDate(p.paid_at)}</td>
-                    <td style={{ padding:"8px 10px", color:"#374151" }}>{p.paid_by_name || "—"}</td>
+                    <td style={{ padding:"8px 10px", color:"#374151" }}>{p.created_by_name || "—"}</td>
                     <td style={{ padding:"8px 10px", color:"#6b7280", fontStyle:"italic" }}>{p.note || ""}</td>
                   </tr>
                 ))}
@@ -262,7 +324,7 @@ export default function DebtNccPage({ user }) {
 
       {payTarget && (
         <PaymentModal
-          supplier={payTarget}
+          voucher={payTarget}
           user={user}
           onClose={() => setPayTarget(null)}
           onSaved={() => { showToast("✅ Đã ghi nhận thanh toán"); load(); }}
