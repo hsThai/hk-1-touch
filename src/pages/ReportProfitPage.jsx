@@ -101,7 +101,7 @@ export default function ReportProfitPage({ user }) {
         addDay(r.done_date, "repair", amt);
       }
       for (const s of (sales || [])) {
-        const amt = Number(s.total_amount || s.final_amount || 0);
+        const amt = Number(s.total || 0);
         totalSale += amt;
         addDay((s.created_date||s.created||"")?.slice(0,10), "sale", amt);
       }
