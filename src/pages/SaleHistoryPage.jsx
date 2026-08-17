@@ -267,6 +267,18 @@ export default function SaleHistoryPage({ user }) {
     if (!window.confirm(`Hủy đơn ${order.order_code}?`)) return;
     try {
       await SaleOrder.update(order.id, { status: "cancelled" });
+      // Hủy debt_voucher liên quan (nếu đơn bán ghi nợ khách) — tránh nợ ma
+      try {
+        const dvs = await DebtVoucher.filter({ origin_id: order.id }).catch(()=>[]);
+        for (const v of (dvs||[])) {
+          if (v.status === "cancelled") continue;
+          await DebtVoucher.update(v.id, {
+            status: "cancelled", remaining: 0,
+            note: (v.note||"") + " | Hủy do đơn " + order.order_code + " đã bị hủy",
+          });
+          logAction(user, "cancel_debt", "debt_voucher", v.id, `Hủy nợ ${v.party_name} (${v.voucher_code}) do hủy đơn ${order.order_code}`);
+        }
+      } catch(e) { console.error("Cancel debt_voucher error:", e); }
       logAction(user, "delete", "sale_order", order.id, `Hủy đơn ${order.order_code} từ lịch sử`);
       load();
     } catch(e) { alert("Lỗi: " + e.message); }

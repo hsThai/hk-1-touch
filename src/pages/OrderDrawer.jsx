@@ -729,6 +729,18 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                   const orderCode = order.id || order.order_code;
                   try {
                     // 1. Xóa đơn khỏi PocketBase
+                    // 1a. Hủy debt_voucher liên quan (nếu đơn sửa có ghi nợ khách) — tránh nợ ma
+                    try {
+                      const dvs = await DebtVoucher.filter({ origin_id: delId }).catch(()=>[]);
+                      for (const v of (dvs||[])) {
+                        if (v.status === "cancelled") continue;
+                        await DebtVoucher.update(v.id, {
+                          status: "cancelled", remaining: 0,
+                          note: (v.note||"") + " | Hủy do xóa đơn " + orderCode,
+                        });
+                        logAction(currentUser, "cancel_debt", "debt_voucher", v.id, `Hủy nợ ${v.party_name} (${v.voucher_code}) do xóa đơn ${orderCode}`);
+                      }
+                    } catch(e) { console.error("Cancel debt_voucher on delete repair:", e); }
                     await RepairOrder.delete(delId);
 
                     // 1b. Ghi log lịch sử & thao tác trước khi xóa
