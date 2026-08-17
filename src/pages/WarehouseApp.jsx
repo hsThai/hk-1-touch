@@ -824,6 +824,20 @@ function WarehouseImport({ user }) {
           await StockImportItem.delete(it.id).catch(()=>{});
         } catch(e) { console.error("Rollback error:", e); }
       }
+      // Hủy debt_voucher liên quan (nếu phiếu nhập này có ghi nợ NCC) — tránh nợ "ma"
+      // còn sót lại sau khi phiếu nhập gốc đã bị xóa.
+      try {
+        const relatedVouchers = await DebtVoucher.filter({ origin_type:"stock_import", origin_id: imp.id }).catch(()=>[]);
+        for (const v of (relatedVouchers||[])) {
+          if (v.status === "cancelled") continue;
+          await DebtVoucher.update(v.id, {
+            status: "cancelled",
+            remaining: 0,
+            note: (v.note||"") + " | Đã hủy do xóa phiếu nhập gốc " + imp.import_code,
+          });
+          logAction(user, "cancel_debt", "debt_voucher", v.id, `Hủy nợ NCC ${v.party_name} (${v.voucher_code}) do xóa phiếu nhập ${imp.import_code}`);
+        }
+      } catch(e) { console.error("Cancel debt_voucher error:", e); }
       await StockImport.delete(imp.id);
       logAction(user, "delete", "stock_import", imp.id, `Xóa phiếu nhập ${imp.import_code} (rollback tồn kho)`);
       setConfirmDelete(null);
