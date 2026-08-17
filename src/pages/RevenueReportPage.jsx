@@ -1,6 +1,6 @@
 /* RevenueReportPage.jsx — Báo cáo doanh thu */
 import React, { useState, useEffect, useMemo } from "react";
-import { RepairOrder, SaleOrder, Expense, StockImport, StockExportRequest, CashJournal } from "./pb.jsx";
+import { RepairOrder, SaleOrder, SaleOrderItem, Expense, StockImport, StockExportRequest, CashJournal } from "./pb.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 function fmtDate(dateStr) {
@@ -15,19 +15,27 @@ const PERIOD_TABS = [
   { key:"7days",     label:"7 ngày" },
   { key:"30days",    label:"30 ngày" },
   { key:"thismonth", label:"Tháng này" },
+  { key:"custom",    label:"Tùy chọn" },
 ];
 
-function startOf(period) {
+function startOf(period, customFrom) {
   const now = new Date();
   if (period==="today")     return new Date(now.getFullYear(),now.getMonth(),now.getDate());
   if (period==="7days")     { const d=new Date(now); d.setDate(d.getDate()-6); d.setHours(0,0,0,0); return d; }
   if (period==="30days")    { const d=new Date(now); d.setDate(d.getDate()-29); d.setHours(0,0,0,0); return d; }
   if (period==="thismonth") return new Date(now.getFullYear(),now.getMonth(),1);
+  if (period==="custom" && customFrom) { const d=new Date(customFrom); d.setHours(0,0,0,0); return d; }
   return new Date(0);
 }
-function inPeriod(dateStr, period) {
+function endOf(period, customTo) {
+  if (period==="custom" && customTo) { const d=new Date(customTo); d.setHours(23,59,59,999); return d; }
+  return new Date(8640000000000000); // không giới hạn trên (tới hiện tại)
+}
+function inPeriod(dateStr, period, customFrom, customTo) {
   if (!dateStr) return false;
-  return new Date(dateStr) >= startOf(period);
+  const d = new Date(dateStr);
+  if (isNaN(d)) return false;
+  return d >= startOf(period, customFrom) && d <= endOf(period, customTo);
 }
 
 const EXP_LABELS = { salary:"Lương", rent:"Thuê mặt bằng", utility:"Điện nước", supply:"Vật tư", other:"Khác" };
@@ -40,8 +48,8 @@ const TD = { padding:"10px 12px", fontSize:13, borderBottom:"1px solid #f3f4f6",
 // Sub-components cho RevenueReportPage
 // ─────────────────────────────────────────────────────────────────────────────
 
-function TabByKTV({ orders, period, inPeriod, DONE_STATUS }) {
-  const filtered = orders.filter(o=>DONE_STATUS.includes(o.status)&&inPeriod(o.done_date||o.updated_date||o.updated,period));
+function TabByKTV({ orders, period, inPeriod, DONE_STATUS, customFrom, customTo }) {
+  const filtered = orders.filter(o=>DONE_STATUS.includes(o.status)&&inPeriod(o.done_date||o.updated_date||o.updated,period,customFrom,customTo));
   const byKtv = {};
   filtered.forEach(o=>{
     const name = o.assigned_to_name||"Chưa phân công";
@@ -70,8 +78,8 @@ function TabByKTV({ orders, period, inPeriod, DONE_STATUS }) {
   );
 }
 
-function TabServices({ orders, period, inPeriod, DONE_STATUS }) {
-  const filtered = orders.filter(o=>DONE_STATUS.includes(o.status)&&inPeriod(o.done_date||o.updated_date||o.updated,period));
+function TabServices({ orders, period, inPeriod, DONE_STATUS, customFrom, customTo }) {
+  const filtered = orders.filter(o=>DONE_STATUS.includes(o.status)&&inPeriod(o.done_date||o.updated_date||o.updated,period,customFrom,customTo));
   const svcMap = {};
   filtered.forEach(o=>{
     const issues = (o.issue_description||"").split(/[,\n;、]+/).map(s=>s.trim()).filter(s=>s.length>2&&s.length<60);
@@ -221,8 +229,8 @@ function CashJournalTab() {
 
 
 // ── Tab Top sản phẩm bán chạy ─────────────────────────────
-function TopProductsTab({ repairOrders, saleOrders }) {
-  // Phân tích từ repair_orders + sale_orders
+function TopProductsTab({ repairOrders, saleOrders, saleOrderItems }) {
+  // Phân tích từ repair_orders (theo thiết bị) + sale_order_items (theo linh kiện/SP bán lẻ thực tế)
   const productMap = {};
 
   (repairOrders || []).forEach(o => {
@@ -232,11 +240,14 @@ function TopProductsTab({ repairOrders, saleOrders }) {
     productMap[name].revenue += (o.final_cost || o.estimated_cost || 0);
   });
 
-  (saleOrders || []).forEach(o => {
-    const name = o.product_name || o.item_name || o.name || "Không rõ";
+  // Chỉ tính các sale_order_items thuộc đơn đã hoàn tất (completed)
+  const completedSaleIds = new Set((saleOrders||[]).filter(o=>o.status==="completed").map(o=>o.id));
+  (saleOrderItems || []).forEach(it => {
+    if (!completedSaleIds.has(it.sale_order_id)) return;
+    const name = it.part_name || it.sku || "Không rõ";
     if (!productMap[name]) productMap[name] = { name, countRepair:0, countSale:0, revenue:0 };
-    productMap[name].countSale++;
-    productMap[name].revenue += (o.total || o.total_amount || o.price || 0);
+    productMap[name].countSale += Number(it.qty) || 1;
+    productMap[name].revenue += Number(it.total_price || (it.unit_price*it.qty) || 0);
   });
 
   const sorted = Object.values(productMap)
@@ -339,7 +350,7 @@ function ProfitLossTab({ repairOrders, saleOrders, expenses }) {
 
   const DONE_ST = ["Đã Thanh Toán","Hoàn Thành","Đã Giao"];
   const repairRev = repairOrders.filter(o=>DONE_ST.includes(o.status)&&inP(o.paid_at||o.done_date)).reduce((s,o)=>s+(o.final_cost||0),0);
-  const saleRev   = saleOrders.filter(o=>o.status==="paid"&&inP(o.created||o.created_date)).reduce((s,o)=>s+(o.total||0),0);
+  const saleRev   = saleOrders.filter(o=>o.status==="completed"&&inP(o.created_date||o.created)).reduce((s,o)=>s+(o.total||0),0);
   const totalRev  = repairRev + saleRev;
 
   const partsCost = stockExps.filter(x=>x.status==="approved"&&inP(x.updated_date||x.updated)).reduce((s,x)=>s+(x.total_value||0),0);
@@ -427,7 +438,7 @@ function ProfitLossTab({ repairOrders, saleOrders, expenses }) {
   );
 }
 
-function TabStockReport({ period, startOf }) {
+function TabStockReport({ period, startOf, customFrom }) {
   const [imports,  setImports]  = useState([]);
   const [exports_, setExports]  = useState([]);
   const [loading,  setLoading]  = useState(true);
@@ -440,7 +451,7 @@ function TabStockReport({ period, startOf }) {
       .catch(()=>{}).finally(()=>setLoading(false));
   },[]);
 
-  const start = startOf(period);
+  const start = startOf(period, customFrom);
   const filtImp = imports.filter(i=>new Date(i.created_date||i.created)>=start);
   const filtExp = exports_.filter(e=>new Date(e.created_date||e.created)>=start);
   const totalImpVal = filtImp.reduce((s,i)=>s+(i.total_value||0),0);
@@ -488,9 +499,12 @@ export default function RevenueReportPage({ user }) {
     window.addEventListener("resize", fn);
     return () => window.removeEventListener("resize", fn);
   }, []);  const [period,      setPeriod]      = useState("today");
+  const [customFrom,  setCustomFrom]  = useState("");
+  const [customTo,    setCustomTo]    = useState("");
   const [detailTab,   setDetailTab]   = useState("repair");
   const [repairOrders,setRepairOrders]= useState([]);
   const [saleOrders,  setSaleOrders]  = useState([]);
+  const [saleOrderItems, setSaleOrderItems] = useState([]);
   const [expenses,    setExpenses]    = useState([]);
   const [loading,     setLoading]     = useState(true);
 
@@ -498,12 +512,13 @@ export default function RevenueReportPage({ user }) {
     async function load() {
       setLoading(true);
       try {
-        const [ro,so,ex] = await Promise.all([
+        const [ro,so,soi,ex] = await Promise.all([
           RepairOrder.list({ limit:500, sort:"-received_date" }),
           SaleOrder.list({ limit:500, sort:"-id" }),
+          SaleOrderItem.list({ limit:1000, sort:"-id" }),
           Expense.list({ limit:500, sort:"-expense_date" }),
         ]);
-        setRepairOrders(ro||[]); setSaleOrders(so||[]); setExpenses(ex||[]);
+        setRepairOrders(ro||[]); setSaleOrders(so||[]); setSaleOrderItems(soi||[]); setExpenses(ex||[]);
       } catch {}
       setLoading(false);
     }
@@ -511,14 +526,14 @@ export default function RevenueReportPage({ user }) {
   }, []);
 
   const periodRepair = useMemo(() =>
-    repairOrders.filter(o => DONE_STATUS.includes(o.status) && inPeriod(o.done_date||o.updated, period)),
-    [repairOrders, period]);
+    repairOrders.filter(o => DONE_STATUS.includes(o.status) && inPeriod(o.done_date||o.updated_date, period, customFrom, customTo)),
+    [repairOrders, period, customFrom, customTo]);
   const periodSale = useMemo(() =>
-    saleOrders.filter(o => o.status==="paid" && inPeriod(o.created||o.created_date, period)),
-    [saleOrders, period]);
+    saleOrders.filter(o => o.status==="completed" && inPeriod(o.created_date||o.created, period, customFrom, customTo)),
+    [saleOrders, period, customFrom, customTo]);
   const periodExp = useMemo(() =>
-    expenses.filter(e => inPeriod(e.expense_date||e.created_date||e.created, period)),
-    [expenses, period]);
+    expenses.filter(e => e.status==="approved" && inPeriod(e.expense_date||e.created_date||e.created, period, customFrom, customTo)),
+    [expenses, period, customFrom, customTo]);
 
   const repairRev = periodRepair.reduce((s,o) => s+(o.final_cost||0), 0);
   const saleRev   = periodSale.reduce((s,o)   => s+(o.total||0), 0);
@@ -546,7 +561,7 @@ export default function RevenueReportPage({ user }) {
       ["Mã đơn","Ghi chú","Tổng","Hình thức","Ngày"],
       ...periodSale.map(o=>[
         o.order_code||o.id, o.note||"", o.total||0, o.payment_method||"",
-        new Date(o.created||o.created_date).toLocaleDateString("vi-VN")
+        new Date(o.created_date||o.created).toLocaleDateString("vi-VN")
       ]),
       [],
       ["CHI PHÍ"],
@@ -589,7 +604,7 @@ export default function RevenueReportPage({ user }) {
       <div style={{ fontWeight:900, fontSize:18, color:"#1e1b4b", marginBottom:16 }}>📊 Báo cáo doanh thu</div>
 
       {/* Period tabs */}
-      <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap" }}>
+      <div style={{ display:"flex", gap:8, marginBottom:period==="custom"?12:20, flexWrap:"wrap" }}>
         {PERIOD_TABS.map(t => (
           <button key={t.key} onClick={()=>setPeriod(t.key)}
             style={{ padding:"8px 16px", borderRadius:99, border:"none", cursor:"pointer",
@@ -600,6 +615,19 @@ export default function RevenueReportPage({ user }) {
           </button>
         ))}
       </div>
+
+      {/* Custom date range picker */}
+      {period==="custom" && (
+        <div style={{ display:"flex", gap:8, alignItems:"center", marginBottom:20, flexWrap:"wrap" }}>
+          <input type="date" value={customFrom}
+            onChange={e=>{ setCustomFrom(e.target.value); if(!customTo) setCustomTo(e.target.value); }}
+            style={{ flex:1, minWidth:130, border:"1.5px solid #e5e7eb", borderRadius:10, padding:"8px 10px", fontSize:13 }}/>
+          <span style={{ color:"#6b7280" }}>—</span>
+          <input type="date" value={customTo}
+            onChange={e=>{ setCustomTo(e.target.value); if(!customFrom) setCustomFrom(e.target.value); }}
+            style={{ flex:1, minWidth:130, border:"1.5px solid #e5e7eb", borderRadius:10, padding:"8px 10px", fontSize:13 }}/>
+        </div>
+      )}
 
       {/* Summary cards */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:24 }}>
@@ -686,7 +714,7 @@ export default function RevenueReportPage({ user }) {
                       <td style={{...TD,textAlign:"center"}}>{(o.items||[]).length}</td>
                       <td style={{...TD,textAlign:"right",fontWeight:800,color:"#059669"}}>{fmtMoney(o.total)}</td>
                       <td style={TD}>{o.payment_method}</td>
-                      <td style={TD}>{fmtDate(o.created||o.created_date)}</td>
+                      <td style={TD}>{fmtDate(o.created_date||o.created)}</td>
                     </tr>
                   ))
                 }
@@ -730,12 +758,12 @@ export default function RevenueReportPage({ user }) {
           </div>
         )}
 
-        {detailTab==="by_ktv"       && <div style={{padding:16}}><TabByKTV orders={repairOrders} period={period} inPeriod={inPeriod} DONE_STATUS={DONE_STATUS}/></div>}
-        {detailTab==="services"     && <div style={{padding:16}}><TabServices orders={repairOrders} period={period} inPeriod={inPeriod} DONE_STATUS={DONE_STATUS}/></div>}
-        {detailTab==="top_products" && <TopProductsTab repairOrders={repairOrders} saleOrders={saleOrders} />}
+        {detailTab==="by_ktv"       && <div style={{padding:16}}><TabByKTV orders={repairOrders} period={period} inPeriod={inPeriod} DONE_STATUS={DONE_STATUS} customFrom={customFrom} customTo={customTo}/></div>}
+        {detailTab==="services"     && <div style={{padding:16}}><TabServices orders={repairOrders} period={period} inPeriod={inPeriod} DONE_STATUS={DONE_STATUS} customFrom={customFrom} customTo={customTo}/></div>}
+        {detailTab==="top_products" && <TopProductsTab repairOrders={repairOrders} saleOrders={saleOrders} saleOrderItems={saleOrderItems} />}
         {detailTab==="pl"           && <ProfitLossTab repairOrders={repairOrders} saleOrders={saleOrders} expenses={expenses}/>}
         {detailTab==="cash_journal" && <CashJournalTab/>}
-        {detailTab==="stock_report" && <div style={{padding:16}}><TabStockReport period={period} startOf={startOf}/></div>}
+        {detailTab==="stock_report" && <div style={{padding:16}}><TabStockReport period={period} startOf={startOf} customFrom={customFrom}/></div>}
       </div>
     </div>
   );
