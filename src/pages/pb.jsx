@@ -247,6 +247,7 @@ export const CashJournal        = makeCollection("cash_journal");
 export const Supplier           = makeCollection("suppliers");
 export const ShiftReconcile    = makeCollection("shift_reconciles");
 export const KpiRecord          = makeCollection("kpi_records");
+export const ProductCategory    = makeCollection("product_categories");
 
 // ── Helper: ghi log lịch sử đơn (OrderHistory) ──────────────
 export async function logHistory({ order_id, order_code, action_type, action_label, changed_by_id, changed_by_name, changed_by_role, old_value, new_value, note }) {

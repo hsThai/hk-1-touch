@@ -1,27 +1,15 @@
 /**
  * PricePolicyPage.jsx — Chính sách giá hàng hóa & dịch vụ
- * @version 2026-06-01-v1
+ * @version 2026-08-18-v2 — dropdown danh mục đầy đủ (ProductCategory entity)
  */
-import React, { useState, useEffect, useMemo } from "react";
-import { SparePart, logAction } from "./pb.jsx";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { SparePart, ProductCategory, logAction } from "./pb.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 
 const ADMIN_ROLES = ["owner","admin","manager"];
-const CATEGORY_LABELS = {
-  screen:    "📱 Màn hình",
-  battery:   "🔋 Pin",
-  ic:        "🔩 IC / Bo mạch",
-  speaker:   "🔊 Loa / Mic",
-  camera:    "📷 Camera",
-  housing:   "🖼️ Vỏ máy",
-  cable:     "🔌 Cáp / Sạc",
-  accessory: "🎧 Phụ kiện",
-  service:   "🔧 Dịch vụ",
-  other:     "📦 Khác",
-};
 
-function EditPriceModal({ item, onSave, onClose }) {
+function EditPriceModal({ item, onSave, onClose, user }) {
   const [retail,    setRetail]    = useState(item.retail_price  || item.price || 0);
   const [wholesale, setWholesale] = useState(item.wholesale_price || 0);
   const [cost,      setCost]      = useState(item.cost_price    || 0);
@@ -90,29 +78,40 @@ function EditPriceModal({ item, onSave, onClose }) {
 }
 
 export default function PricePolicyPage({ user }) {
-  const [items,    setItems]    = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [search,   setSearch]   = useState("");
-  const [category, setCategory] = useState("all");
-  const [editing,  setEditing]  = useState(null);
+  const [items,      setItems]      = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loading,     setLoading]   = useState(true);
+  const [search,      setSearch]    = useState("");
+  const [category,    setCategory]  = useState("all");
+  const [editing,     setEditing]   = useState(null);
 
   const isAdmin = ADMIN_ROLES.includes(user?.role);
 
-  async function load() {
-    setLoading(true);
-    try {
-      const data = await SparePart.list({ limit:500, sort:"category,name" });
-      setItems(data || []);
-    } catch { setItems([]); }
-    setLoading(false);
+  const catMap = useMemo(() => {
+    const m = {};
+    categories.forEach(c => { m[c.code] = c; });
+    return m;
+  }, [categories]);
+
+  function catLabel(code) {
+    const c = catMap[code];
+    return c ? ((c.icon || "📦") + " " + c.name) : (code || "—");
   }
 
-  useEffect(() => { load(); }, []);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [data, catData] = await Promise.all([
+        SparePart.list({ limit:500, sort:"category,name" }),
+        ProductCategory.list({ limit: 200, sort: "sort_order,name" }),
+      ]);
+      setItems(data || []);
+      setCategories((catData || []).filter(c => c.is_active !== false));
+    } catch { setItems([]); setCategories([]); }
+    setLoading(false);
+  }, []);
 
-  const categories = useMemo(() => {
-    const set = new Set(items.map(i => i.category || "other"));
-    return ["all", ...Array.from(set)];
-  }, [items]);
+  useEffect(() => { load(); }, [load]);
 
   const displayed = useMemo(() => items.filter(i => {
     const matchSearch = !search || [i.name, i.sku, i.category]
@@ -131,20 +130,16 @@ export default function PricePolicyPage({ user }) {
       {/* Filter */}
       <div style={{ display:"flex", gap:10, marginBottom:16, flexWrap:"wrap" }}>
         <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Tìm tên, SKU..."
-          style={{ flex:1, minWidth:180, height:40, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 14px", fontSize:13, outline:"none" }} />
-        <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+          style={{ flex:1, minWidth:180, height:40, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 44px", fontSize:13, outline:"none" }} />
+        <select value={category} onChange={e=>setCategory(e.target.value)} style={{
+          height:40, minWidth:200, borderRadius:10, border:"1.5px solid #e5e7eb",
+          padding:"0 12px", fontSize:13, fontWeight:600, cursor:"pointer", background:"#fff",
+        }}>
+          <option value="all">Tất cả danh mục</option>
           {categories.map(c => (
-            <button key={c} onClick={() => setCategory(c)} style={{
-              padding:"0 12px", height:40, borderRadius:10, border:"1.5px solid",
-              borderColor: category===c ? "#059669" : "#e5e7eb",
-              background:  category===c ? "#f0fdf4"  : "#fff",
-              color:       category===c ? "#059669"  : "#6b7280",
-              fontWeight:700, fontSize:12, cursor:"pointer",
-            }}>
-              {c === "all" ? "Tất cả" : (CATEGORY_LABELS[c] || c)}
-            </button>
+            <option key={c.id} value={c.code}>{c.icon || "📦"} {c.name}</option>
           ))}
-        </div>
+        </select>
       </div>
 
       {loading && <div style={{ textAlign:"center", padding:40, color:"#6b7280" }}>⏳ Đang tải...</div>}
@@ -184,7 +179,7 @@ export default function PricePolicyPage({ user }) {
                     <td style={{ padding:"10px 14px", fontWeight:600, color:"#1f2937" }}>{item.name}</td>
                     <td style={{ padding:"10px 14px", color:"#9ca3af", fontFamily:"monospace" }}>{item.sku || "—"}</td>
                     <td style={{ padding:"10px 14px", color:"#6b7280" }}>
-                      {CATEGORY_LABELS[item.category] || item.category || "—"}
+                      {catLabel(item.category)}
                     </td>
                     <td style={{ padding:"10px 14px", textAlign:"right", color:"#9ca3af" }}>
                       {cost > 0 ? fmtMoney(cost) : "—"}
@@ -223,6 +218,7 @@ export default function PricePolicyPage({ user }) {
       {editing && (
         <EditPriceModal
           item={editing}
+          user={user}
           onSave={() => { setEditing(null); load(); }}
           onClose={() => setEditing(null)}
         />

@@ -1,33 +1,15 @@
 /**
  * ProductManagerPage.jsx — Danh mục hàng hóa (CRUD)
  * Thêm / sửa / xóa / merge linh kiện — tham chiếu KiotViet Danh sách hàng hóa
- * @version 2026-08-18-v1
+ * @version 2026-08-18-v2 — danh mục động (ProductCategory entity) + quản lý danh mục
  */
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { SparePart, logAction } from "./pb.jsx";
+import { SparePart, ProductCategory, logAction } from "./pb.jsx";
+import CategoryManagerModal from "./CategoryManagerModal.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 
 const ADMIN_ROLES = ["owner","admin","manager"];
-
-const CATEGORY_LABELS = {
-  "BỘ MÁY":              "🔧 Bộ máy",
-  "MÁY HÀN, KHÒ, CẤP NGUỒN": "🔥 Máy hàn / Khò / Cấp nguồn",
-  "MÁY MÓC KHÁC":         "📦 Máy móc khác",
-  "MaAnt":                "📡 MaAnt",
-  spare_part:            "🔩 Linh kiện",
-  device_stock:          "📱 Máy / Thiết bị",
-  screen:                "📱 Màn hình",
-  battery:               "🔋 Pin",
-  ic:                   "🔩 IC / Bo mạch",
-  speaker:              "🔊 Loa / Mic",
-  camera:               "📷 Camera",
-  housing:              "🖼️ Vỏ máy",
-  cable:                "🔌 Cáp / Sạc",
-  accessory:            "🎧 Phụ kiện",
-  service:              "🔧 Dịch vụ",
-  other:                "📦 Khác",
-};
 
 const UNIT_OPTIONS = ["Cái", "Bộ", "Hộp", "Cuộn", "Mét", "Kg", "Lít", "Chai", "Gói", "Dây"];
 
@@ -38,12 +20,12 @@ const INP = {
 const LBL = { fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 4, display: "block" };
 
 // ── Add/Edit Modal ──────────────────────────────────────────
-function ProductFormModal({ item, onSave, onClose }) {
+function ProductFormModal({ item, categories, onSave, onClose, user }) {
   const isEdit = !!item?.id;
   const [form, setForm] = useState({
     name: item?.name || "",
     sku: item?.sku || "",
-    category: item?.category || "spare_part",
+    category: item?.category || (categories[0]?.code || "other"),
     unit: item?.unit || "Cái",
     price: item?.price || item?.retail_price || 0,
     wholesale_price: item?.wholesale_price || 0,
@@ -77,11 +59,11 @@ function ProductFormModal({ item, onSave, onClose }) {
       };
       if (isEdit) {
         await SparePart.update(item.id, payload);
-        logAction(window.__currentUser, "update", "spare_part", item.id,
+        logAction(user, "update", "spare_part", item.id,
           "Sửa hàng hóa: " + payload.name + " — SKU: " + (payload.sku || "—"));
       } else {
         const rec = await SparePart.create(payload);
-        logAction(window.__currentUser, "create", "spare_part", rec.id,
+        logAction(user, "create", "spare_part", rec.id,
           "Tạo hàng hóa mới: " + payload.name + " — SKU: " + (payload.sku || "—"));
       }
       onSave();
@@ -126,9 +108,12 @@ function ProductFormModal({ item, onSave, onClose }) {
           <div>
             <label style={LBL}>Danh mục</label>
             <select value={form.category} onChange={e=>set("category", e.target.value)} style={INP}>
-              {Object.entries(CATEGORY_LABELS).map(([k,v]) => (
-                <option key={k} value={k}>{v}</option>
+              {categories.map(c => (
+                <option key={c.id} value={c.code}>{c.icon || "📦"} {c.name}</option>
               ))}
+              {!categories.some(c => c.code === form.category) && form.category && (
+                <option value={form.category}>📦 {form.category}</option>
+              )}
             </select>
           </div>
 
@@ -202,7 +187,7 @@ function ProductFormModal({ item, onSave, onClose }) {
 }
 
 // ── Merge Modal ─────────────────────────────────────────────
-function MergeModal({ source, items, onMerge, onClose }) {
+function MergeModal({ source, items, onMerge, onClose, user }) {
   const [targetId, setTargetId] = useState("");
   const [merging, setMerging] = useState(false);
   const targets = items.filter(i => i.id !== source?.id);
@@ -222,7 +207,7 @@ function MergeModal({ source, items, onMerge, onClose }) {
         stock_qty: (Number(source.stock_qty) || 0) + (Number(target.stock_qty) || 0),
       });
       await SparePart.delete(source.id);
-      logAction(window.__currentUser, "merge", "spare_part", target.id,
+      logAction(user, "merge", "spare_part", target.id,
         "Gộp \"" + source.name + "\" (SKU: " + (source.sku||"—") + ") → \"" + target.name + "\" (SKU: " + (target.sku||"—") + ")");
       onMerge();
       onClose();
@@ -261,6 +246,7 @@ function MergeModal({ source, items, onMerge, onClose }) {
 // ── Main Page ──────────────────────────────────────────────
 export default function ProductManagerPage({ user }) {
   const [items, setItems] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
@@ -269,26 +255,35 @@ export default function ProductManagerPage({ user }) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [merging, setMerging] = useState(null);
+  const [showCatMgr, setShowCatMgr] = useState(false);
 
   const isAdmin = ADMIN_ROLES.includes(user?.role);
 
-  useEffect(() => { window.__currentUser = user; }, [user]);
+  const catMap = useMemo(() => {
+    const m = {};
+    categories.forEach(c => { m[c.code] = c; });
+    return m;
+  }, [categories]);
+
+  function catLabel(code) {
+    const c = catMap[code];
+    return c ? ((c.icon || "📦") + " " + c.name) : (code || "—");
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await SparePart.list({ limit: 500, sort: "-id" });
+      const [data, catData] = await Promise.all([
+        SparePart.list({ limit: 500, sort: "-id" }),
+        ProductCategory.list({ limit: 200, sort: "sort_order,name" }),
+      ]);
       setItems(data || []);
-    } catch { setItems([]); }
+      setCategories((catData || []).filter(c => c.is_active !== false));
+    } catch { setItems([]); setCategories([]); }
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
-
-  const categories = useMemo(() => {
-    const set = new Set(items.map(i => i.category || "other"));
-    return ["all", ...Array.from(set).sort()];
-  }, [items]);
 
   const displayed = useMemo(() => {
     let filtered = items.filter(i => {
@@ -354,14 +349,23 @@ export default function ProductManagerPage({ user }) {
           </div>
         </div>
         {isAdmin && (
-          <button onClick={()=>{ setEditing(null); setShowForm(true); }} style={{
-            height:44, padding:"0 20px", borderRadius:12, border:"none",
-            background:"#6366f1", color:"#fff", fontWeight:800, fontSize:14, cursor:"pointer",
-            display:"flex", alignItems:"center", gap:6,
-          }}>
-            <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:20 }}>add</span>
-            Thêm hàng hóa
-          </button>
+          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+            <button onClick={()=>setShowCatMgr(true)} style={{
+              height:44, padding:"0 16px", borderRadius:12, border:"1.5px solid #e5e7eb",
+              background:"#fff", color:"#374151", fontWeight:700, fontSize:13, cursor:"pointer",
+              display:"flex", alignItems:"center", gap:6,
+            }}>
+              🏷️ Quản lý danh mục
+            </button>
+            <button onClick={()=>{ setEditing(null); setShowForm(true); }} style={{
+              height:44, padding:"0 20px", borderRadius:12, border:"none",
+              background:"#6366f1", color:"#fff", fontWeight:800, fontSize:14, cursor:"pointer",
+              display:"flex", alignItems:"center", gap:6,
+            }}>
+              <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:20 }}>add</span>
+              Thêm hàng hóa
+            </button>
+          </div>
         )}
       </div>
 
@@ -387,9 +391,10 @@ export default function ProductManagerPage({ user }) {
       <div style={{ display:"flex", gap:10, marginBottom:16, flexWrap:"wrap" }}>
         <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Tìm tên, SKU, IMEI, ghi chú..."
           style={{ flex:1, minWidth:200, height:40, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 44px", fontSize:13, outline:"none" }} />
-        <select value={category} onChange={e=>setCategory(e.target.value)} style={{ height:40, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:13, fontWeight:600, cursor:"pointer", background:"#fff" }}>
+        <select value={category} onChange={e=>setCategory(e.target.value)} style={{ height:40, minWidth:180, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:13, fontWeight:600, cursor:"pointer", background:"#fff" }}>
+          <option value="all">Tất cả danh mục</option>
           {categories.map(c => (
-            <option key={c} value={c}>{c === "all" ? "Tất cả danh mục" : (CATEGORY_LABELS[c] || c)}</option>
+            <option key={c.id} value={c.code}>{c.icon || "📦"} {c.name}</option>
           ))}
         </select>
         <select value={sortBy} onChange={e=>setSortBy(e.target.value)} style={{ height:40, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:13, fontWeight:600, cursor:"pointer", background:"#fff" }}>
@@ -453,7 +458,7 @@ export default function ProductManagerPage({ user }) {
                       {item.serial_imei && <div style={{ fontSize:11 }}>{item.serial_imei}</div>}
                     </td>
                     <td style={{ padding:"10px 14px", color:"#6b7280" }}>
-                      {CATEGORY_LABELS[item.category] || item.category || "—"}
+                      {catLabel(item.category)}
                     </td>
                     <td style={{ padding:"10px 14px", textAlign:"center", color:"#6b7280" }}>{item.unit || "Cái"}</td>
                     <td style={{ padding:"10px 14px", textAlign:"right", color:"#9ca3af" }}>
@@ -502,6 +507,8 @@ export default function ProductManagerPage({ user }) {
       {showForm && (
         <ProductFormModal
           item={editing}
+          categories={categories}
+          user={user}
           onSave={()=>load()}
           onClose={()=>{ setShowForm(false); setEditing(null); }}
         />
@@ -510,8 +517,16 @@ export default function ProductManagerPage({ user }) {
         <MergeModal
           source={merging}
           items={items}
+          user={user}
           onMerge={()=>load()}
           onClose={()=>setMerging(null)}
+        />
+      )}
+      {showCatMgr && (
+        <CategoryManagerModal
+          user={user}
+          onClose={()=>setShowCatMgr(false)}
+          onChanged={()=>load()}
         />
       )}
     </div>
