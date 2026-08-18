@@ -117,6 +117,7 @@ const TARGET_LABEL = {
   cash_journal:       "Sổ quỹ",
   app_settings:       "Cài đặt ứng dụng",
   price_policy:       "Chính sách giá",
+  product_mgr:        "Danh mục hàng hóa",
   print_template:     "Mẫu in",
   rma:                "Phiếu RMA",
   warehouse:         "Kho",

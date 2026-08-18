@@ -320,11 +320,20 @@ const MGR_ACCORDIONS = [
     key: "acc_sales",
     icon: "point_of_sale",
     label: "Bán hàng",
-    pages: ["cashier_home","sale_order","return_order","price_policy"],
+    pages: ["cashier_home","sale_order","return_order"],
     items: [
       { key:"cashier_home", icon:"point_of_sale", label:"Thu ngân (POS)" },
       { key:"sale_order",   icon:"receipt_long",  label:"Quản lý đơn bán hàng" },
       { key:"return_order", icon:"swap_horiz",    label:"Xử lý Đổi trả" },
+    ],
+  },
+  {
+    key: "acc_products",
+    icon: "inventory_2",
+    label: "Hàng hóa",
+    pages: ["product_mgr","price_policy"],
+    items: [
+      { key:"product_mgr",  icon:"inventory_2",   label:"Danh mục hàng hóa" },
       { key:"price_policy", icon:"price_change",  label:"Chính sách giá" },
     ],
   },
@@ -1402,6 +1411,8 @@ function MainAppContent({ onUserChange }) {
       items.push({ key:"return_order", icon:"swap_horiz",    label:"Đổi trả & BH" });
     if (can("sale_order","view") && !isKtv && !isWarehouse)
       items.push({ key:"price_policy", icon:"price_change",  label:"Chính sách giá" });
+    if (can("sale_order","view") && !isKtv && !isWarehouse)
+      items.push({ key:"product_mgr", icon:"inventory_2",   label:"Danh mục hàng hóa" });
 
     // 4. KHO & VẬT TƯ
     if (can("warehouse_mgr","view") && !isManager)
@@ -1919,6 +1930,7 @@ function MainAppContent({ onUserChange }) {
     "sale_order":       { label:"📋 Quản lý đơn bán hàng",    grad:["#059669","#047857"] },
     "return_order":     { label:"🔄 Xử lý đổi trả",           grad:["#059669","#047857"] },
     "price_policy":     { label:"💲 Chính sách giá",           grad:["#059669","#047857"] },
+    "product_mgr":      { label:"📦 Danh mục hàng hóa",         grad:["#7c3aed","#6d28d9"] },
     "wh_home":          { label:"🏭 Kho tổng quan",            grad:["#0284c7","#0369a1"] },
     "wh_orders":        { label:"📦 Đơn kho",                 grad:["#0284c7","#0369a1"] },
     "wh_export":        { label:"📤 Xuất kho",                 grad:["#0284c7","#0369a1"] },
@@ -1976,7 +1988,8 @@ function MainAppContent({ onUserChange }) {
                   "cashier_home":      "🛒 Bán hàng",
                   "sale_order":        "🛒 Bán hàng",
                   "return_order":      "🛒 Bán hàng",
-                  "price_policy":      "🛒 Bán hàng",
+                  "price_policy":      "📦 Hàng hóa",
+                  "product_mgr":       "📦 Hàng hóa",
                   "wh_manager":        "📦 Kho & Vật tư",
                   "wh_ledger":         "📦 Kho & Vật tư",
                   "wh_export":         "📦 Kho & Vật tư",
@@ -2180,7 +2193,8 @@ function MainAppContent({ onUserChange }) {
                     "cashier_home":      "🛒 Bán hàng",
                     "sale_order":        "🛒 Bán hàng",
                     "return_order":      "🛒 Bán hàng",
-                    "price_policy":      "🛒 Bán hàng",
+                    "price_policy":      "📦 Hàng hóa",
+                  "product_mgr":       "📦 Hàng hóa",
                     "wh_manager":        "📦 Kho & Vật tư",
                     "wh_ledger":         "📦 Kho & Vật tư",
                     "wh_export":         "📦 Kho & Vật tư",

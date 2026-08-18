@@ -12,6 +12,7 @@ export const PAGE_PERMS = {
   debt_ncc:        ["debt", "view"],
   return_order:    ["sale_order", "view"],
   price_policy:    ["sale_order", "view"],
+  product_mgr:     ["sale_order", "view"],
   revenue:         ["revenue_report", "view"],
   stock_nxt:       ["stock_ledger", "view"],
   expense:         ["expense", "view"],
@@ -126,6 +127,7 @@ const RMAPage         = lazy(() => import("./RMAPage.jsx").catch(()=>({ default:
 const SaleOrderPage   = lazy(() => import("./SaleOrderPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Đơn bán hàng</div> })));
 const ReturnOrderPage = lazy(() => import("./ReturnOrderPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Đổi trả</div> })));
 const PricePolicyPage = lazy(() => import("./PricePolicyPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Chính sách giá</div> })));
+const ProductManagerPage = lazy(() => import("./ProductManagerPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Danh mục hàng hóa</div> })));
 const RevenueReportPage = lazy(() => import("./RevenueReportPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Doanh thu</div> })));
 const StockReportNXT  = lazy(() => import("./StockReportNXT.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Thẻ kho</div> })));
 const IntegrationsPage = lazy(() => import("./IntegrationsPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Tích hợp</div> })));
@@ -143,6 +145,10 @@ export function renderSalesPages(page, user, can) {
       {page === "return_order" && user && (can && !can("sale_order","view")
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
         : <Suspense fallback={<Loading />}><ReturnOrderPage user={user} /></Suspense>
+      )}
+      {page === "product_mgr" && user && (can && !can("sale_order","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <Suspense fallback={<Loading />}><ProductManagerPage user={user} /></Suspense>
       )}
       {page === "price_policy" && user && (can && !can("sale_order","view")
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
