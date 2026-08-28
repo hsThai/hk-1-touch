@@ -235,7 +235,7 @@ export default function LoginV2({ onLogin, loggedOut }) {
   }, []);
 
   const doLogin = async (u, p, isAuto = false) => {
-    const uname = (u || username).trim();
+    const uname = (u || username).trim().toLowerCase();
     const pwd   = (p || password).trim();
     if (!uname || !pwd) { setErr("Vui lòng nhập đầy đủ thông tin!"); return; }
     setLoading(true); setErr("");
@@ -258,7 +258,7 @@ export default function LoginV2({ onLogin, loggedOut }) {
           const staffList = await Staff.list();
           const hashedInput = btoa(unescape(encodeURIComponent(pwd)));
           const found = staffList.find(s =>
-            s.username === uname && s.password_hash === hashedInput && s.is_active !== false
+            s.username?.toLowerCase() === uname && s.password_hash === hashedInput && s.is_active !== false
           );
           if (found) {
             userInfo = {
@@ -271,7 +271,7 @@ export default function LoginV2({ onLogin, loggedOut }) {
             // Thử lấy token qua pbAuth để SSE realtime hoạt động
             try { await pbAuth.loginStaff(uname, pwd); } catch {}
           } else {
-            const matchUser = staffList.find(s => s.username === uname);
+            const matchUser = staffList.find(s => s.username?.toLowerCase() === uname);
             if (!matchUser)                      setErr("Không tìm thấy username!");
             else if (matchUser.is_active===false) setErr("Tài khoản đã bị vô hiệu hóa!");
             else                                  setErr("Sai mật khẩu!");
