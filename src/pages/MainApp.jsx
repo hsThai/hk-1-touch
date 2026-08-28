@@ -528,7 +528,7 @@ function MainAppContent({ onUserChange }) {
   const isManager    = ["manager","admin","owner","supervisor"].includes(role);
   const isKtv        = role === "technician";
   const isReception  = role === "receptionist";
-  const isRoleHome   = ["cashier","accountant","hr","marketing","qa","support","delivery","it","viewer","supervisor"].includes(role);
+  const isRoleHome   = ["cashier","accountant","marketing","support","delivery","it","viewer","supervisor"].includes(role);
 
   // ── Set initial page khi user login lần đầu ──────────────
   useEffect(() => {

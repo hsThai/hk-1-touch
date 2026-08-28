@@ -72,8 +72,8 @@ const ROLE_ACTIONS = {
 };
 
 const ROLE_LABEL = {
-  cashier:"Thu ngân",accountant:"Kế toán",hr:"Nhân sự",marketing:"Marketing",
-  qa:"QA / Kiểm soát CL",support:"Hỗ trợ KT",delivery:"Giao nhận",
+  cashier:"Thu ngân",accountant:"Kế toán",marketing:"Marketing",
+  support:"Hỗ trợ KT",delivery:"Giao nhận",
   it:"IT / Dev",supervisor:"Giám sát",viewer:"Chỉ xem",owner:"Chủ cơ sở",admin:"Quản trị viên",
 };
 const ROLE_ICON = {

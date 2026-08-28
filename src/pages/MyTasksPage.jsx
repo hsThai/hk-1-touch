@@ -376,7 +376,7 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
 
     // ═══ OTHER ROLES (hr, marketing, qa, support, delivery, it, viewer) ═══
     const roleLabels = {
-      hr: "Nhân sự", marketing: "Marketing", qa: "QA", support: "Hỗ trợ",
+      marketing: "Marketing", support: "Hỗ trợ",
       delivery: "Giao nhận", it: "IT", viewer: "Xem",
     };
     if (roleLabels[role]) {
@@ -399,7 +399,7 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
     accountant: "Kế toán", warehouse: "Nhân viên kho", sales: "Bán hàng",
     team_leader: "Trưởng nhóm", manager: "Quản lý", admin: "Quản trị",
     owner: "Chủ cơ sở", supervisor: "Giám sát",
-    hr: "Nhân sự", marketing: "Marketing", qa: "QA", support: "Hỗ trợ",
+    marketing: "Marketing", support: "Hỗ trợ",
     delivery: "Giao nhận", it: "IT", viewer: "Chỉ xem",
   }[role] || role;
 
