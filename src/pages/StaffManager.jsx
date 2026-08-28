@@ -14,7 +14,7 @@ const ROLES_FALLBACK = ROLE_DEFINITIONS.map(r => ({
 
 function simpleHash(str) { return btoa(unescape(encodeURIComponent(str))); }
 
-const EMPTY = { full_name:"", phone:"", username:"", role:"technician", password:"", note:"", is_active:true, warehouse_ids:[], department_id:"", is_leader:false };
+const EMPTY = { full_name:"", phone:"", username:"", role:"technician", password:"", note:"", is_active:true, warehouse_ids:[], department_id:"", is_leader:false, leader_id:"" };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // StaffKpiTab — KPI nhân viên + Log thao tác
@@ -156,6 +156,179 @@ function StaffKpiTab({ currentUser }) {
 }
 
 
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// StaffHierarchicalList — Hiển thị nhân viên theo phân cấp phòng ban + tổ trưởng
+// ─────────────────────────────────────────────────────────────────────────────
+function StaffCard({ s, roleInfo, currentStaff, openEdit, toggleActive, setConfirmReset, indent }) {
+  const ri = roleInfo(s.role);
+  return (
+    <div style={{
+      background: s.is_leader ? "#fffbeb" : "#fff",
+      borderRadius: indent ? 10 : 16,
+      padding: indent ? "12px 16px" : 16,
+      marginLeft: indent ? 28 : 0,
+      boxShadow: "0 2px 12px rgba(0,0,0,.07)",
+      border: s.is_leader ? "1.5px solid #fde68a" : "1.5px solid #f3f4f6",
+      display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap",
+      marginBottom: indent ? 6 : 10,
+    }}>
+      <div style={{ width: indent ? 40 : 50, height: indent ? 40 : 50, borderRadius:"50%", background: ri.bg, display:"flex", alignItems:"center", justifyContent:"center", fontSize: indent ? 18 : 22, flexShrink:0, border:`2px solid ${ri.color}22` }}>
+        {ri.icon}
+      </div>
+      <div style={{ flex:1, minWidth:160 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+          <span style={{ fontWeight:800, fontSize: indent ? 14 : 15, color:"#1e1b4b" }}>{s.full_name}</span>
+          {s.is_leader && <span style={{ background:"#fef3c7", color:"#92400e", fontSize:11, fontWeight:700, padding:"2px 9px", borderRadius:20 }}>🔭 Tổ trưởng</span>}
+          <span style={{ background:ri.bg, color:ri.color, fontSize:11, fontWeight:700, padding:"2px 9px", borderRadius:20 }}>{ri.icon} {ri.label}</span>
+          {!s.is_active && <span style={{ background:"#fef2f2", color:"#dc2626", fontSize:11, fontWeight:700, padding:"2px 9px", borderRadius:20 }}>🔒 Đã khóa</span>}
+          {s.must_change_password && <span style={{ background:"#fffbeb", color:"#d97706", fontSize:11, fontWeight:700, padding:"2px 9px", borderRadius:20 }}>⚠️ Chưa đổi pass</span>}
+        </div>
+        <div style={{ fontSize:13, color:"#6b7280", marginTop:3 }}>
+          @{s.username} {s.phone ? `· 📞 ${s.phone}` : ""}
+        </div>
+      </div>
+      <div style={{ textAlign:"center", minWidth:60 }}>
+        <div style={{ fontSize:18, fontWeight:900, color: s.kpi_score>=80?"#065f46":s.kpi_score>=50?"#92400e":"#991b1b" }}>{s.kpi_score ?? 100}</div>
+        <div style={{ fontSize:11, color:"#9ca3af" }}>KPI</div>
+      </div>
+      <div style={{ display:"flex", gap:8, flexShrink:0 }}>
+        <button onClick={() => openEdit(s)}
+          style={{ height:36, padding:"0 14px", borderRadius:10, border:"1.5px solid #e5e7eb", background:"#f9fafb", fontWeight:700, fontSize:13, cursor:"pointer" }}>
+          ✏️ Sửa
+        </button>
+        {s.id !== currentStaff?.id && (
+          <button onClick={() => toggleActive(s)}
+            style={{ height:36, padding:"0 14px", borderRadius:10, border:"none", background: s.is_active?"#fef2f2":"#ecfdf5", color: s.is_active?"#dc2626":"#059669", fontWeight:700, fontSize:13, cursor:"pointer" }}>
+            {s.is_active ? "🔒 Khóa" : "🔓 Mở"}
+          </button>
+        )}
+        <button onClick={() => setConfirmReset(s)}
+          style={{ height:36, padding:"0 14px", borderRadius:10, border:"none", background:"#eff6ff", color:"#2563eb", fontWeight:700, fontSize:13, cursor:"pointer" }}>
+          🔄 KPI
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function StaffHierarchicalList({ filtered, depts, roles, roleInfo, currentStaff, openEdit, toggleActive, setConfirmReset }) {
+  // Group staff by department_id
+  const deptMap = {};
+  const noDept = [];
+
+  filtered.forEach(s => {
+    const did = s.department_id || "";
+    if (!did) {
+      noDept.push(s);
+    } else {
+      if (!deptMap[did]) deptMap[did] = [];
+      deptMap[did].push(s);
+    }
+  });
+
+  // Sort: leaders first within each dept
+  function sortDept(arr) {
+    return arr.sort((a, b) => {
+      if (a.is_leader && !b.is_leader) return -1;
+      if (!a.is_leader && b.is_leader) return 1;
+      return 0;
+    });
+  }
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+      {depts.map(dept => {
+        const members = deptMap[dept.id] || [];
+        if (members.length === 0) return null; // skip empty depts
+
+        const sorted = sortDept([...members]);
+        const leaders = sorted.filter(s => s.is_leader);
+        const nonLeaders = sorted.filter(s => !s.is_leader);
+
+        // Assign each non-leader to their leader (by leader_id if set, else to first leader in dept)
+        const leaderMembers = {}; // leaderId -> [staff]
+        const unassigned = [];
+
+        nonLeaders.forEach(s => {
+          const lid = s.leader_id;
+          if (lid && leaders.find(l => l.id === lid)) {
+            if (!leaderMembers[lid]) leaderMembers[lid] = [];
+            leaderMembers[lid].push(s);
+          } else if (leaders.length > 0) {
+            // Auto-assign to first leader if no explicit leader_id
+            const defaultLeader = leaders[0];
+            if (!leaderMembers[defaultLeader.id]) leaderMembers[defaultLeader.id] = [];
+            leaderMembers[defaultLeader.id].push(s);
+          } else {
+            unassigned.push(s);
+          }
+        });
+
+        return (
+          <div key={dept.id} style={{
+            background: "#fafafa",
+            borderRadius: 18,
+            padding: 14,
+            border: "1.5px solid #f0f0f0",
+          }}>
+            {/* Department header */}
+            <div style={{
+              display: "flex", alignItems: "center", gap: 10,
+              marginBottom: 12, paddingBottom: 10,
+              borderBottom: "2px solid #f0f0f0",
+            }}>
+              <span style={{ fontSize: 22 }}>{dept.icon || "🏢"}</span>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 16, color: "#1e1b4b" }}>{dept.name}</div>
+                <div style={{ fontSize: 12, color: "#9ca3af" }}>
+                  {leaders.length} tổ trưởng · {members.length} nhân viên
+                </div>
+              </div>
+            </div>
+
+            {/* Leaders with their members indented */}
+            {leaders.map(leader => (
+              <div key={leader.id}>
+                <StaffCard s={leader} roleInfo={roleInfo} currentStaff={currentStaff}
+                  openEdit={openEdit} toggleActive={toggleActive} setConfirmReset={setConfirmReset} indent={false} />
+                {(leaderMembers[leader.id] || []).map(m => (
+                  <StaffCard key={m.id} s={m} roleInfo={roleInfo} currentStaff={currentStaff}
+                    openEdit={openEdit} toggleActive={toggleActive} setConfirmReset={setConfirmReset} indent={true} />
+                ))}
+              </div>
+            ))}
+
+            {/* Non-leaders with no leader in dept */}
+            {unassigned.map(s => (
+              <StaffCard key={s.id} s={s} roleInfo={roleInfo} currentStaff={currentStaff}
+                openEdit={openEdit} toggleActive={toggleActive} setConfirmReset={setConfirmReset} indent={false} />
+            ))}
+          </div>
+        );
+      })}
+
+      {/* Staff without department */}
+      {noDept.length > 0 && (
+        <div>
+          {depts.length > 0 && (
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#9ca3af", marginBottom: 8, paddingLeft: 4 }}>
+              📋 Chưa xếp phòng ban
+            </div>
+          )}
+          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            {noDept.map(s => (
+              <StaffCard key={s.id} s={s} roleInfo={roleInfo} currentStaff={currentStaff}
+                openEdit={openEdit} toggleActive={toggleActive} setConfirmReset={setConfirmReset} indent={false} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function StaffManager({ currentStaff }) {
   const [list, setList]     = useState([]);
   const [loading, setLoading] = useState(true);
@@ -219,7 +392,7 @@ export default function StaffManager({ currentStaff }) {
   function openEdit(s) {
     let wids = s.warehouse_ids || [];
     if (typeof wids === "string") { try { wids = JSON.parse(wids); } catch { wids = []; } }
-    setForm({ ...s, password:"", warehouse_ids: Array.isArray(wids) ? wids : [], department_id: s.department_id||"" , is_leader: s.is_leader||false });
+    setForm({ ...s, password:"", warehouse_ids: Array.isArray(wids) ? wids : [], department_id: s.department_id||"" , is_leader: s.is_leader||false, leader_id: s.leader_id||"" });
     setErr("");
     setModal({ mode:"edit", id:s.id });
   }
@@ -249,6 +422,7 @@ export default function StaffManager({ currentStaff }) {
           warehouse_ids: form.warehouse_ids || [],
           department_id: form.department_id || "",
           is_leader: form.is_leader || false,
+          leader_id: form.leader_id || "",
         });
         logAction(currentStaff, "create_staff", "staff", "", "Tao NV: " + form.full_name + " (" + form.role + ")");
         showToast("✅ Đã tạo tài khoản " + form.full_name);
@@ -263,6 +437,7 @@ export default function StaffManager({ currentStaff }) {
           warehouse_ids: form.warehouse_ids || [],
           department_id: form.department_id || "",
           is_leader: form.is_leader || false,
+          leader_id: form.leader_id || "",
         };
         if (form.password) { patch.password_hash = simpleHash(form.password); patch.must_change_password = true; }
         await Staff.update(modal.id, patch);
@@ -335,53 +510,16 @@ export default function StaffManager({ currentStaff }) {
           <div style={{ marginTop:8 }}>Chưa có nhân viên nào</div>
         </div>
       ) : (
-        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-          {filtered.map(s => {
-            const ri = roleInfo(s.role);
-            return (
-              <div key={s.id} style={{ background:"#fff", borderRadius:16, padding:16, boxShadow:"0 2px 12px rgba(0,0,0,.07)", border:"1.5px solid #f3f4f6", display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }}>
-                {/* Avatar */}
-                <div style={{ width:50, height:50, borderRadius:"50%", background: ri.bg, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0, border:`2px solid ${ri.color}22` }}>
-                  {ri.icon}
-                </div>
-                {/* Info */}
-                <div style={{ flex:1, minWidth:160 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-                    <span style={{ fontWeight:800, fontSize:15, color:"#1e1b4b" }}>{s.full_name}</span>
-                    <span style={{ background:ri.bg, color:ri.color, fontSize:11, fontWeight:700, padding:"2px 9px", borderRadius:20 }}>{ri.icon} {ri.label}</span>
-                    {!s.is_active && <span style={{ background:"#fef2f2", color:"#dc2626", fontSize:11, fontWeight:700, padding:"2px 9px", borderRadius:20 }}>🔒 Đã khóa</span>}
-                    {s.must_change_password && <span style={{ background:"#fffbeb", color:"#d97706", fontSize:11, fontWeight:700, padding:"2px 9px", borderRadius:20 }}>⚠️ Chưa đổi pass</span>}
-                  </div>
-                  <div style={{ fontSize:13, color:"#6b7280", marginTop:3 }}>
-                    @{s.username} {s.phone ? `· 📞 ${s.phone}` : ""}
-                  </div>
-                </div>
-                {/* KPI */}
-                <div style={{ textAlign:"center", minWidth:60 }}>
-                  <div style={{ fontSize:18, fontWeight:900, color: s.kpi_score>=80?"#065f46":s.kpi_score>=50?"#92400e":"#991b1b" }}>{s.kpi_score ?? 100}</div>
-                  <div style={{ fontSize:11, color:"#9ca3af" }}>KPI</div>
-                </div>
-                {/* Actions */}
-                <div style={{ display:"flex", gap:8, flexShrink:0 }}>
-                  <button onClick={() => openEdit(s)}
-                    style={{ height:36, padding:"0 14px", borderRadius:10, border:"1.5px solid #e5e7eb", background:"#f9fafb", fontWeight:700, fontSize:13, cursor:"pointer" }}>
-                    ✏️ Sửa
-                  </button>
-                  {s.id !== currentStaff?.id && (
-                    <button onClick={() => toggleActive(s)}
-                      style={{ height:36, padding:"0 14px", borderRadius:10, border:"none", background: s.is_active?"#fef2f2":"#ecfdf5", color: s.is_active?"#dc2626":"#059669", fontWeight:700, fontSize:13, cursor:"pointer" }}>
-                      {s.is_active ? "🔒 Khóa" : "🔓 Mở"}
-                    </button>
-                  )}
-                  <button onClick={() => setConfirmReset(s)}
-                    style={{ height:36, padding:"0 14px", borderRadius:10, border:"none", background:"#eff6ff", color:"#2563eb", fontWeight:700, fontSize:13, cursor:"pointer" }}>
-                    🔄 KPI
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <StaffHierarchicalList
+          filtered={filtered}
+          depts={depts}
+          roles={roles}
+          roleInfo={roleInfo}
+          currentStaff={currentStaff}
+          openEdit={openEdit}
+          toggleActive={toggleActive}
+          setConfirmReset={setConfirmReset}
+        />
       )}
 
       {/* Modal thêm/sửa */}
@@ -433,11 +571,28 @@ export default function StaffManager({ currentStaff }) {
                 </select>
               </div>
               <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", paddingBottom:8, whiteSpace:"nowrap" }}>
-                <input type="checkbox" checked={!!form.is_leader} onChange={e=>setForm(f=>({...f,is_leader:e.target.checked}))}
+                <input type="checkbox" checked={!!form.is_leader} onChange={e=>setForm(f=>({...f,is_leader:e.target.checked, leader_id: e.target.checked ? "" : f.leader_id}))}
                   style={{ width:18, height:18, accentColor:"#f59e0b" }}/>
                 <span style={{ fontSize:13, fontWeight:700, color:"#92400e" }}>🔭 Tổ trưởng</span>
               </label>
             </div>
+            {/* ── Chọn tổ trưởng (chỉ hiện khi không phải leader) ── */}
+            {!form.is_leader && form.department_id && (() => {
+              const deptLeaders = list.filter(s => s.is_leader && s.department_id === form.department_id && s.is_active && s.id !== modal.id);
+              if (deptLeaders.length === 0) return null;
+              return (
+                <div style={{ marginBottom:16 }}>
+                  <label style={{ fontSize:12, fontWeight:700, color:"#374151", display:"block", marginBottom:6 }}>🔭 Tổ trưởng phụ trách</label>
+                  <select value={form.leader_id||""} onChange={e=>setForm(f=>({...f,leader_id:e.target.value}))}
+                    style={{ width:"100%", height:40, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 10px", fontSize:14, background:"#fff" }}>
+                    <option value="">-- Chọn tổ trưởng --</option>
+                    {deptLeaders.map(l => (
+                      <option key={l.id} value={l.id}>{l.full_name} (@{l.username})</option>
+                    ))}
+                  </select>
+                </div>
+              );
+            })()}
 
             {/* ── Phân quyền kho ── */}
             <div style={{ marginBottom:20, background:"#f8fafc", borderRadius:14, padding:"14px 16px", border:"1.5px solid #e5e7eb" }}>
