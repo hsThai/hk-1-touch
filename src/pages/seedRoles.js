@@ -15,22 +15,43 @@
 
 import { getPbUrl, getAuth } from "./pb.jsx";
 
-async function pbPost(collection, data) {
+async function pbFetchRaw(collection, path = "", opts = {}) {
   const base  = getPbUrl();
   const { token } = getAuth();
-  const res = await fetch(`${base}/api/collections/${collection}/records`, {
-    method: "POST",
+  const res = await fetch(`${base}/api/collections/${collection}/records${path}`, {
+    ...opts,
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: token } : {}),
+      ...(opts.headers || {}),
     },
-    body: JSON.stringify(data),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.message || `HTTP ${res.status}`);
   }
   return res.json();
+}
+
+async function pbPost(collection, data) {
+  return pbFetchRaw(collection, "", { method: "POST", body: JSON.stringify(data) });
+}
+
+async function pbPatch(collection, id, data) {
+  return pbFetchRaw(collection, `/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+}
+
+// Lấy TOÀN BỘ record của 1 collection (tự phân trang), tránh giới hạn perPage
+async function pbListAll(collection, perPage = 200) {
+  const all = [];
+  let page = 1;
+  while (true) {
+    const data = await pbFetchRaw(collection, `?perPage=${perPage}&page=${page}`);
+    all.push(...(data.items || []));
+    if (page >= (data.totalPages || 1)) break;
+    page++;
+  }
+  return all;
 }
 
 // ── 16 Roles ──────────────────────────────────────────────
@@ -100,53 +121,73 @@ export function buildPermissionRows() {
   return rows;
 }
 
-// ── Seed All ──────────────────────────────────────────────
+// ── Seed All (UPSERT — an toàn khi bấm nhiều lần, không tạo trùng) ──
 export async function seedAll(onProgress) {
   const log = onProgress || console.log;
-  let ok = 0, fail = 0;
+  let created = 0, updated = 0, fail = 0;
 
-  log("🚀 Bắt đầu seed roles...");
+  log("🚀 Bắt đầu seed roles (upsert)...");
 
-  // 1. Seed roles
+  // 1. Upsert roles — map theo `key`, giữ record đầu tiên nếu có nhiều bản trùng
+  const existingRoles = await pbListAll("roles");
+  const roleByKey = {};
+  for (const r of existingRoles) {
+    if (!roleByKey[r.key]) roleByKey[r.key] = r; // giữ bản đầu tiên gặp
+  }
+
   for (const role of ROLE_DEFINITIONS) {
     try {
-      await pbPost("roles", role);
-      ok++;
-      log(`✅ Role: ${role.key}`);
-    } catch (e) {
-      if (e.message?.includes("already exists") || e.message?.includes("unique")) {
-        log(`⚠️ Role ${role.key} đã tồn tại — bỏ qua`);
+      const existing = roleByKey[role.key];
+      if (existing) {
+        await pbPatch("roles", existing.id, role);
+        updated++;
+        log(`🔄 Role: ${role.key} (đã cập nhật)`);
       } else {
-        fail++;
-        log(`❌ Role ${role.key}: ${e.message}`);
+        await pbPost("roles", role);
+        created++;
+        log(`✅ Role: ${role.key} (mới)`);
       }
+    } catch (e) {
+      fail++;
+      log(`❌ Role ${role.key}: ${e.message}`);
     }
   }
 
-  // 2. Seed permissions (17 roles × 18 resources = 306 rows)
+  // 2. Upsert permissions — map theo `role_key + resource`
   const rows = buildPermissionRows();
-  log(`\n🔐 Seed ${rows.length} permission rows...`);
+  log(`\n🔐 Upsert ${rows.length} permission rows...`);
 
-  // Batch 10 cùng lúc
+  const existingPerms = await pbListAll("role_permissions");
+  const permByKey = {};
+  for (const p of existingPerms) {
+    const k = `${p.role_key}::${p.resource}`;
+    if (!permByKey[k]) permByKey[k] = p; // giữ bản đầu tiên gặp
+  }
+
   const BATCH = 10;
   for (let i = 0; i < rows.length; i += BATCH) {
     const batch = rows.slice(i, i + BATCH);
     await Promise.all(batch.map(async (row) => {
+      const k = `${row.role_key}::${row.resource}`;
+      const existing = permByKey[k];
       try {
-        await pbPost("role_permissions", row);
-        ok++;
-      } catch (e) {
-        if (!e.message?.includes("unique") && !e.message?.includes("already")) {
-          fail++;
-          log(`❌ Perm ${row.role_key}/${row.resource}: ${e.message}`);
+        if (existing) {
+          await pbPatch("role_permissions", existing.id, row);
+          updated++;
+        } else {
+          await pbPost("role_permissions", row);
+          created++;
         }
+      } catch (e) {
+        fail++;
+        log(`❌ Perm ${row.role_key}/${row.resource}: ${e.message}`);
       }
     }));
     log(`  Progress: ${Math.min(i + BATCH, rows.length)}/${rows.length}`);
   }
 
-  log(`\n✅ Seed xong! OK=${ok}, Fail=${fail}`);
-  return { ok, fail };
+  log(`\n✅ Seed xong! Mới=${created}, Cập nhật=${updated}, Lỗi=${fail}`);
+  return { ok: created + updated, created, updated, fail };
 }
 
 // Cho chạy từ browser console: window.seedHKRoles()
