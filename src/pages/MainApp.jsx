@@ -401,8 +401,9 @@ const MGR_ACCORDIONS = [
     key: "acc_setup",
     icon: "manage_accounts",
     label: "Thiết lập",
-    pages: ["department","role_perm","settings","integrations","print_settings","print_template","action_log"],
+    pages: ["staff","department","role_perm","settings","integrations","print_settings","print_template","action_log"],
     items: [
+      { key:"staff",           icon:"badge",                 label:"Nhân viên" },
       { key:"department",     icon:"account_tree",         label:"Phòng ban" },
       { key:"role_perm",      icon:"admin_panel_settings", label:"Vai trò & Quyền" },
       { key:"settings",       icon:"store",                label:"Cài đặt cửa hàng" },
