@@ -14,7 +14,7 @@ const SEED_DEPTS = [
   { name:"KTV Máy Móc",    code:"ktv_mm",     icon:"⚙️", color:"#0369a1", role_keys:["mm_tech"],              sort_order:2 },
   { name:"Kho",            code:"kho",        icon:"📦", color:"#92400e", role_keys:["warehouse"],            sort_order:3 },
   { name:"Kế toán",        code:"ke_toan",    icon:"💰", color:"#dc2626", role_keys:["cashier","accountant"], sort_order:4 },
-  { name:"Tiếp tân",       code:"tiep_tan",   icon:"💁", color:"#1d4ed8", role_keys:["receptionist"],         sort_order:5 },
+  { name:"Giao dịch viên",       code:"tiep_tan",   icon:"💁", color:"#1d4ed8", role_keys:["receptionist"],         sort_order:5 },
   { name:"Kinh doanh",     code:"kinh_doanh", icon:"📈", color:"#7c3aed", role_keys:["sales"],                sort_order:6 },
   { name:"Marketing",      code:"marketing",  icon:"📣", color:"#db2777", role_keys:["marketing"],            sort_order:7 },
 ];

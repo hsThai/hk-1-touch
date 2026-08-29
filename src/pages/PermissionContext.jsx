@@ -137,7 +137,7 @@ const STATIC_MATRIX = {
     profit_report:     p(1,0,0,0,0,1),
   },
 
-  // ── RECEPTIONIST: tiếp tân ─────────────────────────────
+  // ── RECEPTIONIST: Giao dịch viên ─────────────────────────────
   receptionist: {
     repair_order:       p(1,1,1,0,0,1),
     repair_order_price: p(1,1,0,0,0,0),
@@ -415,6 +415,62 @@ const STATIC_MATRIX = {
     department:        p(0,0,0,0,0,0),
     purchase_order:    p(0,0,0,0,0,0),
     profit_report:     p(0,0,0,0,0,0),
+  },
+
+  // ── SALES_REP: Kinh doanh ─────────────────────────────
+  sales_rep: {
+    repair_order:       p(1,1,0,0,0,1),
+    repair_order_price: p(1,1,0,0,0,0),
+    spare_part:         p(1,0,0,0,0,0),
+    stock_export:       p(1,0,0,0,0,0),
+    stock_import:       p(0,0,0,0,0,0),
+    stock_transfer:     p(0,0,0,0,0,0),
+    stock_count:        p(0,0,0,0,0,0),
+    stock_ledger:       p(1,0,0,0,0,0),
+    customer:           p(1,1,1,0,0,1),
+    sale_order:         p(1,1,1,0,0,1),
+    expense:            p(0,0,0,0,0,0),
+    revenue_report:     p(1,0,0,0,0,1),
+    staff:              p(0,0,0,0,0,0),
+    kpi:                p(0,0,0,0,0,0),
+    settings:           p(0,0,0,0,0,0),
+    media_post:         p(1,0,0,0,0,0),
+    notification:       p(1,0,0,0,0,0),
+    warehouse_mgr:      p(0,0,0,0,0,0),
+    supplier:           p(0,0,0,0,0,0),
+    debt:               p(0,0,0,0,0,0),
+    cash_journal:       p(0,0,0,0,0,0),
+    department:         p(0,0,0,0,0,0),
+    purchase_order:     p(0,0,0,0,0,0),
+    profit_report:      p(0,0,0,0,0,0),
+  },
+
+  // ── PACKER: NV soạn đóng hàng ─────────────────────────
+  packer: {
+    repair_order:       p(1,0,0,0,0,0),
+    repair_order_price: p(0,0,0,0,0,0),
+    spare_part:         p(1,0,0,0,0,0),
+    stock_export:       p(1,1,0,0,0,0),
+    stock_import:       p(0,0,0,0,0,0),
+    stock_transfer:     p(1,0,0,0,0,0),
+    stock_count:        p(0,0,0,0,0,0),
+    stock_ledger:       p(1,0,0,0,0,0),
+    customer:           p(0,0,0,0,0,0),
+    sale_order:         p(1,0,0,0,0,0),
+    expense:            p(0,0,0,0,0,0),
+    revenue_report:     p(0,0,0,0,0,0),
+    staff:              p(0,0,0,0,0,0),
+    kpi:                p(0,0,0,0,0,0),
+    settings:           p(0,0,0,0,0,0),
+    media_post:         p(0,0,0,0,0,0),
+    notification:       p(1,0,0,0,0,0),
+    warehouse_mgr:      p(0,0,0,0,0,0),
+    supplier:           p(0,0,0,0,0,0),
+    debt:               p(0,0,0,0,0,0),
+    cash_journal:       p(0,0,0,0,0,0),
+    department:         p(0,0,0,0,0,0),
+    purchase_order:     p(0,0,0,0,0,0),
+    profit_report:      p(0,0,0,0,0,0),
   },
 
   // ── SUPERVISOR: giám sát ─────────────────────────────
