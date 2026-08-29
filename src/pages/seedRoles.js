@@ -67,7 +67,7 @@ export const ROLE_DEFINITIONS = [
   { key:"cashier",      label:"Thu ngân",          color:"#dc2626", bg:"#fee2e2", icon:"💰", sort_order:8,  description:"Thu tiền, bán hàng lẻ" },
   { key:"accountant",   label:"Kế toán",           color:"#2563eb", bg:"#dbeafe", icon:"📊", sort_order:10, description:"Kế toán, báo cáo tài chính" },
   { key:"marketing",    label:"Marketing",         color:"#db2777", bg:"#fce7f3", icon:"📣", sort_order:12, description:"Quản lý media, chăm sóc khách hàng" },
-  { key:"sales_rep",    label:"NV bán hàng",        color:"#059669", bg:"#d1fae5", icon:"📈", sort_order:11, description:"Bán hàng, phát triển khách hàng" },
+  { key:"sales_rep",    label:"NV bán hàng",        color:"#059669", bg:"#d1fae5", icon:"🧑‍💼", sort_order:11, description:"Bán hàng, phát triển khách hàng" },
   { key:"packer",       label:"NV soạn đóng hàng", color:"#7c3aed", bg:"#ede9fe", icon:"📦", sort_order:13, description:"Soạn đóng hàng, đóng gói, vận chuyển nội bộ" },
   { key:"support",      label:"Hỗ trợ KT",         color:"#0891b2", bg:"#e0f9fe", icon:"🎧", sort_order:14, description:"Hỗ trợ kỹ thuật cấp 1" },
   { key:"delivery",     label:"Giao nhận",         color:"#6b7280", bg:"#f3f4f6", icon:"🚚", sort_order:15, description:"Giao nhận thiết bị" },
