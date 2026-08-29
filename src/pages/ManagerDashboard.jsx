@@ -19,7 +19,7 @@ const STATUS_COLORS = {
   "Đã Giao":"#16a34a","Đã Thanh Toán":"#15803d","Huỷ":"#dc2626",
 };
 
-const ROLE_LABELS = { manager:"👑 Quản lý", admin:"⚙️ Admin", technician:"🔧 KTV",
+const ROLE_LABELS = { manager:"👑 Quản lý", admin:"⚙️ Admin", technician:"📱 KTV ĐT",
   receptionist:"🎧 Lễ tân", warehouse:"📦 Kho", cashier:"💰 Thu ngân",
   accountant:"📊 Kế toán", owner:"🏢 Chủ" };
 const ROLE_COLORS = { manager:"#7c3aed", admin:"#4f46e5", technician:"#059669",

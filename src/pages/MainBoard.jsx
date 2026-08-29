@@ -280,7 +280,7 @@ function OrderDrawer({ order, staff, onClose, onUpdate, onRefresh, allStaff }) {
     ["📞 SĐT", order.customer_phone],
     ["📱 Thiết bị", order.device_model || order.device_name],
     ["🔢 IMEI", order.imei],
-    ["🔧 Kỹ thuật viên", order.assigned_to_name],
+    ["📱 KTV ĐT", order.assigned_to_name],
     ["📝 Lỗi", order.issue_description],
     ["💰 Báo giá", order.estimated_cost ? Number(order.estimated_cost).toLocaleString()+"đ" : null],
     ["✅ Thành tiền", order.final_cost ? Number(order.final_cost).toLocaleString()+"đ" : null],
@@ -413,7 +413,7 @@ function OrderDrawer({ order, staff, onClose, onUpdate, onRefresh, allStaff }) {
                     <div style={{ width:30, height:30, borderRadius:"50%", background:u.role==="manager"?"#7c3aed":u.role==="technician"?"#2563eb":"#059669", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, fontSize:12 }}>{(u.full_name||"?")[0]}</div>
                     <div>
                       <div style={{ fontWeight:700, fontSize:14 }}>{u.full_name}</div>
-                      <div style={{ fontSize:12, color:"#9ca3af" }}>{u.role==="manager"?"👑 Quản lý":u.role==="technician"?"🔧 Kỹ thuật":u.role==="receptionist"?"🗂️ Giao dịch viên":"🏪 Kho"}</div>
+                      <div style={{ fontSize:12, color:"#9ca3af" }}>{u.role==="manager"?"👑 Quản lý":u.role==="technician"?"📱 KTV ĐT":u.role==="receptionist"?"🗂️ Giao dịch viên":"🏪 Kho"}</div>
                     </div>
                   </div>
                 ))}

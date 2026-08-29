@@ -134,7 +134,7 @@ function TechnicianHome({ user, orders, setPage }) {
     { label:"Xong hôm nay",value:stats.doneToday,  icon:"check_circle",  color:"#059669", bg:"#f0fdf4", border:"#86efac", urgent:false,              page:"tasks" },
     { label:"Tổng đang xử lý", value:stats.total,  icon:"assignment",    color:"#4f46e5", bg:"#eef2ff", border:"#c7d2fe", urgent:false,              page:"tasks" },
   ];
-  const roleLabel = { technician:"Kỹ thuật viên" }[user.role] || user.role;
+  const roleLabel = { technician:"KTV điện thoại" }[user.role] || user.role;
   return (
     <div style={{ padding:"16px 14px 100px" }}>
       <div style={{ marginBottom:20 }}>

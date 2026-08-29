@@ -8,7 +8,7 @@ const ROLES = [
   { value:"manager",      label:"Quản lý",           color:"#7c3aed", bg:"#f5f3ff", icon:"👑" },
   { value:"supervisor",   label:"Giám sát",          color:"#0369a1", bg:"#e0f2fe", icon:"🔭" },
   { value:"receptionist", label:"Giao dịch viên",     color:"#1d4ed8", bg:"#dbeafe", icon:"💁" },
-  { value:"technician",   label:"Kỹ thuật viên",     color:"#065f46", bg:"#dcfce7", icon:"🔧" },
+  { value:"technician",   label:"KTV điện thoại",      color:"#065f46", bg:"#dcfce7", icon:"📱" },
   { value:"warehouse",    label:"Thủ kho",           color:"#92400e", bg:"#fef3c7", icon:"📦" },
   { value:"cashier",      label:"Thu ngân",          color:"#dc2626", bg:"#fee2e2", icon:"💰" },
   { value:"accountant",   label:"Kế toán",           color:"#2563eb", bg:"#dbeafe", icon:"📊" },

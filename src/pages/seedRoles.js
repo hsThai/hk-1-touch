@@ -61,7 +61,7 @@ export const ROLE_DEFINITIONS = [
   { key:"manager",      label:"Quản lý",           color:"#7c3aed", bg:"#f5f3ff", icon:"👑", sort_order:3,  description:"Quản lý tổng thể hoạt động hàng ngày" },
   { key:"supervisor",   label:"Giám sát",          color:"#0369a1", bg:"#e0f2fe", icon:"🔭", sort_order:4,  description:"Giám sát và phê duyệt quy trình" },
   { key:"receptionist", label:"Giao dịch viên",     color:"#1d4ed8", bg:"#dbeafe", icon:"💁", sort_order:5,  description:"Tiếp nhận, tạo đơn, chăm sóc khách" },
-  { key:"technician",   label:"Kỹ thuật viên",     color:"#065f46", bg:"#dcfce7", icon:"🔧", sort_order:6,  description:"Sửa chữa thiết bị" },
+  { key:"technician",   label:"KTV điện thoại",      color:"#065f46", bg:"#dcfce7", icon:"📱", sort_order:6,  description:"Sửa chữa điện thoại" },
   { key:"mm_tech",      label:"KTV Máy Móc",        color:"#0369a1", bg:"#e0f2fe", icon:"⚙️", sort_order:7,  description:"Kỹ thuật viên vận hành máy móc sửa chữa" },
   { key:"warehouse",    label:"Thủ kho",           color:"#92400e", bg:"#fef3c7", icon:"📦", sort_order:8,  description:"Quản lý xuất nhập tồn kho" },
   { key:"cashier",      label:"Thu ngân",          color:"#dc2626", bg:"#fee2e2", icon:"💰", sort_order:8,  description:"Thu tiền, bán hàng lẻ" },

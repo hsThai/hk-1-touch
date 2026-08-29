@@ -10,7 +10,7 @@ import { ROLE_DEFINITIONS } from "./seedRoles.js";
 const ROLE_MAP = Object.fromEntries(ROLE_DEFINITIONS.map(r => [r.key, r]));
 
 const SEED_DEPTS = [
-  { name:"KTV Điện thoại", code:"ktv_dt",     icon:"🔧", color:"#065f46", role_keys:["technician"],           sort_order:1 },
+  { name:"KTV Điện thoại", code:"ktv_dt",     icon:"📱", color:"#065f46", role_keys:["technician"],           sort_order:1 },
   { name:"KTV Máy Móc",    code:"ktv_mm",     icon:"⚙️", color:"#0369a1", role_keys:["mm_tech"],              sort_order:2 },
   { name:"Kho",            code:"kho",        icon:"📦", color:"#92400e", role_keys:["warehouse"],            sort_order:3 },
   { name:"Kế toán",        code:"ke_toan",    icon:"💰", color:"#dc2626", role_keys:["cashier","accountant"], sort_order:4 },

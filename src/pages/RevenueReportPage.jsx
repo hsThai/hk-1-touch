@@ -60,7 +60,7 @@ function TabByKTV({ orders, period, inPeriod, DONE_STATUS, customFrom, customTo 
   const maxRev = Math.max(...list.map(x=>x.revenue),1);
   return (
     <div>
-      <div style={{fontWeight:700,fontSize:14,marginBottom:12}}>Doanh thu theo Kỹ thuật viên</div>
+      <div style={{fontWeight:700,fontSize:14,marginBottom:12}}>Doanh thu theo KTV điện thoại</div>
       {list.length===0 && <div style={{color:"#9ca3af",textAlign:"center",padding:20}}>Không có dữ liệu</div>}
       {list.map(k=>(
         <div key={k.name} style={{background:"#fff",borderRadius:10,padding:12,marginBottom:8,boxShadow:"0 1px 4px rgba(0,0,0,.06)"}}>

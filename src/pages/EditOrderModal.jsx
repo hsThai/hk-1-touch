@@ -181,7 +181,7 @@ export default function EditOrderModal({ order, users, currentUser, onClose, onS
             <div style={{fontWeight:800,fontSize:14,color:"#7c3aed",marginBottom:10}}>🧑‍🔧 Phân công & Trạng thái</div>
             <div style={row2}>
               <div style={{flex:1}}>
-                <label style={lbl}>Kỹ thuật viên</label>
+                <label style={lbl}>KTV điện thoại</label>
                 <select value={form.assigned_to} onChange={e=>{const u=techs.find(t=>t.id===e.target.value);set("assigned_to",e.target.value);set("assigned_to_name",u?(u.full_name||u.name||""):"");}} style={inp}>
                   <option value="">-- Chưa phân công --</option>
                   {techs.map(u=><option key={u.id} value={u.id}>{u.full_name||u.name} ({u.role})</option>)}

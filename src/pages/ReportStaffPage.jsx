@@ -155,7 +155,7 @@ export default function ReportStaffPage({ user }) {
       ) : (
         <>
           {/* Bảng KTV */}
-          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10, color: "#374151" }}>🔧 Kỹ thuật viên</div>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10, color: "#374151" }}>📱 KTV điện thoại</div>
           {filteredKtv.length === 0 ? (
             <div style={{ padding: 20, textAlign: "center", color: "#9ca3af", marginBottom: 20 }}>Không có dữ liệu</div>
           ) : (

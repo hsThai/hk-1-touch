@@ -1416,7 +1416,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                           :u.role==="manager"?"Quản lý"
                           :u.role==="admin"?"Admin"
                           :u.role==="supervisor"?"Giám sát"
-                          :u.role==="technician"?"Kỹ thuật"
+                          :u.role==="technician"?"KTV ĐT"
                           :u.role==="receptionist"?"Giao dịch viên"
                           :u.role==="cashier"?"Thu ngân"
                           :u.role==="warehouse"?"Thủ kho"

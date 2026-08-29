@@ -395,7 +395,7 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Chào buổi sáng" : hour < 18 ? "Chào buổi chiều" : "Chào buổi tối";
   const roleLabel = {
-    technician: "Kỹ thuật viên", receptionist: "Giao dịch viên", cashier: "Thu ngân",
+    technician: "KTV điện thoại", receptionist: "Giao dịch viên", cashier: "Thu ngân",
     accountant: "Kế toán", warehouse: "Nhân viên kho", sales: "Bán hàng",
     team_leader: "Trưởng nhóm", manager: "Quản lý", admin: "Quản trị",
     owner: "Chủ cơ sở", supervisor: "Giám sát",
