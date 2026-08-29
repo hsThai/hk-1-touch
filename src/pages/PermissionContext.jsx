@@ -417,7 +417,7 @@ const STATIC_MATRIX = {
     profit_report:     p(0,0,0,0,0,0),
   },
 
-  // ── SALES_REP: Kinh doanh ─────────────────────────────
+  // ── SALES_REP: NV bán hàng ─────────────────────────────
   sales_rep: {
     repair_order:       p(1,1,0,0,0,1),
     repair_order_price: p(1,1,0,0,0,0),

@@ -13,7 +13,7 @@ const ROLES = [
   { value:"cashier",      label:"Thu ngân",          color:"#dc2626", bg:"#fee2e2", icon:"💰" },
   { value:"accountant",   label:"Kế toán",           color:"#2563eb", bg:"#dbeafe", icon:"📊" },
   { value:"marketing",    label:"Marketing",         color:"#db2777", bg:"#fce7f3", icon:"📣" },
-  { value:"sales_rep",    label:"Kinh doanh",        color:"#059669", bg:"#d1fae5", icon:"📈" },
+  { value:"sales_rep",    label:"NV bán hàng",        color:"#059669", bg:"#d1fae5", icon:"📈" },
   { value:"packer",       label:"NV soạn đóng hàng", color:"#7c3aed", bg:"#ede9fe", icon:"📦" },
   { value:"support",      label:"Hỗ trợ KT",         color:"#0891b2", bg:"#e0f9fe", icon:"🎧" },
   { value:"delivery",     label:"Giao nhận",         color:"#6b7280", bg:"#f3f4f6", icon:"🚚" },
