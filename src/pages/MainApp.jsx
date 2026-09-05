@@ -294,7 +294,7 @@ function usePageGuard(page, can) {
 
 // 5 trang thuộc bottom-nav chính. Mọi trang khác (settings/report/kho/PO/...) đều coi là "vào từ Menu"
 // để nút Menu sáng lên nhất quán, tránh trạng thái không nút nào active khi ở trang phụ.
-const MAIN_TAB_PAGES = ["my_tasks", "new", "tasks", "board", "cashier_home"];
+const MAIN_TAB_PAGES = ["my_tasks", "new", "tasks", "board", "cashier_home", "pack_ship"];
 
 const MGR_ACCORDIONS = [
   {
@@ -527,6 +527,8 @@ function MainAppContent({ onUserChange }) {
   const canCreateRepair = can("repair_order","create");
   const canViewRepair   = can("repair_order","view");
   const canViewSale     = can("sale_order","view");
+  const canViewPack     = can("pack_order","view");
+  const canViewShip     = can("ship_order","view");
   const isManager    = ["manager","admin","owner","supervisor"].includes(role);
   const isKtv        = role === "technician";
   const isReception  = role === "receptionist";
@@ -2526,6 +2528,19 @@ function MainAppContent({ onUserChange }) {
                 <span style={{ fontSize: bp==="tablet"?11:10,
                   color: page==="cashier_home" ? "#4f46e5" : "#9ca3af",
                   fontWeight: page==="cashier_home" ? 800 : 500 }}>Thu ngân</span>
+              </button>
+            )}
+
+            {/* Soạn hàng & Giao nhận — chỉ hiện nếu có quyền pack_order hoặc ship_order */}
+            {(canViewPack || canViewShip) && (
+              <button onClick={() => setPage("pack_ship")}
+                style={{ flex:1, padding:"10px 4px", background:"none", border:"none",
+                  cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
+                <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",lineHeight:1,
+                  color: page==="pack_ship" ? "#4f46e5" : "#9ca3af"}}>inventory</span>
+                <span style={{ fontSize: bp==="tablet"?11:10,
+                  color: page==="pack_ship" ? "#4f46e5" : "#9ca3af",
+                  fontWeight: page==="pack_ship" ? 800 : 500 }}>Soạn/Giao</span>
               </button>
             )}
 
