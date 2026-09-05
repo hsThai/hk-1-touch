@@ -17,7 +17,7 @@ import {
   logAction, logHistory, uploadFile, normalizePbUrl,
 } from "./pb.jsx";
 import { usePermission } from "./PermissionContext.jsx";
-import { ScanCodeModal, openScannerStream, cropViewfinder, TorchButton } from "./QRComponents.jsx";
+import { ScanCodeModal, openScannerStream, cropViewfinder, TorchButton, loadZxing, makeZxingDecoder } from "./QRComponents.jsx";
 
 /* ─────────────── Helpers ─────────────── */
 
@@ -152,6 +152,9 @@ function PickingModal({ order, user, onDone, onClose, showToast }) {
 
   const videoRef = useRef(null);
   const scanCanvasRef = useRef(null);
+  const zxReaderRef = useRef(null);      // decoder ZXing (dự phòng cho máy không có BarcodeDetector)
+  const lastDecodeRef = useRef(0);       // throttle decode ZXing
+  const scanStartRef = useRef(0);        // mốc bắt đầu quét — dùng để tự chuyển engine
   const streamRef = useRef(null);
   const intervalRef = useRef(null);
   const lastScanRef = useRef({ code: "", at: 0 });
@@ -209,23 +212,59 @@ function PickingModal({ order, user, onDone, onClose, showToast }) {
       }, 100);
       setScanOn(true);
       if (!scanCanvasRef.current) scanCanvasRef.current = document.createElement("canvas");
+      zxReaderRef.current = null;
+      scanStartRef.current = performance.now();
+
+      let bd = null;
       if ("BarcodeDetector" in window) {
-        const bd = new BarcodeDetector({ formats: ["qr_code", "code_128", "ean_13", "ean_8", "code_39", "itf", "data_matrix"] });
-        intervalRef.current = setInterval(async () => {
-          if (!videoRef.current || !scanCanvasRef.current || videoRef.current.readyState < 2) return;
-          // Crop đúng vùng khung ngắm vàng → tăng độ chính xác, đỡ nhiễu xung quanh
-          cropViewfinder(videoRef.current, scanCanvasRef.current, 0.8, 64);
-          try {
-            const codes = await bd.detect(scanCanvasRef.current);
-            if (codes.length > 0) { processScan(codes[0].rawValue); return; }
-            // Dự phòng: nếu crop không thấy, thử quét luôn cả khung hình
-            const full = await bd.detect(videoRef.current);
-            if (full.length > 0) processScan(full[0].rawValue);
-          } catch {}
-        }, 500);
-      } else {
-        showToast("⚠️ Thiết bị không hỗ trợ quét tự động — dùng nút +/- thủ công", "err");
+        try { bd = new BarcodeDetector({ formats: ["qr_code", "code_128", "ean_13", "ean_8", "code_39", "itf", "data_matrix"] }); } catch {}
       }
+      if (!bd) {
+        // Máy không có BarcodeDetector (thường là tablet) → nạp ZXing để quét mã vạch 1D
+        loadZxing(ok => {
+          if (ok) { try { zxReaderRef.current = makeZxingDecoder(); } catch { zxReaderRef.current = null; } }
+          if (!zxReaderRef.current) showToast("⚠️ Thiết bị không hỗ trợ quét tự động — dùng nút +/- thủ công", "err");
+        });
+      }
+
+      intervalRef.current = setInterval(async () => {
+        const v = videoRef.current; const c = scanCanvasRef.current;
+        if (!v || !c || v.readyState < 2) return;
+
+        // 1) Ưu tiên BarcodeDetector native — crop khung ngắm + dự phòng toàn khung
+        if (bd) {
+          try {
+            cropViewfinder(v, c, 0.8, 64);
+            const codes = await bd.detect(c);
+            if (codes.length > 0) { processScan(codes[0].rawValue); return; }
+            const full = await bd.detect(v);
+            if (full.length > 0) { processScan(full[0].rawValue); return; }
+          } catch {}
+          // Native có nhưng hoảng loạn (có máy API hỏng) → sau 8s tự nạp ZXing dự phòng
+          if (performance.now() - scanStartRef.current > 8000 && !zxReaderRef.current) {
+            loadZxing(ok => { if (ok) { try { zxReaderRef.current = makeZxingDecoder(); } catch {} } });
+          }
+          return;
+        }
+
+        // 2) ZXing — đọc được cả mã vạch 1D (Code128/EAN...) + QR
+        if (zxReaderRef.current) {
+          const now = performance.now();
+          if (now - lastDecodeRef.current < 350) return; // decode nặng → throttle
+          lastDecodeRef.current = now;
+          try {
+            cropViewfinder(v, c, 0.8, 64);
+            const txt = zxReaderRef.current(c);
+            if (txt) { processScan(txt); return; }
+          } catch {}
+          try {
+            c.width = v.videoWidth; c.height = v.videoHeight;
+            c.getContext("2d").drawImage(v, 0, 0);
+            const txt2 = zxReaderRef.current(c);
+            if (txt2) { processScan(txt2); return; }
+          } catch {}
+        }
+      }, 400);
     } catch (e) {
       showToast("Không mở được camera: " + e.message, "err");
     }

@@ -189,7 +189,7 @@ function QRScanModal({ onClose, onFound, orders = [], mode = "search" }) {
               {isCapture ? "Lấy mã QR dán lên máy → điền vào đơn" : "QR đã gán: xem lịch sử · QR mới: gán cho đơn này"}
             </div>
           </div>
-          <button onClick={() => { streamRef.current?.getTracks().forEach(t => t.stop()); onClose(); }}
+          <button onClick={() => { engine.stop(); onClose(); }}
             style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:40, height:40, borderRadius:"50%", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22,verticalAlign:"middle",lineHeight:1}}>close</span></button>
         </div>
 
@@ -378,42 +378,110 @@ export function TorchButton({ stream, style }) {
   );
 }
 
-// ── IMEIScanModal — quét barcode 1D/2D để lấy IMEI ──────────────────────────
-// Ưu tiên: BarcodeDetector (native) → ZXing (wasm) → jsQR fallback
-export function IMEIScanModal({ onClose, onFound }) {
-  const videoRef = React.useRef();
-  const canvasRef = React.useRef();
-  const rafRef = React.useRef();
-  const streamRef = React.useRef();
-  const detectorRef = React.useRef(null);
-  const [status, setStatus] = React.useState("loading"); // loading | scanning | error
-  const [errMsg, setErrMsg] = React.useState("");
-  const [manual, setManual] = React.useState("");
-  const [detected, setDetected] = React.useState("");
+// ══════════════════════════════════════════════════════════
+// ZXing JS — engine dự phòng cho thiết bị KHÔNG có BarcodeDetector native
+// (thường là tablet không có Google Play Services đầy đủ, VD: Lenovo tablet)
+// ZXing đọc được cả mã vạch 1D (Code128, EAN...) mà jsQR không đọc được.
+// ══════════════════════════════════════════════════════════
+let _zxLoaded = false;
+let _zxCbs = [];
+export function loadZxing(cb) {
+  if (_zxLoaded) { cb(!!window.ZXing); return; }
+  _zxCbs.push(cb);
+  if (_zxCbs.length > 1) return; // đang load rồi
+  const s = document.createElement("script");
+  s.src = "https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js";
+  s.onload = () => { _zxLoaded = true; _zxCbs.forEach(f => f(!!window.ZXing)); _zxCbs = []; };
+  s.onerror = () => { _zxCbs.forEach(f => f(false)); _zxCbs = []; };
+  document.head.appendChild(s);
+}
 
-  React.useEffect(() => {
-    initDetector();
-    return () => {
-      streamRef.current?.getTracks().forEach(t => t.stop());
-      cancelAnimationFrame(rafRef.current);
+// Trả về hàm decode(canvas) → text | null. Tự chọn API theo phiên bản ZXing.
+export function makeZxingDecoder() {
+  const ZX = window.ZXing;
+  if (!ZX) return null;
+  if (ZX.BrowserMultiFormatReader && ZX.BrowserMultiFormatReader.prototype.decodeFromCanvas) {
+    const r = new ZX.BrowserMultiFormatReader();
+    return (canvas) => {
+      const res = r.decodeFromCanvas(canvas);
+      return res ? (res.getText ? res.getText() : String(res)) : null;
     };
-  }, []);
+  }
+  const reader = new ZX.MultiFormatReader();
+  return (canvas) => {
+    try { reader.reset(); } catch {}
+    const luminance = new ZX.HTMLCanvasElementLuminanceSource(canvas);
+    const bitmap = new ZX.BinaryBitmap(new ZX.HybridBinarizer(luminance));
+    const res = reader.decode(bitmap);
+    return res ? (res.getText ? res.getText() : String(res)) : null;
+  };
+}
 
-  async function initDetector() {
-    // 1. Thử BarcodeDetector native (Chrome Android hỗ trợ tốt)
-    if (window.BarcodeDetector) {
-      try {
-        const formats = await window.BarcodeDetector.getSupportedFormats().catch(() => ["code_128","code_39","ean_13","ean_8","qr_code","data_matrix"]);
-        detectorRef.current = new window.BarcodeDetector({ formats });
-        startCamera("native");
-        return;
-      } catch {}
-    }
-    // 2. Fallback jsQR (QR code + DataMatrix)
-    loadJsQR(() => { startCamera("jsqr"); });
+const ZXING_FORMATS = ["code_128","code_39","ean_13","ean_8","qr_code","data_matrix","itf","upc_a","upc_e"];
+
+/* useScannerEngine — hook quét mã dùng chung cho mọi màn:
+ * - Engine chain: BarcodeDetector native → ZXing (1D+2D) → jsQR (QR/DataMatrix)
+ * - Tự động chuyển từ native sang ZXing nếu quét engineTimeoutMs không ra kết quả
+ *   (một số máy có API native nhưng bị hỏng, không bao giờ detect được)
+ * - Quét ưu tiên vùng crop khung ngắm, có dự phòng toàn khung hình
+ * Trả về: { start, stop, status, errMsg, streamRef, engineRef } */
+export function useScannerEngine({ videoRef, canvasRef, onResult, engineTimeoutMs = 8000 }) {
+  const streamRef   = React.useRef(null);
+  const rafRef      = React.useRef(null);
+  const detectorRef = React.useRef(null);
+  const zxingDecodeRef = React.useRef(null);
+  const engineRef   = React.useRef("loading");
+  const engineStartRef = React.useRef(0);
+  const lastHeavyRef = React.useRef(0);
+  const [status, setStatus] = React.useState("loading");
+  const [errMsg, setErrMsg] = React.useState("");
+
+  React.useEffect(() => () => { stop(); }, []);
+
+  function stop() {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+    if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null; }
   }
 
-  async function startCamera(detectorType) {
+  function done(raw) { stop(); onResult(String(raw || "").trim()); }
+
+  function tryInitZxing() {
+    return new Promise(resolve => {
+      loadZxing(ok => {
+        if (!ok) { resolve(false); return; }
+        try { zxingDecodeRef.current = makeZxingDecoder(); resolve(!!zxingDecodeRef.current); }
+        catch { resolve(false); }
+      });
+    });
+  }
+
+  async function start() {
+    setStatus("loading"); setErrMsg("");
+    engineRef.current = "loading";
+
+    // 1. BarcodeDetector native
+    if (window.BarcodeDetector) {
+      try {
+        const formats = await window.BarcodeDetector.getSupportedFormats().catch(() => ZXING_FORMATS);
+        detectorRef.current = new window.BarcodeDetector({ formats: formats.length ? formats : ZXING_FORMATS });
+        engineRef.current = "native";
+      } catch {}
+    }
+    // 2. ZXing — đọc được cả mã vạch 1D (quan trọng cho tablet)
+    if (engineRef.current === "loading") {
+      if (await tryInitZxing()) engineRef.current = "zxing";
+    }
+    // 3. jsQR — chỉ QR/DataMatrix (cứ để dành cho trường hợp cực hiếm)
+    if (engineRef.current === "loading") {
+      await new Promise(res => loadJsQR(res));
+      if (window.jsQR) engineRef.current = "jsqr";
+    }
+    if (engineRef.current === "loading") {
+      setStatus("error"); setErrMsg("Thiết bị không hỗ trợ quét mã — vui lòng nhập thủ công.");
+      return;
+    }
+
     try {
       const stream = await openScannerStream();
       streamRef.current = stream;
@@ -421,50 +489,111 @@ export function IMEIScanModal({ onClose, onFound }) {
       if (!v) return;
       v.srcObject = stream;
       await v.play();
+      engineStartRef.current = performance.now();
       setStatus("scanning");
-      scanLoop(detectorType);
+      scanLoop();
     } catch (e) {
       setStatus("error");
-      setErrMsg("Không mở được camera. Nhập IMEI thủ công bên dưới.");
+      setErrMsg("Không mở được camera. Nhập thủ công bên dưới.");
     }
   }
 
-  function scanLoop(type) {
+  function scanLoop() {
     rafRef.current = requestAnimationFrame(async () => {
       const v = videoRef.current; const c = canvasRef.current;
-      if (!v || !c || v.readyState < 2) { scanLoop(type); return; }
-      // Crop đúng vùng khung ngắm vàng trước khi quét → chính xác hơn nhiều, ít nhiễu
-      const ctx = cropViewfinder(v, c, 0.85, 72);
-      if (!ctx) { scanLoop(type); return; }
+      if (!v || !c || v.readyState < 2) { scanLoop(); return; }
+      let found = false;
+      const eng = engineRef.current;
 
-      if (type === "native" && detectorRef.current) {
+      if (eng === "native" && detectorRef.current) {
+        const ctx = cropViewfinder(v, c, 0.85, 72);
         try {
-          const barcodes = await detectorRef.current.detect(c);
-          if (barcodes.length > 0) {
-            handleDetected(barcodes[0].rawValue); return;
+          if (ctx) {
+            const bars = await detectorRef.current.detect(c);
+            if (bars.length > 0) { found = true; done(bars[0].rawValue); return; }
           }
-          // Dự phòng: nếu crop không thấy, thử quét luôn cả khung hình
+          // Dự phòng: quét cả khung hình (đề phòng crop lệch)
           const full = await detectorRef.current.detect(v);
-          if (full.length > 0) { handleDetected(full[0].rawValue); return; }
+          if (full.length > 0) { found = true; done(full[0].rawValue); return; }
         } catch {}
-      } else if (type === "jsqr" && window.jsQR) {
-        const img = ctx.getImageData(0, 0, c.width, c.height);
-        const code = window.jsQR(img.data, img.width, img.height, { inversionAttempts: "attemptBoth" });
-        if (code?.data) { handleDetected(code.data.trim()); return; }
+        // Tự chuyển sang ZXing nếu native "có mà không làm việc" sau engineTimeoutMs
+        if (!found && performance.now() - engineStartRef.current > engineTimeoutMs && !zxingDecodeRef.current) {
+          if (await tryInitZxing()) { engineRef.current = "zxing"; engineStartRef.current = performance.now(); }
+        }
+      } else if (eng === "zxing" && zxingDecodeRef.current) {
+        const now = performance.now();
+        if (now - lastHeavyRef.current > 300) { // decode ZXing nặng → throttle
+          lastHeavyRef.current = now;
+          const ctx = cropViewfinder(v, c, 0.85, 72);
+          try {
+            if (ctx) {
+              const txt = zxingDecodeRef.current(c);
+              if (txt) { found = true; done(txt); return; }
+            }
+          } catch {}
+          if (!found) {
+            try {
+              c.width = v.videoWidth; c.height = v.videoHeight;
+              c.getContext("2d").drawImage(v, 0, 0);
+              const txt2 = zxingDecodeRef.current(c);
+              if (txt2) { found = true; done(txt2); return; }
+            } catch {}
+          }
+        }
+      } else if (eng === "jsqr" && window.jsQR) {
+        const now = performance.now();
+        if (now - lastHeavyRef.current > 300) {
+          lastHeavyRef.current = now;
+          const ctx = cropViewfinder(v, c, 0.85, 72);
+          try {
+            if (ctx) {
+              const img = ctx.getImageData(0, 0, c.width, c.height);
+              const code = window.jsQR(img.data, img.width, img.height, { inversionAttempts: "attemptBoth" });
+              if (code?.data) { found = true; done(code.data.trim()); return; }
+            }
+          } catch {}
+          if (!found) {
+            try {
+              c.width = v.videoWidth; c.height = v.videoHeight;
+              const ctx2 = c.getContext("2d"); ctx2.drawImage(v, 0, 0);
+              const img2 = ctx2.getImageData(0, 0, c.width, c.height);
+              const code2 = window.jsQR(img2.data, img2.width, img2.height, { inversionAttempts: "attemptBoth" });
+              if (code2?.data) { found = true; done(code2.data.trim()); return; }
+            } catch {}
+          }
+        }
       }
-      scanLoop(type);
+      scanLoop();
     });
   }
 
-  function handleDetected(raw) {
-    // Lọc lấy phần số IMEI (15 số) nếu có trong chuỗi
-    const imeiMatch = raw.match(/\b\d{14,16}\b/);
-    const imei = imeiMatch ? imeiMatch[0] : raw.trim();
-    cancelAnimationFrame(rafRef.current);
-    streamRef.current?.getTracks().forEach(t => t.stop());
-    setDetected(imei);
-    setStatus("done");
-  }
+  return { start, stop, status, errMsg, streamRef, engineRef };
+}
+
+// ── IMEIScanModal — quét barcode 1D/2D để lấy IMEI ──────────────────────────
+// Ưu tiên: BarcodeDetector (native) → ZXing (wasm) → jsQR fallback
+export function IMEIScanModal({ onClose, onFound }) {
+  const videoRef = React.useRef();
+  const canvasRef = React.useRef();
+  const [manual, setManual] = React.useState("");
+  const [detected, setDetected] = React.useState("");
+  const [done, setDone] = React.useState(false);
+
+  const engine = useScannerEngine({
+    videoRef, canvasRef,
+    onResult: (raw) => {
+      // Lọc lấy phần số IMEI (15 số) nếu có trong chuỗi
+      const imeiMatch = raw.match(/\b\d{14,16}\b/);
+      setDetected(imeiMatch ? imeiMatch[0] : raw);
+      setDone(true);
+    },
+  });
+  const { status, errMsg, streamRef } = engine;
+
+  React.useEffect(() => {
+    engine.start();
+    return () => engine.stop();
+  }, []);
 
   function confirmImei(val) {
     if (!val.trim()) return;
@@ -481,12 +610,12 @@ export function IMEIScanModal({ onClose, onFound }) {
             <div style={{ color:"#fff", fontWeight:900, fontSize:20 }}>▦ Quét Barcode IMEI</div>
             <div style={{ color:"#94a3b8", fontSize:12, marginTop:2 }}>Hướng camera vào mã vạch trên máy</div>
           </div>
-          <button onClick={() => { streamRef.current?.getTracks().forEach(t => t.stop()); onClose(); }}
+          <button onClick={() => { engine.stop(); onClose(); }}
             style={{ background:"rgba(255,255,255,.15)", border:"none", color:"#fff", width:38, height:38, borderRadius:"50%", fontSize:18, cursor:"pointer"}}> </button>
         </div>
 
         {/* Camera view */}
-        {status !=="done" && (
+        {!done && (
           <div style={{ position:"relative", borderRadius:16, overflow:"hidden", background:"#000", aspectRatio:"16/9", marginBottom:14 }}>
             <video ref={videoRef} muted playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }} />
             <canvas ref={canvasRef} style={{ display:"none" }} />
@@ -516,7 +645,7 @@ export function IMEIScanModal({ onClose, onFound }) {
         )}
 
         {/* Kết quả đã quét */}
-        {status ==="done" && (
+        {done && (
           <div style={{ background:"#f0fdf4", borderRadius:14, padding:18, marginBottom:14, border:"2px solid #6ee7b7", textAlign:"center" }}>
             <div style={{ fontSize:13, color:"#065f46", fontWeight:700, marginBottom:6 }}>  Đã quét được:</div>
             <input value={detected} onChange={e => setDetected(e.target.value)}
@@ -526,9 +655,9 @@ export function IMEIScanModal({ onClose, onFound }) {
         )}
 
         {/* Nút action */}
-        {status === "done" ? (
+        {done ? (
           <div style={{ display:"flex", gap:10 }}>
-            <button onClick={() => { setStatus("loading"); setDetected(""); initDetector(); }}
+            <button onClick={() => { setDone(false); setDetected(""); engine.start(); }}
               style={{ flex:1, height:48, background:"rgba(255,255,255,.1)", border:"1.5px solid rgba(255,255,255,.3)", color:"#fff", borderRadius:12, fontWeight:700, cursor:"pointer"}}>
                 Quét lại
             </button>
@@ -568,84 +697,18 @@ export function IMEIScanModal({ onClose, onFound }) {
 export function ScanCodeModal({ title = "▦ Quét mã", hint = "Hướng camera vào mã vạch / QR", onFound, onClose }) {
   const videoRef    = React.useRef();
   const canvasRef   = React.useRef();
-  const rafRef      = React.useRef();
-  const streamRef   = React.useRef();
-  const detectorRef = React.useRef(null);
-  const [status, setStatus]   = React.useState("loading");
-  const [errMsg, setErrMsg]   = React.useState("");
   const [manual, setManual]   = React.useState("");
 
+  const engine = useScannerEngine({ videoRef, canvasRef, onResult: onFound });
+  const { status, errMsg, streamRef } = engine;
+
   React.useEffect(() => {
-    initDetector();
-    return () => {
-      streamRef.current?.getTracks().forEach(t => t.stop());
-      cancelAnimationFrame(rafRef.current);
-    };
+    engine.start();
+    return () => engine.stop();
   }, []);
 
-  async function initDetector() {
-    if (window.BarcodeDetector) {
-      try {
-        const formats = await window.BarcodeDetector.getSupportedFormats().catch(() => ["code_128","code_39","ean_13","ean_8","qr_code","data_matrix"]);
-        detectorRef.current = new window.BarcodeDetector({ formats });
-        startCamera("native");
-        return;
-      } catch {}
-    }
-    const old = document.getElementById("jsqr-script");
-    if (!old && !window.jsQR) {
-      const s = document.createElement("script");
-      s.id = "jsqr-script";
-      s.src = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js";
-      s.onload = () => startCamera("jsqr");
-      document.head.appendChild(s);
-    } else { startCamera("jsqr"); }
-  }
-
-  async function startCamera(type) {
-    try {
-      const stream = await openScannerStream();
-      streamRef.current = stream;
-      const v = videoRef.current;
-      if (!v) return;
-      v.srcObject = stream;
-      await v.play();
-      setStatus("scanning");
-      scanLoop(type);
-    } catch (e) {
-      setStatus("error");
-      setErrMsg("Không mở được camera. Nhập mã thủ công bên dưới.");
-    }
-  }
-
-  function scanLoop(type) {
-    rafRef.current = requestAnimationFrame(async () => {
-      const v = videoRef.current; const c = canvasRef.current;
-      if (!v || !c || v.readyState < 2) { scanLoop(type); return; }
-      // Crop đúng vùng khung ngắm vàng trước khi quét → chính xác hơn nhiều, ít nhiễu
-      const ctx = cropViewfinder(v, c, 0.85, 72);
-      if (!ctx) { scanLoop(type); return; }
-
-      if (type === "native" && detectorRef.current) {
-        try {
-          const barcodes = await detectorRef.current.detect(c);
-          if (barcodes.length > 0) { finish(barcodes[0].rawValue); return; }
-          // Dự phòng: nếu crop không thấy, thử quét luôn cả khung hình (đề phòng lệch crop / mã hơi lệch ra khung)
-          const full = await detectorRef.current.detect(v);
-          if (full.length > 0) { finish(full[0].rawValue); return; }
-        } catch {}
-      } else if (type === "jsqr" && window.jsQR) {
-        const img = ctx.getImageData(0, 0, c.width, c.height);
-        const code = window.jsQR(img.data, img.width, img.height, { inversionAttempts: "attemptBoth" });
-        if (code?.data) { finish(code.data.trim()); return; }
-      }
-      scanLoop(type);
-    });
-  }
-
   function finish(raw) {
-    cancelAnimationFrame(rafRef.current);
-    streamRef.current?.getTracks().forEach(t => t.stop());
+    engine.stop();
     onFound(String(raw).trim());
   }
 
@@ -657,7 +720,7 @@ export function ScanCodeModal({ title = "▦ Quét mã", hint = "Hướng camera
             <div style={{ color:"#fff", fontWeight:900, fontSize:20 }}>{title}</div>
             <div style={{ color:"#94a3b8", fontSize:12, marginTop:2 }}>{hint}</div>
           </div>
-          <button onClick={() => { streamRef.current?.getTracks().forEach(t => t.stop()); onClose(); }}
+          <button onClick={() => { engine.stop(); onClose(); }}
             style={{ background:"rgba(255,255,255,.15)", border:"none", color:"#fff", width:38, height:38, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
         </div>
 
