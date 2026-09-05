@@ -125,6 +125,7 @@ export function renderPlaceholderPages(page, user) {
 // ── Lazy imports bổ sung ────────────────────────────────────────────────────
 const RMAPage         = lazy(() => import("./RMAPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải RMA</div> })));
 const SaleOrderPage   = lazy(() => import("./SaleOrderPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Đơn bán hàng</div> })));
+const PackingPageMobile = lazy(() => import("./PackingPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Soạn hàng</div> })));
 const ReturnOrderPage = lazy(() => import("./ReturnOrderPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Đổi trả</div> })));
 const PricePolicyPage = lazy(() => import("./PricePolicyPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Chính sách giá</div> })));
 const ProductManagerPage = lazy(() => import("./ProductManagerPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Danh mục hàng hóa</div> })));
@@ -297,6 +298,11 @@ export function renderMobilePages(page, user, extraProps = {}) {
         extraProps.can && !extraProps.can("stock_export","view")
           ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
           : <WarehouseExport user={user} />
+      )}
+      {page==="pack_ship" && user && (
+        extraProps.can && !(extraProps.can("pack_order","view") || extraProps.can("ship_order","view"))
+          ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+          : <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><PackingPageMobile user={user} onBack={()=>setPage && setPage("my_tasks")} /></Suspense>
       )}
       {page==="wh_import" && user && (
         extraProps.can && !extraProps.can("stock_import","view")

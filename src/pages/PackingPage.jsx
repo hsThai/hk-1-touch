@@ -679,7 +679,8 @@ function StepPhotoModal({ order, user, title, subtitle, noteLabel, notePlacehold
 
 /* ─────────────── Card đơn ─────────────── */
 function PkCard({ order, meta, children, onExpand, expanded, timeline }) {
-  const st = PK_STATUS[meta] || PK_STATUS[""];
+  let st = PK_STATUS[meta] || PK_STATUS[""];
+  if (meta === "packed" && order.delivery_type === "pickup") st = { ...st, label: "Chờ khách nhận", icon: "storefront" };
   return (
     <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, marginBottom: 10, overflow: "hidden" }}>
       <div onClick={onExpand} style={{ padding: "12px 14px", cursor: "pointer" }}>
@@ -745,11 +746,14 @@ export default function PackingPage({ user, onBack }) {
     };
     for (const o of orders) {
       const st = o.pack_status || "";
+      const notYetPacked = (st === "" || st === "to_pick" || st === "picking");
+      // Chỉ vào hàng đợi soạn hàng khi: NV bán hàng đã lên đơn VÀ thu ngân đã thu tiền (status="completed")
+      if (notYetPacked && o.status !== "completed") continue;
       if (st === "delivered" || st === "counter") q.done.push(o);
       else if (st === "failed") q.failed.push(o);
       else if (st === "packed") q.handover.push(o);
       else if (st === "shipped" || st === "carrier_received") q.transit.push(o);
-      else if (st === "" || st === "to_pick" || st === "picking") q.pick.push(o);
+      else if (notYetPacked) q.pick.push(o);
     }
     // FIFO: đơn cũ lên trước
     const byOldest = (a, b) => new Date(a.created_date || 0) - new Date(b.created_date || 0);
@@ -896,6 +900,38 @@ export default function PackingPage({ user, onBack }) {
     } catch (e) { showToast("Lỗi: " + e.message, "err"); setSubmitting(false); }
   }
 
+  // Khách nhận tại tiệm (delivery_type = pickup) — không qua ĐVVC
+  async function customerPickup(order, { photos, note, setSubmitting }) {
+    setSubmitting(true);
+    try {
+      const media = parsePackMedia(order);
+      media.delivered = photos;
+      const updates = {
+        pack_status: "delivered",
+        delivered_at: new Date().toISOString(),
+        delivery_note: note || "Khách nhận tại tiệm",
+        pack_media: JSON.stringify(media),
+      };
+      await SaleOrder.update(order.id, updates);
+      await logHistory({
+        order_id: order.id, order_code: order.order_code,
+        action_type: "ship", action_label: "🏪 Khách đã nhận tại tiệm",
+        changed_by_id: user.id, changed_by_name: user.full_name || user.name || "", changed_by_role: user.role || "",
+        old_value: "packed", new_value: "delivered",
+        note: `${photos.length} ảnh${note ? " — " + note : ""}`,
+      });
+      logAction(user, "ship_order", "sale_order", order.id, `Khách nhận tại tiệm đơn ${order.order_code}`);
+      await notifyUser(order.seller_id, order.seller_name, {
+        title: `✅ Đơn ${order.order_code} khách đã nhận`,
+        message: "Khách đã đến nhận hàng tại tiệm",
+        order: { id: order.id, order_code: order.order_code },
+      });
+      showToast("🎉 Đã xác nhận khách nhận hàng!", "ok");
+      setModal(null);
+      applyUpdate(order.id, updates);
+    } catch (e) { showToast("Lỗi: " + e.message, "err"); setSubmitting(false); }
+  }
+
   // Bàn giao lại (đơn lỗi → quay lại chờ bàn giao)
   async function retryHandover(order) {
     if (!window.confirm(`Chuyển đơn ${order.order_code} về "Chờ bàn giao" để gửi lại?`)) return;
@@ -1001,8 +1037,11 @@ export default function PackingPage({ user, onBack }) {
             {btn("🏪 TẠI QUẦY", "#475569", "#f1f5f9", () => markCounter(o))}
           </>
         )}
-        {/* Bàn giao — cần quyền edit ship_order */}
-        {canEditShip && st === "packed" && (
+        {/* Bàn giao — cần quyền edit ship_order. Rẽ nhánh theo hình thức nhận hàng do NV bán chọn */}
+        {canEditShip && st === "packed" && o.delivery_type === "pickup" && (
+          btn("✅ KHÁCH ĐÃ NHẬN", "#fff", "#059669", () => setModal({ type: "pickup_confirm", order: o }))
+        )}
+        {canEditShip && st === "packed" && o.delivery_type !== "pickup" && (
           btn("🚚 BÀN GIAO ĐVVC", "#fff", "#0369a1", () => setModal({ type: "handover", order: o }))
         )}
         {canEditShip && (st === "shipped" || st === "carrier_received") && (
@@ -1113,6 +1152,14 @@ export default function PackingPage({ user, onBack }) {
           subtitle={`Đơn ${modal.order.order_code} — ${modal.order.shipping_unit || ""} ${modal.order.tracking_code || ""}`}
           noteLabel="Ghi chú (tùy chọn)" notePlaceholder="VD: ĐVVC xác nhận lấy hàng..."
           onDone={(data) => carrierReceived(modal.order, data)}
+          onClose={() => setModal(null)} />
+      )}
+      {modal?.type === "pickup_confirm" && (
+        <StepPhotoModal order={modal.order} user={user} showToast={showToast}
+          title="✅ Xác nhận khách đã nhận hàng"
+          subtitle={`Đơn ${modal.order.order_code} — chụp ảnh khách nhận tại tiệm`}
+          noteLabel="Ghi chú (tùy chọn)" notePlaceholder="VD: Khách đã kiểm tra và nhận đủ..."
+          onDone={(data) => customerPickup(modal.order, data)}
           onClose={() => setModal(null)} />
       )}
       {modal?.type === "delivered" && (

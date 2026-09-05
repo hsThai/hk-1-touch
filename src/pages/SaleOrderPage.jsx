@@ -37,6 +37,8 @@ export default function SaleOrderPage({ user }) {
   const [cart,        setCart]        = useState([]);
   const [custName,       setCustName]       = useState("");
   const [custPhone,      setCustPhone]      = useState("");
+  const [deliveryType,   setDeliveryType]   = useState("pickup"); // pickup | delivery
+  const [deliveryAddress,setDeliveryAddress] = useState("");
   const [custSearch,     setCustSearch]     = useState("");
   const [custSuggestions,setCustSuggestions]= useState([]);
   const [showAddCust,    setShowAddCust]    = useState(false);
@@ -182,6 +184,7 @@ export default function SaleOrderPage({ user }) {
     if (!custName.trim()) { showToast("⚠️ Vui lòng nhập tên khách hàng!"); return; }
     if (cart.length===0) { showToast("⚠️ Giỏ hàng trống!"); return; }
     if (!payMethod)       { showToast("⚠️ Chưa chọn hình thức thanh toán!"); return; }
+    if (deliveryType === "delivery" && !deliveryAddress.trim()) { showToast("⚠️ Vui lòng nhập địa chỉ giao hàng!"); return; }
     setSubmitting(true);
     try {
       const orderCode = genCode();
@@ -208,6 +211,8 @@ export default function SaleOrderPage({ user }) {
           cashier_id:     "",
           cashier_name:   "",
           status:         "pending_payment",
+          delivery_type:    deliveryType,
+          delivery_address: deliveryType === "delivery" ? deliveryAddress.trim() : "",
         });
         console.log("✅ Tạo sale_order thành công:", so);
         logAction(user, "create_sale", "sale_order", so.id, `Tạo đơn bán ${orderCode}: ${custName} — ${total.toLocaleString("vi-VN")}đ`);
@@ -321,6 +326,8 @@ export default function SaleOrderPage({ user }) {
         cashier_name:   "",
         note:           "",
         status:         "draft",
+        delivery_type:    deliveryType,
+        delivery_address: deliveryType === "delivery" ? deliveryAddress.trim() : "",
       });
       setLastDraft({ ...draft, order_code: code, items: itemsPayload,
         subtotal: sub, discount: disc, total,
@@ -636,6 +643,42 @@ export default function SaleOrderPage({ user }) {
               +
             </button>
           </div>
+        )}
+      </div>
+
+      {/* ─── 2b. Hình thức nhận hàng — Giao hàng / Nhận tại tiệm ─── */}
+      <div style={{ marginBottom:16 }}>
+        <label style={{ fontSize:12, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>Hình thức nhận hàng *</label>
+        <div style={{ display:"flex", gap:8, marginBottom: deliveryType === "delivery" ? 10 : 0 }}>
+          <button onClick={() => setDeliveryType("pickup")}
+            style={{
+              flex:1, padding:"11px 10px", borderRadius:12, cursor:"pointer",
+              border: deliveryType === "pickup" ? "2px solid #059669" : "1.5px solid #e5e7eb",
+              background: deliveryType === "pickup" ? "#f0fdf4" : "#fff",
+              color: deliveryType === "pickup" ? "#059669" : "#6b7280",
+              fontWeight:800, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+            }}>
+            <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18}}>storefront</span>
+            Nhận tại tiệm
+          </button>
+          <button onClick={() => setDeliveryType("delivery")}
+            style={{
+              flex:1, padding:"11px 10px", borderRadius:12, cursor:"pointer",
+              border: deliveryType === "delivery" ? "2px solid #0369a1" : "1.5px solid #e5e7eb",
+              background: deliveryType === "delivery" ? "#eff6ff" : "#fff",
+              color: deliveryType === "delivery" ? "#0369a1" : "#6b7280",
+              fontWeight:800, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+            }}>
+            <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18}}>local_shipping</span>
+            Giao hàng
+          </button>
+        </div>
+        {deliveryType === "delivery" && (
+          <textarea value={deliveryAddress} onChange={e => setDeliveryAddress(e.target.value)}
+            placeholder="Địa chỉ nhận hàng (bắt buộc)..."
+            style={{ width:"100%", minHeight:64, borderRadius:12, border:"1.5px solid #bfdbfe",
+              padding:"10px 14px", fontSize:14, outline:"none", boxSizing:"border-box", resize:"vertical",
+              fontFamily:"inherit" }} />
         )}
       </div>
 
