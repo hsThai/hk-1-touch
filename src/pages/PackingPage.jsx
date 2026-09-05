@@ -217,7 +217,10 @@ function PickingModal({ order, user, onDone, onClose, showToast }) {
           cropViewfinder(videoRef.current, scanCanvasRef.current, 0.8, 64);
           try {
             const codes = await bd.detect(scanCanvasRef.current);
-            if (codes.length > 0) processScan(codes[0].rawValue);
+            if (codes.length > 0) { processScan(codes[0].rawValue); return; }
+            // Dự phòng: nếu crop không thấy, thử quét luôn cả khung hình
+            const full = await bd.detect(videoRef.current);
+            if (full.length > 0) processScan(full[0].rawValue);
           } catch {}
         }, 500);
       } else {

@@ -317,18 +317,37 @@ export async function setTorch(stream, on) {
 
 // Crop đúng vùng khung ngắm (khung vàng) ra canvas riêng trước khi quét
 // → bỏ nhiễu xung quanh, "zoom số" vào mã, tăng mạnh tỉ lệ quét thành công
+// QUAN TRỌNG: video hiển thị bằng object-fit:cover nên nếu tỉ lệ khung hình
+// camera thực tế (videoWidth/videoHeight) khác tỉ lệ khung CSS (thường 16:9),
+// phần nhìn thấy trên màn hình đã bị cắt lệch khỏi khung gốc — phải trừ đúng
+// phần bị cắt (offsetX/offsetY) mới map đúng toạ độ, nếu không sẽ cắt nhầm vùng.
 export function cropViewfinder(video, canvas, widthPct = 0.85, heightPx = 72) {
   const vw = video.videoWidth, vh = video.videoHeight;
   if (!vw || !vh) return null;
   const rect = video.getBoundingClientRect();
   const dispW = rect.width || vw, dispH = rect.height || vh;
-  const scaleX = vw / dispW, scaleY = vh / dispH;
+  if (!dispW || !dispH) return null;
+
+  // Phần khung hình camera thực sự hiển thị trên màn hình sau object-fit:cover
+  const videoAspect = vw / vh, dispAspect = dispW / dispH;
+  let visW, visH, offX = 0, offY = 0;
+  if (videoAspect > dispAspect) { // camera rộng hơn khung hiển thị → cắt 2 bên
+    visH = vh; visW = vh * dispAspect; offX = (vw - visW) / 2;
+  } else { // camera cao hơn khung hiển thị → cắt trên/dưới
+    visW = vw; visH = vw / dispAspect; offY = (vh - visH) / 2;
+  }
+  const scaleX = visW / dispW, scaleY = visH / dispH;
+
   const boxW = dispW * widthPct;
   const boxH = heightPx;
   const boxX = (dispW - boxW) / 2;
   const boxY = (dispH - boxH) / 2;
-  const sx = Math.max(0, boxX * scaleX), sy = Math.max(0, boxY * scaleY);
-  const sw = Math.min(vw - sx, boxW * scaleX) || vw, sh = Math.min(vh - sy, boxH * scaleY) || vh;
+
+  const sx = Math.max(0, offX + boxX * scaleX);
+  const sy = Math.max(0, offY + boxY * scaleY);
+  const sw = Math.min(vw - sx, boxW * scaleX) || vw;
+  const sh = Math.min(vh - sy, boxH * scaleY) || vh;
+
   canvas.width = sw; canvas.height = sh;
   const ctx = canvas.getContext("2d");
   ctx.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh);
@@ -422,9 +441,11 @@ export function IMEIScanModal({ onClose, onFound }) {
         try {
           const barcodes = await detectorRef.current.detect(c);
           if (barcodes.length > 0) {
-            const raw = barcodes[0].rawValue;
-            handleDetected(raw); return;
+            handleDetected(barcodes[0].rawValue); return;
           }
+          // Dự phòng: nếu crop không thấy, thử quét luôn cả khung hình
+          const full = await detectorRef.current.detect(v);
+          if (full.length > 0) { handleDetected(full[0].rawValue); return; }
         } catch {}
       } else if (type === "jsqr" && window.jsQR) {
         const img = ctx.getImageData(0, 0, c.width, c.height);
@@ -609,6 +630,9 @@ export function ScanCodeModal({ title = "▦ Quét mã", hint = "Hướng camera
         try {
           const barcodes = await detectorRef.current.detect(c);
           if (barcodes.length > 0) { finish(barcodes[0].rawValue); return; }
+          // Dự phòng: nếu crop không thấy, thử quét luôn cả khung hình (đề phòng lệch crop / mã hơi lệch ra khung)
+          const full = await detectorRef.current.detect(v);
+          if (full.length > 0) { finish(full[0].rawValue); return; }
         } catch {}
       } else if (type === "jsqr" && window.jsQR) {
         const img = ctx.getImageData(0, 0, c.width, c.height);
