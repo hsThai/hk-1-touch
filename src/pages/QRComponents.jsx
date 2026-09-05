@@ -278,6 +278,87 @@ export { loadQRLib, loadJsQR, QRCanvas, getQRDataUrl, QRScanModal, QRPrintModal 
 
 export default function QRComponentsPage() { return null; }
 
+
+// ══════════════════════════════════════════════════════════
+// Helpers dùng chung cho MỌI màn quét mã trong app (đèn pin, lấy nét, crop khung ngắm)
+// ══════════════════════════════════════════════════════════
+
+// Mở camera sau — thử độ phân giải cao + lấy nét liên tục, tự hạ cấp nếu máy không hỗ trợ
+export async function openScannerStream() {
+  const attempts = [
+    { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 }, advanced: [{ focusMode: "continuous" }] },
+    { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 }, advanced: [{ focusMode: "continuous" }] },
+    { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+    { facingMode: "environment" },
+    true,
+  ];
+  let lastErr;
+  for (const video of attempts) {
+    try { return await navigator.mediaDevices.getUserMedia({ video }); } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error("Không mở được camera");
+}
+
+// Kiểm tra thiết bị có hỗ trợ đèn pin / zoom quang không
+export function getTrackCapabilities(stream) {
+  const track = stream?.getVideoTracks?.()[0];
+  if (!track) return { track: null, torch: false, zoom: null };
+  let caps = {};
+  try { caps = track.getCapabilities?.() || {}; } catch {}
+  return { track, torch: !!caps.torch, zoom: caps.zoom || null };
+}
+
+// Bật/tắt đèn pin (torch) trên camera sau — chỉ hoạt động trên HTTPS + Chrome Android
+export async function setTorch(stream, on) {
+  const track = stream?.getVideoTracks?.()[0];
+  if (!track) return false;
+  try { await track.applyConstraints({ advanced: [{ torch: on }] }); return true; } catch { return false; }
+}
+
+// Crop đúng vùng khung ngắm (khung vàng) ra canvas riêng trước khi quét
+// → bỏ nhiễu xung quanh, "zoom số" vào mã, tăng mạnh tỉ lệ quét thành công
+export function cropViewfinder(video, canvas, widthPct = 0.85, heightPx = 72) {
+  const vw = video.videoWidth, vh = video.videoHeight;
+  if (!vw || !vh) return null;
+  const rect = video.getBoundingClientRect();
+  const dispW = rect.width || vw, dispH = rect.height || vh;
+  const scaleX = vw / dispW, scaleY = vh / dispH;
+  const boxW = dispW * widthPct;
+  const boxH = heightPx;
+  const boxX = (dispW - boxW) / 2;
+  const boxY = (dispH - boxH) / 2;
+  const sx = Math.max(0, boxX * scaleX), sy = Math.max(0, boxY * scaleY);
+  const sw = Math.min(vw - sx, boxW * scaleX) || vw, sh = Math.min(vh - sy, boxH * scaleY) || vh;
+  canvas.width = sw; canvas.height = sh;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh);
+  return ctx;
+}
+
+// Nút bật/tắt đèn pin — tự ẩn nếu máy không hỗ trợ
+export function TorchButton({ stream, style }) {
+  const [supported, setSupported] = React.useState(false);
+  const [on, setOn] = React.useState(false);
+  React.useEffect(() => {
+    const { torch } = getTrackCapabilities(stream);
+    setSupported(torch);
+    return () => { if (stream) setTorch(stream, false); };
+  }, [stream]);
+  if (!supported) return null;
+  return (
+    <button onClick={async () => { const next = !on; const ok = await setTorch(stream, next); if (ok) setOn(next); }}
+      style={{
+        position:"absolute", top:10, right:10, zIndex:5,
+        width:40, height:40, borderRadius:"50%", border:"none", cursor:"pointer",
+        background: on ? "#fbbf24" : "rgba(0,0,0,.5)", color: on ? "#1e1b4b" : "#fff",
+        display:"flex", alignItems:"center", justifyContent:"center",
+        ...style,
+      }}>
+      <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:20 }}>{on ? "flash_on" : "flash_off"}</span>
+    </button>
+  );
+}
+
 // ── IMEIScanModal — quét barcode 1D/2D để lấy IMEI ──────────────────────────
 // Ưu tiên: BarcodeDetector (native) → ZXing (wasm) → jsQR fallback
 export function IMEIScanModal({ onClose, onFound }) {
@@ -315,9 +396,7 @@ export function IMEIScanModal({ onClose, onFound }) {
 
   async function startCamera(detectorType) {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
-      });
+      const stream = await openScannerStream();
       streamRef.current = stream;
       const v = videoRef.current;
       if (!v) return;
@@ -335,19 +414,19 @@ export function IMEIScanModal({ onClose, onFound }) {
     rafRef.current = requestAnimationFrame(async () => {
       const v = videoRef.current; const c = canvasRef.current;
       if (!v || !c || v.readyState < 2) { scanLoop(type); return; }
+      // Crop đúng vùng khung ngắm vàng trước khi quét → chính xác hơn nhiều, ít nhiễu
+      const ctx = cropViewfinder(v, c, 0.85, 72);
+      if (!ctx) { scanLoop(type); return; }
 
       if (type === "native" && detectorRef.current) {
         try {
-          const barcodes = await detectorRef.current.detect(v);
+          const barcodes = await detectorRef.current.detect(c);
           if (barcodes.length > 0) {
             const raw = barcodes[0].rawValue;
             handleDetected(raw); return;
           }
         } catch {}
       } else if (type === "jsqr" && window.jsQR) {
-        c.width = v.videoWidth; c.height = v.videoHeight;
-        const ctx = c.getContext("2d");
-        ctx.drawImage(v, 0, 0);
         const img = ctx.getImageData(0, 0, c.width, c.height);
         const code = window.jsQR(img.data, img.width, img.height, { inversionAttempts: "attemptBoth" });
         if (code?.data) { handleDetected(code.data.trim()); return; }
@@ -390,6 +469,7 @@ export function IMEIScanModal({ onClose, onFound }) {
           <div style={{ position:"relative", borderRadius:16, overflow:"hidden", background:"#000", aspectRatio:"16/9", marginBottom:14 }}>
             <video ref={videoRef} muted playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }} />
             <canvas ref={canvasRef} style={{ display:"none" }} />
+            <TorchButton stream={streamRef.current} />
 
             {/* Viewfinder — khung ngang cho barcode 1D */}
             {status === "scanning" && (
@@ -503,9 +583,7 @@ export function ScanCodeModal({ title = "▦ Quét mã", hint = "Hướng camera
 
   async function startCamera(type) {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
-      });
+      const stream = await openScannerStream();
       streamRef.current = stream;
       const v = videoRef.current;
       if (!v) return;
@@ -523,15 +601,16 @@ export function ScanCodeModal({ title = "▦ Quét mã", hint = "Hướng camera
     rafRef.current = requestAnimationFrame(async () => {
       const v = videoRef.current; const c = canvasRef.current;
       if (!v || !c || v.readyState < 2) { scanLoop(type); return; }
+      // Crop đúng vùng khung ngắm vàng trước khi quét → chính xác hơn nhiều, ít nhiễu
+      const ctx = cropViewfinder(v, c, 0.85, 72);
+      if (!ctx) { scanLoop(type); return; }
+
       if (type === "native" && detectorRef.current) {
         try {
-          const barcodes = await detectorRef.current.detect(v);
+          const barcodes = await detectorRef.current.detect(c);
           if (barcodes.length > 0) { finish(barcodes[0].rawValue); return; }
         } catch {}
       } else if (type === "jsqr" && window.jsQR) {
-        c.width = v.videoWidth; c.height = v.videoHeight;
-        const ctx = c.getContext("2d");
-        ctx.drawImage(v, 0, 0);
         const img = ctx.getImageData(0, 0, c.width, c.height);
         const code = window.jsQR(img.data, img.width, img.height, { inversionAttempts: "attemptBoth" });
         if (code?.data) { finish(code.data.trim()); return; }
@@ -561,6 +640,7 @@ export function ScanCodeModal({ title = "▦ Quét mã", hint = "Hướng camera
         <div style={{ position:"relative", borderRadius:16, overflow:"hidden", background:"#000", aspectRatio:"16/9", marginBottom:14 }}>
           <video ref={videoRef} muted playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }} />
           <canvas ref={canvasRef} style={{ display:"none" }} />
+          <TorchButton stream={streamRef.current} />
           {status === "scanning" && (
             <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none" }}>
               <div style={{ width:"85%", height:72, border:"2.5px solid #fbbf24", borderRadius:8, boxShadow:"0 0 0 2000px rgba(0,0,0,.35)", position:"relative" }}>

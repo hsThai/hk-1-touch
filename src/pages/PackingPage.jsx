@@ -17,7 +17,7 @@ import {
   logAction, logHistory, uploadFile, normalizePbUrl,
 } from "./pb.jsx";
 import { usePermission } from "./PermissionContext.jsx";
-import { ScanCodeModal } from "./QRComponents.jsx";
+import { ScanCodeModal, openScannerStream, cropViewfinder, TorchButton } from "./QRComponents.jsx";
 
 /* ─────────────── Helpers ─────────────── */
 
@@ -151,6 +151,7 @@ function PickingModal({ order, user, onDone, onClose, showToast }) {
   const [submitting, setSubmitting] = useState(false);
 
   const videoRef = useRef(null);
+  const scanCanvasRef = useRef(null);
   const streamRef = useRef(null);
   const intervalRef = useRef(null);
   const lastScanRef = useRef({ code: "", at: 0 });
@@ -201,21 +202,24 @@ function PickingModal({ order, user, onDone, onClose, showToast }) {
   async function toggleScan() {
     if (scanOn) { stopCamera(); return; }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      const stream = await openScannerStream();
       streamRef.current = stream;
       setTimeout(() => {
         if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play(); }
       }, 100);
       setScanOn(true);
+      if (!scanCanvasRef.current) scanCanvasRef.current = document.createElement("canvas");
       if ("BarcodeDetector" in window) {
         const bd = new BarcodeDetector({ formats: ["qr_code", "code_128", "ean_13", "ean_8", "code_39", "itf", "data_matrix"] });
         intervalRef.current = setInterval(async () => {
-          if (!videoRef.current || videoRef.current.readyState < 2) return;
+          if (!videoRef.current || !scanCanvasRef.current || videoRef.current.readyState < 2) return;
+          // Crop đúng vùng khung ngắm vàng → tăng độ chính xác, đỡ nhiễu xung quanh
+          cropViewfinder(videoRef.current, scanCanvasRef.current, 0.8, 64);
           try {
-            const codes = await bd.detect(videoRef.current);
+            const codes = await bd.detect(scanCanvasRef.current);
             if (codes.length > 0) processScan(codes[0].rawValue);
           } catch {}
-        }, 600);
+        }, 500);
       } else {
         showToast("⚠️ Thiết bị không hỗ trợ quét tự động — dùng nút +/- thủ công", "err");
       }
@@ -355,6 +359,7 @@ function PickingModal({ order, user, onDone, onClose, showToast }) {
           {scanOn && (
             <div style={{ position: "relative", borderRadius: 14, overflow: "hidden", background: "#000", marginBottom: 12 }}>
               <video ref={videoRef} muted playsInline style={{ width: "100%", aspectRatio: "16/9", objectFit: "cover" }} />
+              <TorchButton stream={streamRef.current} />
               <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
                 <div style={{ width: "80%", height: 64, border: "2.5px solid #fbbf24", borderRadius: 8, boxShadow: "0 0 0 2000px rgba(0,0,0,.35)" }} />
               </div>
