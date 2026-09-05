@@ -13,7 +13,7 @@ const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ defa
     </div>
   </div>
 )})));
-import { RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage, StockExportRequest, ActionLog, subscribeCollection, getPbUrl, getAuth, logHistory, logAction, pbSettings, DebtVoucher, DebtPayment, CashJournal, Customer, getLocalDate } from "./pb.jsx";
+import { normalizePbUrl, RepairChat, Notification, Staff, RepairOrder, SparePart, SparePartUsage, StockExportRequest, ActionLog, subscribeCollection, getPbUrl, getAuth, logHistory, logAction, pbSettings, DebtVoucher, DebtPayment, CashJournal, Customer, getLocalDate } from "./pb.jsx";
 import { usePermission } from "./PermissionContext.jsx";
 import { getNotifSound } from "./notifUtils.js";
 import { uploadFile } from "./pb.jsx";
@@ -900,7 +900,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                             <span style={{ fontSize:28 }}> </span>
                             <span style={{ fontSize:10, color:"#9ca3af" }}>Video</span>
                           </div>
-                        : <img src={url} style={{ width:"100%", height:"100%", objectFit:"cover" }} alt="" />
+                        : <img src={normalizePbUrl(url)} style={{ width:"100%", height:"100%", objectFit:"cover" }} alt="" />
                       }
                       {/* Play overlay */}
                       <div style={{ position:"absolute", inset:0, background:"rgba(0,0,0,0)", display:"flex", alignItems:"center", justifyContent:"center", transition:"background .15s" }}
@@ -1340,7 +1340,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                             style={{ padding: msg.message_type==="text"?"10px 14px":"6px", borderRadius:isMe?"18px 18px 4px 18px":"18px 18px 18px 4px", background:isMe?"#4f46e5":"#fff", color:isMe?"#fff":"#111", fontSize:14, border:isMe?"none":"1px solid #e5e7eb", boxShadow:"0 1px 3px rgba(0,0,0,.06)", position:"relative" }}>
                             {msg.message_type === "image" && msg.media_url && (
                               <div style={{ position:"relative", display:"inline-block" }}>
-                                <img src={msg.media_url} alt="ảnh" style={{ maxWidth:220, maxHeight:220, borderRadius:10, display:"block", cursor:"pointer", objectFit:"cover" }} onClick={() => setMediaViewer({ items:[msg.media_url], startIndex:0 })} />
+                                <img src={normalizePbUrl(msg.media_url)} alt="ảnh" style={{ maxWidth:220, maxHeight:220, borderRadius:10, display:"block", cursor:"pointer", objectFit:"cover" }} onClick={() => setMediaViewer({ items:[normalizePbUrl(msg.media_url)], startIndex:0 })} />
                                 {isManager && (
                                   <button
                                     onClick={(e)=>{ e.stopPropagation(); if(window.confirm("Xóa ảnh này?")) RepairChat.delete(msg.id).then(()=>setChats(p=>p.filter(m=>m.id!==msg.id))); }}
@@ -1350,7 +1350,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                             )}
                             {msg.message_type === "video" && msg.media_url && (
                               <div style={{ position:"relative", display:"inline-block" }}>
-                                <video src={msg.media_url} controls style={{ maxWidth:220, borderRadius:10, display:"block" }} />
+                                <video src={normalizePbUrl(msg.media_url)} controls style={{ maxWidth:220, borderRadius:10, display:"block" }} />
                                 {isManager && (
                                   <button
                                     onClick={(e)=>{ e.stopPropagation(); if(window.confirm("Xóa video này?")) RepairChat.delete(msg.id).then(()=>setChats(p=>p.filter(m=>m.id!==msg.id))); }}
@@ -1362,7 +1362,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                             )}
                             {msg.message_type === "audio" && msg.media_url && (
                               <div style={{ position:"relative", display:"inline-block" }}>
-                                <audio src={msg.media_url} controls style={{ maxWidth:220 }} />
+                                <audio src={normalizePbUrl(msg.media_url)} controls style={{ maxWidth:220 }} />
                                 {isManager && (
                                   <button
                                     onClick={(e)=>{ e.stopPropagation(); if(window.confirm("Xóa ghi âm này?")) RepairChat.delete(msg.id).then(()=>setChats(p=>p.filter(m=>m.id!==msg.id))); }}

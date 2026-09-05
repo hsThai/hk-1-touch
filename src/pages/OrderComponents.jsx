@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { normalizePbUrl } from "./pb.jsx";
 import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, SparePartUsage } from "@/api/entities";
 import { uploadFile } from "@/api/storage";
 import SparePartModal from "./SparePartModal";
@@ -980,7 +981,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR })
                             <span style={{ fontSize:28 }}>🎥</span>
                             <span style={{ fontSize:10, color:"#9ca3af" }}>Video</span>
                           </div>
-                        : <img src={url} style={{ width:"100%", height:"100%", objectFit:"cover" }} alt="" />
+                        : <img src={normalizePbUrl(url)} style={{ width:"100%", height:"100%", objectFit:"cover" }} alt="" />
                       }
                       {/* Play overlay */}
                       <div style={{ position:"absolute", inset:0, background:"rgba(0,0,0,0)", display:"flex", alignItems:"center", justifyContent:"center", transition:"background .15s" }}

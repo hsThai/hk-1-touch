@@ -31,6 +31,23 @@ export function getPbUrl() {
   }
 }
 
+// Chuẩn hóa URL media về domain PocketBase hiện tại
+// (rút kinh nghiệm: các URL cũ lưu domain digiera/LAN → ảnh hiển thị lỗi dù file còn)
+export function normalizePbUrl(url) {
+  if (!url || typeof url !== "string") return url;
+  if (!url.startsWith("http")) return url; // relative path hoặc tên file → giữ nguyên
+  let out = url;
+  const NEW = DEFAULT_PB_URL;
+  try {
+    const u = new URL(url);
+    const cur = new URL(NEW);
+    if (u.origin !== cur.origin && u.pathname.startsWith("/api/files/")) {
+      out = NEW + u.pathname + u.search;
+    }
+  } catch { return url; }
+  return out;
+}
+
 export function setPbUrl(url) {
   localStorage.setItem("pb_url", url.replace(/\/$/, ""));
 }
