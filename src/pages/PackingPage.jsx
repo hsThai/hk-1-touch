@@ -159,6 +159,7 @@ function PickingModal({ order, user, onDone, onClose, showToast }) {
   const intervalRef = useRef(null);
   const lastScanRef = useRef({ code: "", at: 0 });
   const fileRef = useRef(null);
+  const galleryRef = useRef(null);
 
   // Load danh sách mặt hàng cần soạn (ưu tiên sale_order_items, fallback items JSON)
   useEffect(() => {
@@ -328,6 +329,7 @@ function PickingModal({ order, user, onDone, onClose, showToast }) {
     } catch (err) { showToast("Lỗi upload ảnh: " + err.message, "err"); }
     setUploading(false);
     if (fileRef.current) fileRef.current.value = "";
+    if (galleryRef.current) galleryRef.current.value = "";
   }
 
   async function confirmPacked() {
@@ -462,14 +464,18 @@ function PickingModal({ order, user, onDone, onClose, showToast }) {
             ✅ Đã lấy đủ <b>{rows.length}</b> món hàng. Chụp ảnh gói hàng đã đóng để xác nhận hoàn tất.
           </div>
           <input ref={fileRef} type="file" accept="image/*" capture="environment" multiple onChange={handleFiles} style={{ display: "none" }} />
-          <button onClick={() => fileRef.current && fileRef.current.click()}
-            disabled={uploading}
-            style={{
-              width: "100%", padding: "18px", borderRadius: 14, border: "2px dashed #cbd5e1",
-              background: "#fff", color: "#334155", fontWeight: 800, fontSize: 15, marginBottom: 12, cursor: "pointer",
-            }}>
-            {uploading ? "⏳ Đang upload..." : "📷 CHỤP ẢNH GÓI HÀNG (bắt buộc)"}
-          </button>
+          <input ref={galleryRef} type="file" accept="image/*" multiple onChange={handleFiles} style={{ display: "none" }} />
+          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+            <button onClick={() => fileRef.current && fileRef.current.click()} disabled={uploading}
+              style={{ flex: 1, padding: "16px 8px", borderRadius: 14, border: "2px dashed #cbd5e1", background: "#fff", color: "#334155", fontWeight: 800, fontSize: 13.5, cursor: "pointer" }}>
+              {uploading ? "⏳ Đang upload..." : "📷 CHỤP ẢNH"}
+            </button>
+            <button onClick={() => galleryRef.current && galleryRef.current.click()} disabled={uploading}
+              style={{ flex: 1, padding: "16px 8px", borderRadius: 14, border: "2px dashed #cbd5e1", background: "#fff", color: "#334155", fontWeight: 800, fontSize: 13.5, cursor: "pointer" }}>
+              🖼️ TẢI ẢNH LÊN
+            </button>
+          </div>
+          <div style={{ fontSize: 11, color: "#9ca3af", marginTop: -6, marginBottom: 12 }}>Bắt buộc có ít nhất 1 ảnh gói hàng</div>
           {photos.length > 0 && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
               {photos.map((p, i) => (
@@ -539,6 +545,7 @@ function HandoverModal({ order, user, onDone, onClose, showToast }) {
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const fileRef = useRef(null);
+  const galleryRef = useRef(null);
 
   async function handleFiles(e) {
     const files = Array.from(e.target.files || []);
@@ -550,6 +557,7 @@ function HandoverModal({ order, user, onDone, onClose, showToast }) {
     } catch (err) { showToast("Lỗi upload ảnh: " + err.message, "err"); }
     setUploading(false);
     if (fileRef.current) fileRef.current.value = "";
+    if (galleryRef.current) galleryRef.current.value = "";
   }
 
   async function confirm() {
@@ -631,10 +639,17 @@ function HandoverModal({ order, user, onDone, onClose, showToast }) {
         <input value={note} onChange={e => setNote(e.target.value)} placeholder="Tùy chọn..." style={{ ...inputStyle, marginBottom: 14 }} />
 
         <input ref={fileRef} type="file" accept="image/*" capture="environment" multiple onChange={handleFiles} style={{ display: "none" }} />
-        <button onClick={() => fileRef.current && fileRef.current.click()} disabled={uploading}
-          style={{ width: "100%", padding: "16px", borderRadius: 14, border: "2px dashed #cbd5e1", background: "#fff", color: "#334155", fontWeight: 800, fontSize: 14, marginBottom: 10, cursor: "pointer" }}>
-          {uploading ? "⏳ Đang upload..." : "📷 CHỤP ẢNH BÀN GIAO (bắt buộc)"}
-        </button>
+        <input ref={galleryRef} type="file" accept="image/*" multiple onChange={handleFiles} style={{ display: "none" }} />
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          <button onClick={() => fileRef.current && fileRef.current.click()} disabled={uploading}
+            style={{ flex: 1, padding: "14px 8px", borderRadius: 14, border: "2px dashed #cbd5e1", background: "#fff", color: "#334155", fontWeight: 800, fontSize: 13, cursor: "pointer" }}>
+            {uploading ? "⏳ Đang upload..." : "📷 CHỤP ẢNH"}
+          </button>
+          <button onClick={() => galleryRef.current && galleryRef.current.click()} disabled={uploading}
+            style={{ flex: 1, padding: "14px 8px", borderRadius: 14, border: "2px dashed #cbd5e1", background: "#fff", color: "#334155", fontWeight: 800, fontSize: 13, cursor: "pointer" }}>
+            🖼️ TẢI ẢNH LÊN
+          </button>
+        </div>
         {photos.length > 0 && (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
             {photos.map((p, i) => (
@@ -668,6 +683,7 @@ function StepPhotoModal({ order, user, title, subtitle, noteLabel, notePlacehold
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const fileRef = useRef(null);
+  const galleryRef = useRef(null);
 
   async function handleFiles(e) {
     const files = Array.from(e.target.files || []);
@@ -679,6 +695,7 @@ function StepPhotoModal({ order, user, title, subtitle, noteLabel, notePlacehold
     } catch (err) { showToast("Lỗi upload ảnh: " + err.message, "err"); }
     setUploading(false);
     if (fileRef.current) fileRef.current.value = "";
+    if (galleryRef.current) galleryRef.current.value = "";
   }
 
   return (
@@ -689,10 +706,18 @@ function StepPhotoModal({ order, user, title, subtitle, noteLabel, notePlacehold
         <div style={{ fontSize: 13, color: "#64748b", marginBottom: 16 }}>{subtitle}</div>
 
         <input ref={fileRef} type="file" accept="image/*" capture="environment" multiple onChange={handleFiles} style={{ display: "none" }} />
-        <button onClick={() => fileRef.current && fileRef.current.click()} disabled={uploading}
-          style={{ width: "100%", padding: "16px", borderRadius: 14, border: "2px dashed #cbd5e1", background: "#fff", color: "#334155", fontWeight: 800, fontSize: 14, marginBottom: 10, cursor: "pointer" }}>
-          {uploading ? "⏳ Đang upload..." : "📷 CHỤP ẢNH XÁC THỰC (bắt buộc)"}
-        </button>
+        <input ref={galleryRef} type="file" accept="image/*" multiple onChange={handleFiles} style={{ display: "none" }} />
+        <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+          <button onClick={() => fileRef.current && fileRef.current.click()} disabled={uploading}
+            style={{ flex: 1, padding: "14px 8px", borderRadius: 14, border: "2px dashed #cbd5e1", background: "#fff", color: "#334155", fontWeight: 800, fontSize: 13, cursor: "pointer" }}>
+            {uploading ? "⏳ Đang upload..." : "📷 CHỤP ẢNH"}
+          </button>
+          <button onClick={() => galleryRef.current && galleryRef.current.click()} disabled={uploading}
+            style={{ flex: 1, padding: "14px 8px", borderRadius: 14, border: "2px dashed #cbd5e1", background: "#fff", color: "#334155", fontWeight: 800, fontSize: 13, cursor: "pointer" }}>
+            🖼️ TẢI ẢNH LÊN
+          </button>
+        </div>
+        <div style={{ fontSize: 11, color: "#9ca3af", marginTop: -2, marginBottom: 10 }}>Bắt buộc có ít nhất 1 ảnh (VD: chụp màn hình giao hàng từ máy ĐVVC)</div>
         {photos.length > 0 && (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
             {photos.map((p, i) => (
