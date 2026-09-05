@@ -458,3 +458,136 @@ export function IMEIScanModal({ onClose, onFound }) {
     </div>
   );
 }
+
+/* ══════════════════════════════════════════════════════════
+ * ScanCodeModal — quét mã vạch / QR bất kỳ, trả về GIÁ TRỊ THÔ
+ * (không lọc IMEI như IMEIScanModal)
+ * Props: { title, hint, onFound(raw), onClose }
+ * ══════════════════════════════════════════════════════════ */
+export function ScanCodeModal({ title = "▦ Quét mã", hint = "Hướng camera vào mã vạch / QR", onFound, onClose }) {
+  const videoRef    = React.useRef();
+  const canvasRef   = React.useRef();
+  const rafRef      = React.useRef();
+  const streamRef   = React.useRef();
+  const detectorRef = React.useRef(null);
+  const [status, setStatus]   = React.useState("loading");
+  const [errMsg, setErrMsg]   = React.useState("");
+  const [manual, setManual]   = React.useState("");
+
+  React.useEffect(() => {
+    initDetector();
+    return () => {
+      streamRef.current?.getTracks().forEach(t => t.stop());
+      cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
+
+  async function initDetector() {
+    if (window.BarcodeDetector) {
+      try {
+        const formats = await window.BarcodeDetector.getSupportedFormats().catch(() => ["code_128","code_39","ean_13","ean_8","qr_code","data_matrix"]);
+        detectorRef.current = new window.BarcodeDetector({ formats });
+        startCamera("native");
+        return;
+      } catch {}
+    }
+    const old = document.getElementById("jsqr-script");
+    if (!old && !window.jsQR) {
+      const s = document.createElement("script");
+      s.id = "jsqr-script";
+      s.src = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js";
+      s.onload = () => startCamera("jsqr");
+      document.head.appendChild(s);
+    } else { startCamera("jsqr"); }
+  }
+
+  async function startCamera(type) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+      streamRef.current = stream;
+      const v = videoRef.current;
+      if (!v) return;
+      v.srcObject = stream;
+      await v.play();
+      setStatus("scanning");
+      scanLoop(type);
+    } catch (e) {
+      setStatus("error");
+      setErrMsg("Không mở được camera. Nhập mã thủ công bên dưới.");
+    }
+  }
+
+  function scanLoop(type) {
+    rafRef.current = requestAnimationFrame(async () => {
+      const v = videoRef.current; const c = canvasRef.current;
+      if (!v || !c || v.readyState < 2) { scanLoop(type); return; }
+      if (type === "native" && detectorRef.current) {
+        try {
+          const barcodes = await detectorRef.current.detect(v);
+          if (barcodes.length > 0) { finish(barcodes[0].rawValue); return; }
+        } catch {}
+      } else if (type === "jsqr" && window.jsQR) {
+        c.width = v.videoWidth; c.height = v.videoHeight;
+        const ctx = c.getContext("2d");
+        ctx.drawImage(v, 0, 0);
+        const img = ctx.getImageData(0, 0, c.width, c.height);
+        const code = window.jsQR(img.data, img.width, img.height, { inversionAttempts: "attemptBoth" });
+        if (code?.data) { finish(code.data.trim()); return; }
+      }
+      scanLoop(type);
+    });
+  }
+
+  function finish(raw) {
+    cancelAnimationFrame(rafRef.current);
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    onFound(String(raw).trim());
+  }
+
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:4500, background:"rgba(0,0,0,.95)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:16 }}>
+      <div style={{ width:"100%", maxWidth:420 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+          <div>
+            <div style={{ color:"#fff", fontWeight:900, fontSize:20 }}>{title}</div>
+            <div style={{ color:"#94a3b8", fontSize:12, marginTop:2 }}>{hint}</div>
+          </div>
+          <button onClick={() => { streamRef.current?.getTracks().forEach(t => t.stop()); onClose(); }}
+            style={{ background:"rgba(255,255,255,.15)", border:"none", color:"#fff", width:38, height:38, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
+        </div>
+
+        <div style={{ position:"relative", borderRadius:16, overflow:"hidden", background:"#000", aspectRatio:"16/9", marginBottom:14 }}>
+          <video ref={videoRef} muted playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+          <canvas ref={canvasRef} style={{ display:"none" }} />
+          {status === "scanning" && (
+            <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none" }}>
+              <div style={{ width:"85%", height:72, border:"2.5px solid #fbbf24", borderRadius:8, boxShadow:"0 0 0 2000px rgba(0,0,0,.35)", position:"relative" }}>
+                <div style={{ position:"absolute", left:0, right:0, height:2, background:"#fbbf24", top:"50%", animation:"scanline 1.5s ease-in-out infinite", opacity:.8 }} />
+              </div>
+            </div>
+          )}
+          {status === "loading" && (
+            <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontSize:14 }}>⏳ Đang khởi động camera...</div>
+          )}
+          {status === "error" && (
+            <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,.7)" }}>
+              <div style={{ color:"#f87171", fontSize:13, textAlign:"center", padding:16 }}>⚠️ {errMsg}</div>
+            </div>
+          )}
+        </div>
+
+        <div style={{ display:"flex", gap:8 }}>
+          <input value={manual} onChange={e => setManual(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && manual.trim()) { finish(manual.trim()); } }}
+            placeholder="...hoặc nhập mã thủ công rồi Enter"
+            style={{ flex:1, padding:"12px 14px", borderRadius:10, border:"1px solid #475569", background:"#1e293b", color:"#fff", fontSize:14 }} />
+          <button onClick={() => manual.trim() && finish(manual.trim())}
+            style={{ padding:"12px 16px", borderRadius:10, border:"none", background:"#4f46e5", color:"#fff", fontWeight:800, fontSize:13 }}>Xác nhận</button>
+        </div>
+        <style>{`@keyframes scanline { 0%,100%{top:10%} 50%{top:90%} }`}</style>
+      </div>
+    </div>
+  );
+}

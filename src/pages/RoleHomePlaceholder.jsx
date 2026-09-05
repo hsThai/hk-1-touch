@@ -45,7 +45,13 @@ const ROLE_ACTIONS = {
     { icon:"check_circle",    label:"Danh sách đơn",    page:"tasks",         color:"#2563eb", bg:"#dbeafe" },
     { icon:"group",           label:"Khách hàng",       page:"customers",     color:"#d97706", bg:"#fef3c7" },
   ],
+  packer: [
+    { icon:"inventory",       label:"Soạn hàng & Giao", page:"pack_ship",     color:"#4f46e5", bg:"#eef2ff" },
+    { icon:"outbox",          label:"Phiếu xuất",       page:"wh_export",     color:"#d97706", bg:"#fef3c7" },
+    { icon:"check_circle",    label:"Danh sách đơn",    page:"tasks",         color:"#059669", bg:"#dcfce7" },
+  ],
   delivery: [
+    { icon:"local_shipping",  label:"Soạn hàng & Giao", page:"pack_ship",     color:"#0369a1", bg:"#e0f2fe" },
     { icon:"check_circle",    label:"Danh sách đơn",    page:"tasks",         color:"#059669", bg:"#dcfce7" },
     { icon:"assignment",      label:"Bảng theo dõi",    page:"board",         color:"#2563eb", bg:"#dbeafe" },
     { icon:"group",           label:"Khách hàng",       page:"customers",     color:"#7c3aed", bg:"#f5f3ff" },
@@ -73,12 +79,12 @@ const ROLE_ACTIONS = {
 
 const ROLE_LABEL = {
   cashier:"Thu ngân",accountant:"Kế toán",marketing:"Marketing",
-  support:"Hỗ trợ KT",delivery:"Giao nhận",
+  support:"Hỗ trợ KT",delivery:"Giao nhận",packer:"Soạn đóng hàng",
   it:"IT / Dev",supervisor:"Giám sát",viewer:"Chỉ xem",owner:"Chủ cơ sở",admin:"Quản trị viên",
 };
 const ROLE_ICON = {
   cashier:"💰",accountant:"📊",hr:"👥",marketing:"📣",
-  qa:"✅",support:"🎧",delivery:"🚚",it:"💻",supervisor:"🔭",viewer:"👁️",owner:"🏢",admin:"⚙️",
+  qa:"✅",support:"🎧",delivery:"🚚",packer:"📦",it:"💻",supervisor:"🔭",viewer:"👁️",owner:"🏢",admin:"⚙️",
 };
 const GREETING_BY_HOUR = (h) =>
   h < 12 ? "Chào buổi sáng" : h < 18 ? "Chào buổi chiều" : "Chào buổi tối";

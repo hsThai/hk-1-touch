@@ -5,6 +5,7 @@
  */
 import React, { useState, useEffect, useMemo } from "react";
 import { StockExportRequest, SparePart, StockImport, StockLedger, SaleOrder, DebtVoucher, RepairOrder } from "./pb.jsx";
+import { usePermission } from "./PermissionContext.jsx";
 
 const fmtTime = (d) => {
   if (!d) return "";
@@ -79,6 +80,9 @@ function SectionHeader({ icon, title, count, color }) {
 // ─── Main component ───────────────────────────────────────
 export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, onOpenCashier }) {
   const role = user?.role || "viewer";
+  const { can } = usePermission();
+  const canViewPack = can("pack_order", "view");
+  const canViewShip = can("ship_order", "view");
   const [extraData, setExtraData] = useState({});
   const [loading, setLoading] = useState(true);
 
@@ -89,7 +93,7 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
       setLoading(true);
       try {
         const data = {};
-        if (["cashier", "accountant", "manager", "admin", "owner"].includes(role)) {
+        if (["cashier", "accountant", "manager", "admin", "owner"].includes(role) || canViewPack || canViewShip) {
           data.saleOrders = await SaleOrder.list({ limit: 200, sort: "-id" }).catch(() => []);
         }
         if (["warehouse", "manager", "admin", "owner"].includes(role)) {
@@ -374,9 +378,43 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
       });
     }
 
+    // ═══ SOẠN HÀNG & GIAO NHẬN (theo quyền pack_order / ship_order) ═══
+    const so = extraData.saleOrders || [];
+    const activeSo = so.filter(o => o.status !== "cancelled");
+    const st = o => o.pack_status || "";
+    const chờSoạn     = activeSo.filter(o => ["", "to_pick", "picking"].includes(st(o)));
+    const chờBànGiao  = activeSo.filter(o => st(o) === "packed");
+    const đangGiao    = activeSo.filter(o => ["shipped", "carrier_received"].includes(st(o)));
+    const giaoLỗi     = activeSo.filter(o => st(o) === "failed");
+    if (canViewPack && chờSoạn.length > 0) result.urgent.push({
+      icon: "inventory", title: `${chờSoạn.length} đơn chờ soạn hàng`,
+      subtitle: "Lấy hàng theo mã + đóng gói",
+      badge: String(chờSoạn.length), badgeColor: "#4f46e5", urgency: "urgent",
+      onClick: () => setPage("pack_ship"),
+    });
+    if (canViewShip && chờBànGiao.length > 0) result.urgent.push({
+      icon: "local_shipping", title: `${chờBànGiao.length} đơn chờ bàn giao ĐVVC`,
+      subtitle: "Đã đóng gói — cần gửi đơn vị vận chuyển",
+      badge: String(chờBànGiao.length), badgeColor: "#0369a1", urgency: "urgent",
+      onClick: () => setPage("pack_ship"),
+    });
+    if (canViewShip && đangGiao.length > 0) result.today.push({
+      icon: "airport_shuttle", title: `${đangGiao.length} đơn đang giao`,
+      subtitle: "Chờ xác nhận ĐVVC nhận / đã giao xong",
+      badge: String(đangGiao.length), badgeColor: "#0e7490", urgency: "today",
+      onClick: () => setPage("pack_ship"),
+    });
+    if (canViewShip && giaoLỗi.length > 0) result.urgent.push({
+      icon: "error", title: `${giaoLỗi.length} đơn giao lỗi`,
+      subtitle: "Cần xử lý: bàn giao lại hoặc hoàn hàng",
+      badge: String(giaoLỗi.length), badgeColor: "#dc2626", urgency: "urgent",
+      onClick: () => setPage("pack_ship"),
+    });
+
     // ═══ OTHER ROLES (hr, marketing, qa, support, delivery, it, viewer) ═══
     const roleLabels = {
       marketing: "Marketing", support: "Hỗ trợ",
+      packer: "Soạn hàng",
       delivery: "Giao nhận", it: "IT", viewer: "Xem",
     };
     if (roleLabels[role]) {
@@ -389,7 +427,7 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
     }
 
     return result;
-  }, [role, orders, extraData, user, setPage, onOpenCashier]);
+  }, [role, orders, extraData, user, setPage, onOpenCashier, canViewPack, canViewShip]);
 
   // ── Greeting ────────────────────────────────────────────
   const hour = new Date().getHours();
@@ -400,6 +438,7 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
     team_leader: "Trưởng nhóm", manager: "Quản lý", admin: "Quản trị",
     owner: "Chủ cơ sở", supervisor: "Giám sát",
     marketing: "Marketing", support: "Hỗ trợ",
+    packer: "NV soạn đóng hàng",
     delivery: "Giao nhận", it: "IT", viewer: "Chỉ xem",
   }[role] || role;
 

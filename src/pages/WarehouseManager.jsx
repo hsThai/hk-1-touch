@@ -1439,12 +1439,12 @@ function ShippingTab({ user }) {
 
   // ── Filter logic ──
   const inboundList  = imports;  // all imports
-  const saleShipList = sales.filter(s => s.tracking_code || s.ship_status === "shipped" || ["completed","pending_payment"].includes(s.status));
+  const saleShipList = sales.filter(s => s.tracking_code || s.ship_status === "shipped" || ["packed","carrier_received","failed"].includes(s.pack_status) || ["completed","pending_payment"].includes(s.status));
   const repairShipList = repairs.filter(r => r.shipping_order_code || r.shipping_status === "shipped" || ["done","handover","completed"].includes(r.status));
 
   const STS_IN = { confirmed:"✅ Đã nhận", pending:"🚚 Đang vận chuyển", draft:"📝 Nháp" };
   const STC_IN = { confirmed:"#059669", pending:"#d97706", draft:"#9ca3af" };
-  const STS_OUT_SALE = { shipped:"📦 Đã gửi", delivered:"✅ Đã giao", "":"⏳ Chưa gửi" };
+  const STS_OUT_SALE = { packed:"📦 Chờ bàn giao", shipped:"📦 Đã gửi", carrier_received:"📬 ĐVVC đã nhận", delivered:"✅ Đã giao", failed:"❌ Giao lỗi", "":"⏳ Chưa gửi" };
   const STS_OUT_REP = { shipped:"📦 Đã gửi", delivered:"✅ Đã giao", "":"⏳ Chưa gửi" };
 
   const TABS = [

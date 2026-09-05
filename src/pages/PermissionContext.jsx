@@ -42,6 +42,8 @@ const RESOURCES = [
   "department",        // Phòng ban
   "purchase_order",    // Đơn mua hàng NCC
   "profit_report",     // Báo cáo lợi nhuận
+  "pack_order",        // Soạn hàng (picking)
+  "ship_order",        // Giao nhận (giao hàng)
 ];
 
 // Actions chuẩn
@@ -79,6 +81,8 @@ const STATIC_MATRIX = {
     department:        p(1,1,1,1,1,0),
     purchase_order:    p(1,1,1,1,1,1),
     profit_report:     p(1,0,0,0,0,1),
+    pack_order:        p(1,1,1,1,1,1), // Soạn hàng (picking)
+    ship_order:        p(1,1,1,1,1,1), // Giao nhận (giao hàng)
   },
 
   // ── ADMIN: giống owner, trừ một vài setting nhạy cảm ──
@@ -107,6 +111,8 @@ const STATIC_MATRIX = {
     department:        p(1,1,1,1,1,0),
     purchase_order:    p(1,1,1,1,1,1),
     profit_report:     p(1,0,0,0,0,1),
+    pack_order:        p(1,1,1,1,1,1), // Soạn hàng (picking)
+    ship_order:        p(1,1,1,1,1,1), // Giao nhận (giao hàng)
   },
 
   // ── MANAGER: quản lý tổng ──────────────────────────────
@@ -135,6 +141,8 @@ const STATIC_MATRIX = {
     department:        p(1,1,1,0,0,0),
     purchase_order:    p(1,1,1,0,1,1),
     profit_report:     p(1,0,0,0,0,1),
+    pack_order:        p(1,0,1,0,1,1), // Soạn hàng (picking)
+    ship_order:        p(1,0,1,0,1,1), // Giao nhận (giao hàng)
   },
 
   // ── RECEPTIONIST: Giao dịch viên ─────────────────────────────
@@ -163,6 +171,8 @@ const STATIC_MATRIX = {
     department:        p(0,0,0,0,0,0),
     purchase_order:    p(0,0,0,0,0,0),
     profit_report:     p(0,0,0,0,0,0),
+    pack_order:        p(0,0,0,0,0,0), // Soạn hàng (picking)
+    ship_order:        p(0,0,0,0,0,0), // Giao nhận (giao hàng)
   },
 
   // ── TECHNICIAN: kỹ thuật viên ─────────────────────────
@@ -191,6 +201,8 @@ const STATIC_MATRIX = {
     department:        p(0,0,0,0,0,0),
     purchase_order:    p(0,0,0,0,0,0),
     profit_report:     p(0,0,0,0,0,0),
+    pack_order:        p(0,0,0,0,0,0), // Soạn hàng (picking)
+    ship_order:        p(0,0,0,0,0,0), // Giao nhận (giao hàng)
   },
 
   mm_tech: {
@@ -218,6 +230,8 @@ const STATIC_MATRIX = {
     department:        p(0,0,0,0,0,0),
     purchase_order:    p(0,0,0,0,0,0),
     profit_report:     p(0,0,0,0,0,0),
+    pack_order:        p(0,0,0,0,0,0), // Soạn hàng (picking)
+    ship_order:        p(0,0,0,0,0,0), // Giao nhận (giao hàng)
   },
 
 
@@ -247,6 +261,8 @@ const STATIC_MATRIX = {
     department:        p(0,0,0,0,0,0),
     purchase_order:    p(1,1,1,0,1,1),
     profit_report:     p(0,0,0,0,0,0),
+    pack_order:        p(1,0,1,0,0,0), // Soạn hàng (picking)
+    ship_order:        p(1,0,1,0,0,0), // Giao nhận (giao hàng)
   },
 
   // ── CASHIER: thu ngân ────────────────────────────────
@@ -275,6 +291,8 @@ const STATIC_MATRIX = {
     department:        p(0,0,0,0,0,0),
     purchase_order:    p(1,1,0,0,0,1),
     profit_report:     p(1,0,0,0,0,1),
+    pack_order:        p(0,0,0,0,0,0), // Soạn hàng (picking)
+    ship_order:        p(0,0,0,0,0,0), // Giao nhận (giao hàng)
   },
 
   // ── ACCOUNTANT: kế toán ──────────────────────────────
@@ -303,6 +321,8 @@ const STATIC_MATRIX = {
     department:        p(0,0,0,0,0,0),
     purchase_order:    p(1,1,1,0,1,1),
     profit_report:     p(1,0,0,0,0,1),
+    pack_order:        p(1,0,0,0,0,0), // Soạn hàng (picking)
+    ship_order:        p(1,0,0,0,0,0), // Giao nhận (giao hàng)
   },
 
   // ── VIEWER: chỉ xem ──────────────────────────────────
@@ -331,6 +351,8 @@ const STATIC_MATRIX = {
     department:        p(1,0,0,0,0,0),
     purchase_order:    p(1,0,0,0,0,0),
     profit_report:     p(1,0,0,0,0,0),
+    pack_order:        p(0,0,0,0,0,0), // Soạn hàng (picking)
+    ship_order:        p(0,0,0,0,0,0), // Giao nhận (giao hàng)
   },
 
   // ── SUPPORT: hỗ trợ kỹ thuật ─────────────────────────
@@ -359,6 +381,8 @@ const STATIC_MATRIX = {
     department:        p(0,0,0,0,0,0),
     purchase_order:    p(0,0,0,0,0,0),
     profit_report:     p(0,0,0,0,0,0),
+    pack_order:        p(0,0,0,0,0,0), // Soạn hàng (picking)
+    ship_order:        p(0,0,0,0,0,0), // Giao nhận (giao hàng)
   },
 
   // ── DELIVERY: giao nhận ───────────────────────────────
@@ -387,6 +411,8 @@ const STATIC_MATRIX = {
     department:        p(0,0,0,0,0,0),
     purchase_order:    p(0,0,0,0,0,0),
     profit_report:     p(0,0,0,0,0,0),
+    pack_order:        p(0,0,0,0,0,0), // Soạn hàng (picking)
+    ship_order:        p(1,0,1,0,0,0), // Giao nhận (giao hàng)
   },
 
   // ── MARKETING: marketing ─────────────────────────────
@@ -415,6 +441,8 @@ const STATIC_MATRIX = {
     department:        p(0,0,0,0,0,0),
     purchase_order:    p(0,0,0,0,0,0),
     profit_report:     p(0,0,0,0,0,0),
+    pack_order:        p(0,0,0,0,0,0), // Soạn hàng (picking)
+    ship_order:        p(0,0,0,0,0,0), // Giao nhận (giao hàng)
   },
 
   // ── SALES_REP: NV bán hàng ─────────────────────────────
@@ -443,6 +471,8 @@ const STATIC_MATRIX = {
     department:         p(0,0,0,0,0,0),
     purchase_order:     p(0,0,0,0,0,0),
     profit_report:      p(0,0,0,0,0,0),
+    pack_order:        p(1,0,0,0,0,0), // Soạn hàng (picking)
+    ship_order:        p(1,0,0,0,0,0), // Giao nhận (giao hàng)
   },
 
   // ── PACKER: NV soạn đóng hàng ─────────────────────────
@@ -471,6 +501,8 @@ const STATIC_MATRIX = {
     department:         p(0,0,0,0,0,0),
     purchase_order:     p(0,0,0,0,0,0),
     profit_report:      p(0,0,0,0,0,0),
+    pack_order:        p(1,0,1,0,0,0), // Soạn hàng (picking)
+    ship_order:        p(0,0,0,0,0,0), // Giao nhận (giao hàng)
   },
 
   // ── SUPERVISOR: giám sát ─────────────────────────────
@@ -499,6 +531,8 @@ const STATIC_MATRIX = {
     department:        p(1,0,0,0,0,0),
     purchase_order:    p(1,0,0,0,1,1),
     profit_report:     p(1,0,0,0,0,1),
+    pack_order:        p(1,0,1,0,1,0), // Soạn hàng (picking)
+    ship_order:        p(1,0,1,0,1,0), // Giao nhận (giao hàng)
   },
 
 
@@ -529,6 +563,8 @@ const STATIC_MATRIX = {
     department:        p(1,0,0,0,0,0),
     purchase_order:    p(1,0,0,0,0,0),
     profit_report:     p(1,0,0,0,0,1),
+    pack_order:        p(1,0,0,0,0,0), // Soạn hàng (picking)
+    ship_order:        p(1,0,0,0,0,0), // Giao nhận (giao hàng)
   },
 
   // ── GUEST: khách ─────────────────────────────────────
@@ -557,6 +593,8 @@ const STATIC_MATRIX = {
     department:        p(0,0,0,0,0,0),
     purchase_order:    p(0,0,0,0,0,0),
     profit_report:     p(0,0,0,0,0,0),
+    pack_order:        p(0,0,0,0,0,0), // Soạn hàng (picking)
+    ship_order:        p(0,0,0,0,0,0), // Giao nhận (giao hàng)
   },
 };
 

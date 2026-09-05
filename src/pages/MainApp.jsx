@@ -41,6 +41,7 @@ const WarehouseManager = lazy(() => import("./WarehouseManager").catch(() => ({ 
 const CashierApp = lazy(() => import("./CashierApp").catch(() => ({ default: () => (
   <div style={{padding:32,textAlign:"center",color:"#ef4444"}}>❌ Lỗi tải App Kế toán</div>
 )})));
+const PackingPageLazy = lazy(() => import("./PackingPage").catch(() => ({ default: () => <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Soạn hàng</div> })));
 const StockCountPage = lazy(() => import("./StockCountPage").catch(() => ({ default: () => (
   <div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải kiểm kho</div>
 ) })));
@@ -341,12 +342,13 @@ const MGR_ACCORDIONS = [
     key: "acc_warehouse",
     icon: "warehouse",
     label: "Kho & Vật tư",
-    pages: ["wh_manager","wh_ledger","wh_import","wh_export","stock_nxt","stock_count","wh_defect","wh_shipping","wh_report"],
+    pages: ["wh_manager","wh_ledger","wh_import","wh_export","pack_ship","stock_nxt","stock_count","wh_defect","wh_shipping","wh_report"],
     items: [
       { key:"wh_manager",  icon:"warehouse",      label:"Thiết lập kho" },
       { key:"wh_ledger",   icon:"inventory_2",    label:"Tồn kho" },
       { key:"wh_import",   icon:"move_to_inbox",  label:"Nhập kho" },
       { key:"wh_export",   icon:"outbox",         label:"Xuất kho" },
+      { key:"pack_ship",   icon:"inventory",       label:"Soạn hàng & Giao nhận" },
       { key:"stock_nxt",   icon:"assessment",     label:"Thẻ kho (NXT)" },
       { key:"stock_count", icon:"fact_check",     label:"Kiểm kê kho" },
       { key:"wh_defect",   icon:"warning",        label:"LK lỗi / RMA" },
@@ -528,7 +530,7 @@ function MainAppContent({ onUserChange }) {
   const isManager    = ["manager","admin","owner","supervisor"].includes(role);
   const isKtv        = role === "technician";
   const isReception  = role === "receptionist";
-  const isRoleHome   = ["cashier","accountant","marketing","support","delivery","it","viewer","supervisor"].includes(role);
+  const isRoleHome   = ["cashier","accountant","marketing","support","packer","delivery","it","viewer","supervisor"].includes(role);
 
   // ── Set initial page khi user login lần đầu ──────────────
   useEffect(() => {
@@ -1139,6 +1141,7 @@ function MainAppContent({ onUserChange }) {
       marketing:    "my_tasks",
       qa:           "my_tasks",
       support:      "my_tasks",
+      packer:       "my_tasks",
       delivery:     "my_tasks",
       it:           "my_tasks",
       viewer:       "my_tasks",
@@ -1374,6 +1377,7 @@ function MainAppContent({ onUserChange }) {
         { key:"wh_orders",      icon:"chat",                   label:"Chat đơn",         perm:["repair_order","view"] },
         // ── Kho & Vật tư (nhóm liền mạch, không chèn item khác nhóm) ──
         { key:"wh_export",      icon:"outbox",                 label:"Xuất kho",         perm:["stock_export","view"] },
+        { key:"pack_ship",      icon:"inventory",              label:"Soạn hàng & Giao",  perm:["pack_order","view"] },
         { key:"wh_manager",     icon:"warehouse",              label:"Thiết lập kho",    perm:["warehouse_mgr","view"] },
         { key:"wh_ledger",      icon:"inventory_2",            label:"Tồn kho",          perm:["stock_ledger","view"] },
         { key:"stock_nxt",      icon:"assessment",             label:"Thẻ kho (NXT)",    perm:["stock_ledger","view"] },
@@ -1422,6 +1426,8 @@ function MainAppContent({ onUserChange }) {
       items.push({ key:"wh_ledger",   icon:"inventory_2",     label:"Tồn kho" });
     if (can("stock_export","view") && !isManager)
       items.push({ key:"wh_export",   icon:"outbox",          label:"Xuất kho" });
+    if ((can("pack_order","view") || can("ship_order","view")) && !isManager)
+      items.push({ key:"pack_ship",   icon:"inventory",       label:"Soạn hàng & Giao" });
     if (can("stock_ledger","view") && !isManager)
       items.push({ key:"stock_nxt",   icon:"assessment",      label:"Thẻ kho (NXT)" });
     if (can("stock_count","view") && !isManager && !isRoleHome)
@@ -1933,6 +1939,7 @@ function MainAppContent({ onUserChange }) {
     "price_policy":     { label:"💲 Chính sách giá",           grad:["#059669","#047857"] },
     "product_mgr":      { label:"📦 Danh mục hàng hóa",         grad:["#7c3aed","#6d28d9"] },
     "wh_home":          { label:"🏭 Kho tổng quan",            grad:["#0284c7","#0369a1"] },
+  "pack_ship":        { label:"📦 Soạn hàng & Giao nhận",   grad:["#0c4a6e","#0369a1"] },
     "wh_orders":        { label:"📦 Đơn kho",                 grad:["#0284c7","#0369a1"] },
     "wh_export":        { label:"📤 Xuất kho",                 grad:["#0284c7","#0369a1"] },
     "wh_import":        { label:"📥 Nhập kho",                 grad:["#0284c7","#0369a1"] },
@@ -2129,6 +2136,9 @@ function MainAppContent({ onUserChange }) {
               {page==="wh_export" && (can("stock_export","view") ? <WarehouseExport user={user} /> : <AccessDenied pageName="Xuất kho" />)}
               {page==="wh_import" && (can("stock_import","view") ? <WarehouseImport user={user} /> : <AccessDenied pageName="Nhập kho" />)}
               {page==="wh_manager" && (can("warehouse_mgr","view") ? <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"dashboard")} /> : <AccessDenied pageName="Thiết lập kho" />)}
+              {page==="pack_ship" && (can("pack_order","view") || can("ship_order","view")
+                ? <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><PackingPageLazy user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"my_tasks")} /></Suspense>
+                : <AccessDenied pageName="Soạn hàng & Giao nhận" />)}
               {page==="cashier_home" && (can("sale_order","view") ? <CashierApp user={user} onNotif={()=>setShowNotif(v=>!v)} onQRScan={()=>setShowQRScan(true)} notifCount={notifications.length+dbNotifications.length} forceTab={cashierTab} onTabChange={setCashierTab} /> : <AccessDenied pageName="Thu ngân" />)}
               {page==="sale_order" && user && can("sale_order","view") && (
                 <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>

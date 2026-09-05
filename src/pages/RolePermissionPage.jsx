@@ -34,6 +34,8 @@ const RESOURCE_META = {
   cash_journal:       { label:"Sổ quỹ",               module:"Kế toán",    icon:"menu_book" },
   purchase_order:     { label:"Đơn mua hàng NCC",      module:"Mua hàng",   icon:"shopping_cart" },
   profit_report:      { label:"Báo cáo lợi nhuận",     module:"Báo cáo",    icon:"trending_up" },
+  pack_order:         { label:"Soạn hàng (Picking)",   module:"Kho",        icon:"inventory" },
+  ship_order:         { label:"Giao nhận (Giao hàng)", module:"Kho",        icon:"local_shipping" },
 };
 
 const MODULES   = [
