@@ -1070,13 +1070,14 @@ export default function PackingPage({ user, onBack }) {
     const btn = (label, color, bg, onClick, disabled) => (
       <button onClick={onClick} disabled={disabled}
         style={{
-          flex: 1, padding: "12px 10px", borderRadius: 10, border: "none",
+          flex: 1, minWidth: 0, padding: "12px 6px", borderRadius: 10, border: "none",
           background: disabled ? "#e5e7eb" : bg, color: disabled ? "#9ca3af" : color,
-          fontWeight: 900, fontSize: 13, cursor: disabled ? "not-allowed" : "pointer", whiteSpace: "nowrap",
+          fontWeight: 900, fontSize: 12.5, cursor: disabled ? "not-allowed" : "pointer",
+          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
         }}>{label}</button>
     );
     return (
-      <div style={{ display: "flex", gap: 8, padding: "0 14px 12px" }}>
+      <div style={{ display: "flex", gap: 6, padding: "0 14px 12px", minWidth: 0 }}>
         {/* Soạn hàng — cần quyền edit pack_order */}
         {canEditPack && (st === "" || st === "to_pick" || st === "picking") && (
           <>
@@ -1140,22 +1141,27 @@ export default function PackingPage({ user, onBack }) {
           onFound={handleOrderScan} onClose={() => setScanOrder(false)} />
       )}
 
-      {/* Tabs */}
-      <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 12, paddingBottom: 2 }}>
-        {TABS.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            style={{
-              padding: "10px 14px", borderRadius: 12, border: "none", flexShrink: 0, cursor: "pointer",
-              background: tab === t.key ? "#1e293b" : "#f1f5f9",
-              color: tab === t.key ? "#fff" : "#475569",
-              fontWeight: 800, fontSize: 12.5, display: "flex", alignItems: "center", gap: 6,
-            }}>
-            {t.label}
-            {t.count > 0 && (
-              <span style={{ background: tab === t.key ? "#4f46e5" : "#e2e8f0", color: tab === t.key ? "#fff" : "#334155", borderRadius: 99, padding: "1px 8px", fontSize: 11, fontWeight: 900 }}>{t.count}</span>
-            )}
-          </button>
-        ))}
+      {/* Tabs — có thể vuốt ngang khi nhiều hơn 3-4 mục; fade mờ báo hiệu còn tab ẩn bên phải */}
+      <div style={{ position: "relative", marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2, paddingRight: 20, WebkitOverflowScrolling: "touch" }}>
+          {TABS.map(t => (
+            <button key={t.key} onClick={() => setTab(t.key)}
+              style={{
+                padding: "10px 12px", borderRadius: 12, border: "none", flexShrink: 0, cursor: "pointer",
+                background: tab === t.key ? "#1e293b" : "#f1f5f9",
+                color: tab === t.key ? "#fff" : "#475569",
+                fontWeight: 800, fontSize: 12.5, whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6,
+              }}>
+              {t.label}
+              {t.count > 0 && (
+                <span style={{ background: tab === t.key ? "#4f46e5" : "#e2e8f0", color: tab === t.key ? "#fff" : "#334155", borderRadius: 99, padding: "1px 8px", fontSize: 11, fontWeight: 900 }}>{t.count}</span>
+              )}
+            </button>
+          ))}
+        </div>
+        {TABS.length > 3 && (
+          <div style={{ position: "absolute", top: 0, right: 0, bottom: 2, width: 24, background: "linear-gradient(to right, transparent, #f8fafc)", pointerEvents: "none" }} />
+        )}
       </div>
 
       {/* Search — padding-left 44px chuẩn icon kính lúp */}
