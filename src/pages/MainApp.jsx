@@ -523,6 +523,9 @@ function MainAppContent({ onUserChange }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   // Focus 1 đơn hàng cụ thể khi bấm thông báo soạn hàng/giao hàng (pack_ship)
   const [focusOrderCode, setFocusOrderCode] = useState(null);
+  // Focus đúng tab khi bấm thẻ việc từ "Việc của tôi" (chờ soạn/chờ bàn giao/đang giao/lỗi)
+  const [focusPackTab, setFocusPackTab] = useState(null);
+  const openPackShip = (tab) => { setFocusPackTab(tab || null); setPage("pack_ship"); };
 
   const isWarehouse  = role === "warehouse";
   // Permission flags for bottom nav
@@ -2125,7 +2128,7 @@ function MainAppContent({ onUserChange }) {
           })()}
           <div style={{ flex:1, overflowY:"auto" }}>
             <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
-              {page==="my_tasks" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><MyTasksPage user={user} orders={orders} setPage={setPage} onNewOrder={()=>setShowNewOrder(true)} onOpenCashier={(tab)=>{setCashierTab(tab||"");setPage("cashier_home");}} /></Suspense>}
+              {page==="my_tasks" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><MyTasksPage user={user} orders={orders} setPage={setPage} onNewOrder={()=>setShowNewOrder(true)} onOpenCashier={(tab)=>{setCashierTab(tab||"");setPage("cashier_home");}} onOpenPackShip={openPackShip} /></Suspense>}
               {page==="ktv_home" && <TechnicianHome user={user} orders={orders} setPage={setPage} />}
               {page==="rec_home" && <ReceptionHome user={user} orders={orders} setPage={setPage} />}
               {page==="board" && (can("repair_order","view") ? <KanbanBoard /> : <AccessDenied pageName="Bảng Kanban" />)}
@@ -2141,7 +2144,7 @@ function MainAppContent({ onUserChange }) {
               {page==="wh_import" && (can("stock_import","view") ? <WarehouseImport user={user} /> : <AccessDenied pageName="Nhập kho" />)}
               {page==="wh_manager" && (can("warehouse_mgr","view") ? <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"dashboard")} /> : <AccessDenied pageName="Thiết lập kho" />)}
               {page==="pack_ship" && (can("pack_order","view") || can("ship_order","view")
-                ? <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><PackingPageLazy user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"my_tasks")} focusOrderCode={focusOrderCode} onFocusConsumed={()=>setFocusOrderCode(null)} /></Suspense>
+                ? <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><PackingPageLazy user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"my_tasks")} focusOrderCode={focusOrderCode} onFocusConsumed={()=>setFocusOrderCode(null)} focusTab={focusPackTab} onFocusTabConsumed={()=>setFocusPackTab(null)} /></Suspense>
                 : <AccessDenied pageName="Soạn hàng & Giao nhận" />)}
               {page==="cashier_home" && (can("sale_order","view") ? <CashierApp user={user} onNotif={()=>setShowNotif(v=>!v)} onQRScan={()=>setShowQRScan(true)} notifCount={notifications.length+dbNotifications.length} forceTab={cashierTab} onTabChange={setCashierTab} /> : <AccessDenied pageName="Thu ngân" />)}
               {page==="sale_order" && user && can("sale_order","view") && (
@@ -2395,7 +2398,7 @@ function MainAppContent({ onUserChange }) {
       {/* Main content */}
       <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
         <div style={{ paddingBottom:72 }}>
-        {page==="my_tasks" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><MyTasksPage user={user} orders={orders} setPage={setPage} onNewOrder={()=>setShowNewOrder(true)} onOpenCashier={(tab)=>{setCashierTab(tab||"");setPage("cashier_home");}} /></Suspense>}
+        {page==="my_tasks" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><MyTasksPage user={user} orders={orders} setPage={setPage} onNewOrder={()=>setShowNewOrder(true)} onOpenCashier={(tab)=>{setCashierTab(tab||"");setPage("cashier_home");}} onOpenPackShip={openPackShip} /></Suspense>}
         {page==="ktv_home" && <TechnicianHome user={user} orders={orders} setPage={setPage} />}
         {page==="rec_home" && <ReceptionHome user={user} orders={orders} setPage={setPage} />}
         {page==="board" && (can("repair_order","view") ? <KanbanBoard /> : <AccessDenied pageName="Bảng Kanban" />)}
@@ -2445,7 +2448,7 @@ function MainAppContent({ onUserChange }) {
           </div>
         )}
         
-        {renderMobilePages(page, user, { setPage, dashboardTab, notifications, dbNotifications, setShowNotif, setShowQRScan, cashierTab, setCashierTab, setSelectedOrder: setSelectedOrderSync, can, focusOrderCode, onFocusConsumed: () => setFocusOrderCode(null) })}
+        {renderMobilePages(page, user, { setPage, dashboardTab, notifications, dbNotifications, setShowNotif, setShowQRScan, cashierTab, setCashierTab, setSelectedOrder: setSelectedOrderSync, can, focusOrderCode, onFocusConsumed: () => setFocusOrderCode(null), focusPackTab, onFocusTabConsumed: () => setFocusPackTab(null) })}
         </div>
       </Suspense>
 

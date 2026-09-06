@@ -78,7 +78,7 @@ function SectionHeader({ icon, title, count, color }) {
 }
 
 // ─── Main component ───────────────────────────────────────
-export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, onOpenCashier }) {
+export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, onOpenCashier, onOpenPackShip }) {
   const role = user?.role || "viewer";
   const { can } = usePermission();
   const canViewPack = can("pack_order", "view");
@@ -391,25 +391,25 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
       icon: "inventory", title: `${chờSoạn.length} đơn chờ soạn hàng`,
       subtitle: "Lấy hàng theo mã + đóng gói",
       badge: String(chờSoạn.length), badgeColor: "#4f46e5", urgency: "urgent",
-      onClick: () => setPage("pack_ship"),
+      onClick: () => onOpenPackShip ? onOpenPackShip("pick") : setPage("pack_ship"),
     });
     if (canViewShip && chờBànGiao.length > 0) result.urgent.push({
       icon: "local_shipping", title: `${chờBànGiao.length} đơn chờ bàn giao ĐVVC`,
       subtitle: "Đã đóng gói — cần gửi đơn vị vận chuyển",
       badge: String(chờBànGiao.length), badgeColor: "#0369a1", urgency: "urgent",
-      onClick: () => setPage("pack_ship"),
+      onClick: () => onOpenPackShip ? onOpenPackShip("handover") : setPage("pack_ship"),
     });
     if (canViewShip && đangGiao.length > 0) result.today.push({
       icon: "airport_shuttle", title: `${đangGiao.length} đơn đang giao`,
       subtitle: "Chờ xác nhận ĐVVC nhận / đã giao xong",
       badge: String(đangGiao.length), badgeColor: "#0e7490", urgency: "today",
-      onClick: () => setPage("pack_ship"),
+      onClick: () => onOpenPackShip ? onOpenPackShip("transit") : setPage("pack_ship"),
     });
     if (canViewShip && giaoLỗi.length > 0) result.urgent.push({
       icon: "error", title: `${giaoLỗi.length} đơn giao lỗi`,
       subtitle: "Cần xử lý: bàn giao lại hoặc hoàn hàng",
       badge: String(giaoLỗi.length), badgeColor: "#dc2626", urgency: "urgent",
-      onClick: () => setPage("pack_ship"),
+      onClick: () => onOpenPackShip ? onOpenPackShip("failed") : setPage("pack_ship"),
     });
 
     // ═══ OTHER ROLES (hr, marketing, qa, support, delivery, it, viewer) ═══
@@ -425,7 +425,7 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
     }
 
     return result;
-  }, [role, orders, extraData, user, setPage, onOpenCashier, canViewPack, canViewShip, canViewRepair]);
+  }, [role, orders, extraData, user, setPage, onOpenCashier, onOpenPackShip, canViewPack, canViewShip, canViewRepair]);
 
   // ── Greeting ────────────────────────────────────────────
   const hour = new Date().getHours();
@@ -459,7 +459,7 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
         <div style={{ display: "flex", gap: 12, marginTop: 14 }}>
           <div style={{ background: "rgba(255,255,255,.15)", borderRadius: 12, padding: "8px 14px" }}>
             <div style={{ fontSize: 22, fontWeight: 900 }}>{urgentCount}</div>
-            <div style={{ fontSize: 11, opacity: 0.8 }}>Khẩn cấp</div>
+            <div style={{ fontSize: 11, opacity: 0.8 }}>Cần làm ngay</div>
           </div>
           <div style={{ background: "rgba(255,255,255,.15)", borderRadius: 12, padding: "8px 14px" }}>
             <div style={{ fontSize: 22, fontWeight: 900 }}>{todayCount}</div>
@@ -475,7 +475,7 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
           {/* Khẩn cấp */}
           {tasks.urgent.length > 0 && (
             <>
-              <SectionHeader icon="priority_high" title="Khẩn cấp" count={tasks.urgent.length} color="#dc2626" />
+              <SectionHeader icon="priority_high" title="Việc cần làm ngay" count={tasks.urgent.length} color="#dc2626" />
               {tasks.urgent.slice(0, 20).map((t, i) => <TaskCard key={"u" + i} {...t} />)}
             </>
           )}
@@ -483,7 +483,7 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
           {/* Cần xử lý hôm nay */}
           {tasks.today.length > 0 && (
             <>
-              <SectionHeader icon="today" title="Cần xử lý" count={tasks.today.length} color="#d97706" />
+              <SectionHeader icon="today" title="Việc cần theo dõi và xử lý" count={tasks.today.length} color="#d97706" />
               {tasks.today.slice(0, 20).map((t, i) => <TaskCard key={"t" + i} {...t} />)}
             </>
           )}

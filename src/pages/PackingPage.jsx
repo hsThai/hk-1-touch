@@ -781,7 +781,7 @@ function PkCard({ order, meta, children, onExpand, expanded, timeline }) {
 /* ════════════════════════════════════════════════════════════════
  * MAIN — PackingPage
  * ════════════════════════════════════════════════════════════════ */
-export default function PackingPage({ user, onBack, focusOrderCode, onFocusConsumed }) {
+export default function PackingPage({ user, onBack, focusOrderCode, onFocusConsumed, focusTab, onFocusTabConsumed }) {
   const { can } = usePermission();
   const canViewPack = can("pack_order", "view");
   const canEditPack = can("pack_order", "edit");
@@ -797,6 +797,14 @@ export default function PackingPage({ user, onBack, focusOrderCode, onFocusConsu
   const { showToast, toastEl } = useToast();
 
   useEffect(() => { loadOrders(); }, []);
+
+  // Mở đúng tab khi bấm thẻ việc từ "Việc của tôi" (chờ soạn/chờ bàn giao/đang giao/lỗi)
+  useEffect(() => {
+    if (!focusTab) return;
+    setTab(focusTab);
+    onFocusTabConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusTab]);
 
   // Nhảy thẳng đến đơn được chỉ định qua thông báo (bấm noti soạn/giao hàng)
   useEffect(() => {
