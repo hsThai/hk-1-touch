@@ -83,6 +83,7 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
   const { can } = usePermission();
   const canViewPack = can("pack_order", "view");
   const canViewShip = can("ship_order", "view");
+  const canViewRepair = can("repair_order", "view");
   const [extraData, setExtraData] = useState({});
   const [loading, setLoading] = useState(true);
 
@@ -412,14 +413,11 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
     });
 
     // ═══ OTHER ROLES (hr, marketing, qa, support, delivery, it, viewer) ═══
-    const roleLabels = {
-      marketing: "Marketing", support: "Hỗ trợ",
-      packer: "Soạn hàng",
-      delivery: "Giao nhận", it: "IT", viewer: "Xem",
-    };
-    if (roleLabels[role]) {
+    // Chỉ hiện thẻ "đơn sửa chữa" nếu có quyền xem repair_order — tránh dẫn
+    // user không có quyền (VD: NV soạn đóng hàng) vào trang bị chặn truy cập.
+    if (canViewRepair) {
       const active = orders.filter(o => !["Đã Giao", "Hủy"].includes(o.status));
-      result.today.push({
+      if (active.length > 0) result.today.push({
         icon: "list_alt", title: `${active.length} đơn đang xử lý`,
         subtitle: "Tổng quan đơn sửa chữa",
         onClick: () => setPage("tasks"),
@@ -427,7 +425,7 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
     }
 
     return result;
-  }, [role, orders, extraData, user, setPage, onOpenCashier, canViewPack, canViewShip]);
+  }, [role, orders, extraData, user, setPage, onOpenCashier, canViewPack, canViewShip, canViewRepair]);
 
   // ── Greeting ────────────────────────────────────────────
   const hour = new Date().getHours();

@@ -521,6 +521,8 @@ function MainAppContent({ onUserChange }) {
   };
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Focus 1 đơn hàng cụ thể khi bấm thông báo soạn hàng/giao hàng (pack_ship)
+  const [focusOrderCode, setFocusOrderCode] = useState(null);
 
   const isWarehouse  = role === "warehouse";
   // Permission flags for bottom nav
@@ -2139,7 +2141,7 @@ function MainAppContent({ onUserChange }) {
               {page==="wh_import" && (can("stock_import","view") ? <WarehouseImport user={user} /> : <AccessDenied pageName="Nhập kho" />)}
               {page==="wh_manager" && (can("warehouse_mgr","view") ? <WarehouseManager user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"dashboard")} /> : <AccessDenied pageName="Thiết lập kho" />)}
               {page==="pack_ship" && (can("pack_order","view") || can("ship_order","view")
-                ? <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><PackingPageLazy user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"my_tasks")} /></Suspense>
+                ? <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><PackingPageLazy user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"my_tasks")} focusOrderCode={focusOrderCode} onFocusConsumed={()=>setFocusOrderCode(null)} /></Suspense>
                 : <AccessDenied pageName="Soạn hàng & Giao nhận" />)}
               {page==="cashier_home" && (can("sale_order","view") ? <CashierApp user={user} onNotif={()=>setShowNotif(v=>!v)} onQRScan={()=>setShowQRScan(true)} notifCount={notifications.length+dbNotifications.length} forceTab={cashierTab} onTabChange={setCashierTab} /> : <AccessDenied pageName="Thu ngân" />)}
               {page==="sale_order" && user && can("sale_order","view") && (
@@ -2325,6 +2327,15 @@ function MainAppContent({ onUserChange }) {
                     setShowNotif(false);
                     const targetId   = n.order_id;
                     const targetCode = n.order_code;
+
+                    // Thông báo soạn hàng/giao hàng (pack_ship) → nhảy thẳng vào đơn đó
+                    // ở trang "Soạn hàng & Giao nhận" (SaleOrder, không phải RepairOrder)
+                    if (n.type === "pack_ship") {
+                      setPage("pack_ship");
+                      setFocusOrderCode(targetCode || targetId || "");
+                      return;
+                    }
+
                     if (targetId || targetCode) {
                       try {
                         let mapped = null;
@@ -2434,7 +2445,7 @@ function MainAppContent({ onUserChange }) {
           </div>
         )}
         
-        {renderMobilePages(page, user, { setPage, dashboardTab, notifications, dbNotifications, setShowNotif, setShowQRScan, cashierTab, setCashierTab, setSelectedOrder: setSelectedOrderSync, can })}
+        {renderMobilePages(page, user, { setPage, dashboardTab, notifications, dbNotifications, setShowNotif, setShowQRScan, cashierTab, setCashierTab, setSelectedOrder: setSelectedOrderSync, can, focusOrderCode, onFocusConsumed: () => setFocusOrderCode(null) })}
         </div>
       </Suspense>
 

@@ -754,7 +754,7 @@ function PkCard({ order, meta, children, onExpand, expanded, timeline }) {
   let st = PK_STATUS[meta] || PK_STATUS[""];
   if (meta === "packed" && order.delivery_type === "pickup") st = { ...st, label: "Chờ khách nhận", icon: "storefront" };
   return (
-    <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, marginBottom: 10, overflow: "hidden" }}>
+    <div id={"pkcard_" + order.id} style={{ background: "#fff", border: expanded ? "2px solid #4f46e5" : "1px solid #e5e7eb", borderRadius: 14, marginBottom: 10, overflow: "hidden" }}>
       <div onClick={onExpand} style={{ padding: "12px 14px", cursor: "pointer" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span className="material-icons" style={{ fontFamily: "Material Icons", fontSize: 26, color: st.color, flexShrink: 0 }}>{st.icon}</span>
@@ -781,7 +781,7 @@ function PkCard({ order, meta, children, onExpand, expanded, timeline }) {
 /* ════════════════════════════════════════════════════════════════
  * MAIN — PackingPage
  * ════════════════════════════════════════════════════════════════ */
-export default function PackingPage({ user, onBack }) {
+export default function PackingPage({ user, onBack, focusOrderCode, onFocusConsumed }) {
   const { can } = usePermission();
   const canViewPack = can("pack_order", "view");
   const canEditPack = can("pack_order", "edit");
@@ -797,6 +797,29 @@ export default function PackingPage({ user, onBack }) {
   const { showToast, toastEl } = useToast();
 
   useEffect(() => { loadOrders(); }, []);
+
+  // Nhảy thẳng đến đơn được chỉ định qua thông báo (bấm noti soạn/giao hàng)
+  useEffect(() => {
+    if (!focusOrderCode || loading || orders.length === 0) return;
+    const found = orders.find(o => o.order_code === focusOrderCode || o.id === focusOrderCode);
+    if (found) {
+      const st = found.pack_status || "";
+      const targetTab = (st === "" || st === "to_pick" || st === "picking") ? "pick"
+        : st === "packed" ? "handover"
+        : (st === "shipped" || st === "carrier_received") ? "transit"
+        : st === "failed" ? "failed" : "done";
+      setTab(targetTab);
+      setSearch("");
+      setExpanded(found.id);
+      setTimeout(() => {
+        document.getElementById("pkcard_" + found.id)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 250);
+    } else {
+      showToast(`❌ Không tìm thấy đơn ${focusOrderCode}`, "err");
+    }
+    onFocusConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusOrderCode, loading, orders]);
 
   async function loadOrders() {
     setLoading(true);

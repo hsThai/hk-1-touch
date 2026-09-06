@@ -302,7 +302,7 @@ export function renderMobilePages(page, user, extraProps = {}) {
       {page==="pack_ship" && user && (
         extraProps.can && !(extraProps.can("pack_order","view") || extraProps.can("ship_order","view"))
           ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
-          : <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><PackingPageMobile user={user} onBack={()=>setPage && setPage("my_tasks")} /></Suspense>
+          : <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><PackingPageMobile user={user} onBack={()=>setPage && setPage("my_tasks")} focusOrderCode={extraProps.focusOrderCode} onFocusConsumed={extraProps.onFocusConsumed} /></Suspense>
       )}
       {page==="wh_import" && user && (
         extraProps.can && !extraProps.can("stock_import","view")
