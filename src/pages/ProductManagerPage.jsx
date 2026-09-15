@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { SparePart, ProductCategory, logAction } from "./pb.jsx";
 import CategoryManagerModal from "./CategoryManagerModal.jsx";
+import ProductImportExportModal from "./ProductImportExportModal.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 
@@ -256,6 +257,7 @@ export default function ProductManagerPage({ user }) {
   const [editing, setEditing] = useState(null);
   const [merging, setMerging] = useState(null);
   const [showCatMgr, setShowCatMgr] = useState(false);
+  const [showImportExport, setShowImportExport] = useState(false);
 
   const isAdmin = ADMIN_ROLES.includes(user?.role);
 
@@ -356,6 +358,13 @@ export default function ProductManagerPage({ user }) {
               display:"flex", alignItems:"center", gap:6,
             }}>
               🏷️ Quản lý danh mục
+            </button>
+            <button onClick={()=>setShowImportExport(true)} style={{
+              height:44, padding:"0 16px", borderRadius:12, border:"1.5px solid #e5e7eb",
+              background:"#fff", color:"#374151", fontWeight:700, fontSize:13, cursor:"pointer",
+              display:"flex", alignItems:"center", gap:6,
+            }}>
+              📁 Nhập / Xuất file
             </button>
             <button onClick={()=>{ setEditing(null); setShowForm(true); }} style={{
               height:44, padding:"0 20px", borderRadius:12, border:"none",
@@ -527,6 +536,17 @@ export default function ProductManagerPage({ user }) {
           user={user}
           onClose={()=>setShowCatMgr(false)}
           onChanged={()=>load()}
+        />
+      )}
+
+      {showImportExport && (
+        <ProductImportExportModal
+          user={user}
+          items={items}
+          categories={categories}
+          catMap={catMap}
+          onClose={()=>setShowImportExport(false)}
+          onImported={()=>load()}
         />
       )}
     </div>
