@@ -3,12 +3,33 @@
  * Thêm / sửa / xóa / merge linh kiện — tham chiếu KiotViet Danh sách hàng hóa
  * @version 2026-08-18-v2 — danh mục động (ProductCategory entity) + quản lý danh mục
  */
-import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { SparePart, ProductCategory, logAction } from "./pb.jsx";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { SparePart, ProductCategory, logAction, uploadFile, normalizePbUrl } from "./pb.jsx";
 import CategoryManagerModal from "./CategoryManagerModal.jsx";
 import ProductImportExportModal from "./ProductImportExportModal.jsx";
+import { MediaViewer } from "./MediaViewer.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
+
+// Nén ảnh trước khi upload (1280px, 82%) — chuẩn chung hệ thống
+function compressImageFile(file, maxW = 1280, quality = 0.82) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxW) { height = Math.round(height * maxW / width); width = maxW; }
+        const canvas = document.createElement("canvas");
+        canvas.width = width; canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => resolve(blob ? new File([blob], file.name || "photo.jpg", { type: "image/jpeg" }) : file), "image/jpeg", quality);
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 const ADMIN_ROLES = ["owner","admin","manager"];
 
@@ -37,8 +58,38 @@ function ProductFormModal({ item, categories, onSave, onClose, user }) {
     serial_imei: item?.serial_imei || "",
   });
   const [saving, setSaving] = useState(false);
+  const [images, setImages] = useState(item?.images || []);
+  const [uploadingImg, setUploadingImg] = useState(false);
+  const [viewer, setViewer] = useState(null); // {items, startIndex}
+  const cameraRef = useRef(null);
+  const galleryRef = useRef(null);
 
   function set(k, v) { setForm(p => ({ ...p, [k]: v })); }
+
+  async function handleImageFiles(e) {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setUploadingImg(true);
+    try {
+      const urls = [];
+      for (const f of files) {
+        const compressed = await compressImageFile(f);
+        const url = await uploadFile(compressed);
+        if (url) urls.push(url);
+      }
+      setImages(prev => [...prev, ...urls]);
+    } catch (err) {
+      alert("Lỗi tải ảnh: " + err.message);
+    }
+    setUploadingImg(false);
+    if (cameraRef.current) cameraRef.current.value = "";
+    if (galleryRef.current) galleryRef.current.value = "";
+  }
+
+  function removeImage(idx) {
+    if (!window.confirm("Xóa ảnh này?")) return;
+    setImages(prev => prev.filter((_, i) => i !== idx));
+  }
 
   async function save() {
     if (!form.name.trim()) { alert("Nhập tên hàng hóa!"); return; }
@@ -57,6 +108,7 @@ function ProductFormModal({ item, categories, onSave, onClose, user }) {
         is_active: form.is_active,
         note: form.note.trim(),
         serial_imei: form.serial_imei.trim(),
+        images: images,
       };
       if (isEdit) {
         await SparePart.update(item.id, payload);
@@ -154,6 +206,34 @@ function ProductFormModal({ item, categories, onSave, onClose, user }) {
           </div>
 
           <div style={{ gridColumn:"1 / -1" }}>
+            <label style={LBL}>📷 Hình ảnh hàng hóa</label>
+            <div style={{ display:"flex", gap:8, marginBottom: images.length > 0 ? 8 : 0 }}>
+              <button type="button" onClick={()=>cameraRef.current && cameraRef.current.click()} disabled={uploadingImg}
+                style={{ flex:1, height:44, borderRadius:12, border:"2px dashed #cbd5e1", background:"#fff", color:"#334155", fontWeight:800, fontSize:13, cursor:"pointer" }}>
+                {uploadingImg ? "⏳ Đang tải..." : "📷 Chụp ảnh"}
+              </button>
+              <button type="button" onClick={()=>galleryRef.current && galleryRef.current.click()} disabled={uploadingImg}
+                style={{ flex:1, height:44, borderRadius:12, border:"2px dashed #cbd5e1", background:"#fff", color:"#334155", fontWeight:800, fontSize:13, cursor:"pointer" }}>
+                🖼️ Chọn từ máy
+              </button>
+              <input ref={cameraRef} type="file" accept="image/*" capture="environment" multiple onChange={handleImageFiles} style={{ display:"none" }} />
+              <input ref={galleryRef} type="file" accept="image/*" multiple onChange={handleImageFiles} style={{ display:"none" }} />
+            </div>
+            {images.length > 0 && (
+              <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                {images.map((u, i) => (
+                  <div key={i} style={{ position:"relative", width:76, height:76, borderRadius:10, overflow:"hidden", border:"1px solid #e5e7eb" }}>
+                    <img src={normalizePbUrl(u)} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", cursor:"pointer" }}
+                      onClick={()=>setViewer({ items: images.map(x=>normalizePbUrl(x)), startIndex: i })} />
+                    <button type="button" onClick={()=>removeImage(i)}
+                      style={{ position:"absolute", top:2, right:2, width:20, height:20, borderRadius:"50%", background:"rgba(0,0,0,.65)", color:"#fff", border:"none", fontSize:11, cursor:"pointer" }}>✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div style={{ gridColumn:"1 / -1" }}>
             <label style={LBL}>Ghi chú</label>
             <textarea value={form.note} onChange={e=>set("note", e.target.value)} rows={2}
               style={{ ...INP, height:"auto", paddingTop:10 }} placeholder="Mô tả, xuất xứ, bảo hành..." />
@@ -182,6 +262,13 @@ function ProductFormModal({ item, categories, onSave, onClose, user }) {
             {saving ? "Đang lưu..." : "💾 Lưu"}
           </button>
         </div>
+        {viewer && (
+          <MediaViewer
+            items={viewer.items}
+            startIndex={viewer.startIndex}
+            onClose={()=>setViewer(null)}
+          />
+        )}
       </div>
     </div>
   );
@@ -258,6 +345,7 @@ export default function ProductManagerPage({ user }) {
   const [merging, setMerging] = useState(null);
   const [showCatMgr, setShowCatMgr] = useState(false);
   const [showImportExport, setShowImportExport] = useState(false);
+  const [tableViewer, setTableViewer] = useState(null);
 
   const isAdmin = ADMIN_ROLES.includes(user?.role);
 
@@ -436,6 +524,7 @@ export default function ProductManagerPage({ user }) {
           <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
             <thead>
               <tr style={{ background:"#f8fafc" }}>
+                <th style={{ padding:"10px 14px", textAlign:"center", fontWeight:700, color:"#374151" }}>Ảnh</th>
                 <th style={{ padding:"10px 14px", textAlign:"left", fontWeight:700, color:"#374151" }}>Tên hàng hóa</th>
                 <th style={{ padding:"10px 14px", textAlign:"left", fontWeight:700, color:"#374151" }}>SKU / IMEI</th>
                 <th style={{ padding:"10px 14px", textAlign:"left", fontWeight:700, color:"#374151" }}>Danh mục</th>
@@ -457,6 +546,14 @@ export default function ProductManagerPage({ user }) {
                     borderBottom:"1px solid #f3f4f6",
                     opacity: isActive ? 1 : 0.5,
                   }}>
+                    <td style={{ padding:"10px 14px", textAlign:"center" }}>
+                      {item.images && item.images.length > 0
+                        ? <img src={normalizePbUrl(item.images[0])} alt=""
+                            onClick={(e)=>{ e.stopPropagation(); setTableViewer({ items: item.images.map(normalizePbUrl), startIndex: 0 }); }}
+                            style={{ width:40, height:40, borderRadius:8, objectFit:"cover", cursor:"pointer", border:"1px solid #e5e7eb" }}
+                            title="Bấm để phóng to" />
+                        : <span style={{ color:"#e5e7eb", fontSize:20 }}>▣</span>}
+                    </td>
                     <td style={{ padding:"10px 14px", fontWeight:600, color:"#1f2937" }}>
                       {item.name}
                       {!isActive && <span style={{ marginLeft:6, fontSize:11, color:"#dc2626" }}>(ẩn)</span>}
@@ -547,6 +644,14 @@ export default function ProductManagerPage({ user }) {
           catMap={catMap}
           onClose={()=>setShowImportExport(false)}
           onImported={()=>load()}
+        />
+      )}
+
+      {tableViewer && (
+        <MediaViewer
+          items={tableViewer.items}
+          startIndex={tableViewer.startIndex}
+          onClose={()=>setTableViewer(null)}
         />
       )}
     </div>
