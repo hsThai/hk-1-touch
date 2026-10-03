@@ -7,7 +7,7 @@
  */
 import React, { useState, useMemo } from "react";
 import * as XLSX from "xlsx";
-import { SparePart, ProductCategory, logAction } from "./pb.jsx";
+import { SparePart, ProductCategory, logAction, ensureStockLedgerForPart } from "./pb.jsx";
 
 const TEMPLATE_HEADERS = [
   "Tên hàng hóa", "SKU", "Danh mục", "ĐVT", "Giá vốn", "Giá bán lẻ",
@@ -184,11 +184,13 @@ export default function ProductImportExportModal({ user, items, categories, catM
             if (overwriteStock) payload.stock_qty = r.stock;
             await SparePart.update(r.existing.id, payload);
             logAction(user, "update", "spare_part", r.existing.id, "Cập nhật hàng hóa (nhập file): " + r.name);
+            await ensureStockLedgerForPart({ ...r.existing, ...payload });
             updated++;
           } else {
             payload.stock_qty = r.stock;
             const rec = await SparePart.create(payload);
             logAction(user, "create", "spare_part", rec.id, "Tạo hàng hóa mới (nhập file): " + r.name);
+            await ensureStockLedgerForPart(rec);
             created++;
           }
         } catch (e) { failed++; }

@@ -4,7 +4,7 @@
  * @version 2026-08-18-v2 — danh mục động (ProductCategory entity) + quản lý danh mục
  */
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { SparePart, ProductCategory, logAction, uploadFile, normalizePbUrl } from "./pb.jsx";
+import { SparePart, ProductCategory, logAction, uploadFile, normalizePbUrl, ensureStockLedgerForPart } from "./pb.jsx";
 import CategoryManagerModal from "./CategoryManagerModal.jsx";
 import ProductImportExportModal from "./ProductImportExportModal.jsx";
 import { MediaViewer } from "./MediaViewer.jsx";
@@ -114,10 +114,14 @@ function ProductFormModal({ item, categories, onSave, onClose, user }) {
         await SparePart.update(item.id, payload);
         logAction(user, "update", "spare_part", item.id,
           "Sửa hàng hóa: " + payload.name + " — SKU: " + (payload.sku || "—"));
+        // Bù sổ kho nếu hàng chưa từng có ledger ở kho active nào (tồn > 0)
+        await ensureStockLedgerForPart({ ...item, ...payload });
       } else {
         const rec = await SparePart.create(payload);
         logAction(user, "create", "spare_part", rec.id,
           "Tạo hàng hóa mới: " + payload.name + " — SKU: " + (payload.sku || "—"));
+        // Ghi sổ kho mặc định (Kho 1) để xuất linh kiện không bị "không có trong kho này"
+        await ensureStockLedgerForPart(rec);
       }
       onSave();
       onClose();

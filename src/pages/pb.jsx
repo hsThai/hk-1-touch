@@ -266,6 +266,33 @@ export const ShiftReconcile    = makeCollection("shift_reconciles");
 export const KpiRecord          = makeCollection("kpi_records");
 export const ProductCategory    = makeCollection("product_categories");
 
+// ── Helper: đảm bảo part có sổ kho (stock_ledgers) ở kho đang hoạt động ─────
+// Tránh lỗi "không có trong kho này" khi xuất linh kiện: hàng tạo tay / nhập
+// Excel trước đây chỉ ghi stock_qty trên product_catalog mà không ghi sổ kho.
+// Nếu part chưa có ledger ở kho active nào và tồn > 0 → tự ghi vào Kho 1.
+export async function ensureStockLedgerForPart(part) {
+  try {
+    const qty = Number(part?.stock_qty) || 0;
+    if (!part?.id || qty <= 0) return null;
+    const [whs, ledgers] = await Promise.all([
+      Warehouse.filter({ is_active: true }).catch(() => []),
+      StockLedger.filter({ part_id: part.id }).catch(() => []),
+    ]);
+    const liveIds = (whs || []).map(w => w.id);
+    const live = (ledgers || []).filter(l => liveIds.includes(l.warehouse_id));
+    if (live.length > 0) return null; // đã có sổ kho hợp lệ — không đụng vào
+    const kho1 = (whs || []).find(w => (w.code || "").toUpperCase() === "KHO1") || (whs || [])[0];
+    if (!kho1) return null;
+    return await StockLedger.create({
+      warehouse_id: kho1.id, warehouse_name: kho1.name,
+      part_id: part.id, part_name: part.name || "", sku: part.sku || "",
+      category: part.category || "", unit: part.unit || "Cái",
+      qty_on_hand: qty, qty_reserved: 0, qty_available: qty, min_qty: 0,
+      note: "Tự động ghi sổ Kho 1 khi tạo/cập nhật hàng hóa",
+    });
+  } catch (e) { console.error("ensureStockLedgerForPart:", e); return null; }
+}
+
 // ── Helper: ghi log lịch sử đơn (OrderHistory) ──────────────
 export async function logHistory({ order_id, order_code, action_type, action_label, changed_by_id, changed_by_name, changed_by_role, old_value, new_value, note }) {
   try {
