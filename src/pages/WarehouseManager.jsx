@@ -148,6 +148,10 @@ function WarehouseTab({ user, toast }) {
   const [modal, setModal] = useState(null); // null | "create" | "edit"
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name:"", code:"", address:"", phone:"", note:"" });
+  // Luồng xóa kho: bắt buộc chuyển hàng sang kho khác nếu kho còn tồn
+  const [del, setDel] = useState(null);      // { wh, stockRows, totalQty, totalValue, zeroRows }
+  const [delTarget, setDelTarget] = useState("");
+  const [delBusy, setDelBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -172,6 +176,100 @@ function WarehouseTab({ user, toast }) {
 
   async function toggleActive(w) {
     try { await WH.update(w.id, { is_active: !w.is_active }); logAction(user, "update", "warehouse", w.id, `${w.is_active?"Khóa":"Kích hoạt"} kho: ${w.name}`); load(); } catch(e) { toast.show(e.message,"error"); }
+  }
+
+  // Bắt đầu xóa kho: rà sổ kho — nếu còn hàng thì buộc chọn kho đích để chuyển
+  async function startDelete(w) {
+    try {
+      const rows = await Ledger.filter(`warehouse_id="${w.id}"`, { limit: 5000 });
+      const stockRows = (rows || []).filter(r => (Number(r.qty_on_hand) || 0) > 0);
+      const totalQty = stockRows.reduce((s, r) => s + (Number(r.qty_on_hand) || 0), 0);
+      const totalValue = stockRows.reduce((s, r) => s + (Number(r.qty_on_hand) || 0) * (Number(r.cost_price) || 0), 0);
+      setDelTarget("");
+      setDel({ wh: w, stockRows, totalQty, totalValue, zeroRows: (rows || []).length - stockRows.length });
+    } catch (e) { toast.show("Lỗi kiểm tra sổ kho: " + e.message, "error"); }
+  }
+
+  // Thực hiện xóa: chuyển hàng sang kho đích → dọn dòng sổ 0 / khu vực / kệ → xóa kho
+  async function doDeleteWarehouse() {
+    if (!del || delBusy) return;
+    const w = del.wh;
+    const target = warehouses.find(x => x.id === delTarget && x.id !== w.id && x.is_active);
+    if (!target) { toast.show("Chọn kho đích hợp lệ!", "error"); return; }
+    if (!window.confirm(`Xác nhận xóa kho "${w.name}" và chuyển ${del.stockRows.length} mặt hàng (${del.totalQty} sản phẩm) sang "${target.name}"?`)) return;
+    setDelBusy(true);
+    try {
+      let moved = 0;
+      for (const s of del.stockRows) {
+        const tRows = await Ledger.filter(`warehouse_id="${target.id}" && part_id="${s.part_id}"`, { limit: 5 }).catch(() => []);
+        const t = (tRows || [])[0];
+        const qty = Number(s.qty_on_hand) || 0;
+        const sRes = Number(s.qty_reserved) || 0;
+        if (t) {
+          // Gộp vào dòng sổ đã có của kho đích
+          const onHand = (Number(t.qty_on_hand) || 0) + qty;
+          const reserved = (Number(t.qty_reserved) || 0) + sRes;
+          await Ledger.update(t.id, { qty_on_hand: onHand, qty_reserved: reserved, qty_available: Math.max(0, onHand - reserved) });
+          await Ledger.delete(s.id);
+        } else {
+          // Kho đích chưa có sổ của part này → chuyển nguyên dòng sổ
+          await Ledger.update(s.id, {
+            warehouse_id: target.id, warehouse_name: target.name,
+            location_id: "", location_code: "",
+            note: `Chuyển từ ${w.name} khi xóa kho`,
+          });
+        }
+        // Ghi biến động kho (best-effort, không chặn nếu lỗi)
+        try {
+          const tOnHand = t ? (Number(t.qty_on_hand) || 0) : 0;
+          const mCode = () => "MV-WHDEL-" + Date.now() + "-" + Math.floor(Math.random() * 900 + 100);
+          const base = { part_id: s.part_id, part_name: s.part_name, sku: s.sku, unit_price: Number(s.cost_price) || 0,
+            ref_type: "warehouse_delete", ref_id: w.id, ref_code: w.code, created_by_id: user.id, created_by_name: user.name || "" };
+          await Move.create({ ...base, movement_code: mCode(), movement_type: "transfer_out", warehouse_id: w.id, warehouse_name: w.name,
+            qty_before: qty, qty_change: -qty, qty_after: 0, note: `Xóa kho ${w.name} — chuyển ${qty} sang ${target.name}` });
+          await Move.create({ ...base, movement_code: mCode(), movement_type: "transfer_in", warehouse_id: target.id, warehouse_name: target.name,
+            qty_before: tOnHand, qty_change: qty, qty_after: tOnHand + qty, note: `Nhận từ ${w.name} (xóa kho) — +${qty}` });
+        } catch {}
+        moved++;
+        if (moved % 50 === 0) toast.show(`Đã chuyển ${moved}/${del.stockRows.length} mặt hàng...`);
+      }
+      // Dọn các dòng sổ tồn 0 còn sót của kho bị xóa
+      const leftover = await Ledger.filter(`warehouse_id="${w.id}"`, { limit: 5000 }).catch(() => []);
+      for (const r of leftover || []) { await Ledger.delete(r.id).catch(() => {}); }
+      // Dọn khu vực + kệ của kho
+      const zones = await Zone.filter(`warehouse_id="${w.id}"`, { limit: 1000 }).catch(() => []);
+      for (const z of zones || []) { await Zone.delete(z.id).catch(() => {}); }
+      const locs = await Loc.filter(`warehouse_id="${w.id}"`, { limit: 2000 }).catch(() => []);
+      for (const l of locs || []) { await Loc.delete(l.id).catch(() => {}); }
+      await WH.delete(w.id);
+      logAction(user, "delete", "warehouse", w.id,
+        `Xóa kho: ${w.name} (${w.code}) — chuyển ${moved} mặt hàng / ${del.totalQty} sản phẩm (≈${(del.totalValue||0).toLocaleString("vi-VN")}đ) sang ${target.name}`);
+      toast.show(`🗑️ Đã xóa kho ${w.name} — ${moved} mặt hàng đã chuyển sang ${target.name}`);
+      setDel(null); setDelTarget(""); load();
+    } catch (e) {
+      toast.show("Lỗi khi xóa kho: " + e.message, "error");
+    } finally { setDelBusy(false); }
+  }
+
+  // Kho trống (không còn hàng) — xóa trực tiếp
+  async function doDeleteEmpty() {
+    if (!del || delBusy) return;
+    const w = del.wh;
+    if (!window.confirm(`Xóa kho "${w.name}"? Kho không còn hàng — các khu vực/kệ của kho cũng sẽ bị xóa.`)) return;
+    setDelBusy(true);
+    try {
+      const leftover = await Ledger.filter(`warehouse_id="${w.id}"`, { limit: 5000 }).catch(() => []);
+      for (const r of leftover || []) { await Ledger.delete(r.id).catch(() => {}); }
+      const zones = await Zone.filter(`warehouse_id="${w.id}"`, { limit: 1000 }).catch(() => []);
+      for (const z of zones || []) { await Zone.delete(z.id).catch(() => {}); }
+      const locs = await Loc.filter(`warehouse_id="${w.id}"`, { limit: 2000 }).catch(() => []);
+      for (const l of locs || []) { await Loc.delete(l.id).catch(() => {}); }
+      await WH.delete(w.id);
+      logAction(user, "delete", "warehouse", w.id, `Xóa kho: ${w.name} (${w.code}) — kho trống`);
+      toast.show("🗑️ Đã xóa kho " + w.name);
+      setDel(null); setDelTarget(""); load();
+    } catch (e) { toast.show("Lỗi khi xóa kho: " + e.message, "error"); }
+    finally { setDelBusy(false); }
   }
 
   return (
@@ -207,12 +305,67 @@ function WarehouseTab({ user, toast }) {
                   <button style={S.btnSm(w.is_active?"#dc2626":"#059669")} onClick={()=>toggleActive(w)}>
                     {w.is_active?"🔴 Tắt":"🟢 Bật"}
                   </button>
+                  <button style={{...S.btnSm("#dc2626"), marginLeft:"auto"}} onClick={()=>startDelete(w)} title="Xóa kho (hàng sẽ được chuyển sang kho khác)">🗑️ Xóa</button>
                 </div>
               </div>
             ))}
           </div>
         )
       }
+
+      {del && (
+        <Modal title="🗑️ Xóa kho" onClose={()=>{ if(!delBusy) { setDel(null); setDelTarget(""); } }}>
+          <div style={{ fontSize:14, lineHeight:1.7, color:"#374151" }}>
+            <b style={{ color:"#1e1b4b" }}>🏭 {del.wh.name}</b> ({del.wh.code})
+          </div>
+          {del.stockRows.length === 0 ? (
+            <>
+              <div style={{ fontSize:13, color:"#059669", background:"#ecfdf5", borderRadius:10, padding:"10px 12px", marginTop:10 }}>
+                ✅ Kho không còn hàng ({del.zeroRows} dòng sổ tồn 0 sẽ được dọn). Khu vực và kệ của kho cũng bị xóa.
+              </div>
+              <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:14 }}>
+                <button style={S.btnGhost()} onClick={()=>{ setDel(null); setDelTarget(""); }}>Huỷ</button>
+                <button style={{...S.btn(), background:"#dc2626"}} onClick={doDeleteEmpty} disabled={delBusy}>🗑️ Xóa kho</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize:13, background:"#fef2f2", border:"1.5px solid #fecaca", borderRadius:10, padding:"10px 12px", marginTop:10, lineHeight:1.7 }}>
+                ⚠️ <b>Kho đang còn hàng — bắt buộc chuyển sang kho khác trước khi xóa!</b><br/>
+                {del.stockRows.length} mặt hàng · {del.totalQty} sản phẩm · giá trị ≈ {(del.totalValue||0).toLocaleString("vi-VN")}đ
+              </div>
+              {warehouses.filter(x => x.id !== del.wh.id && x.is_active).length > 0 ? (
+                <>
+                  <Field label="Kho nhận hàng *">
+                    <select value={delTarget} onChange={e=>setDelTarget(e.target.value)}
+                      style={{ ...S.input, height:42, background: delTarget?"#fff":"#fffbeb", fontWeight:700 }}>
+                      <option value="">— ⚠️ Chọn kho đích để chuyển hàng —</option>
+                      {warehouses.filter(x => x.id !== del.wh.id && x.is_active).map(x =>
+                        <option key={x.id} value={x.id}>{x.name} ({x.code})</option>)}
+                    </select>
+                  </Field>
+                  {del.stockRows.length > 100 && (
+                    <div style={{ fontSize:12, color:"#a16207", marginTop:6 }}>
+                      Kho có nhiều mặt hàng — quá trình chuyển + xóa có thể mất vài phút, đừng tắt trang.
+                    </div>
+                  )}
+                  <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:14 }}>
+                    <button style={S.btnGhost()} onClick={()=>{ setDel(null); setDelTarget(""); }} disabled={delBusy}>Huỷ</button>
+                    <button style={{...S.btn(), background: delTarget ? "#dc2626" : "#d1d5db" }} onClick={doDeleteWarehouse} disabled={delBusy || !delTarget}>
+                      {delBusy ? "⏳ Đang chuyển..." : `🔁 Chuyển hàng & Xóa kho`}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div style={{ fontSize:13, color:"#b91c1c", background:"#fef2f2", borderRadius:10, padding:"10px 12px", marginTop:10, lineHeight:1.7 }}>
+                  ❌ Không còn kho nào khác đang hoạt động để nhận hàng.<br/>
+                  Hãy <b>tạo kho mới</b> hoặc xuất hết hàng khỏi kho này trước, rồi mới xóa được.
+                </div>
+              )}
+            </>
+          )}
+        </Modal>
+      )}
 
       {modal==="form" && (
         <Modal title={editing?"Sửa kho":"Thêm kho mới"} onClose={()=>setModal(null)}>

@@ -5,9 +5,9 @@
  *       → tự tạo Danh mục mới nếu tên danh mục trong file chưa tồn tại.
  * @version 2026-09-15-v1
  */
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import * as XLSX from "xlsx";
-import { SparePart, ProductCategory, logAction, ensureStockLedgerForPart } from "./pb.jsx";
+import { SparePart, ProductCategory, logAction, Warehouse, ensureStockLedgerForPart } from "./pb.jsx";
 
 const TEMPLATE_HEADERS = [
   "Tên hàng hóa", "SKU", "Danh mục", "ĐVT", "Giá vốn", "Giá bán lẻ",
@@ -37,6 +37,8 @@ function parseNum(v) {
 
 export default function ProductImportExportModal({ user, items, categories, catMap, onClose, onImported }) {
   const [mode, setMode] = useState("menu"); // menu | preview | importing | done
+  const [whs, setWhs] = useState([]);          // kho đang hoạt động (ghi sổ tồn khi nhập)
+  const [importWh, setImportWh] = useState(""); // id kho được chọn để ghi sổ
   const [fileName, setFileName] = useState("");
   const [rows, setRows] = useState([]);       // dữ liệu thô parse từ file
   const [errors, setErrors] = useState([]);
@@ -135,6 +137,15 @@ export default function ProductImportExportModal({ user, items, categories, catM
     setMode("preview");
   }
 
+  useEffect(() => {
+    Warehouse.filter({ is_active: true }).then(list => {
+      const sorted = (list || []).sort((a,b)=>(a.code||"").localeCompare(b.code||""));
+      setWhs(sorted);
+      const kho1 = sorted.find(w => (w.code||"").toUpperCase() === "KHO1");
+      if (kho1) setImportWh(kho1.id);
+    }).catch(() => setWhs([]));
+  }, []);
+
   const summary = useMemo(() => {
     const toCreate = rows.filter(r => !r.existing).length;
     const toUpdate = rows.filter(r => r.existing).length;
@@ -146,6 +157,13 @@ export default function ProductImportExportModal({ user, items, categories, catM
 
   // ── THỰC HIỆN NHẬP ────────────────────────────────────────
   async function confirmImport() {
+    // Bắt buộc chọn kho ghi sổ — kho phải đang tồn tại thật (tránh hàng "mất kho" như lỗi trước)
+    if (!importWh || !whs.some(w => w.id === importWh)) {
+      alert("⚠️ Vui lòng chọn kho ghi sổ tồn kho trước khi nhập!\n" +
+        (!whs.length ? "Hiện chưa có kho nào đang hoạt động — hãy tạo kho trước." :
+         (importWh ? "Kho vừa chọn không còn tồn tại (có thể đã bị xóa) — chọn lại kho khác." : "Chưa chọn kho.")));
+      return;
+    }
     setBusy(true);
     setMode("importing");
     try {
@@ -184,13 +202,13 @@ export default function ProductImportExportModal({ user, items, categories, catM
             if (overwriteStock) payload.stock_qty = r.stock;
             await SparePart.update(r.existing.id, payload);
             logAction(user, "update", "spare_part", r.existing.id, "Cập nhật hàng hóa (nhập file): " + r.name);
-            await ensureStockLedgerForPart({ ...r.existing, ...payload });
+            await ensureStockLedgerForPart({ ...r.existing, ...payload }, importWh);
             updated++;
           } else {
             payload.stock_qty = r.stock;
             const rec = await SparePart.create(payload);
             logAction(user, "create", "spare_part", rec.id, "Tạo hàng hóa mới (nhập file): " + r.name);
-            await ensureStockLedgerForPart(rec);
+            await ensureStockLedgerForPart(rec, importWh);
             created++;
           }
         } catch (e) { failed++; }
@@ -323,9 +341,24 @@ export default function ProductImportExportModal({ user, items, categories, catM
               </table>
             </div>
 
-            <div style={{ display:"flex", gap:10, marginTop:18 }}>
+            <div style={{ marginTop:18, padding:"12px 14px", border:"1.5px dashed #f59e0b", borderRadius:12, background:"#fffbeb" }}>
+              <div style={{ fontSize:13, fontWeight:800, color:"#92400e", marginBottom:6 }}>🏭 Kho ghi sổ tồn — BẮT BUỘC</div>
+              <select
+                value={importWh}
+                onChange={e => setImportWh(e.target.value)}
+                style={{ width:"100%", height:40, borderRadius:10, border:"1.5px solid #f59e0b", padding:"0 10px", fontSize:14, fontWeight:700, background:"#fff", boxSizing:"border-box" }}>
+                <option value="">— ⚠️ Chọn kho để ghi sổ tồn —</option>
+                {whs.map(w => <option key={w.id} value={w.id}>{w.name} ({w.code})</option>)}
+              </select>
+              <div style={{ fontSize:11, color:"#a16207", marginTop:6, lineHeight:1.5 }}>
+                Hàng có tồn kho &gt; 0 sẽ được ghi sổ vào kho này để xuất/nhập kho hoạt động đúng.
+                Không chọn kho hoặc kho không còn tồn tại → hệ thống sẽ chặn, không cho nhập.
+              </div>
+            </div>
+
+            <div style={{ display:"flex", gap:10, marginTop:14 }}>
               <button onClick={()=>{ setMode("menu"); setRows([]); setErrors([]); }} style={{ flex:1, height:44, borderRadius:12, border:"1.5px solid #e5e7eb", background:"#fff", fontWeight:700, cursor:"pointer" }}>Huỷ</button>
-              <button onClick={confirmImport} disabled={busy || rows.length===0} style={{ flex:2, height:44, borderRadius:12, border:"none", background:"#059669", color:"#fff", fontWeight:800, cursor:"pointer", opacity: busy?0.6:1 }}>
+              <button onClick={confirmImport} disabled={busy || rows.length===0} style={{ flex:2, height:44, borderRadius:12, border:"none", background: (importWh && whs.some(w=>w.id===importWh)) ? "#059669" : "#d1d5db", color:"#fff", fontWeight:800, cursor:"pointer", opacity: busy?0.6:1 }}>
                 ✅ Xác nhận nhập {summary.total} hàng hóa
               </button>
             </div>
