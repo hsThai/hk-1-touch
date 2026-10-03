@@ -1,6 +1,6 @@
 /* ChangePassword - Đổi mật khẩu cho user hiện tại */
 import React, { useState } from "react";
-import { Staff, pbAuth, getPbUrl, getAuth, logAction } from "./pb.jsx";
+import { Staff, logAction } from "./pb.jsx";
 
 export default function ChangePassword({ user, onClose, onSuccess, forceChange = false }) {
   const [oldPw, setOldPw] = useState("");
@@ -22,50 +22,33 @@ export default function ChangePassword({ user, onClose, onSuccess, forceChange =
 
     setLoading(true);
     try {
-      // Xác minh mật khẩu cũ (nếu không phải force change)
+      // Xác minh mật khẩu cũ (nếu không phải force change) — so khớp password_hash
       if (!forceChange) {
-        try {
-          await pbAuth.loginStaff(user.username, oldPw.trim());
-        } catch {
-          // Fallback: check password_hash
-          const staffList = await Staff.filter({ username: user.username });
-          const staff = staffList[0];
-          if (staff) {
-            const hashedOld = btoa(unescape(encodeURIComponent(oldPw.trim())));
-            if (staff.password_hash !== hashedOld) {
-              setErr("Mật khẩu hiện tại không đúng!");
-              setLoading(false);
-              return;
-            }
-          }
+        const staffList = await Staff.filter({ username: user.username });
+        const staff = staffList[0];
+        if (!staff) {
+          setErr("Không tìm thấy tài khoản!");
+          setLoading(false);
+          return;
+        }
+        const hashedOld = btoa(unescape(encodeURIComponent(oldPw.trim())));
+        if (staff.password_hash !== hashedOld) {
+          setErr("Mật khẩu hiện tại không đúng!");
+          setLoading(false);
+          return;
         }
       }
 
-      // Đổi mật khẩu mới qua PocketBase API
-      try {
-        const baseUrl = getPbUrl();
-        const { token } = getAuth();
-        await fetch(`${baseUrl}/api/collections/staff/records/${user.id}`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: token } : {}),
-          },
-          body: JSON.stringify({
-            password: newPw,
-            passwordConfirm: newPw,
-            must_change_password: false,
-          }),
-        });
-      } catch {
-        // Fallback: lưu hash vào password_hash field
-        const hashedNew = btoa(unescape(encodeURIComponent(newPw.trim())));
-        await Staff.update(user.id, {
-          password_hash: hashedNew,
-          must_change_password: false,
-        });
-        logAction(user, "update", "staff", user.id, `Đổi mật khẩu (fallback): ${user.full_name||user.name||""}`);
-      }
+      // staff là collection kiểu "base" (không phải auth) nên KHÔNG có field
+      // password/passwordConfirm — bắt buộc lưu qua password_hash (base64).
+      // (Cách cũ gọi PATCH với password/passwordConfirm bị PocketBase âm thầm
+      // bỏ qua => mật khẩu mới không được lưu => lần sau đăng nhập thất bại.)
+      const hashedNew = btoa(unescape(encodeURIComponent(newPw.trim())));
+      await Staff.update(user.id, {
+        password_hash: hashedNew,
+        must_change_password: false,
+      });
+      logAction(user, "update", "staff", user.id, `Đổi mật khẩu: ${user.full_name||user.name||""}`);
 
       setSuccess(true);
       setTimeout(() => {
