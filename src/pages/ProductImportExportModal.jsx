@@ -141,8 +141,8 @@ export default function ProductImportExportModal({ user, items, categories, catM
     Warehouse.filter({ is_active: true }).then(list => {
       const sorted = (list || []).sort((a,b)=>(a.code||"").localeCompare(b.code||""));
       setWhs(sorted);
-      const kho1 = sorted.find(w => (w.code||"").toUpperCase() === "KHO1");
-      if (kho1) setImportWh(kho1.id);
+      const kho16 = sorted.find(w => (w.code||"").toUpperCase() === "KHO16");
+      if (kho16) setImportWh(kho16.id);
     }).catch(() => setWhs([]));
   }, []);
 

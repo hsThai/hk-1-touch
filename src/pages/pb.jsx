@@ -279,9 +279,9 @@ export async function ensureStockLedgerForPart(part, warehouseId) {
     const ledgers = (await StockLedger.filter({ part_id: part.id }).catch(() => [])) || [];
     const live = ledgers.filter(l => liveIds.includes(l.warehouse_id));
     if (live.length > 0) return null; // đã có sổ kho hợp lệ — không đụng vào
-    // Ưu tiên kho được chỉ định (phải đang hoạt động), mặc định Kho 1
+    // Ưu tiên kho được chỉ định (phải đang hoạt động), mặc định Kho16 (kho chính)
     const kho = (warehouseId && liveIds.includes(warehouseId) ? whs.find(w => w.id === warehouseId) : null)
-      || whs.find(w => (w.code || "").toUpperCase() === "KHO1") || whs[0];
+      || whs.find(w => (w.code || "").toUpperCase() === "KHO16") || whs[0];
     if (!kho) return null;
     return await StockLedger.create({
       warehouse_id: kho.id, warehouse_name: kho.name,
