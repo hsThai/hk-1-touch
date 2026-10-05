@@ -313,7 +313,7 @@ const MGR_ACCORDIONS = [
     pages: ["new","board","tasks"],
     items: [
       { key:"new",   icon:"add_circle",  label:"Tạo đơn" },
-      { key:"board", icon:"view_kanban", label:"Bảng điều phối (Kanban)" },
+      { key:"board", icon:"view_kanban", label:"Theo dõi đơn sửa" },
       { key:"tasks", icon:"list_alt",    label:"Danh sách & Lịch sử đơn" },
     ],
   },
@@ -1604,15 +1604,28 @@ function MainAppContent({ onUserChange }) {
   const colBorder = { "Chờ KTV":"#fca5a5","KTV Đang Kiểm":"#7dd3fc","Chờ Báo Giá":"#fcd34d","Chờ Xác Nhận":"#fbcfe8","Chờ KTV Sửa":"#ddd6fe","Đang Sửa":"#c4b5fd","Chờ Linh Kiện":"#fed7aa","Hoàn Thành":"#86efac","Đã Giao":"#cbd5e1" };
 
   function KanbanBoard() {
+    const topScrollRef = useRef(null);
+    const kanbanContentWidth = COLUMNS.length * 242 + 32; // 230 flex + 12 gap, khớp minWidth cột dưới
+
     // Dùng ref từ outer scope → không bị reset khi re-render
     useLayoutEffect(() => {
       const el = kanbanScrollRef.current;
-      if (!el) return;
-      el.scrollLeft = kanbanScrollLeft.current;
+      const top = topScrollRef.current;
+      if (el) el.scrollLeft = kanbanScrollLeft.current;
+      if (top) top.scrollLeft = kanbanScrollLeft.current;
     }, []); // restore sau mount
 
     const handleScroll = (e) => {
       kanbanScrollLeft.current = e.currentTarget.scrollLeft;
+      if (topScrollRef.current && topScrollRef.current !== e.currentTarget) {
+        topScrollRef.current.scrollLeft = e.currentTarget.scrollLeft;
+      }
+    };
+    const handleTopScroll = (e) => {
+      kanbanScrollLeft.current = e.currentTarget.scrollLeft;
+      if (kanbanScrollRef.current && kanbanScrollRef.current !== e.currentTarget) {
+        kanbanScrollRef.current.scrollLeft = e.currentTarget.scrollLeft;
+      }
     };
 
     const filterLabel = dashboardFilter==="active"?"Đang xử lý":dashboardFilter==="done"?"Hoàn thành":dashboardFilter==="needs_reassign"?"Cần xử lý":null;
@@ -1628,6 +1641,15 @@ function MainAppContent({ onUserChange }) {
             <button onClick={()=>setDashboardFilter(null)} style={{ background:"none", border:"none", color:"#6b7280", cursor:"pointer", fontSize:12, fontWeight:600, padding:"4px 8px" }}>✕ Bỏ lọc</button>
           </div>
         )}
+      {/* Thanh cuộn ngang nổi trên đầu, luôn hiển thị khi cuộn dọc (sticky) */}
+      <div
+        ref={topScrollRef}
+        onScroll={handleTopScroll}
+        style={{ position:"sticky", top:0, zIndex:40, overflowX:"auto", overflowY:"hidden",
+          height:14, padding:"0 16px", background:"#f8fafc", borderBottom:"1px solid #e5e7eb" }}
+      >
+        <div style={{ minWidth: kanbanContentWidth, height:1 }} />
+      </div>
       <div
         ref={kanbanScrollRef}
         onScroll={handleScroll}
@@ -1937,7 +1959,7 @@ function MainAppContent({ onUserChange }) {
   // ─── Header gradient config theo phân hệ (PC topbar) ───
   const PAGE_HEADER_CONFIG = {
     "new":              { label:"🔧 Tạo đơn sửa chữa",       grad:["#4f46e5","#3730a3"] },
-    "board":            { label:"📋 Bảng điều phối",           grad:["#4f46e5","#3730a3"] },
+    "board":            { label:"📋 Theo dõi đơn sửa",         grad:["#4f46e5","#3730a3"] },
     "tasks":            { label:"📄 Danh sách & Lịch sử đơn", grad:["#4f46e5","#3730a3"] },
     "ktv_home":         { label:"🔧 Góc KTV",                 grad:["#4f46e5","#3730a3"] },
     "rec_home":         { label:"📝 Tiếp nhận",               grad:["#4f46e5","#3730a3"] },
@@ -2131,7 +2153,7 @@ function MainAppContent({ onUserChange }) {
               {page==="my_tasks" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><MyTasksPage user={user} orders={orders} setPage={setPage} onNewOrder={()=>setShowNewOrder(true)} onOpenCashier={(tab)=>{setCashierTab(tab||"");setPage("cashier_home");}} onOpenPackShip={openPackShip} /></Suspense>}
               {page==="ktv_home" && <TechnicianHome user={user} orders={orders} setPage={setPage} />}
               {page==="rec_home" && <ReceptionHome user={user} orders={orders} setPage={setPage} />}
-              {page==="board" && (can("repair_order","view") ? <KanbanBoard /> : <AccessDenied pageName="Bảng Kanban" />)}
+              {page==="board" && (can("repair_order","view") ? <KanbanBoard /> : <AccessDenied pageName="Theo dõi đơn sửa" />)}
               {page==="tasks" && (can("repair_order","view") ? <TaskList /> : <AccessDenied pageName="Danh sách đơn" />)}
               {page==="new" && (can("repair_order","create") ? <div style={{padding:24}}><button onClick={() => setShowNewOrder(true)} style={{ width:"100%", height:52, background:"linear-gradient(135deg,#4f46e5,#7c3aed)", color:"#fff", border:"none", borderRadius:14, fontWeight:800, fontSize:16, cursor:"pointer" }}>+ Tạo Đơn Mới</button></div> : <AccessDenied pageName="Tạo đơn" />)}
               {page==="customers" && (can("customer","view") ? <Suspense fallback={<div style={{padding:32,textAlign:"center"}}>⏳</div>}><CustomerManagerPage user={user} /></Suspense> : <AccessDenied pageName="Khách hàng" />)}
@@ -2401,7 +2423,7 @@ function MainAppContent({ onUserChange }) {
         {page==="my_tasks" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><MyTasksPage user={user} orders={orders} setPage={setPage} onNewOrder={()=>setShowNewOrder(true)} onOpenCashier={(tab)=>{setCashierTab(tab||"");setPage("cashier_home");}} onOpenPackShip={openPackShip} /></Suspense>}
         {page==="ktv_home" && <TechnicianHome user={user} orders={orders} setPage={setPage} />}
         {page==="rec_home" && <ReceptionHome user={user} orders={orders} setPage={setPage} />}
-        {page==="board" && (can("repair_order","view") ? <KanbanBoard /> : <AccessDenied pageName="Bảng Kanban" />)}
+        {page==="board" && (can("repair_order","view") ? <KanbanBoard /> : <AccessDenied pageName="Theo dõi đơn sửa" />)}
         {page==="tasks" && (can("repair_order","view") ? <TaskList /> : <AccessDenied pageName="Danh sách đơn" />)}
         {page==="new" && can("repair_order","create") && (
           <div style={{ padding:"0 0 80px" }}>
