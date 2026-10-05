@@ -179,6 +179,24 @@ export function renderSalesPages(page, user, can) {
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
         : <Suspense fallback={<Loading />}><StockCountPage user={user} /></Suspense>
       )}
+      {/* Tồn kho / LK lỗi-RMA / Vận đơn / Báo cáo kho — trước đây chỉ render ở nhánh mobile,
+          khiến bên PC bấm vào hiện trang trắng. Thêm vào đây để PC dùng chung component. */}
+      {page === "wh_ledger" && user && (can && !can("stock_ledger","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <Suspense fallback={<Loading />}><WhLedgerPageLazy user={user} /></Suspense>
+      )}
+      {page === "wh_defect" && user && (can && !can("stock_import","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <Suspense fallback={<Loading />}><WhDefectPageLazy user={user} /></Suspense>
+      )}
+      {page === "wh_shipping" && user && (can && !can("stock_import","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <Suspense fallback={<Loading />}><WhShippingPageLazy user={user} /></Suspense>
+      )}
+      {page === "wh_report" && user && (can && !can("stock_ledger","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
+        : <Suspense fallback={<Loading />}><WhReportPageLazy user={user} /></Suspense>
+      )}
     </>
   );
 }
