@@ -523,6 +523,7 @@ function WarehouseExport({ user }) {
               <div style={{ background:"#f9fafb", borderRadius:12, padding:12, marginBottom:12, fontSize:13 }}>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{color:"#6b7280"}}>Đơn sửa</span><span style={{fontWeight:700}}>{viewReq.order_code}</span></div>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{color:"#6b7280"}}>Hạn xuất</span><span style={{fontWeight:700,color:(new Date(viewReq.due_datetime)<Date.now())?"#dc2626":"#111"}}>{new Date(viewReq.due_datetime).toLocaleString("vi-VN")}</span></div>
+                {viewReq.warehouse_confirmed_at && <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{color:"#6b7280"}}>Ngày giờ xuất</span><span style={{fontWeight:700,color:"#059669"}}>{new Date(viewReq.warehouse_confirmed_at).toLocaleString("vi-VN")}</span></div>}
                 {viewReq.export_type==="borrow" && <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{color:"#6b7280"}}>Hạn trả</span><span style={{fontWeight:700,color:"#7c3aed"}}>{viewReq.return_due_date?new Date(viewReq.return_due_date).toLocaleDateString("vi-VN"):"—"}</span></div>}
                 <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#6b7280"}}>Tổng giá trị</span><span style={{fontWeight:900,color:"#4f46e5"}}>{(viewReq.total_value||0).toLocaleString("vi-VN")}đ</span></div>
               </div>
