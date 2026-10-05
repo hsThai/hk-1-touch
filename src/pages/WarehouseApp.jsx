@@ -392,12 +392,25 @@ function WarehouseExport({ user }) {
     setConfirming(false);
   }
 
+  const [uploadingMedia, setUploadingMedia] = React.useState(false);
+
+  // Upload thật lên PocketBase (media_files) — KHÔNG lưu base64 trực tiếp vào
+  // field text (warehouse_media chỉ cho phép tối đa 5000 ký tự ở PocketBase,
+  // 1 ảnh base64 đã vượt xa giới hạn này → lỗi "Failed to update record.")
   async function handleMediaUpload(e) {
-    for (const file of Array.from(e.target.files)) {
-      const reader = new FileReader();
-      reader.onload = ev => setConfirmMedia(prev=>[...prev,{name:file.name,url:ev.target.result,type:file.type}]);
-      reader.readAsDataURL(file);
+    const files = Array.from(e.target.files);
+    e.target.value = "";
+    if (files.length === 0) return;
+    setUploadingMedia(true);
+    try {
+      for (const file of files) {
+        const url = await uploadFile(file, viewReq?.order_id || "");
+        setConfirmMedia(prev => [...prev, { name: file.name, url, type: file.type }]);
+      }
+    } catch (err) {
+      showToast("Lỗi tải ảnh/video: " + err.message);
     }
+    setUploadingMedia(false);
   }
 
   const ST_CFG = {
@@ -510,9 +523,9 @@ function WarehouseExport({ user }) {
                     placeholder="Ghi chú (tuỳ chọn)..."
                     style={{ width:"100%", minHeight:56, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"8px 12px", fontSize:13, outline:"none", resize:"vertical", boxSizing:"border-box", marginBottom:10 }}/>
                   <div style={{ marginBottom:12 }}>
-                    <button onClick={()=>fileRef.current?.click()}
-                      style={{ height:38, padding:"0 14px", borderRadius:10, border:"1.5px solid #6ee7b7", background:"#fff", color:"#059669", fontWeight:700, fontSize:13, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
-                      <span className="material-icons" style={{fontSize:16}}>add_a_photo</span>Chụp ảnh / Quay video
+                    <button onClick={()=>fileRef.current?.click()} disabled={uploadingMedia}
+                      style={{ height:38, padding:"0 14px", borderRadius:10, border:"1.5px solid #6ee7b7", background:"#fff", color:"#059669", fontWeight:700, fontSize:13, cursor:uploadingMedia?"default":"pointer", display:"flex", alignItems:"center", gap:6, opacity:uploadingMedia?0.6:1 }}>
+                      <span className="material-icons" style={{fontSize:16}}>add_a_photo</span>{uploadingMedia?"Đang tải lên...":"Chụp ảnh / Quay video"}
                     </button>
                     <input ref={fileRef} type="file" accept="image/*,video/*" multiple capture="environment" style={{display:"none"}} onChange={handleMediaUpload}/>
                     {confirmMedia.length>0 && (
@@ -526,8 +539,8 @@ function WarehouseExport({ user }) {
                       </div>
                     )}
                   </div>
-                  <button onClick={doConfirmExport} disabled={confirming}
-                    style={{ width:"100%", height:50, borderRadius:14, border:"none", background:"linear-gradient(135deg,#059669,#047857)", color:"#fff", fontWeight:900, fontSize:16, cursor:confirming?"not-allowed":"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                  <button onClick={doConfirmExport} disabled={confirming||uploadingMedia}
+                    style={{ width:"100%", height:50, borderRadius:14, border:"none", background:"linear-gradient(135deg,#059669,#047857)", color:"#fff", fontWeight:900, fontSize:16, cursor:(confirming||uploadingMedia)?"not-allowed":"pointer", opacity:uploadingMedia?0.6:1, display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
                     <span className="material-icons" style={{fontSize:22}}>inventory</span>
                     {confirming?"Đang xử lý...":"✅ Xác nhận đã xuất kho"}
                   </button>

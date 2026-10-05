@@ -1,7 +1,7 @@
 /* REBUILD_20260406_1408 */
 /* v3-export-request-flow — fixed JSX */
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { SparePart, SparePartUsage, RepairChat, RepairOrder, Notification, Staff, StockExportRequest, Warehouse, StockLedger, logAction } from "./pb.jsx";
+import { SparePart, SparePartUsage, RepairChat, RepairOrder, Notification, Staff, StockExportRequest, Warehouse, StockLedger, logAction, uploadFile } from "./pb.jsx";
 
 function genCode() {
   const n = new Date();
@@ -282,12 +282,25 @@ function RequestDetailModal({viewReq, setViewReq, currentStaff, order, requests,
 
   function close() { setViewReq(null); setConfirmMode(null); setConfirmNote(""); setConfirmMedia([]); }
 
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+
+  // Upload thật lên PocketBase (media_files) — KHÔNG lưu base64 trực tiếp vào
+  // field text (warehouse_media/ktv_media chỉ cho phép tối đa 5000 ký tự ở
+  // PocketBase, 1 ảnh base64 đã vượt xa giới hạn này → lỗi "Failed to update record.")
   async function handleMediaUpload(e) {
-    for (const file of Array.from(e.target.files)) {
-      const reader = new FileReader();
-      reader.onload = ev => setConfirmMedia(prev=>[...prev,{name:file.name,url:ev.target.result,type:file.type}]);
-      reader.readAsDataURL(file);
+    const files = Array.from(e.target.files);
+    e.target.value = "";
+    if (files.length === 0) return;
+    setUploadingMedia(true);
+    try {
+      for (const file of files) {
+        const url = await uploadFile(file, order?.id || "");
+        setConfirmMedia(prev => [...prev, { name: file.name, url, type: file.type }]);
+      }
+    } catch (err) {
+      showToast("Lỗi tải ảnh/video: " + err.message);
     }
+    setUploadingMedia(false);
   }
 
   async function doWarehouse() {
@@ -393,9 +406,9 @@ function RequestDetailModal({viewReq, setViewReq, currentStaff, order, requests,
                 style={{width:"100%",minHeight:56,borderRadius:10,border:"1.5px solid #bbf7d0",padding:"8px 10px",fontSize:13,outline:"none",resize:"vertical",boxSizing:"border-box",marginBottom:10}}/>
               {confirmMode!=="return" && (
                 <div style={{marginBottom:10}}>
-                  <button onClick={()=>fileRef.current?.click()}
-                    style={{height:36,padding:"0 14px",borderRadius:10,border:"1.5px solid #6ee7b7",background:"#fff",color:"#059669",fontWeight:700,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
-                    <span className="material-icons" style={{fontSize:16}}>add_a_photo</span>Chụp ảnh / Quay video
+                  <button onClick={()=>fileRef.current?.click()} disabled={uploadingMedia}
+                    style={{height:36,padding:"0 14px",borderRadius:10,border:"1.5px solid #6ee7b7",background:"#fff",color:"#059669",fontWeight:700,fontSize:13,cursor:uploadingMedia?"default":"pointer",display:"flex",alignItems:"center",gap:6,opacity:uploadingMedia?0.6:1}}>
+                    <span className="material-icons" style={{fontSize:16}}>add_a_photo</span>{uploadingMedia?"Đang tải lên...":"Chụp ảnh / Quay video"}
                   </button>
                   <input ref={fileRef} type="file" accept="image/*,video/*" multiple capture="environment" style={{display:"none"}} onChange={handleMediaUpload}/>
                   {confirmMedia.length>0 && (
@@ -413,8 +426,8 @@ function RequestDetailModal({viewReq, setViewReq, currentStaff, order, requests,
               <div style={{display:"flex",gap:8}}>
                 <button onClick={()=>{setConfirmMode(null);setConfirmNote("");setConfirmMedia([]);}}
                   style={{flex:1,height:42,borderRadius:12,border:"1.5px solid #e5e7eb",background:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>Hủy</button>
-                <button onClick={confirmMode==="warehouse"?doWarehouse:confirmMode==="ktv"?doKtv:doReturn} disabled={confirming}
-                  style={{flex:2,height:42,borderRadius:12,border:"none",background:"#059669",color:"#fff",fontWeight:800,fontSize:14,cursor:confirming?"not-allowed":"pointer"}}>
+                <button onClick={confirmMode==="warehouse"?doWarehouse:confirmMode==="ktv"?doKtv:doReturn} disabled={confirming||uploadingMedia}
+                  style={{flex:2,height:42,borderRadius:12,border:"none",background:"#059669",color:"#fff",fontWeight:800,fontSize:14,cursor:(confirming||uploadingMedia)?"not-allowed":"pointer",opacity:uploadingMedia?0.6:1}}>
                   {confirming?"Đang xử lý...":"✅ Xác nhận"}
                 </button>
               </div>
