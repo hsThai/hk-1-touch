@@ -10,7 +10,7 @@ import {
   StockLedger, StockMovement, ActionLog, CashJournal, DebtVoucher, Supplier,
   PurchaseOrder, PurchaseOrderItem, Warehouse,
   getPbUrl, getAuth, logHistory, logAction, getLocalDate } from "./pb.jsx";
-import { uploadFile } from "./pb.jsx";
+import { uploadFile, getVideoDuration, MAX_VIDEO_SECONDS } from "./pb.jsx";
 import {
   timeAgo, genOrderId, getKpiTimerInfo,
   MediaViewer, AcceptChecklistModal, AcceptTimer,
@@ -404,6 +404,13 @@ function WarehouseExport({ user }) {
     setUploadingMedia(true);
     try {
       for (const file of files) {
+        if ((file.type || "").startsWith("video")) {
+          const dur = await getVideoDuration(file);
+          if (dur && dur > MAX_VIDEO_SECONDS) {
+            showToast(`⏱️ Video tối đa ${MAX_VIDEO_SECONDS} giây (video này ${Math.round(dur)}s)`);
+            continue;
+          }
+        }
         const url = await uploadFile(file, viewReq?.order_id || "");
         setConfirmMedia(prev => [...prev, { name: file.name, url, type: file.type }]);
       }

@@ -348,11 +348,48 @@ export async function logAction(user, action, target_type, target_id = "", detai
 }
 
 // ── File Upload ───────────────────────────────────────────
+// Nén ảnh về tối đa maxDim px (mặc định FullHD 1920) trước khi upload.
+// Ảnh nhỏ hơn hoặc nén không lợi thì giữ nguyên file gốc.
+export async function compressImageToMaxDim(file, maxDim = 1920, quality = 0.85) {
+  if (!(file.type || "").startsWith("image") || file.type === "image/gif") return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+    if (scale >= 1) { bitmap.close?.(); return file; } // đã nhỏ hơn giới hạn
+    const w = Math.round(bitmap.width * scale), h = Math.round(bitmap.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    canvas.getContext("2d").drawImage(bitmap, 0, 0, w, h);
+    bitmap.close?.();
+    const blob = await new Promise(r => canvas.toBlob(r, "image/jpeg", quality));
+    if (!blob || blob.size >= file.size) return file;
+    const name = (file.name || "photo").replace(/\.[^.]+$/, "") + ".jpg";
+    return new File([blob], name, { type: "image/jpeg" });
+  } catch (e) { return file; } // lỗi nén thì upload bản gốc, không chặn nghiệp vụ
+}
+
+// Đọc thời lượng video (giây). Trả về null nếu không đọc được metadata.
+export function getVideoDuration(file) {
+  return new Promise(resolve => {
+    const url = URL.createObjectURL(file);
+    const v = document.createElement("video");
+    v.preload = "metadata";
+    v.onloadedmetadata = () => { URL.revokeObjectURL(url); resolve(v.duration || null); };
+    v.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    v.src = url;
+  });
+}
+
+export const MAX_VIDEO_SECONDS = 15;
+
 export async function uploadFile(file, orderId = "") {
   const base = getPbUrl();
   const { token } = getAuth();
   const authHeaders = token ? { Authorization: token } : {};
   const fileType = file.type || "";
+
+  // Giới hạn ảnh tối đa FullHD 1920px trước khi upload
+  file = await compressImageToMaxDim(file);
 
   const formData = new FormData();
   // Đặt tên field "file" — PocketBase sẽ nhận bất kỳ tên file nào

@@ -1,7 +1,7 @@
 /* REBUILD_20260406_1408 */
 /* v3-export-request-flow — fixed JSX */
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { SparePart, SparePartUsage, RepairChat, RepairOrder, Notification, Staff, StockExportRequest, Warehouse, StockLedger, logAction, uploadFile } from "./pb.jsx";
+import { SparePart, SparePartUsage, RepairChat, RepairOrder, Notification, Staff, StockExportRequest, Warehouse, StockLedger, logAction, uploadFile, getVideoDuration, MAX_VIDEO_SECONDS } from "./pb.jsx";
 
 function genCode() {
   const n = new Date();
@@ -294,6 +294,13 @@ function RequestDetailModal({viewReq, setViewReq, currentStaff, order, requests,
     setUploadingMedia(true);
     try {
       for (const file of files) {
+        if ((file.type || "").startsWith("video")) {
+          const dur = await getVideoDuration(file);
+          if (dur && dur > MAX_VIDEO_SECONDS) {
+            showToast(`⏱️ Video tối đa ${MAX_VIDEO_SECONDS} giây (video này ${Math.round(dur)}s)`);
+            continue;
+          }
+        }
         const url = await uploadFile(file, order?.id || "");
         setConfirmMedia(prev => [...prev, { name: file.name, url, type: file.type }]);
       }
