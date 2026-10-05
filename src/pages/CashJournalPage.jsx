@@ -17,6 +17,13 @@ const ALLOWED = ["owner","admin","manager","accountant","cashier"];
 
 // ── Modal ghi thủ công ────────────────────────────────────
 function ManualEntryModal({ user, onSave, onClose }) {
+  const [isPC, setIsPC] = React.useState(() => window.innerWidth >= 900);
+  React.useEffect(() => {
+    const fn = () => setIsPC(window.innerWidth >= 900);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
+
   const today = new Date().toISOString().slice(0,10);
   const [form, setForm] = useState({
     journal_date: today, entry_type:"receipt",
@@ -49,8 +56,8 @@ function ManualEntryModal({ user, onSave, onClose }) {
   }
 
   return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.45)", zIndex:9999, display:"flex", alignItems:"flex-end", justifyContent:"center" }} onClick={onClose}>
-      <div style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:"24px 16px 40px", width:"100%", maxWidth:480, maxHeight:"80vh", overflowY:"auto" }} onClick={e=>e.stopPropagation()}>
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.45)", zIndex:9999, display:"flex", alignItems:isPC?"center":"flex-end", justifyContent:"center", padding:isPC?20:0 }} onClick={onClose}>
+      <div style={{ background:"#fff", borderRadius:isPC?16:"20px 20px 0 0", padding:"24px 16px 40px", width:"100%", maxWidth:480, maxHeight:isPC?"85vh":"80vh", overflowY:"auto", boxShadow:isPC?"0 24px 70px rgba(0,0,0,.3)":"none" }} onClick={e=>e.stopPropagation()}>
         <div style={{ fontWeight:800, fontSize:16, marginBottom:18 }}>➕ Ghi thủ công</div>
 
         <div style={{ marginBottom:12 }}>

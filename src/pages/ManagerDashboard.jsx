@@ -703,6 +703,12 @@ function StaffKpiTab({ staff, repairOrders }) {
 }
 
 function StaffModal({ staff: s, repairOrders, onClose }) {
+  const [isPC, setIsPC] = React.useState(() => window.innerWidth >= 900);
+  React.useEffect(() => {
+    const fn = () => setIsPC(window.innerWidth >= 900);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
   const myOrders = repairOrders.filter(o=>o.assigned_to===s.id);
   const recent10 = [...myOrders].sort((a,b)=>new Date(b.received_date||b.created_date||b.created)-new Date(a.received_date||a.created_date||a.created)).slice(0,10);
   const statusCount = {};
@@ -713,10 +719,10 @@ function StaffModal({ staff: s, repairOrders, onClose }) {
 
   return (
     <div onClick={onClose}
-      style={{ position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:300,display:"flex",alignItems:"flex-end" }}>
+      style={{ position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:300,display:"flex",alignItems:isPC?"center":"flex-end",justifyContent:"center",padding:isPC?20:0 }}>
       <div onClick={e=>e.stopPropagation()}
-        style={{ background:"#fff",borderRadius:"20px 20px 0 0",padding:"20px 16px 48px",
-          width:"100%",maxHeight:"80vh",overflowY:"auto" }}>
+        style={{ background:"#fff",borderRadius:isPC?16:"20px 20px 0 0",padding:"20px 16px 48px",
+          width:"100%",maxWidth:isPC?480:"100%",maxHeight:isPC?"85vh":"80vh",overflowY:"auto",boxShadow:isPC?"0 24px 70px rgba(0,0,0,.3)":"none" }}>
         {/* Header */}
         <div style={{ display:"flex",alignItems:"center",gap:12,marginBottom:20 }}>
           <div style={{ width:48,height:48,borderRadius:"50%",background:"#e5e7eb",

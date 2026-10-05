@@ -797,10 +797,10 @@ export default function SaleOrderPage({ user }) {
       {/* ─── 9. Detail modal ─── */}
       {detailOrder && (
         <div onClick={()=>setDetailOrder(null)}
-          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.5)", zIndex:200, display:"flex", alignItems:"flex-end" }}>
+          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.5)", zIndex:200, display:"flex", alignItems:isPC?"center":"flex-end", justifyContent:"center", padding:isPC?20:0 }}>
           <div onClick={e=>e.stopPropagation()}
-            style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:"20px 16px 40px",
-              width:"100%", maxHeight:"80vh", overflowY:"auto" }}>
+            style={{ background:"#fff", borderRadius:isPC?16:"20px 20px 0 0", padding:"20px 16px 40px",
+              width:"100%", maxWidth:isPC?480:"100%", maxHeight:isPC?"85vh":"80vh", overflowY:"auto", boxShadow:isPC?"0 24px 70px rgba(0,0,0,.3)":"none" }}>
             <div style={{ fontWeight:900, fontSize:16, marginBottom:4 }}>{detailOrder.order_code}</div>
             <div style={{ fontSize:12, color:"#6b7280", marginBottom:16 }}>{fmtDateTime(detailOrder.created_date||detailOrder.created)}</div>
             {(detailOrder.items||[]).map((it,i) => (

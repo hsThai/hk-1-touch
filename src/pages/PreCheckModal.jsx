@@ -70,6 +70,12 @@ const MI = ({ name, style = {} }) => (
 //  PreCheckModal — QT1 Tiếp tân
 // ══════════════════════════════════════════════
 export default function PreCheckModal({ order, currentUser, users, onClose, onDone }) {
+  const [isPC, setIsPC] = useState(() => window.innerWidth >= 900);
+  useEffect(() => {
+    const fn = () => setIsPC(window.innerWidth >= 900);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
   const [qt1, setQt1]       = useState({}); // { key: { checked, note } }
   const [note, setNote]      = useState("");
   const [images, setImages]  = useState([]);
@@ -116,9 +122,9 @@ export default function PreCheckModal({ order, currentUser, users, onClose, onDo
   const checkedCount = QT1_ITEMS.filter(i => qt1[i.key]?.checked).length;
 
   return (
-    <div style={{ position:"fixed", inset:0, zIndex:2000, background:"rgba(0,0,0,.65)", display:"flex", alignItems:"flex-end" }}
+    <div style={{ position:"fixed", inset:0, zIndex:2000, background:"rgba(0,0,0,.65)", display:"flex", alignItems:isPC?"center":"flex-end", justifyContent:"center", padding:isPC?20:0 }}
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ width:"100%", maxHeight:"92vh", background:"#fff", borderRadius:"24px 24px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      <div style={{ width:"100%", maxWidth:isPC?560:"100%", maxHeight:isPC?"90vh":"92vh", background:"#fff", borderRadius:isPC?18:"24px 24px 0 0", display:"flex", flexDirection:"column", overflow:"hidden", boxShadow:isPC?"0 24px 70px rgba(0,0,0,.35)":"none" }}>
 
         {/* Header */}
         <div style={{ background:"linear-gradient(135deg,#0369a1,#0284c7)", padding:"16px 18px", flexShrink:0 }}>
@@ -246,6 +252,12 @@ export default function PreCheckModal({ order, currentUser, users, onClose, onDo
 //  QT2Modal — KTV kiểm tra sâu
 // ══════════════════════════════════════════════
 export function QT2Modal({ order, currentUser, onClose, onDone }) {
+  const [isPC, setIsPC] = useState(() => window.innerWidth >= 900);
+  useEffect(() => {
+    const fn = () => setIsPC(window.innerWidth >= 900);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
   const [qt2, setQt2]       = useState({});
   const [note, setNote]     = useState("");
   const [saving, setSaving] = useState(false);
@@ -324,9 +336,9 @@ export function QT2Modal({ order, currentUser, onClose, onDone }) {
   }
 
   return (
-    <div style={{ position:"fixed", inset:0, zIndex:2000, background:"rgba(0,0,0,.65)", display:"flex", alignItems:"flex-end" }}
+    <div style={{ position:"fixed", inset:0, zIndex:2000, background:"rgba(0,0,0,.65)", display:"flex", alignItems:isPC?"center":"flex-end", justifyContent:"center", padding:isPC?20:0 }}
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ width:"100%", maxHeight:"92vh", background:"#fff", borderRadius:"24px 24px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      <div style={{ width:"100%", maxWidth:isPC?560:"100%", maxHeight:isPC?"90vh":"92vh", background:"#fff", borderRadius:isPC?18:"24px 24px 0 0", display:"flex", flexDirection:"column", overflow:"hidden", boxShadow:isPC?"0 24px 70px rgba(0,0,0,.35)":"none" }}>
 
         {/* Header */}
         <div style={{ background:"linear-gradient(135deg,#6d28d9,#7c3aed)", padding:"16px 18px", flexShrink:0 }}>
@@ -540,6 +552,12 @@ export function QT2Modal({ order, currentUser, onClose, onDone }) {
 //  CustomerConfirmModal — TT báo giá & xác nhận KH
 // ══════════════════════════════════════════════
 export function CustomerConfirmModal({ order, currentUser, onClose, onApprove, onReject }) {
+  const [isPC, setIsPC] = useState(() => window.innerWidth >= 900);
+  useEffect(() => {
+    const fn = () => setIsPC(window.innerWidth >= 900);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
   const [rejectReason, setRejectReason] = useState("");
   const [mode, setMode]                 = useState(""); // "approve" | "reject"
   const [saving, setSaving]             = useState(false);
@@ -595,9 +613,9 @@ export function CustomerConfirmModal({ order, currentUser, onClose, onApprove, o
   }
 
   return (
-    <div style={{ position:"fixed", inset:0, zIndex:2000, background:"rgba(0,0,0,.65)", display:"flex", alignItems:"flex-end" }}
+    <div style={{ position:"fixed", inset:0, zIndex:2000, background:"rgba(0,0,0,.65)", display:"flex", alignItems:isPC?"center":"flex-end", justifyContent:"center", padding:isPC?20:0 }}
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ width:"100%", maxHeight:"92vh", background:"#fff", borderRadius:"24px 24px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      <div style={{ width:"100%", maxWidth:isPC?560:"100%", maxHeight:isPC?"90vh":"92vh", background:"#fff", borderRadius:isPC?18:"24px 24px 0 0", display:"flex", flexDirection:"column", overflow:"hidden", boxShadow:isPC?"0 24px 70px rgba(0,0,0,.35)":"none" }}>
 
         {/* Header */}
         <div style={{ background:"linear-gradient(135deg,#db2777,#ec4899)", padding:"16px 18px", flexShrink:0 }}>

@@ -15,6 +15,12 @@ function fmtTime(s){
 }
 
 export default function CashierConfirmPage({ user }) {
+  const [isPC, setIsPC] = useState(() => window.innerWidth >= 900);
+  useEffect(() => {
+    const fn = () => setIsPC(window.innerWidth >= 900);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
   const [tab,setTab]               = useState("pending");
   const [orders,setOrders]         = useState([]);
   const [items,setItems]           = useState({});
@@ -215,9 +221,9 @@ export default function CashierConfirmPage({ user }) {
 
       {/* Modal xác nhận */}
       {confirming&&(
-        <div style={{position:"fixed",inset:0,zIndex:600,background:"rgba(0,0,0,.55)",display:"flex",alignItems:"flex-end",justifyContent:"center"}}
+        <div style={{position:"fixed",inset:0,zIndex:600,background:"rgba(0,0,0,.55)",display:"flex",alignItems:isPC?"center":"flex-end",justifyContent:"center",padding:isPC?20:0}}
           onClick={e=>e.target===e.currentTarget&&setConfirming(null)}>
-          <div style={{background:"#fff",borderRadius:"20px 20px 0 0",width:"100%",maxWidth:480,padding:"20px 20px 32px",maxHeight:"85vh",overflowY:"auto"}}>
+          <div style={{background:"#fff",borderRadius:isPC?16:"20px 20px 0 0",width:"100%",maxWidth:480,padding:"20px 20px 32px",maxHeight:"85vh",overflowY:"auto",boxShadow:isPC?"0 24px 70px rgba(0,0,0,.3)":"none"}}>
             <div style={{fontWeight:900,fontSize:18,color: confirming?.payment_method==="credit"?"#6d28d9":"#1e1b4b",marginBottom:16,textAlign:"center"}}>
               {confirming?.payment_method==="credit" ? "📋 Xác nhận Ghi nợ" : "💰 Xác nhận Thu tiền"}
             </div>

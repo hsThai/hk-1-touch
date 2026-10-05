@@ -11,6 +11,12 @@ const CHECKLIST_ITEMS = [
 ];
 
 export default function HandoverModal({ order, currentUser, onClose, onDone }) {
+  const [isPC, setIsPC] = useState(() => window.innerWidth >= 900);
+  useEffect(() => {
+    const fn = () => setIsPC(window.innerWidth >= 900);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
   const [step, setStep]             = useState(1);
   const [checklist, setChecklist]   = useState({});
   const [note, setNote]             = useState("");
@@ -130,9 +136,9 @@ export default function HandoverModal({ order, currentUser, onClose, onDone }) {
   const requiredTotal = CHECKLIST_ITEMS.filter(i => i.required).length;
 
   return (
-    <div style={{ position:"fixed", inset:0, zIndex:2000, background:"rgba(0,0,0,.65)", display:"flex", alignItems:"flex-end" }}
+    <div style={{ position:"fixed", inset:0, zIndex:2000, background:"rgba(0,0,0,.65)", display:"flex", alignItems:isPC?"center":"flex-end", justifyContent:"center", padding:isPC?20:0 }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{ width:"100%", maxHeight:"92vh", background:"#fff", borderRadius:"24px 24px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      <div style={{ width:"100%", maxWidth:isPC?560:"100%", maxHeight:isPC?"90vh":"92vh", background:"#fff", borderRadius:isPC?18:"24px 24px 0 0", display:"flex", flexDirection:"column", overflow:"hidden", boxShadow:isPC?"0 24px 70px rgba(0,0,0,.35)":"none" }}>
 
         {/* Header */}
         <div style={{ background:"linear-gradient(135deg,#0369a1,#0891b2)", padding:"16px 18px", flexShrink:0 }}>

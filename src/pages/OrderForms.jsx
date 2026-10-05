@@ -565,10 +565,16 @@ function LoginScreen({ onLogin }) {
 //  PRODUCT HISTORY MODAL — Lịch sử sửa chữa theo QR sản phẩm
 // ══════════════════════════════════════════════
 function ProductHistoryModal({ qr, orders, onClose, onOpenOrder }) {
+  const [isPC, setIsPC] = useState(() => window.innerWidth >= 900);
+  useEffect(() => {
+    const fn = () => setIsPC(window.innerWidth >= 900);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
   const sorted = [...orders].sort((a,b) => new Date(b.created||0) - new Date(a.created||0));
   return (
-    <div style={{ position:"fixed", inset:0, zIndex:5000, background:"rgba(0,0,0,.75)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-      <div style={{ background:"#fff", borderRadius:"24px 24px 0 0", width:"100%", maxWidth:480, maxHeight:"80vh", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+    <div style={{ position:"fixed", inset:0, zIndex:5000, background:"rgba(0,0,0,.75)", display:"flex", alignItems:isPC?"center":"flex-end", justifyContent:"center", padding:isPC?20:0 }}>
+      <div style={{ background:"#fff", borderRadius:isPC?18:"24px 24px 0 0", width:"100%", maxWidth:480, maxHeight:isPC?"85vh":"80vh", display:"flex", flexDirection:"column", overflow:"hidden", boxShadow:isPC?"0 24px 70px rgba(0,0,0,.35)":"none" }}>
         {/* Header */}
         <div style={{ padding:"18px 20px 12px", borderBottom:"1px solid #f3f4f6", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <div>
