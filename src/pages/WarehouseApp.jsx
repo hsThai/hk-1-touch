@@ -337,8 +337,20 @@ function WarehouseHome({ user, setPage }) {
   );
 }
 
+// Modal chi tiết phiếu trên PC cần gọn, không kéo full chiều ngang màn hình
+function useIsDesktop(breakpoint = 900) {
+  const [isDesktop, setIsDesktop] = React.useState(() => window.innerWidth >= breakpoint);
+  React.useEffect(() => {
+    const fn = () => setIsDesktop(window.innerWidth >= breakpoint);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, [breakpoint]);
+  return isDesktop;
+}
+
 // ─── Warehouse: Phiếu xuất kho ───────────────────────────
 function WarehouseExport({ user }) {
+  const isDesktop = useIsDesktop();
   const [requests, setRequests]   = React.useState([]);
   const [loading, setLoading]     = React.useState(true);
   const [filter, setFilter]       = React.useState("pending");
@@ -491,12 +503,12 @@ function WarehouseExport({ user }) {
         })}
       </div>
 
-      {/* Detail bottom sheet */}
+      {/* Detail: bottom sheet trên mobile, modal gọn giữa màn hình trên PC */}
       {viewReq && (
-        <div style={{ position:"fixed", inset:0, zIndex:500, background:"rgba(0,0,0,.6)", display:"flex", alignItems:"flex-end" }}
+        <div style={{ position:"fixed", inset:0, zIndex:500, background:"rgba(0,0,0,.6)", display:"flex", alignItems:isDesktop?"center":"flex-end", justifyContent:"center", padding:isDesktop?20:0 }}
           onClick={e=>{if(e.target===e.currentTarget){setViewReq(null);setConfirmNote("");setConfirmMedia([]);}}}>
-          <div style={{ background:"#fff", borderRadius:"24px 24px 0 0", width:"100%", maxHeight:"70vh", display:"flex", flexDirection:"column" }}>
-            <div style={{ background:"linear-gradient(135deg,#1e1b4b,#4f46e5)", padding:"16px 18px", borderRadius:"24px 24px 0 0", flexShrink:0, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <div style={{ background:"#fff", borderRadius:isDesktop?18:"24px 24px 0 0", width:"100%", maxWidth:isDesktop?440:"100%", maxHeight:isDesktop?"88vh":"70vh", display:"flex", flexDirection:"column", boxShadow:isDesktop?"0 24px 70px rgba(0,0,0,.35)":"none" }}>
+            <div style={{ background:"linear-gradient(135deg,#1e1b4b,#4f46e5)", padding:"16px 18px", borderRadius:isDesktop?"18px 18px 0 0":"24px 24px 0 0", flexShrink:0, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <div>
                 <div style={{ color:"#fff", fontWeight:900, fontSize:16 }}>📋 {viewReq.request_code}</div>
                 <div style={{ color:"#a5b4fc", fontSize:12, marginTop:2 }}>{viewReq.export_type==="borrow"?"🔄 Mượn tạm":"🔧 Xuất sửa"} · KTV: {viewReq.requested_by_name}</div>

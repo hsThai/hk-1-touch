@@ -272,6 +272,12 @@ function TabRequests({requests, setViewReq}) {
 
 // ─── MODAL: Chi tiết phiếu ────────────────────────────────
 function RequestDetailModal({viewReq, setViewReq, currentStaff, order, requests, setRequests, showToast}) {
+  const [isDesktop, setIsDesktop] = useState(() => window.innerWidth >= 900);
+  useEffect(() => {
+    const fn = () => setIsDesktop(window.innerWidth >= 900);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
   const [confirmMode, setConfirmMode] = useState(null);
   const [confirmNote, setConfirmNote] = useState("");
   const [confirmMedia, setConfirmMedia] = useState([]);
@@ -361,11 +367,11 @@ function RequestDetailModal({viewReq, setViewReq, currentStaff, order, requests,
   const st = ST[viewReq.status]||ST.pending;
 
   return (
-    <div style={{position:"fixed",inset:0,zIndex:4000,background:"rgba(0,0,0,.7)",display:"flex",alignItems:"flex-end",justifyContent:"center"}}
+    <div style={{position:"fixed",inset:0,zIndex:4000,background:"rgba(0,0,0,.7)",display:"flex",alignItems:isDesktop?"center":"flex-end",justifyContent:"center",padding:isDesktop?20:0}}
       onClick={e=>{if(e.target===e.currentTarget)close();}}>
-      <div style={{background:"#fff",borderRadius:"24px 24px 0 0",width:"100%",maxWidth:600,maxHeight:"65vh",display:"flex",flexDirection:"column"}}>
+      <div style={{background:"#fff",borderRadius:isDesktop?18:"24px 24px 0 0",width:"100%",maxWidth:isDesktop?460:"100%",maxHeight:isDesktop?"85vh":"65vh",display:"flex",flexDirection:"column",boxShadow:isDesktop?"0 24px 70px rgba(0,0,0,.35)":"none"}}>
 
-        <div style={{background:"linear-gradient(135deg,#1e1b4b,#4f46e5)",padding:"16px 18px",borderRadius:"24px 24px 0 0",flexShrink:0,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div style={{background:"linear-gradient(135deg,#1e1b4b,#4f46e5)",padding:"16px 18px",borderRadius:isDesktop?"18px 18px 0 0":"24px 24px 0 0",flexShrink:0,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div>
             <div style={{color:"#fff",fontWeight:900,fontSize:16}}>📋 {viewReq.request_code}</div>
             <div style={{color:"#a5b4fc",fontSize:12,marginTop:2}}>{viewReq.export_type==="borrow"?"🔄 Mượn tạm":"🔧 Xuất sửa"} · {(viewReq.due_datetime ? fmtDt(viewReq.due_datetime) : "")}</div>
