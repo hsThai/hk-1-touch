@@ -144,14 +144,17 @@ export default function SaleOrderPage({ user }) {
     if (!search.trim()) { setSearchRes([]); return; }
     searchTimer.current = setTimeout(async () => {
       try {
-        const all = await SparePart.list({ limit:200 });
-        const q = search.toLowerCase();
-        const found = (all||[]).filter(p =>
-          p.is_active !== false &&
-          ((p.name||"").toLowerCase().includes(q) || (p.sku||"").toLowerCase().includes(q))
-        ).slice(0,8);
-        setSearchRes(found);
-      } catch {}
+        // Tìm trực tiếp trên server (PocketBase `~` = LIKE, không phân biệt hoa/thường)
+        // thay vì chỉ lấy 200 bản ghi đầu rồi lọc tay — trước đây bỏ sót hàng nếu
+        // tổng SKU > 200 (vd tìm "mk" chỉ ra 3/nhiều chục mục chứa "mk" thực tế).
+        const q = search.trim().replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+        const found = await SparePart.list({
+          filter: `is_active=true && (name~"${q}" || sku~"${q}")`,
+          sort: "-stock_qty",
+          limit: 30,
+        });
+        setSearchRes(found || []);
+      } catch { setSearchRes([]); }
     }, 300);
   }, [search]);
 
