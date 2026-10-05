@@ -265,6 +265,7 @@ function DetailContent({ detail, detailItems, onClose, user }) {
             user={user}
             onClose={() => setShowReturnForm(false)}
             onSave={() => setShowReturnForm(false)}
+            orderItems={detailItems}
             initialData={{
               customer_name:  detail.customer_name || "",
               customer_phone: detail.customer_phone || "",

@@ -43,26 +43,72 @@ const STATUS_COLORS = {
 const ADMIN_ROLES = ["owner","admin","manager","team_leader","cashier"];
 
 // ── Form tạo đơn đổi trả ─────────────────────────────────
-export function ReturnForm({ user, onSave, onClose, initialData }) {
-  const [form, setForm] = useState({
-    code:           genCode(),
-    return_type:    "refund",
-    reason:         REASONS[0],
-    customer_name:  "",
-    customer_phone: "",
-    ref_code:       "",
-    product_name:   "",
-    refund_amount:  0,
-    note:           "",
-    status:         "pending",
-    return_date:    new Date().toISOString().slice(0,10),
-    ...(initialData || {}),
+export function ReturnForm({ user, onSave, onClose, initialData, orderItems }) {
+  const items = orderItems || [];
+  const multiItem = items.length > 1; // chỉ hiện checklist khi đơn có NHIỀU hàng
+  const [form, setForm] = useState(() => {
+    const base = {
+      code:           genCode(),
+      return_type:    "refund",
+      reason:         REASONS[0],
+      customer_name:  "",
+      customer_phone: "",
+      ref_code:       "",
+      product_name:   "",
+      refund_amount:  0,
+      note:           "",
+      status:         "pending",
+      return_date:    new Date().toISOString().slice(0,10),
+      items:          [],
+      ...(initialData || {}),
+    };
+    // Đơn nhiều hàng: bắt KH chọn thủ công, không tự điền sẵn tên/số tiền
+    if (multiItem) { base.product_name = ""; base.refund_amount = 0; base.items = []; }
+    return base;
   });
   const [saving, setSaving] = useState(false);
   const [custSearch,   setCustSearch]   = useState("");
   const [custSuggs,    setCustSuggs]    = useState([]);
   const [showCustDrop, setShowCustDrop] = useState(false);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  // ── Checklist chọn hàng (chỉ khi đơn có nhiều sản phẩm) ──
+  const [picked, setPicked] = useState(() => {
+    const init = {};
+    items.forEach((it, i) => { init[i] = { checked:false, qty: it.qty || 1 }; });
+    return init;
+  });
+
+  function applyPickedToForm(nextPicked) {
+    const chosen = items
+      .map((it,i) => ({ it, sel: nextPicked[i] }))
+      .filter(x => x.sel?.checked);
+    const names = chosen.map(x => `${x.it.part_name}${x.it.qty>1 ? ` (x${x.sel.qty})` : ""}`).join(", ");
+    const amount = chosen.reduce((s,x) => s + (x.it.unit_price||0) * (x.sel.qty||0), 0);
+    const itemsPayload = chosen.map(x => ({
+      sku: x.it.sku||"", part_name: x.it.part_name||"",
+      qty: x.sel.qty, unit_price: x.it.unit_price||0,
+      total_price: (x.it.unit_price||0)*(x.sel.qty||0),
+    }));
+    setForm(f => ({ ...f, product_name: names, refund_amount: amount, items: itemsPayload }));
+  }
+
+  function toggleItem(i) {
+    setPicked(p => {
+      const next = { ...p, [i]: { ...p[i], checked: !p[i].checked } };
+      applyPickedToForm(next);
+      return next;
+    });
+  }
+  function changeQty(i, qty) {
+    const max = items[i]?.qty || 1;
+    const q = Math.max(1, Math.min(max, Number(qty)||1));
+    setPicked(p => {
+      const next = { ...p, [i]: { ...p[i], qty: q } };
+      applyPickedToForm(next);
+      return next;
+    });
+  }
 
   // Autocomplete khách hàng
   useEffect(() => {
@@ -222,11 +268,50 @@ export function ReturnForm({ user, onSave, onClose, initialData }) {
         </div>
 
         {/* Sản phẩm */}
-        <div style={{ marginBottom:12 }}>
-          <label style={{ fontSize:12, color:"#6b7280", fontWeight:600 }}>Tên sản phẩm / dịch vụ *</label>
-          <input value={form.product_name} onChange={e=>set("product_name",e.target.value)}
-            placeholder="iPhone 13 Pro Max / Thay màn hình..." style={{ ...INP, marginTop:4 }} />
-        </div>
+        {multiItem ? (
+          <div style={{ marginBottom:12 }}>
+            <label style={{ fontSize:12, color:"#6b7280", fontWeight:600 }}>Chọn sản phẩm cần đổi trả *</label>
+            <div style={{ marginTop:6, border:"1.5px solid #e5e7eb", borderRadius:12, overflow:"hidden" }}>
+              {items.map((it, i) => {
+                const sel = picked[i] || { checked:false, qty: it.qty||1 };
+                return (
+                  <div key={i} style={{
+                    display:"flex", alignItems:"center", gap:10, padding:"10px 12px",
+                    borderBottom: i < items.length-1 ? "1px solid #f3f4f6" : "none",
+                    background: sel.checked ? "#fffbeb" : "#fff",
+                  }}>
+                    <input type="checkbox" checked={sel.checked} onChange={() => toggleItem(i)}
+                      style={{ width:18, height:18, cursor:"pointer", flexShrink:0 }} />
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontWeight:700, fontSize:13, color:"#1e1b4b" }}>{it.part_name}</div>
+                      <div style={{ fontSize:11, color:"#9ca3af" }}>
+                        {it.sku && `SKU: ${it.sku} · `}Đã bán: {it.qty} · {fmtMoney(it.unit_price)}
+                      </div>
+                    </div>
+                    {sel.checked && (
+                      <div style={{ display:"flex", alignItems:"center", gap:4, flexShrink:0 }}>
+                        <label style={{ fontSize:11, color:"#6b7280" }}>SL:</label>
+                        <input type="number" min={1} max={it.qty||1} value={sel.qty}
+                          onChange={e => changeQty(i, e.target.value)}
+                          style={{ width:52, height:32, borderRadius:8, border:"1.5px solid #fde68a",
+                            textAlign:"center", fontSize:13, fontWeight:700 }} />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {!form.product_name && (
+              <div style={{ fontSize:11, color:"#dc2626", marginTop:4 }}>Chưa chọn sản phẩm nào</div>
+            )}
+          </div>
+        ) : (
+          <div style={{ marginBottom:12 }}>
+            <label style={{ fontSize:12, color:"#6b7280", fontWeight:600 }}>Tên sản phẩm / dịch vụ *</label>
+            <input value={form.product_name} onChange={e=>set("product_name",e.target.value)}
+              placeholder="iPhone 13 Pro Max / Thay màn hình..." style={{ ...INP, marginTop:4 }} />
+          </div>
+        )}
 
         {/* Lý do */}
         <div style={{ marginBottom:12 }}>
