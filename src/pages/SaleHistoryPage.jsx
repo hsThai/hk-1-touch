@@ -1,7 +1,12 @@
 /* SaleHistoryPage.jsx — Quản lý đơn bán hàng (nâng cấp đầy đủ) */
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, lazy, Suspense } from "react";
 import { SaleOrder, SaleOrderItem, DebtPayment, DebtVoucher, logAction } from "./pb.jsx";
 import { printSaleReceiptA5, previewSaleReceipt } from "../utils/printClient.js";
+
+const ReturnFormLazy = lazy(() =>
+  import("./ReturnOrderPage.jsx").then(m => ({ default: m.ReturnForm }))
+    .catch(() => ({ default: () => <div style={{padding:30,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải form Đổi trả</div> }))
+);
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN")+"đ"; }
 function fmtDateTime(iso) {
@@ -49,18 +54,50 @@ async function reprintOrder(order, items) {
 }
 
 /* ─── Detail Panel / Modal content (dùng chung PC+Mobile) ─── */
-function DetailContent({ detail, detailItems, onClose }) {
+const RETURN_ADMIN_ROLES = ["owner","admin","manager","team_leader","cashier"];
+
+function CopyCodeButton({ code }) {
+  const [copied, setCopied] = useState(false);
+  async function doCopy(e) {
+    e.stopPropagation();
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(code);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = code; document.body.appendChild(ta); ta.select();
+        document.execCommand("copy"); document.body.removeChild(ta);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {}
+  }
+  return (
+    <button onClick={doCopy} title="Sao chép mã đơn"
+      style={{ background:"none", border:"none", cursor:"pointer", padding:2,
+        display:"inline-flex", alignItems:"center", color: copied ? "#059669" : "#9ca3af", flexShrink:0 }}>
+      <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:16 }}>
+        {copied ? "check" : "content_copy"}
+      </span>
+    </button>
+  );
+}
+
+function DetailContent({ detail, detailItems, onClose, user }) {
   const sb = statusBadge(detail.status);
   const subtotal = detail.subtotal ?? detailItems.reduce((s,i)=>s+(i.total_price||0),0);
+  const [showReturnForm, setShowReturnForm] = useState(false);
+  const canReturn = RETURN_ADMIN_ROLES.includes(user?.role);
 
   return (
     <div style={{ padding: 24 }}>
       {/* Header */}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:16 }}>
         <div>
-          <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:4 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:4, flexWrap:"wrap", marginBottom:4 }}>
             <span style={{ fontWeight:900, fontSize:17, color:"#1e1b4b" }}>{detail.order_code}</span>
-            <span style={{ fontSize:11, fontWeight:700, borderRadius:99, padding:"2px 10px",
+            <CopyCodeButton code={detail.order_code} />
+            <span style={{ fontSize:11, fontWeight:700, borderRadius:99, padding:"2px 10px", marginLeft:4,
               background:(PM_COLORS[detail.payment_method]||"#9ca3af")+"20",
               color:PM_COLORS[detail.payment_method]||"#6b7280" }}>
               {PM_LABELS[detail.payment_method]||detail.payment_method||"?"}
@@ -198,12 +235,41 @@ function DetailContent({ detail, detailItems, onClose }) {
       </div>
 
       {/* Block 5 — Actions */}
-      {detailItems.length > 0 && (
-        <button onClick={()=>reprintOrder(detail, detailItems)}
-          style={{ width:"100%", height:42, borderRadius:12, border:"1.5px solid #bfdbfe",
-            background:"#eff6ff", color:"#1d4ed8", fontWeight:800, fontSize:13, cursor:"pointer" }}>
-          🖨️ In lại hóa đơn
-        </button>
+      <div style={{ display:"flex", gap:10 }}>
+        {detailItems.length > 0 && (
+          <button onClick={()=>reprintOrder(detail, detailItems)}
+            style={{ flex:1, height:42, borderRadius:12, border:"1.5px solid #bfdbfe",
+              background:"#eff6ff", color:"#1d4ed8", fontWeight:800, fontSize:13, cursor:"pointer" }}>
+            🖨️ In lại hóa đơn
+          </button>
+        )}
+        {canReturn && (
+          <button onClick={()=>setShowReturnForm(true)}
+            style={{ flex:1, height:42, borderRadius:12, border:"1.5px solid #fde68a",
+              background:"#fffbeb", color:"#b45309", fontWeight:800, fontSize:13, cursor:"pointer",
+              display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+            <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:16 }}>swap_horiz</span>
+            Đổi Trả
+          </button>
+        )}
+      </div>
+
+      {showReturnForm && (
+        <Suspense fallback={null}>
+          <ReturnFormLazy
+            user={user}
+            onClose={() => setShowReturnForm(false)}
+            onSave={() => setShowReturnForm(false)}
+            initialData={{
+              customer_name:  detail.customer_name || "",
+              customer_phone: detail.customer_phone || "",
+              ref_code:       detail.order_code || "",
+              product_name:   (detailItems||[]).map(it=>it.part_name).filter(Boolean).join(", "),
+              refund_amount:  detail.total || 0,
+              return_date:    new Date().toISOString().slice(0,10),
+            }}
+          />
+        </Suspense>
       )}
     </div>
   );
@@ -486,7 +552,7 @@ export default function SaleHistoryPage({ user }) {
             {detail ? (
               <div style={{ background:"#fff", border:"1.5px solid #e5e7eb", borderRadius:20,
                 maxHeight:"calc(100vh - 60px)", overflowY:"auto" }}>
-                <DetailContent detail={detail} detailItems={detailItems} onClose={closeDetail} />
+                <DetailContent detail={detail} detailItems={detailItems} onClose={closeDetail} user={user} />
               </div>
             ) : (
               <div style={{ background:"#f9fafb", borderRadius:16, border:"1.5px dashed #e5e7eb",
@@ -506,7 +572,7 @@ export default function SaleHistoryPage({ user }) {
           <div style={{ background:"#fff", borderRadius:"20px 20px 0 0", width:"100%",
             maxHeight:"90vh", overflowY:"auto" }}
             onClick={e=>e.stopPropagation()}>
-            <DetailContent detail={detail} detailItems={detailItems} onClose={closeDetail} />
+            <DetailContent detail={detail} detailItems={detailItems} onClose={closeDetail} user={user} />
           </div>
         </div>
       )}

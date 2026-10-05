@@ -102,19 +102,19 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
     }
   }, [po]);
 
-  // Auto-search supplier khi gõ tên
+  // Auto-search supplier khi gõ tên — server-side trên toàn bộ danh sách NCC
   useEffect(() => {
     const q = supplierSearch.trim();
     if (q.length < 1) { setSupplierSuggestions([]); return; }
     const timer = setTimeout(async () => {
       try {
-        const res = await Supplier.list({ limit:200 });
-        const filtered = (res||[]).filter(s =>
-          s.name?.toLowerCase().includes(q.toLowerCase()) ||
-          s.phone?.includes(q)
-        ).slice(0,6);
-        setSupplierSuggestions(filtered);
-      } catch {}
+        const esc = q.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+        const filtered = await Supplier.list({
+          filter: `name~"${esc}" || phone~"${esc}"`,
+          limit: 10,
+        });
+        setSupplierSuggestions(filtered || []);
+      } catch { setSupplierSuggestions([]); }
     }, 200);
     return () => clearTimeout(timer);
   }, [supplierSearch]);

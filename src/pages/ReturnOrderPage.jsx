@@ -43,7 +43,7 @@ const STATUS_COLORS = {
 const ADMIN_ROLES = ["owner","admin","manager","team_leader","cashier"];
 
 // ── Form tạo đơn đổi trả ─────────────────────────────────
-function ReturnForm({ user, onSave, onClose }) {
+export function ReturnForm({ user, onSave, onClose, initialData }) {
   const [form, setForm] = useState({
     code:           genCode(),
     return_type:    "refund",
@@ -56,6 +56,7 @@ function ReturnForm({ user, onSave, onClose }) {
     note:           "",
     status:         "pending",
     return_date:    new Date().toISOString().slice(0,10),
+    ...(initialData || {}),
   });
   const [saving, setSaving] = useState(false);
   const [custSearch,   setCustSearch]   = useState("");

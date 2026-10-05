@@ -82,20 +82,18 @@ export default function SaleOrderPage({ user }) {
     }).catch(()=>{});
   }, []);
 
-  // Autocomplete khách hàng
+  // Autocomplete khách hàng — tìm server-side trên TOÀN BỘ danh sách khách
   useEffect(() => {
     if (custSearch.length < 2) { setCustSuggestions([]); return; }
     const t = setTimeout(async () => {
       try {
-        const q = custSearch.toLowerCase();
-        const all = await Customer.list({ limit:300 });
-        setCustSuggestions(
-          (all||[]).filter(c =>
-            (c.full_name||"").toLowerCase().includes(q) ||
-            (c.phone||"").includes(custSearch)
-          ).slice(0, 6)
-        );
-      } catch {}
+        const q = custSearch.trim().replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+        const found = await Customer.list({
+          filter: `full_name~"${q}" || phone~"${q}"`,
+          limit: 10,
+        });
+        setCustSuggestions(found || []);
+      } catch { setCustSuggestions([]); }
     }, 300);
     return () => clearTimeout(t);
   }, [custSearch]);

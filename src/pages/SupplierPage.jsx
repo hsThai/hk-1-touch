@@ -117,7 +117,7 @@ export default function SupplierPage({ user }) {
   async function load() {
     setLoading(true);
     try {
-      const data = await Supplier.list({ limit:200, sort:"name" });
+      const data = await Supplier.listAll({ sort:"name" });
       setList(data || []);
     } catch {}
     setLoading(false);

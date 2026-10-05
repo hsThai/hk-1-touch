@@ -543,16 +543,34 @@ function WarehouseExport({ user }) {
   );
 }
 
-// ─── PartNameInput — Autocomplete tên hàng ──────────────────────────────────
 function PartNameInput({ value, onChange, parts=[], placeholder="Tên hàng...", style={} }) {
   const [open, setOpen] = React.useState(false);
   const [q, setQ] = React.useState(value||"");
+  const [remote, setRemote] = React.useState([]); // kết quả tìm server-side
+  const timer = React.useRef(null);
 
   React.useEffect(() => { setQ(value||""); }, [value]);
 
-  const filtered = (parts||[]).filter(p =>
-    !q || p.name?.toLowerCase().includes(q.toLowerCase()) || (p.sku||"").toLowerCase().includes(q.toLowerCase())
-  ).slice(0, 15);
+  // TÌM SERVER-SIDE trên toàn bộ catalog (13k+ SP): client filter trên
+  // vài trăm bản ghi tải trước sẽ bỏ sót hàng. Debounce 250ms, limit 15.
+  React.useEffect(() => {
+    const term = (q||"").trim();
+    if (timer.current) clearTimeout(timer.current);
+    if (term.length < 1) { setRemote([]); return; }
+    timer.current = setTimeout(async () => {
+      try {
+        const esc = term.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+        const res = await SparePart.list({
+          filter: `name~"${esc}" || sku~"${esc}"`,
+          limit: 15,
+        });
+        setRemote(res || []);
+      } catch { setRemote([]); }
+    }, 250);
+    return () => { if (timer.current) clearTimeout(timer.current); };
+  }, [q]);
+
+  const filtered = remote.length > 0 ? remote : (q ? [] : (parts||[]).slice(0, 15));
 
   return (
     <div style={{ position:"relative" }}>
@@ -581,7 +599,7 @@ function PartNameInput({ value, onChange, parts=[], placeholder="Tên hàng...",
               <div style={{ fontWeight:600, fontSize:13 }}>{p.name}</div>
               <div style={{ fontSize:11, color:"#9ca3af" }}>
                 {p.sku ? `SKU: ${p.sku}` : ""}
-                {p.cost_price ? `  •  ${(p.cost_price||0).toLocaleString("vi")}đ` : ""}
+                {(p.cost_price ?? p.price) ? `  •  ${((p.cost_price ?? p.price)||0).toLocaleString("vi")}đ` : ""}
               </div>
             </div>
           ))}
@@ -678,17 +696,16 @@ function WarehouseImport({ user }) {
     }
   }, [showForm]);
 
-  // Autocomplete NCC
+  // Autocomplete NCC — server-side trên toàn bộ danh sách NCC
   React.useEffect(() => {
     const q = supplier.trim();
     if (q.length < 1) { setSupplierSugg([]); return; }
     const t = setTimeout(async () => {
       try {
-        const res = await Supplier.list({ limit:200 });
-        setSupplierSugg((res||[]).filter(s =>
-          s.name?.toLowerCase().includes(q.toLowerCase()) || s.phone?.includes(q)
-        ).slice(0,6));
-      } catch {}
+        const esc = q.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+        const res = await Supplier.list({ filter: `name~"${esc}" || phone~"${esc}"`, limit: 10 });
+        setSupplierSugg(res || []);
+      } catch { setSupplierSugg([]); }
     }, 200);
     return () => clearTimeout(t);
   }, [supplier]);

@@ -3,12 +3,12 @@
  * @version 2026-05-28-v3 — fix StockReportTab filter limit→perPage
  * Quản lý kho đa điểm — Kho / Zone / Kệ / Tồn kho / Nhập / Xuất / Chuyển / Kiểm kho
  */
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { getPbUrl, getAuth, logAction } from "./pb.jsx";
 import StockCountPage from "./StockCountPage.jsx";
 import PurchaseOrderPage from "./PurchaseOrderPage.jsx";
 import RMAPage from "./RMAPage.jsx";
-import { SaleOrder, RepairOrder } from "./pb.jsx";
+import { SaleOrder, RepairOrder, SparePart } from "./pb.jsx";
 
 // ─── PocketBase helpers ───────────────────────────────────
 function makeWHCol(colName) {
@@ -1250,16 +1250,30 @@ function TransferTab({ user, toast }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // DefectTab — LK lỗi / Trả NCC
 // ─────────────────────────────────────────────────────────────────────────────
-// ─── PartNameInput — Autocomplete tên linh kiện ─────────────────────────────
 function PartNameInput({ value, onChange, parts=[], placeholder="Tên linh kiện...", style={} }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState(value||"");
+  const [remote, setRemote] = useState([]);
+  const timer = useRef(null);
 
   useEffect(() => { setQ(value||""); }, [value]);
 
-  const filtered = (parts||[]).filter(p =>
-    !q || p.name?.toLowerCase().includes(q.toLowerCase()) || (p.sku||"").toLowerCase().includes(q.toLowerCase())
-  ).slice(0, 15);
+  // TÌM SERVER-SIDE trên toàn bộ catalog (13k+ SP)
+  useEffect(() => {
+    const term = (q||"").trim();
+    if (timer.current) clearTimeout(timer.current);
+    if (term.length < 1) { setRemote([]); return; }
+    timer.current = setTimeout(async () => {
+      try {
+        const esc = term.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+        const res = await SparePart.list({ filter: `name~"${esc}" || sku~"${esc}"`, limit: 15 });
+        setRemote(res || []);
+      } catch { setRemote([]); }
+    }, 250);
+    return () => { if (timer.current) clearTimeout(timer.current); };
+  }, [q]);
+
+  const filtered = remote.length > 0 ? remote : (q ? [] : (parts||[]).slice(0, 15));
 
   return (
     <div style={{ position:"relative" }}>
@@ -1288,7 +1302,7 @@ function PartNameInput({ value, onChange, parts=[], placeholder="Tên linh kiệ
               <div style={{ fontWeight:600, fontSize:13 }}>{p.name}</div>
               <div style={{ fontSize:11, color:"#9ca3af" }}>
                 {p.sku ? `SKU: ${p.sku}` : ""}
-                {p.cost_price ? `  •  ${(p.cost_price||0).toLocaleString("vi")}đ` : ""}
+                {(p.cost_price ?? p.price) ? `  •  ${((p.cost_price ?? p.price)||0).toLocaleString("vi")}đ` : ""}
               </div>
             </div>
           ))}

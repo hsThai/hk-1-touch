@@ -82,9 +82,12 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
     if (custSearch.length < 2) { setDbCusts([]); return; }
     const timer = setTimeout(async () => {
       try {
-        const q = custSearch.toLowerCase();
-        const items = await Customer.list({ limit:200 });
-        const filtered = items.filter(c => (c.full_name||"").toLowerCase().includes(q) || (c.phone||"").includes(custSearch));
+        // Tìm server-side trên TOÀN BỘ danh sách khách (`~` = LIKE không phân biệt hoa/thường)
+        const q = custSearch.trim().replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+        const filtered = await Customer.list({
+          filter: `full_name~"${q}" || phone~"${q}"`,
+          limit: 10,
+        });
         if (filtered.length > 0) { setDbCusts(filtered); return; }
       } catch {}
       if (orders) {

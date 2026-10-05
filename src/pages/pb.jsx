@@ -129,6 +129,21 @@ function makeCollection(collectionName) {
       return pbFetch(`collections/${collectionName}/records/${id}`);
     },
 
+    // Lấy TOÀN BỘ bản ghi (tự phân trang 500/lần, trần an toàn 30 trang = 15.000 bản ghi).
+    // Dùng cho các danh sách cần hiển thị đầy đủ — KHÔNG dùng cho bảng 13k+ rows
+    // render trực tiếp, lúc đó nên tìm server-side (filter `~`) + phân trang UI.
+    async listAll(options = {}) {
+      const { sort = "", filter = "", fields = "" } = options;
+      const PER = 500, MAX_PAGES = 30;
+      const out = [];
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        const data = await this.list({ sort, filter, fields, limit: PER, page });
+        out.push(...(data || []));
+        if ((data || []).length < PER) break;
+      }
+      return out;
+    },
+
     async filter(query = {}, options = {}) {
       // Build PocketBase filter string
       // Hỗ trợ suffix: _gt, _gte, _lt, _lte, _like, _neq
