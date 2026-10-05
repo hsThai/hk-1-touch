@@ -56,7 +56,7 @@ async function reprintOrder(order, items) {
 /* ─── Detail Panel / Modal content (dùng chung PC+Mobile) ─── */
 const RETURN_ADMIN_ROLES = ["owner","admin","manager","team_leader","cashier"];
 
-function CopyCodeButton({ code }) {
+function CopyCodeButton({ code, size = 16 }) {
   const [copied, setCopied] = useState(false);
   async function doCopy(e) {
     e.stopPropagation();
@@ -76,7 +76,7 @@ function CopyCodeButton({ code }) {
     <button onClick={doCopy} title="Sao chép mã đơn"
       style={{ background:"none", border:"none", cursor:"pointer", padding:2,
         display:"inline-flex", alignItems:"center", color: copied ? "#059669" : "#9ca3af", flexShrink:0 }}>
-      <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:16 }}>
+      <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:size }}>
         {copied ? "check" : "content_copy"}
       </span>
     </button>
@@ -197,7 +197,12 @@ function DetailContent({ detail, detailItems, onClose, user }) {
                   <tr key={i} style={{ borderTop:"1px solid #f3f4f6" }}>
                     <td style={{ padding:"8px 12px" }}>
                       <div style={{ fontWeight:700, fontSize:13, color:"#1e1b4b" }}>{it.part_name}</div>
-                      {it.sku && <div style={{ fontSize:11, color:"#9ca3af", marginTop:2 }}>SKU: {it.sku}</div>}
+                      {it.sku && (
+                        <div style={{ display:"flex", alignItems:"center", gap:2, marginTop:2 }}>
+                          <span style={{ fontSize:11, color:"#9ca3af" }}>SKU: {it.sku}</span>
+                          <CopyCodeButton code={it.sku} size={13} />
+                        </div>
+                      )}
                     </td>
                     <td style={{ padding:"8px 12px", textAlign:"right", fontSize:13, color:"#374151", whiteSpace:"nowrap" }}>
                       {fmtMoney(it.unit_price)}
