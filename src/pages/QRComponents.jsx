@@ -141,60 +141,11 @@ function QRScanModal({ onClose, onFound: onFoundProp, onResult, orders = [], mod
   }
 
   return (
-    <div style={{ position:"fixed", inset:0, zIndex:4000, background:"rgba(0,0,0,.92)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:16 }}>
-      <div style={{ width:"100%", maxWidth:400 }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
-          <div>
-            <div style={{ color:"#fff", fontWeight:800, fontSize:20 }}>
-              {isCapture ? "Quét Mã QR Máy" : "Quét QR Sản Phẩm"}
-            </div>
-            <div style={{ color:"#a5b4fc", fontSize:12, marginTop:2 }}>
-              {isCapture ? "Lấy mã QR dán lên máy → điền vào đơn" : "QR đã gán: xem lịch sử · QR mới: gán cho đơn này"}
-            </div>
-          </div>
-          <button onClick={close}
-            style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:40, height:40, borderRadius:"50%", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22,verticalAlign:"middle",lineHeight:1}}>close</span></button>
-        </div>
-
-        <div style={{ position:"relative", borderRadius:18, overflow:"hidden", background:"#000", aspectRatio:"1", marginBottom:14 }}>
-          <video ref={videoRef} playsInline muted style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-          <canvas ref={canvasRef} style={{ display:"none" }} />
-          <TorchButton stream={streamRef.current} />
-          <CameraControls engine={engine} />
-          <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none" }}>
-            <div style={{ width:"70%", height:"70%", position:"relative" }}>
-              <div style={{ position:"absolute", inset:0, boxShadow:"0 0 0 9999px rgba(0,0,0,.5)", borderRadius:12 }} />
-              <div style={{ position:"absolute", inset:0, border:"3px solid #a5b4fc", borderRadius:12 }} />
-            </div>
-          </div>
-          <div style={{ position:"absolute", bottom:10, left:0, right:0, textAlign:"center" }}>
-            {status === "loading" && <span style={{ background:"rgba(0,0,0,.7)", color:"#fff", padding:"5px 14px", borderRadius:20, fontSize:12 }}>Đang mở camera...</span>}
-            {status === "scanning" && <span style={{ background:"rgba(0,0,0,.7)", color:"#a5b4fc", padding:"5px 14px", borderRadius:20, fontSize:12 }}>Đưa mã QR vào khung, giữ máy ổn định...</span>}
-          </div>
-        </div>
-
-        {status === "error" && (
-          <div style={{ background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:12, padding:"10px 14px", marginBottom:12, color:"#dc2626", fontSize:13, fontWeight:600, textAlign:"center" }}>
-            {errMsg}
-            <div style={{ fontSize:12, color:"#6b7280", fontWeight:400, marginTop:4 }}>Thử nhập mã thủ công bên dưới</div>
-          </div>
-        )}
-
-        <div style={{ background:"rgba(255,255,255,.08)", borderRadius:14, padding:14 }}>
-          <div style={{ color:"#e5e7eb", fontSize:13, fontWeight:600, marginBottom:8 }}>
-            {isCapture ? "Hoặc nhập mã QR thủ công:" : "Hoặc nhập mã đơn thủ công:"}
-          </div>
-          <div style={{ display:"flex", gap:8 }}>
-            <input value={manual} onChange={e => setManual(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleManual()}
-              placeholder={isCapture ? "Nhập mã QR trên máy..." : "SC240001..."}
-              style={{ flex:1, height:48, borderRadius:12, border:"1.5px solid rgba(255,255,255,.3)", background:"rgba(255,255,255,.1)", color:"#fff", padding:"0 14px", fontSize:15, outline:"none" }} />
-            <button onClick={handleManual}
-              style={{ height:48, padding:"0 20px", borderRadius:12, background:"#4f46e5", color:"#fff", border:"none", fontWeight:800, fontSize:15, cursor:"pointer" }}>OK</button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <ScannerShell engine={engine} videoRef={videoRef} canvasRef={canvasRef}
+      title={isCapture ? "Quét mã QR dán trên máy" : "Quét QR sản phẩm"}
+      hint={isCapture ? "Lấy mã QR dán lên máy → điền vào đơn" : "QR đã gán: xem lịch sử · QR mới: gán cho đơn"}
+      frame="square" manual={manual} setManual={setManual} onManual={handleManual}
+      manualPlaceholder={isCapture ? "Nhập mã QR trên máy" : "Nhập mã đơn / QR"} onClose={onClose} />
   );
 }
 
@@ -384,6 +335,177 @@ export function CameraControls({ engine }) {
   );
 }
 
+
+/* ══════════════════════════════════════════════════════════
+ * ScannerShell — giao diện quét TOÀN MÀN HÌNH kiểu Zalopay (dùng chung)
+ *  - Camera phủ kín, vùng ngoài khung ngắm làm tối
+ *  - Trên: X (trái) · chip zoom "1x" (giữa, bấm để đổi mức) · đèn pin (phải)
+ *  - Khung ngắm 4 góc bo trắng; frame="square" cho QR, "wide" cho mã vạch
+ *  - Thanh zoom nằm DƯỚI khung ngắm → không che khung
+ *  - Dưới: tiêu đề/gợi ý, ô nhập tay, nút đổi camera
+ * ══════════════════════════════════════════════════════════ */
+const ZOOM_STEPS = [1, 2, 3, 5];
+
+function ScannerCorners({ w, h }) {
+  const L = 34, T = 4, R = 14, C = "#fff";
+  const c = (pos, bs) => <div style={{ position:"absolute", width:L, height:L, ...pos, ...bs }} />;
+  return (
+    <div style={{ position:"relative", width:w, height:h }}>
+      {c({top:0,left:0},  { borderTop:`${T}px solid ${C}`, borderLeft:`${T}px solid ${C}`,  borderTopLeftRadius:R })}
+      {c({top:0,right:0}, { borderTop:`${T}px solid ${C}`, borderRight:`${T}px solid ${C}`, borderTopRightRadius:R })}
+      {c({bottom:0,left:0},  { borderBottom:`${T}px solid ${C}`, borderLeft:`${T}px solid ${C}`,  borderBottomLeftRadius:R })}
+      {c({bottom:0,right:0}, { borderBottom:`${T}px solid ${C}`, borderRight:`${T}px solid ${C}`, borderBottomRightRadius:R })}
+    </div>
+  );
+}
+
+export function ScannerShell({ engine, videoRef, canvasRef, title, hint, frame = "square",
+  manual, setManual, onManual, manualPlaceholder = "Nhập mã thủ công", onClose, children }) {
+  const { status, errMsg, streamRef, cameras, switchCamera, deviceId } = engine;
+  const [zoomCap, setZoomCap] = React.useState(null);
+  const [zoom, setZoomVal]    = React.useState(1);
+  const [torchOn, setTorchOn] = React.useState(false);
+  const [torchOk, setTorchOk] = React.useState(false);
+  const [showManual, setShowManual] = React.useState(false);
+
+  React.useEffect(() => {
+    if (status !== "scanning") return;
+    const caps = getTrackCapabilities(streamRef.current);
+    setTorchOk(!!caps.torch); setTorchOn(false);
+    const z = caps.zoom;
+    if (z && z.max > z.min) {
+      setZoomCap(z);
+      // QR nhỏ in trên thân máy → mặc định phóng 2x (nếu máy hỗ trợ)
+      const target = Math.min(z.max, Math.max(z.min, 2));
+      setZoomVal(target); setZoom(streamRef.current, target);
+    } else setZoomCap(null);
+  }, [status, deviceId]);
+
+  function applyZoom(v) {
+    if (!zoomCap) return;
+    const val = Math.min(zoomCap.max, Math.max(zoomCap.min, v));
+    setZoomVal(val); setZoom(streamRef.current, val);
+  }
+  function cycleZoom() {
+    if (!zoomCap) return;
+    const steps = ZOOM_STEPS.filter(x => x >= zoomCap.min && x <= zoomCap.max);
+    const next = steps.find(x => x > zoom + 0.05) ?? steps[0] ?? zoomCap.min;
+    applyZoom(next);
+  }
+  async function toggleTorch() {
+    const nx = !torchOn;
+    if (await setTorch(streamRef.current, nx)) setTorchOn(nx);
+  }
+  function close() { try { engine.stop(); } catch {} onClose(); }
+
+  const fw = frame === "wide" ? "82vw" : "68vw";
+  const fh = frame === "wide" ? "30vw" : "68vw";
+  const iconBtn = { width:44, height:44, borderRadius:"50%", border:"none", cursor:"pointer", color:"#fff",
+    background:"rgba(0,0,0,.35)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 };
+  const mi = (n, size=24) => <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:size, lineHeight:1 }}>{n}</span>;
+
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:4500, background:"#000", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      {/* Camera phủ kín */}
+      <video ref={videoRef} muted playsInline style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />
+      <canvas ref={canvasRef} style={{ display:"none" }} />
+
+      {/* Lớp tối + khung ngắm ở giữa vùng nhìn */}
+      {status === "scanning" && (
+        <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none", paddingBottom:"8vh" }}>
+          <div style={{ position:"relative", width:fw, height:fh, boxShadow:"0 0 0 100vmax rgba(0,0,0,.55)", borderRadius:R_FRAME }}>
+            <ScannerCorners w="100%" h="100%" />
+            <div style={{ position:"absolute", left:"6%", right:"6%", height:2, background:"rgba(255,255,255,.75)", top:"50%", animation:"hkscanline 1.8s ease-in-out infinite", borderRadius:2 }} />
+          </div>
+        </div>
+      )}
+
+      {/* Thanh trên: X · chip zoom · đèn pin */}
+      <div style={{ position:"relative", zIndex:6, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"calc(env(safe-area-inset-top,0px) + 14px) 16px 0" }}>
+        <button onClick={close} style={iconBtn} aria-label="Đóng">{mi("close", 26)}</button>
+        {zoomCap ? (
+          <button onClick={cycleZoom} style={{ ...iconBtn, width:"auto", padding:"0 16px", gap:6, borderRadius:24, height:40, fontWeight:800, fontSize:15 }}>
+            {mi("photo_camera", 20)} {Number.isInteger(zoom) ? zoom : zoom.toFixed(1)}x
+          </button>
+        ) : <div style={{ width:44 }} />}
+        {torchOk ? (
+          <button onClick={toggleTorch} style={{ ...iconBtn, background: torchOn ? "#fbbf24" : "rgba(0,0,0,.35)", color: torchOn ? "#1e1b4b" : "#fff" }}>{mi(torchOn ? "flash_on" : "flash_off", 24)}</button>
+        ) : <div style={{ width:44 }} />}
+      </div>
+
+      {/* Trạng thái giữa màn hình */}
+      {status === "loading" && (
+        <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontSize:15, pointerEvents:"none" }}>Đang mở camera...</div>
+      )}
+      {status === "error" && (
+        <div style={{ position:"absolute", left:24, right:24, top:"38%", background:"rgba(0,0,0,.7)", borderRadius:14, padding:16, color:"#fca5a5", fontSize:14, textAlign:"center", zIndex:6 }}>{errMsg}</div>
+      )}
+
+      <div style={{ flex:1 }} />
+
+      {/* Vùng dưới: gợi ý + zoom + nhập tay */}
+      <div style={{ position:"relative", zIndex:6, background:"linear-gradient(to top, rgba(0,0,0,.92) 55%, rgba(0,0,0,0))", padding:"40px 16px calc(env(safe-area-inset-bottom,0px) + 16px)" }}>
+        <div style={{ textAlign:"center", color:"#fff", fontWeight:800, fontSize:17 }}>{title}</div>
+        {hint && <div style={{ textAlign:"center", color:"#cbd5e1", fontSize:12.5, marginTop:4, marginBottom:12 }}>{hint}</div>}
+
+        {zoomCap && status === "scanning" && (
+          <div style={{ display:"flex", alignItems:"center", gap:10, margin:"0 4px 12px" }}>
+            <span style={{ color:"#fff", fontSize:12, fontWeight:700 }}>1x</span>
+            <input type="range" min={zoomCap.min} max={zoomCap.max} step={zoomCap.step || 0.1} value={zoom}
+              onChange={e => applyZoom(parseFloat(e.target.value))} style={{ flex:1, accentColor:"#fff" }} />
+            <span style={{ color:"#fff", fontSize:12, fontWeight:700 }}>{Math.round(zoomCap.max)}x</span>
+          </div>
+        )}
+
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          {showManual ? (
+            <>
+              <input autoFocus value={manual} onChange={e => setManual(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && onManual()}
+                placeholder={manualPlaceholder}
+                style={{ flex:1, height:48, borderRadius:24, border:"1.5px solid rgba(255,255,255,.35)", background:"rgba(255,255,255,.12)", color:"#fff", padding:"0 18px", fontSize:15, outline:"none" }} />
+              <button onClick={onManual} style={{ height:48, padding:"0 20px", borderRadius:24, border:"none", background:"#4f46e5", color:"#fff", fontWeight:800, fontSize:14, cursor:"pointer" }}>OK</button>
+            </>
+          ) : (
+            <button onClick={() => setShowManual(true)}
+              style={{ flex:1, height:48, borderRadius:24, border:"1.5px solid rgba(255,255,255,.3)", background:"rgba(255,255,255,.1)", color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+              {mi("keyboard", 20)} Nhập mã thủ công
+            </button>
+          )}
+          {cameras && cameras.length > 1 && (
+            <button onClick={switchCamera} style={{ ...iconBtn, width:48, height:48, background:"rgba(255,255,255,.15)" }}>{mi("flip_camera_android", 24)}</button>
+          )}
+        </div>
+        {children}
+      </div>
+      <style>{`@keyframes hkscanline { 0%,100%{top:8%} 50%{top:92%} }`}</style>
+    </div>
+  );
+}
+const R_FRAME = 18;
+
+// Crop vùng (boxW x boxH px màn hình) quanh tâm video, lệch dọc dy px — xử lý object-fit:cover
+export function cropRegion(video, canvas, boxW, boxH, dy = 0) {
+  const vw = video.videoWidth, vh = video.videoHeight;
+  if (!vw || !vh) return null;
+  const rect = video.getBoundingClientRect();
+  const dispW = rect.width || vw, dispH = rect.height || vh;
+  const videoAspect = vw / vh, dispAspect = dispW / dispH;
+  let visW, visH, offX = 0, offY = 0;
+  if (videoAspect > dispAspect) { visH = vh; visW = vh * dispAspect; offX = (vw - visW) / 2; }
+  else { visW = vw; visH = vw / dispAspect; offY = (vh - visH) / 2; }
+  const scaleX = visW / dispW, scaleY = visH / dispH;
+  // thêm 12% viền an toàn quanh khung
+  const bw = Math.min(dispW, boxW * 1.12), bh = Math.min(dispH, boxH * 1.12);
+  const bx = (dispW - bw) / 2, by = (dispH - bh) / 2 + dy;
+  const sx = Math.max(0, offX + bx * scaleX), sy = Math.max(0, offY + by * scaleY);
+  const sw = Math.min(vw - sx, bw * scaleX) || vw, sh = Math.min(vh - sy, bh * scaleY) || vh;
+  canvas.width = sw; canvas.height = sh;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh);
+  return ctx;
+}
+
 // Nút bật/tắt đèn pin — tự ẩn nếu máy không hỗ trợ
 export function TorchButton({ stream, style }) {
   const [supported, setSupported] = React.useState(false);
@@ -479,11 +601,11 @@ export function useScannerEngine({ videoRef, canvasRef, onResult, engineTimeoutM
   }
 
   function doCrop(v, c) {
-    if (squareCrop) {
-      const w = v.getBoundingClientRect().width || 300;
-      return cropViewfinder(v, c, 0.70, w * 0.70);
-    }
-    return cropViewfinder(v, c, 0.85, 72);
+    // Khớp đúng khung ngắm của ScannerShell (toàn màn hình, khung nằm cao hơn tâm 4vh)
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const boxW = squareCrop ? vw * 0.68 : vw * 0.82;
+    const boxH = squareCrop ? vw * 0.68 : vw * 0.30;
+    return cropRegion(v, c, boxW, boxH, vh * -0.04);
   }
 
   function done(raw) { stop(); onResult(String(raw || "").trim()); }
@@ -697,92 +819,38 @@ export function IMEIScanModal({ onClose, onFound: onFoundProp, onResult }) {
     onFound(val.trim());
   }
 
+  // Chưa quét xong → giao diện quét toàn màn hình kiểu Zalopay
+  if (!done) {
+    return (
+      <ScannerShell engine={engine} videoRef={videoRef} canvasRef={canvasRef}
+        title="Quét mã vạch IMEI" hint="Đưa mã vạch trên máy vào khung" frame="wide"
+        manual={manual} setManual={setManual}
+        onManual={() => manual.trim() && confirmImei(manual)}
+        manualPlaceholder="Nhập IMEI / Serial" onClose={onClose} />
+    );
+  }
+
+  // Đã quét → xác nhận / sửa số
   return (
     <div style={{ position:"fixed", inset:0, zIndex:4500, background:"rgba(0,0,0,.95)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:16 }}>
       <div style={{ width:"100%", maxWidth:420 }}>
-
-        {/* Header */}
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
-          <div>
-            <div style={{ color:"#fff", fontWeight:900, fontSize:20 }}>▦ Quét Barcode IMEI</div>
-            <div style={{ color:"#94a3b8", fontSize:12, marginTop:2 }}>Hướng camera vào mã vạch trên máy</div>
-          </div>
-          <button onClick={() => { engine.stop(); onClose(); }}
-            style={{ background:"rgba(255,255,255,.15)", border:"none", color:"#fff", width:38, height:38, borderRadius:"50%", fontSize:18, cursor:"pointer"}}> </button>
+        <div style={{ background:"#f0fdf4", borderRadius:14, padding:18, marginBottom:14, border:"2px solid #6ee7b7", textAlign:"center" }}>
+          <div style={{ fontSize:13, color:"#065f46", fontWeight:700, marginBottom:6 }}>Đã quét được:</div>
+          <input value={detected} onChange={e => setDetected(e.target.value)}
+            style={{ width:"100%", background:"#fff", border:"1.5px solid #6ee7b7", borderRadius:10, padding:"10px 14px", fontSize:16, fontWeight:800, textAlign:"center", fontFamily:"monospace", boxSizing:"border-box", outline:"none" }} />
+          <div style={{ fontSize:11, color:"#6b7280", marginTop:6 }}>Chỉnh sửa nếu cần rồi nhấn Xác Nhận</div>
         </div>
-
-        {/* Camera view */}
-        {!done && (
-          <div style={{ position:"relative", borderRadius:16, overflow:"hidden", background:"#000", aspectRatio:"16/9", marginBottom:14 }}>
-            <video ref={videoRef} muted playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-            <canvas ref={canvasRef} style={{ display:"none" }} />
-            <TorchButton stream={streamRef.current} />
-            <CameraControls engine={engine} />
-
-            {/* Viewfinder — khung ngang cho barcode 1D */}
-            {status === "scanning" && (
-              <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none" }}>
-                <div style={{ width:"85%", height:72, border:"2.5px solid #fbbf24", borderRadius:8, boxShadow:"0 0 0 2000px rgba(0,0,0,.35)", position:"relative" }}>
-                  {/* scan line animation */}
-                  <div style={{ position:"absolute", left:0, right:0, height:2, background:"#fbbf24", top:"50%", animation:"scanline 1.5s ease-in-out infinite", opacity:.8 }} />
-                </div>
-              </div>
-            )}
-
-            {status === "loading" && (
-              <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontSize:14 }}>
-                ⏳ Đang khởi động camera...
-              </div>
-            )}
-            {status === "error" && (
-              <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,.7)", borderRadius:16 }}>
-                <div style={{ color:"#f87171", fontSize:13, textAlign:"center", padding:16 }}>  {errMsg}</div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Kết quả đã quét */}
-        {done && (
-          <div style={{ background:"#f0fdf4", borderRadius:14, padding:18, marginBottom:14, border:"2px solid #6ee7b7", textAlign:"center" }}>
-            <div style={{ fontSize:13, color:"#065f46", fontWeight:700, marginBottom:6 }}>  Đã quét được:</div>
-            <input value={detected} onChange={e => setDetected(e.target.value)}
-              style={{ width:"100%", background:"#fff", border:"1.5px solid #6ee7b7", borderRadius:10, padding:"10px 14px", fontSize:16, fontWeight:800, textAlign:"center", fontFamily:"monospace", boxSizing:"border-box", outline:"none" }} />
-            <div style={{ fontSize:11, color:"#6b7280", marginTop:6 }}>Chỉnh sửa nếu cần rồi nhấn Xác Nhận</div>
-          </div>
-        )}
-
-        {/* Nút action */}
-        {done ? (
-          <div style={{ display:"flex", gap:10 }}>
-            <button onClick={() => { setDone(false); setDetected(""); engine.start(); }}
-              style={{ flex:1, height:48, background:"rgba(255,255,255,.1)", border:"1.5px solid rgba(255,255,255,.3)", color:"#fff", borderRadius:12, fontWeight:700, cursor:"pointer"}}>
-                Quét lại
-            </button>
-            <button onClick={() => confirmImei(detected)}
-              style={{ flex:2, height:48, background:"#4f46e5", border:"none", color:"#fff", borderRadius:12, fontWeight:800, fontSize:15, cursor:"pointer"}}>
-                Xác Nhận IMEI
-            </button>
-          </div>
-        ) : (
-          <div>
-            <div style={{ color:"#94a3b8", fontSize:12, textAlign:"center", marginBottom:8 }}>— hoặc nhập thủ công —</div>
-            <div style={{ display:"flex", gap:8 }}>
-              <input value={manual} onChange={e => setManual(e.target.value)}
-                placeholder="Nhập IMEI / Serial số..."
-                inputMode="numeric"
-                onKeyDown={e => { if (e.key === "Enter" && manual.trim()) confirmImei(manual); }}
-                style={{ flex:1, height:46, borderRadius:12, border:"1.5px solid rgba(255,255,255,.2)", background:"rgba(255,255,255,.1)", color:"#fff", padding:"0 14px", fontSize:14, outline:"none" }} />
-              <button onClick={() => confirmImei(manual)} disabled={!manual.trim()}
-                style={{ height:46, padding:"0 16px", background:manual.trim()?"#4f46e5":"rgba(255,255,255,.1)", border:"none", color:"#fff", borderRadius:12, fontWeight:700, cursor:manual.trim()?"pointer":"default" }}>
-                OK
-              </button>
-            </div>
-          </div>
-        )}
+        <div style={{ display:"flex", gap:10 }}>
+          <button onClick={() => { setDone(false); setDetected(""); engine.start(); }}
+            style={{ flex:1, height:48, background:"rgba(255,255,255,.1)", border:"1.5px solid rgba(255,255,255,.3)", color:"#fff", borderRadius:12, fontWeight:700, cursor:"pointer"}}>
+            Quét lại
+          </button>
+          <button onClick={() => confirmImei(detected)}
+            style={{ flex:2, height:48, background:"#4f46e5", border:"none", color:"#fff", borderRadius:12, fontWeight:800, fontSize:15, cursor:"pointer"}}>
+            Xác Nhận IMEI
+          </button>
+        </div>
       </div>
-
-      <style>{`@keyframes scanline { 0%,100%{top:10%} 50%{top:90%} }`}</style>
     </div>
   );
 }
@@ -792,12 +860,12 @@ export function IMEIScanModal({ onClose, onFound: onFoundProp, onResult }) {
  * (không lọc IMEI như IMEIScanModal)
  * Props: { title, hint, onFound(raw), onClose }
  * ══════════════════════════════════════════════════════════ */
-export function ScanCodeModal({ title = "▦ Quét mã", hint = "Hướng camera vào mã vạch / QR", onFound, onClose }) {
+export function ScanCodeModal({ title = "Quét mã", hint = "Hướng camera vào mã vạch / QR", frame = "wide", onFound, onClose }) {
   const videoRef    = React.useRef();
   const canvasRef   = React.useRef();
   const [manual, setManual]   = React.useState("");
 
-  const engine = useScannerEngine({ videoRef, canvasRef, onResult: onFound });
+  const engine = useScannerEngine({ videoRef, canvasRef, squareCrop: frame === "square", onResult: onFound });
   const { status, errMsg, streamRef } = engine;
 
   React.useEffect(() => {
@@ -811,49 +879,10 @@ export function ScanCodeModal({ title = "▦ Quét mã", hint = "Hướng camera
   }
 
   return (
-    <div style={{ position:"fixed", inset:0, zIndex:4500, background:"rgba(0,0,0,.95)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:16 }}>
-      <div style={{ width:"100%", maxWidth:420 }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
-          <div>
-            <div style={{ color:"#fff", fontWeight:900, fontSize:20 }}>{title}</div>
-            <div style={{ color:"#94a3b8", fontSize:12, marginTop:2 }}>{hint}</div>
-          </div>
-          <button onClick={() => { engine.stop(); onClose(); }}
-            style={{ background:"rgba(255,255,255,.15)", border:"none", color:"#fff", width:38, height:38, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
-        </div>
-
-        <div style={{ position:"relative", borderRadius:16, overflow:"hidden", background:"#000", aspectRatio:"16/9", marginBottom:14 }}>
-          <video ref={videoRef} muted playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-          <canvas ref={canvasRef} style={{ display:"none" }} />
-          <TorchButton stream={streamRef.current} />
-          <CameraControls engine={engine} />
-          {status === "scanning" && (
-            <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none" }}>
-              <div style={{ width:"85%", height:72, border:"2.5px solid #fbbf24", borderRadius:8, boxShadow:"0 0 0 2000px rgba(0,0,0,.35)", position:"relative" }}>
-                <div style={{ position:"absolute", left:0, right:0, height:2, background:"#fbbf24", top:"50%", animation:"scanline 1.5s ease-in-out infinite", opacity:.8 }} />
-              </div>
-            </div>
-          )}
-          {status === "loading" && (
-            <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontSize:14 }}>⏳ Đang khởi động camera...</div>
-          )}
-          {status === "error" && (
-            <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,.7)" }}>
-              <div style={{ color:"#f87171", fontSize:13, textAlign:"center", padding:16 }}>⚠️ {errMsg}</div>
-            </div>
-          )}
-        </div>
-
-        <div style={{ display:"flex", gap:8 }}>
-          <input value={manual} onChange={e => setManual(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter" && manual.trim()) { finish(manual.trim()); } }}
-            placeholder="...hoặc nhập mã thủ công rồi Enter"
-            style={{ flex:1, padding:"12px 14px", borderRadius:10, border:"1px solid #475569", background:"#1e293b", color:"#fff", fontSize:14 }} />
-          <button onClick={() => manual.trim() && finish(manual.trim())}
-            style={{ padding:"12px 16px", borderRadius:10, border:"none", background:"#4f46e5", color:"#fff", fontWeight:800, fontSize:13 }}>Xác nhận</button>
-        </div>
-        <style>{`@keyframes scanline { 0%,100%{top:10%} 50%{top:90%} }`}</style>
-      </div>
-    </div>
+    <ScannerShell engine={engine} videoRef={videoRef} canvasRef={canvasRef}
+      title={title} hint={hint} frame={frame}
+      manual={manual} setManual={setManual}
+      onManual={() => manual.trim() && finish(manual.trim())}
+      manualPlaceholder="Nhập mã thủ công" onClose={onClose} />
   );
 }

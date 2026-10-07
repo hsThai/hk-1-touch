@@ -203,8 +203,9 @@ export default function SmartScanModal({ user, orders = [], onClose,
       {/* ── GIAI ĐOẠN 1: quét ── */}
       {phase === "scan" && (
         <ScanCodeModal
-          title="🔎 Quét đa năng"
+          title="Quét đa năng"
           hint="Mã đơn bán · Mã đơn sửa · SKU/IMEI hàng hóa · QR trên máy"
+          frame="square"
           onFound={raw => resolve(String(raw).trim())}
           onClose={onClose}
         />
