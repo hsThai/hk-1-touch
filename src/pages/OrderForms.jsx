@@ -387,8 +387,8 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
           </div>
         </div>
 
-        {showQRScan && <QRScanModal orders={orders||[]} onResult={handleQRResult} onClose={() => setShowQRScan(false)} />}
-        {showIMEIScan && <IMEIScanModal onResult={imei => { set("imei_serial", imei); setShowIMEIScan(false); }} onClose={() => setShowIMEIScan(false)} />}
+        {showQRScan && <QRScanModal orders={orders||[]} onFound={handleQRResult} onClose={() => setShowQRScan(false)} />}
+        {showIMEIScan && <IMEIScanModal onFound={imei => { set("imei_serial", imei); setShowIMEIScan(false); }} onClose={() => setShowIMEIScan(false)} />}
 
         {/* Modal thêm khách hàng mới */}
         {showAddCust && (

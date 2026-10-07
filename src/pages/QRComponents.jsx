@@ -86,7 +86,8 @@ function getQRDataUrl(containerEl) {
 //  mode="search"  → tìm đơn theo mã quét được
 //  mode="capture" → chỉ trả về chuỗi raw, không tìm
 // ══════════════════════════════════════════════
-function QRScanModal({ onClose, onFound, orders = [], mode = "search" }) {
+function QRScanModal({ onClose, onFound: onFoundProp, onResult, orders = [], mode = "search" }) {
+  const onFound = onFoundProp || onResult || (() => {});
   const videoRef = useRef();
   const canvasRef = useRef();
   const [manual, setManual] = useState("");
@@ -249,6 +250,18 @@ export async function openScannerStream(deviceId) {
     try { return await navigator.mediaDevices.getUserMedia({ video }); } catch (e) { lastErr = e; }
   }
   throw lastErr || new Error("Không mở được camera");
+}
+
+// Chờ video có khung hình thật (tránh màn hình đen)
+export function waitForFrame(video, timeoutMs = 1500) {
+  return new Promise(resolve => {
+    const t0 = performance.now();
+    (function check() {
+      if (video && video.readyState >= 2 && video.videoWidth > 0) { resolve(true); return; }
+      if (performance.now() - t0 > timeoutMs) { resolve(false); return; }
+      requestAnimationFrame(check);
+    })();
+  });
 }
 
 // Liệt kê camera sau & chọn camera "chính" (bỏ góc siêu rộng / tele / depth / macro).
@@ -505,11 +518,21 @@ export function useScannerEngine({ videoRef, canvasRef, onResult, engineTimeoutM
     setStatus("loading");
     try {
       await openCam(next.deviceId);
+      if (!(await waitForFrame(videoRef.current, 1500))) throw new Error("no-frame");
       deviceIdRef.current = next.deviceId; setDeviceId(next.deviceId);
       engineStartRef.current = performance.now();
       setStatus("scanning");
       scanLoop();
-    } catch { setStatus("error"); setErrMsg("Không đổi được camera."); }
+    } catch {
+      // Camera đích không ra hình → mở lại camera mặc định
+      try {
+        if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+        await openCam();
+        engineStartRef.current = performance.now();
+        setStatus("scanning"); scanLoop();
+      } catch { setStatus("error"); setErrMsg("Không đổi được camera."); }
+    }
   }
 
   async function start() {
@@ -540,17 +563,27 @@ export function useScannerEngine({ videoRef, canvasRef, onResult, engineTimeoutM
 
     try {
       await openCam();
-      // Sau khi có quyền → liệt kê camera, nếu đang không phải camera chính thì chuyển sang camera chính
+      // Sau khi có quyền → liệt kê camera, nếu đang không phải camera chính thì thử chuyển.
+      // Nếu camera chính không ra hình (đen) → quay lại camera mặc định, không để màn hình đen.
       const { cameras: cams, mainId } = await listBackCameras();
       camsRef.current = cams; setCameras(cams);
-      const curId = streamRef.current?.getVideoTracks?.()[0]?.getSettings?.().deviceId || null;
+      let curId = streamRef.current?.getVideoTracks?.()[0]?.getSettings?.().deviceId || null;
       deviceIdRef.current = curId; setDeviceId(curId);
       if (mainId && curId && mainId !== curId) {
+        const fallbackId = curId;
         try {
           streamRef.current.getTracks().forEach(t => t.stop());
+          streamRef.current = null;
           await openCam(mainId);
+          const ok = await waitForFrame(videoRef.current, 1500);
+          if (!ok) throw new Error("no-frame");
           deviceIdRef.current = mainId; setDeviceId(mainId);
-        } catch { await openCam(); }
+        } catch {
+          try { if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop()); } catch {}
+          streamRef.current = null;
+          await openCam(fallbackId).catch(() => openCam());
+          deviceIdRef.current = fallbackId; setDeviceId(fallbackId);
+        }
       }
       engineStartRef.current = performance.now();
       setStatus("scanning");
@@ -635,7 +668,8 @@ export function useScannerEngine({ videoRef, canvasRef, onResult, engineTimeoutM
 
 // ── IMEIScanModal — quét barcode 1D/2D để lấy IMEI ──────────────────────────
 // Ưu tiên: BarcodeDetector (native) → ZXing (wasm) → jsQR fallback
-export function IMEIScanModal({ onClose, onFound }) {
+export function IMEIScanModal({ onClose, onFound: onFoundProp, onResult }) {
+  const onFound = onFoundProp || onResult || (() => {});
   const videoRef = React.useRef();
   const canvasRef = React.useRef();
   const [manual, setManual] = React.useState("");
