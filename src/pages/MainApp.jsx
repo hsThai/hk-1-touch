@@ -74,6 +74,7 @@ const MyTasksPage = lazy(() => import("./MyTasksPage.jsx").catch(() => ({ defaul
 
 // Components loaded from OrderComponents
 import { QRScanModal, IMEIScanModal } from"./QRComponents";
+import SmartScanModal from "./SmartScanModal.jsx";
 import { MediaViewer, AcceptChecklistModal, AcceptTimer, timeAgo, genOrderId, getKpiTimerInfo, STATUS_PB, STATUS_DISPLAY, PRIORITY_PB, PRIORITY_DISPLAY, STATUS_COLS } from "./MediaViewer";
 import { OrderDrawer } from "./OrderDrawer";
 import { NewOrderModal, KPIPage, ProductHistoryModal } from "./OrderForms";
@@ -697,6 +698,7 @@ function MainAppContent({ onUserChange }) {
   }, [user?.id, handleNewNotif]);
   const [qrOrder, setQrOrder] = useState(null);
   const [showQRScan, setShowQRScan] = useState(false);
+  const [showSmartScan, setShowSmartScan] = useState(false);
   const [cashierTab, setCashierTab]   = useState("");  // forceTab cho CashierApp
   const [showCreateChooser, setShowCreateChooser] = useState(false);  // quick chooser Tạo đơn
   const [newOrderProductQR, setNewOrderProductQR] = useState("");
@@ -2138,7 +2140,7 @@ function MainAppContent({ onUserChange }) {
                       )}
                     </button>
                   </div>
-                  <button onClick={() => setShowQRScan(true)}
+                  <button onClick={() => setShowSmartScan(true)}
                     style={{ background:"rgba(255,255,255,.18)", border:"none", borderRadius:10,
                       color:"#fff", width:38, height:38, display:"flex", alignItems:"center",
                       justifyContent:"center", cursor:"pointer" }}>
@@ -2205,7 +2207,7 @@ function MainAppContent({ onUserChange }) {
             {(notifications.length+dbNotifications.length)>0 && <span style={{ position:"absolute", top:-2, right:-2, background:"#ef4444", color:"#fff", borderRadius:"50%", width:16, height:16, fontSize:10, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800 }}>{notifications.length+dbNotifications.length}</span>}
           </button>
         </div>
-        <button onClick={() => setShowQRScan(true)} style={{ background:"none", border:"none", color:"#fff", fontSize:22, cursor:"pointer", padding:4 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:24,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>qr_code_scanner</span></button>
+        <button onClick={() => setShowSmartScan(true)} style={{ background:"none", border:"none", color:"#fff", fontSize:22, cursor:"pointer", padding:4 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:24,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>qr_code_scanner</span></button>
 
       </div>
 
@@ -2640,6 +2642,20 @@ function MainAppContent({ onUserChange }) {
         />
       )}
       {showQRScan && <QRScanModal onClose={() => setShowQRScan(false)} onFound={handleGlobalQRScan} orders={orders} />}
+      {showSmartScan && (
+        <SmartScanModal
+          user={user}
+          orders={orders}
+          onClose={() => setShowSmartScan(false)}
+          onOpenRepairOrder={o => setSelectedOrderSync(o)}
+          onOpenProductHistory={(qr, ords) => setProductHistory({ qr, orders: ords })}
+          onCreateRepairWithQR={qr => { setNewOrderProductQR(qr); setShowNewOrder(true); }}
+          onGoPOS={() => setPage("cashier_home")}
+          onGoTransfer={() => { sessionStorage.setItem("wm_initial_tab", "transfer"); setPage("wh_manager"); }}
+          onGoDefect={() => setPage("wh_defect")}
+          onGoSaleHistory={() => setPage("sale_order")}
+        />
+      )}
       {productHistory && (
         <ProductHistoryModal
           qr={productHistory.qr}
