@@ -9,7 +9,7 @@
  *  - Không tìm thấy            → gán QR cho đơn sửa mới
  */
 import React, { useState, useCallback } from "react";
-import { ScanCodeModal } from "./QRComponents.jsx";
+import { ScanCodeModal, normalizeScanCode } from "./QRComponents.jsx";
 import { SaleOrder, SaleOrderItem, SparePart, SparePartUsage, RepairOrder, logAction } from "./pb.jsx";
 import { printSaleReceiptA5 } from "../utils/printClient.js";
 
@@ -83,13 +83,16 @@ export default function SmartScanModal({ user, orders = [], onClose,
   const [printing, setPrinting] = useState(false);
 
   /* ── Phân loại mã quét ── */
-  const resolve = useCallback(async (raw) => {
+  const resolve = useCallback(async (rawIn) => {
     setPhase("resolving");
+    // QR in trên phiếu là URL (?sale=… / ?order=…) → tách mã trần
+    const norm = normalizeScanCode(rawIn);
+    const raw = norm.code;
     const esc = String(raw).replace(/"/g, '\\"'); // escape cho PB filter
 
     // 1) Đơn sửa theo mã đơn (SC-code / id / qr_code) — ưu tiên trong list đã load
-    let ro = (orders||[]).find(o => o.order_code === raw || o.id === raw || o.qr_code === raw);
-    if (!ro) {
+    let ro = norm.kind === "sale" ? null : (orders||[]).find(o => o.order_code === raw || o.id === raw || o.qr_code === raw);
+    if (!ro && norm.kind !== "sale") {
       try {
         const found = await RepairOrder.list({ filter: `order_code="${esc}"`, limit: 1 });
         ro = found && found[0];

@@ -86,6 +86,22 @@ function getQRDataUrl(containerEl) {
 //  mode="search"  → tìm đơn theo mã quét được
 //  mode="capture" → chỉ trả về chuỗi raw, không tìm
 // ══════════════════════════════════════════════
+/* Chuẩn hóa nội dung mã quét: QR in trên phiếu là URL (vd https://hk-1-touch.vercel.app?sale=BL-261006-9641
+ * hoặc ?order=SC240001) → tách lấy mã trần để tra đơn. Mã không phải URL giữ nguyên.
+ * Trả về { code, kind } với kind: "sale" | "order" | null */
+export function normalizeScanCode(raw) {
+  const txt = String(raw || "").trim();
+  if (!/^https?:\/\//i.test(txt) && !/^[\w.-]+\.[a-z]{2,}\/?\?/i.test(txt)) return { code: txt, kind: null };
+  try {
+    const u = new URL(/^https?:/i.test(txt) ? txt : "https://" + txt);
+    const sale = u.searchParams.get("sale");
+    if (sale) return { code: sale.trim(), kind: "sale" };
+    const ord = u.searchParams.get("order") || u.searchParams.get("code");
+    if (ord) return { code: ord.trim(), kind: "order" };
+  } catch {}
+  return { code: txt, kind: null };
+}
+
 function QRScanModal({ onClose, onFound: onFoundProp, onResult, orders = [], mode = "search" }) {
   const onFound = onFoundProp || onResult || (() => {});
   const videoRef = useRef();
@@ -105,7 +121,8 @@ function QRScanModal({ onClose, onFound: onFoundProp, onResult, orders = [], mod
 
   function close() { try { engine.stop(); } catch {} onClose(); }
 
-  function handleRaw(raw) {
+  function handleRaw(rawIn) {
+    const raw = isCapture ? String(rawIn || "").trim() : normalizeScanCode(rawIn).code;
     if (!raw || doneRef.current) return;
     doneRef.current = true;
     try { engine.stop(); } catch {}
