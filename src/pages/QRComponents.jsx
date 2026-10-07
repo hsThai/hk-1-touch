@@ -94,7 +94,7 @@ function QRScanModal({ onClose, onFound, orders = [], mode = "search" }) {
   const isCapture = mode === "capture";
 
   // Engine dùng chung: BarcodeDetector → ZXing → jsQR
-  const engine = useScannerEngine({ videoRef, canvasRef, onResult: (raw) => handleRaw(String(raw).trim()) });
+  const engine = useScannerEngine({ videoRef, canvasRef, squareCrop: true, onResult: (raw) => handleRaw(String(raw).trim()) });
   const { status, errMsg, streamRef } = engine;
 
   useEffect(() => {
@@ -159,6 +159,7 @@ function QRScanModal({ onClose, onFound, orders = [], mode = "search" }) {
           <video ref={videoRef} playsInline muted style={{ width:"100%", height:"100%", objectFit:"cover" }} />
           <canvas ref={canvasRef} style={{ display:"none" }} />
           <TorchButton stream={streamRef.current} />
+          <CameraControls engine={engine} />
           <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none" }}>
             <div style={{ width:"70%", height:"70%", position:"relative" }}>
               <div style={{ position:"absolute", inset:0, boxShadow:"0 0 0 9999px rgba(0,0,0,.5)", borderRadius:12 }} />
@@ -232,19 +233,51 @@ export default function QRComponentsPage() { return null; }
 // ══════════════════════════════════════════════════════════
 
 // Mở camera sau — thử độ phân giải cao + lấy nét liên tục, tự hạ cấp nếu máy không hỗ trợ
-export async function openScannerStream() {
-  const attempts = [
-    { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 }, advanced: [{ focusMode: "continuous" }] },
+export async function openScannerStream(deviceId) {
+  const base = { width: { ideal: 1920 }, height: { ideal: 1080 }, advanced: [{ focusMode: "continuous" }] };
+  const attempts = [];
+  if (deviceId) attempts.push({ deviceId: { exact: deviceId }, ...base });
+  attempts.push(
+    { facingMode: { ideal: "environment" }, ...base },
     { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 }, advanced: [{ focusMode: "continuous" }] },
     { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
     { facingMode: "environment" },
     true,
-  ];
+  );
   let lastErr;
   for (const video of attempts) {
     try { return await navigator.mediaDevices.getUserMedia({ video }); } catch (e) { lastErr = e; }
   }
   throw lastErr || new Error("Không mở được camera");
+}
+
+// Liệt kê camera sau & chọn camera "chính" (bỏ góc siêu rộng / tele / depth / macro).
+// Phải gọi SAU khi đã được cấp quyền camera thì label mới có.
+export async function listBackCameras() {
+  try {
+    const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "videoinput");
+    const back = devs.filter(d => /back|rear|environment|sau/i.test(d.label) || !/front|user|trước/i.test(d.label));
+    const bad = /ultra|wide|tele|depth|macro|siêu|góc rộng/i;
+    const main = back.find(d => !bad.test(d.label) && /(camera2 0|camera 0|back camera$|rear)/i.test(d.label))
+              || back.find(d => !bad.test(d.label))
+              || back[0];
+    return { cameras: back, mainId: main?.deviceId || null };
+  } catch { return { cameras: [], mainId: null }; }
+}
+
+// Đặt zoom phần cứng
+export async function setZoom(stream, value) {
+  const track = stream?.getVideoTracks?.()[0];
+  if (!track) return false;
+  try { await track.applyConstraints({ advanced: [{ zoom: value }] }); return true; } catch { return false; }
+}
+
+// Lấy nét tại điểm chạm (nếu máy hỗ trợ)
+export async function focusAt(stream, x, y) {
+  const track = stream?.getVideoTracks?.()[0];
+  if (!track) return;
+  try { await track.applyConstraints({ advanced: [{ focusMode: "single-shot", pointsOfInterest: [{ x, y }] }] }); } catch {}
+  setTimeout(() => { try { track.applyConstraints({ advanced: [{ focusMode: "continuous" }] }); } catch {} }, 1500);
 }
 
 // Kiểm tra thiết bị có hỗ trợ đèn pin / zoom quang không
@@ -300,6 +333,42 @@ export function cropViewfinder(video, canvas, widthPct = 0.85, heightPx = 72) {
   const ctx = canvas.getContext("2d");
   ctx.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh);
   return ctx;
+}
+
+
+// Thanh điều khiển zoom + đổi camera — dùng chung cho mọi modal quét
+export function CameraControls({ engine }) {
+  const { streamRef, status, cameras, deviceId, switchCamera } = engine;
+  const [zoomCap, setZoomCap] = React.useState(null);
+  const [zoom, setZoomVal] = React.useState(1);
+  React.useEffect(() => {
+    if (status !== "scanning") return;
+    const { zoom: z } = getTrackCapabilities(streamRef.current);
+    if (z && z.max > z.min) {
+      setZoomCap(z);
+      const target = Math.min(z.max, Math.max(z.min, 2)); // mặc định 2x cho QR nhỏ
+      setZoomVal(target); setZoom(streamRef.current, target);
+    } else setZoomCap(null);
+  }, [status, deviceId]);
+  if (status !== "scanning") return null;
+  return (
+    <div style={{ position:"absolute", left:10, right:10, bottom:44, zIndex:5, display:"flex", alignItems:"center", gap:8 }}>
+      {zoomCap && (
+        <div style={{ flex:1, display:"flex", alignItems:"center", gap:8, background:"rgba(0,0,0,.55)", borderRadius:20, padding:"6px 12px" }}>
+          <span style={{ color:"#fff", fontSize:12, fontWeight:700, minWidth:34 }}>{zoom.toFixed(1)}x</span>
+          <input type="range" min={zoomCap.min} max={zoomCap.max} step={zoomCap.step || 0.1} value={zoom}
+            onChange={e => { const v = parseFloat(e.target.value); setZoomVal(v); setZoom(streamRef.current, v); }}
+            style={{ flex:1, accentColor:"#a5b4fc" }} />
+        </div>
+      )}
+      {cameras && cameras.length > 1 && (
+        <button onClick={switchCamera}
+          style={{ width:40, height:40, borderRadius:"50%", border:"none", background:"rgba(0,0,0,.55)", color:"#fff", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+          <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:22 }}>flip_camera_android</span>
+        </button>
+      )}
+    </div>
+  );
 }
 
 // Nút bật/tắt đèn pin — tự ẩn nếu máy không hỗ trợ
@@ -373,7 +442,7 @@ const ZXING_FORMATS = ["code_128","code_39","ean_13","ean_8","qr_code","data_mat
  *   (một số máy có API native nhưng bị hỏng, không bao giờ detect được)
  * - Quét ưu tiên vùng crop khung ngắm, có dự phòng toàn khung hình
  * Trả về: { start, stop, status, errMsg, streamRef, engineRef } */
-export function useScannerEngine({ videoRef, canvasRef, onResult, engineTimeoutMs = 8000 }) {
+export function useScannerEngine({ videoRef, canvasRef, onResult, engineTimeoutMs = 8000, squareCrop = false }) {
   const streamRef   = React.useRef(null);
   const rafRef      = React.useRef(null);
   const detectorRef = React.useRef(null);
@@ -383,6 +452,10 @@ export function useScannerEngine({ videoRef, canvasRef, onResult, engineTimeoutM
   const lastHeavyRef = React.useRef(0);
   const [status, setStatus] = React.useState("loading");
   const [errMsg, setErrMsg] = React.useState("");
+  const [cameras, setCameras] = React.useState([]);
+  const [deviceId, setDeviceId] = React.useState(null);
+  const deviceIdRef = React.useRef(null);
+  const camsRef = React.useRef([]);
 
   React.useEffect(() => () => { stop(); }, []);
 
@@ -390,6 +463,14 @@ export function useScannerEngine({ videoRef, canvasRef, onResult, engineTimeoutM
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
     if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null; }
+  }
+
+  function doCrop(v, c) {
+    if (squareCrop) {
+      const w = v.getBoundingClientRect().width || 300;
+      return cropViewfinder(v, c, 0.70, w * 0.70);
+    }
+    return cropViewfinder(v, c, 0.85, 72);
   }
 
   function done(raw) { stop(); onResult(String(raw || "").trim()); }
@@ -402,6 +483,33 @@ export function useScannerEngine({ videoRef, canvasRef, onResult, engineTimeoutM
         catch { resolve(false); }
       });
     });
+  }
+
+  async function openCam(id) {
+    const stream = await openScannerStream(id);
+    streamRef.current = stream;
+    const v = videoRef.current;
+    if (!v) return;
+    v.srcObject = stream;
+    await v.play();
+    return stream;
+  }
+
+  async function switchCamera() {
+    const cams = camsRef.current;
+    if (cams.length < 2) return;
+    const idx = cams.findIndex(c => c.deviceId === deviceIdRef.current);
+    const next = cams[(idx + 1) % cams.length];
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null; }
+    setStatus("loading");
+    try {
+      await openCam(next.deviceId);
+      deviceIdRef.current = next.deviceId; setDeviceId(next.deviceId);
+      engineStartRef.current = performance.now();
+      setStatus("scanning");
+      scanLoop();
+    } catch { setStatus("error"); setErrMsg("Không đổi được camera."); }
   }
 
   async function start() {
@@ -431,12 +539,19 @@ export function useScannerEngine({ videoRef, canvasRef, onResult, engineTimeoutM
     }
 
     try {
-      const stream = await openScannerStream();
-      streamRef.current = stream;
-      const v = videoRef.current;
-      if (!v) return;
-      v.srcObject = stream;
-      await v.play();
+      await openCam();
+      // Sau khi có quyền → liệt kê camera, nếu đang không phải camera chính thì chuyển sang camera chính
+      const { cameras: cams, mainId } = await listBackCameras();
+      camsRef.current = cams; setCameras(cams);
+      const curId = streamRef.current?.getVideoTracks?.()[0]?.getSettings?.().deviceId || null;
+      deviceIdRef.current = curId; setDeviceId(curId);
+      if (mainId && curId && mainId !== curId) {
+        try {
+          streamRef.current.getTracks().forEach(t => t.stop());
+          await openCam(mainId);
+          deviceIdRef.current = mainId; setDeviceId(mainId);
+        } catch { await openCam(); }
+      }
       engineStartRef.current = performance.now();
       setStatus("scanning");
       scanLoop();
@@ -454,7 +569,7 @@ export function useScannerEngine({ videoRef, canvasRef, onResult, engineTimeoutM
       const eng = engineRef.current;
 
       if (eng === "native" && detectorRef.current) {
-        const ctx = cropViewfinder(v, c, 0.85, 72);
+        const ctx = doCrop(v, c);
         try {
           if (ctx) {
             const bars = await detectorRef.current.detect(c);
@@ -472,7 +587,7 @@ export function useScannerEngine({ videoRef, canvasRef, onResult, engineTimeoutM
         const now = performance.now();
         if (now - lastHeavyRef.current > 300) { // decode ZXing nặng → throttle
           lastHeavyRef.current = now;
-          const ctx = cropViewfinder(v, c, 0.85, 72);
+          const ctx = doCrop(v, c);
           try {
             if (ctx) {
               const txt = zxingDecodeRef.current(c);
@@ -492,7 +607,7 @@ export function useScannerEngine({ videoRef, canvasRef, onResult, engineTimeoutM
         const now = performance.now();
         if (now - lastHeavyRef.current > 300) {
           lastHeavyRef.current = now;
-          const ctx = cropViewfinder(v, c, 0.85, 72);
+          const ctx = doCrop(v, c);
           try {
             if (ctx) {
               const img = ctx.getImageData(0, 0, c.width, c.height);
@@ -515,7 +630,7 @@ export function useScannerEngine({ videoRef, canvasRef, onResult, engineTimeoutM
     });
   }
 
-  return { start, stop, status, errMsg, streamRef, engineRef };
+  return { start, stop, status, errMsg, streamRef, engineRef, cameras, deviceId, switchCamera };
 }
 
 // ── IMEIScanModal — quét barcode 1D/2D để lấy IMEI ──────────────────────────
@@ -568,6 +683,7 @@ export function IMEIScanModal({ onClose, onFound }) {
             <video ref={videoRef} muted playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }} />
             <canvas ref={canvasRef} style={{ display:"none" }} />
             <TorchButton stream={streamRef.current} />
+            <CameraControls engine={engine} />
 
             {/* Viewfinder — khung ngang cho barcode 1D */}
             {status === "scanning" && (
@@ -676,6 +792,7 @@ export function ScanCodeModal({ title = "▦ Quét mã", hint = "Hướng camera
           <video ref={videoRef} muted playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }} />
           <canvas ref={canvasRef} style={{ display:"none" }} />
           <TorchButton stream={streamRef.current} />
+          <CameraControls engine={engine} />
           {status === "scanning" && (
             <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none" }}>
               <div style={{ width:"85%", height:72, border:"2.5px solid #fbbf24", borderRadius:8, boxShadow:"0 0 0 2000px rgba(0,0,0,.35)", position:"relative" }}>

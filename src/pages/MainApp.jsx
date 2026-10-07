@@ -2170,7 +2170,7 @@ function MainAppContent({ onUserChange }) {
               {page==="pack_ship" && (can("pack_order","view") || can("ship_order","view")
                 ? <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><PackingPageLazy user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"my_tasks")} focusOrderCode={focusOrderCode} onFocusConsumed={()=>setFocusOrderCode(null)} focusTab={focusPackTab} onFocusTabConsumed={()=>setFocusPackTab(null)} /></Suspense>
                 : <AccessDenied pageName="Soạn hàng & Giao nhận" />)}
-              {page==="cashier_home" && (can("sale_order","view") ? <CashierApp user={user} onNotif={()=>setShowNotif(v=>!v)} onQRScan={()=>setShowQRScan(true)} notifCount={notifications.length+dbNotifications.length} forceTab={cashierTab} onTabChange={setCashierTab} /> : <AccessDenied pageName="Thu ngân" />)}
+              {page==="cashier_home" && (can("sale_order","view") ? <CashierApp user={user} onNotif={()=>setShowNotif(v=>!v)} onQRScan={()=>setShowSmartScan(true)} notifCount={notifications.length+dbNotifications.length} forceTab={cashierTab} onTabChange={setCashierTab} /> : <AccessDenied pageName="Thu ngân" />)}
               {page==="sale_order" && user && can("sale_order","view") && (
                 <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
                   <SaleHistoryPage user={user} />
@@ -2472,7 +2472,7 @@ function MainAppContent({ onUserChange }) {
           </div>
         )}
         
-        {renderMobilePages(page, user, { setPage, dashboardTab, notifications, dbNotifications, setShowNotif, setShowQRScan, cashierTab, setCashierTab, setSelectedOrder: setSelectedOrderSync, can, focusOrderCode, onFocusConsumed: () => setFocusOrderCode(null), focusPackTab, onFocusTabConsumed: () => setFocusPackTab(null) })}
+        {renderMobilePages(page, user, { setPage, dashboardTab, notifications, dbNotifications, setShowNotif, setShowQRScan: setShowSmartScan, cashierTab, setCashierTab, setSelectedOrder: setSelectedOrderSync, can, focusOrderCode, onFocusConsumed: () => setFocusOrderCode(null), focusPackTab, onFocusTabConsumed: () => setFocusPackTab(null) })}
         </div>
       </Suspense>
 
