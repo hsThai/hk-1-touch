@@ -89,56 +89,25 @@ function getQRDataUrl(containerEl) {
 function QRScanModal({ onClose, onFound, orders = [], mode = "search" }) {
   const videoRef = useRef();
   const canvasRef = useRef();
-  const rafRef = useRef();
-  const streamRef = useRef();
-  const [camReady, setCamReady] = useState(false);
-  const [libOk, setLibOk] = useState(false);
-  const [err, setErr] = useState("");
   const [manual, setManual] = useState("");
+  const doneRef = useRef(false);
   const isCapture = mode === "capture";
 
-  // load jsQR
+  // Engine dùng chung: BarcodeDetector → ZXing → jsQR
+  const engine = useScannerEngine({ videoRef, canvasRef, onResult: (raw) => handleRaw(String(raw).trim()) });
+  const { status, errMsg, streamRef } = engine;
+
   useEffect(() => {
-    loadJsQR(() => setLibOk(true));
-    return () => {
-      streamRef.current?.getTracks().forEach(t => t.stop());
-      cancelAnimationFrame(rafRef.current);
-    };
+    engine.start();
+    return () => engine.stop();
   }, []);
 
-  // start camera khi lib xong
-  useEffect(() => {
-    if (!libOk) return;
-    navigator.mediaDevices?.getUserMedia({ video: { facingMode: "environment", width: 640, height: 640 } })
-      .then(stream => {
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play().then(() => { setCamReady(true); scan(); });
-        }
-      })
-      .catch(() => setErr("Không mở được camera. Dùng nhập thủ công bên dưới."));
-  }, [libOk]);
-
-  function scan() {
-    rafRef.current = requestAnimationFrame(() => {
-      const v = videoRef.current; const c = canvasRef.current;
-      if (!v || !c || !window.jsQR || v.readyState < 2) { scan(); return; }
-      c.width = v.videoWidth; c.height = v.videoHeight;
-      const ctx = c.getContext("2d");
-      ctx.drawImage(v, 0, 0);
-      const img = ctx.getImageData(0, 0, c.width, c.height);
-      const code = window.jsQR(img.data, img.width, img.height, { inversionAttempts: "attemptBoth" });
-      if (code?.data) {
-        streamRef.current?.getTracks().forEach(t => t.stop());
-        handleRaw(code.data.trim());
-        return;
-      }
-      scan();
-    });
-  }
+  function close() { try { engine.stop(); } catch {} onClose(); }
 
   function handleRaw(raw) {
+    if (!raw || doneRef.current) return;
+    doneRef.current = true;
+    try { engine.stop(); } catch {}
     if (isCapture) { onFound({ type: "raw", code: raw }); onClose(); return; }
 
     // Tìm theo product_qr trước (QR dán trên máy → lịch sử sửa chữa)
@@ -149,22 +118,16 @@ function QRScanModal({ onClose, onFound, orders = [], mode = "search" }) {
       return;
     }
 
-    // Kiểm tra hàng trong kho (máy nhập kho chưa bán)
-    // SparePart có category="device_stock" và sku=raw → hàng trong kho
-    // Dùng async check — wrap trong async IIFE
     (async () => {
       try {
         const stockItems = await SparePart.filter({ sku: raw, category: "device_stock" });
         if (stockItems && stockItems.length > 0) {
-          const sp = stockItems[0];
-          onFound({ type: "warehouse_stock", data: sp, qr: raw });
+          onFound({ type: "warehouse_stock", data: stockItems[0], qr: raw });
           onClose();
           return;
         }
       } catch {}
-
-      // Tìm theo mã đơn
-      const byOrderId = (orders || []).find(o => o.id === raw || o.qr_code === raw);
+      const byOrderId = (orders || []).find(o => o.id === raw || o.qr_code === raw || o.order_code === raw);
       if (byOrderId) { onFound({ type: "order", data: byOrderId }); onClose(); return; }
       onFound({ type: "assign_qr", qr: raw });
       onClose();
@@ -179,7 +142,6 @@ function QRScanModal({ onClose, onFound, orders = [], mode = "search" }) {
   return (
     <div style={{ position:"fixed", inset:0, zIndex:4000, background:"rgba(0,0,0,.92)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:16 }}>
       <div style={{ width:"100%", maxWidth:400 }}>
-        {/* Header */}
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
           <div>
             <div style={{ color:"#fff", fontWeight:800, fontSize:20 }}>
@@ -189,53 +151,39 @@ function QRScanModal({ onClose, onFound, orders = [], mode = "search" }) {
               {isCapture ? "Lấy mã QR dán lên máy → điền vào đơn" : "QR đã gán: xem lịch sử · QR mới: gán cho đơn này"}
             </div>
           </div>
-          <button onClick={() => { engine.stop(); onClose(); }}
+          <button onClick={close}
             style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:40, height:40, borderRadius:"50%", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22,verticalAlign:"middle",lineHeight:1}}>close</span></button>
         </div>
 
-        {/* Camera */}
         <div style={{ position:"relative", borderRadius:18, overflow:"hidden", background:"#000", aspectRatio:"1", marginBottom:14 }}>
           <video ref={videoRef} playsInline muted style={{ width:"100%", height:"100%", objectFit:"cover" }} />
           <canvas ref={canvasRef} style={{ display:"none" }} />
-          {/* Overlay */}
+          <TorchButton stream={streamRef.current} />
           <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none" }}>
-            <div style={{ width:"60%", height:"60%", position:"relative" }}>
+            <div style={{ width:"70%", height:"70%", position:"relative" }}>
               <div style={{ position:"absolute", inset:0, boxShadow:"0 0 0 9999px rgba(0,0,0,.5)", borderRadius:12 }} />
               <div style={{ position:"absolute", inset:0, border:"3px solid #a5b4fc", borderRadius:12 }} />
-              {/* corners */}
-              {[[0,0],[0,1],[1,0],[1,1]].map(([t,r],i) => (
-                <div key={i} style={{ position:"absolute", width:20, height:20,
-                  ...(t===0 ? {top:-2} : {bottom:-2}), ...(r===0 ? {left:-2} : {right:-2}),
-                  borderTop: t===0?"3px solid #818cf8":"none", borderBottom: t===1?"3px solid #818cf8":"none",
-                  borderLeft: r===0?"3px solid #818cf8":"none", borderRight: r===1?"3px solid #818cf8":"none",
-                  borderRadius: `${t===0&&r===0?"4":t===0&&r===1?"0":t===1&&r===0?"0":"0"}px ${t===0&&r===1?"4":"0"}px ${t===1&&r===1?"4":"0"}px ${t===1&&r===0?"4":"0"}px`
-                }} />
-              ))}
             </div>
           </div>
-          {/* Status */}
           <div style={{ position:"absolute", bottom:10, left:0, right:0, textAlign:"center" }}>
-            {!libOk && <span style={{ background:"rgba(0,0,0,.7)", color:"#fcd34d", padding:"5px 14px", borderRadius:20, fontSize:12 }}>⏳ Đang tải thư viện QR...</span>}
-            {libOk && !camReady && !err && <span style={{ background:"rgba(0,0,0,.7)", color:"#fff", padding:"5px 14px", borderRadius:20, fontSize:12 }}>  Đang mở camera...</span>}
-            {libOk && camReady && !err && <span style={{ background:"rgba(0,0,0,.7)", color:"#a5b4fc", padding:"5px 14px", borderRadius:20, fontSize:12 }}>Đưa mã QR vào khung...</span>}
+            {status === "loading" && <span style={{ background:"rgba(0,0,0,.7)", color:"#fff", padding:"5px 14px", borderRadius:20, fontSize:12 }}>Đang mở camera...</span>}
+            {status === "scanning" && <span style={{ background:"rgba(0,0,0,.7)", color:"#a5b4fc", padding:"5px 14px", borderRadius:20, fontSize:12 }}>Đưa mã QR vào khung, giữ máy ổn định...</span>}
           </div>
         </div>
 
-        {/* Error */}
-        {err && (
+        {status === "error" && (
           <div style={{ background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:12, padding:"10px 14px", marginBottom:12, color:"#dc2626", fontSize:13, fontWeight:600, textAlign:"center" }}>
-            {err}
+            {errMsg}
             <div style={{ fontSize:12, color:"#6b7280", fontWeight:400, marginTop:4 }}>Thử nhập mã thủ công bên dưới</div>
           </div>
         )}
 
-        {/* Manual */}
         <div style={{ background:"rgba(255,255,255,.08)", borderRadius:14, padding:14 }}>
           <div style={{ color:"#e5e7eb", fontSize:13, fontWeight:600, marginBottom:8 }}>
             {isCapture ? "Hoặc nhập mã QR thủ công:" : "Hoặc nhập mã đơn thủ công:"}
           </div>
           <div style={{ display:"flex", gap:8 }}>
-            <input value={manual} onChange={e => { setManual(e.target.value); setErr(""); }}
+            <input value={manual} onChange={e => setManual(e.target.value)}
               onKeyDown={e => e.key === "Enter" && handleManual()}
               placeholder={isCapture ? "Nhập mã QR trên máy..." : "SC240001..."}
               style={{ flex:1, height:48, borderRadius:12, border:"1.5px solid rgba(255,255,255,.3)", background:"rgba(255,255,255,.1)", color:"#fff", padding:"0 14px", fontSize:15, outline:"none" }} />
