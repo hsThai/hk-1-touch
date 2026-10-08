@@ -5,6 +5,7 @@
  */
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { getPbUrl, getAuth, logAction } from "./pb.jsx";
+import { usePermission } from "./PermissionContext.jsx";
 import StockCountPage from "./StockCountPage.jsx";
 import PurchaseOrderPage from "./PurchaseOrderPage.jsx";
 import RMAPage from "./RMAPage.jsx";
@@ -622,6 +623,8 @@ function ZoneLocationTab({ user, toast }) {
 // TAB 3 — TỒN KHO (Stock Ledger)
 // ═══════════════════════════════════════════════════════════
 function StockLedgerTab({ user, toast }) {
+  const { can } = usePermission();
+  const canAdjust = !!(can && can("stock_count","edit"));
   const [warehouses, setWarehouses] = useState([]);
   const [selWH, setSelWH] = useState("");
   const [ledger, setLedger] = useState([]);
@@ -753,7 +756,7 @@ function StockLedgerTab({ user, toast }) {
                           <td style={S.td}>{(l.cost_price||0).toLocaleString("vi")}</td>
                           <td style={S.td}>{((l.qty_on_hand||0)*(l.cost_price||0)).toLocaleString("vi")}</td>
                           <td style={S.td}>{l.min_qty||0}</td>
-                          <td style={S.td}><button style={S.btnSm("#6b7280")} onClick={()=>{ setAdjustModal(l); setAdjForm({qty:String(l.qty_on_hand||0),note:""}); }}>⚖️ Điều chỉnh</button></td>
+                          <td style={S.td}>{canAdjust ? <button style={S.btnSm("#6b7280")} onClick={()=>{ setAdjustModal(l); setAdjForm({qty:String(l.qty_on_hand||0),note:""}); }}>⚖️ Điều chỉnh</button> : <span style={{color:"#d1d5db",fontSize:12}}>—</span>}</td>
                         </tr>
                       );
                     })}
