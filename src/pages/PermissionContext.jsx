@@ -44,6 +44,8 @@ const RESOURCES = [
   "profit_report",     // Báo cáo lợi nhuận
   "pack_order",        // Soạn hàng (picking)
   "ship_order",        // Giao nhận (giao hàng)
+  "stock_card",        // Thẻ kho (NXT)
+  "stock_report",      // Báo cáo kho
 ];
 
 // Actions chuẩn
@@ -65,6 +67,8 @@ const STATIC_MATRIX = {
     stock_transfer:     p(1,1,1,1,1,1),
     stock_count:        p(1,1,1,1,1,1),
     stock_ledger:       p(1,1,1,1,1,1),
+    stock_card:   p(1,0,0,0,0,1), // Thẻ kho (NXT)
+    stock_report: p(1,0,0,0,0,1), // Báo cáo kho
     customer:           p(1,1,1,1,1,1),
     sale_order:         p(1,1,1,1,1,1),
     expense:            p(1,1,1,1,1,1),
@@ -95,6 +99,8 @@ const STATIC_MATRIX = {
     stock_transfer:     p(1,1,1,1,1,1),
     stock_count:        p(1,1,1,1,1,1),
     stock_ledger:       p(1,1,1,1,1,1),
+    stock_card:   p(1,0,0,0,0,1), // Thẻ kho (NXT)
+    stock_report: p(1,0,0,0,0,1), // Báo cáo kho
     customer:           p(1,1,1,1,1,1),
     sale_order:         p(1,1,1,1,1,1),
     expense:            p(1,1,1,1,1,1),
@@ -125,6 +131,8 @@ const STATIC_MATRIX = {
     stock_transfer:     p(1,1,1,0,1,0),
     stock_count:        p(1,1,1,0,1,0),
     stock_ledger:       p(1,0,0,0,0,1),
+    stock_card:   p(1,0,0,0,0,1), // Thẻ kho (NXT)
+    stock_report: p(1,0,0,0,0,1), // Báo cáo kho
     customer:           p(1,1,1,0,0,1),
     sale_order:         p(1,1,1,0,1,1),
     expense:            p(1,1,1,0,1,1),
@@ -155,6 +163,8 @@ const STATIC_MATRIX = {
     stock_transfer:     p(0,0,0,0,0,0),
     stock_count:        p(0,0,0,0,0,0),
     stock_ledger:       p(1,0,0,0,0,0),
+    stock_card:   p(0,0,0,0,0,0), // Thẻ kho (NXT)
+    stock_report: p(0,0,0,0,0,0), // Báo cáo kho
     customer:           p(1,1,1,0,0,1),
     sale_order:         p(1,1,0,0,0,1),
     expense:            p(0,0,0,0,0,0),
@@ -185,6 +195,8 @@ const STATIC_MATRIX = {
     stock_transfer:     p(0,0,0,0,0,0),
     stock_count:        p(1,0,1,0,0,0), // tham gia kiểm kho
     stock_ledger:       p(1,0,0,0,0,0),
+    stock_card:   p(0,0,0,0,0,0), // Thẻ kho (NXT)
+    stock_report: p(0,0,0,0,0,0), // Báo cáo kho
     customer:           p(1,0,0,0,0,0),
     sale_order:         p(0,0,0,0,0,0),
     expense:            p(0,0,0,0,0,0),
@@ -214,6 +226,8 @@ const STATIC_MATRIX = {
     stock_transfer:     p(0,0,0,0,0,0),
     stock_count:        p(1,0,1,0,0,0), // tham gia kiểm kho
     stock_ledger:       p(1,0,0,0,0,0),
+    stock_card:   p(0,0,0,0,0,0), // Thẻ kho (NXT)
+    stock_report: p(0,0,0,0,0,0), // Báo cáo kho
     customer:           p(1,0,0,0,0,0),
     sale_order:         p(0,0,0,0,0,0),
     expense:            p(0,0,0,0,0,0),
@@ -245,6 +259,8 @@ const STATIC_MATRIX = {
     stock_transfer:     p(1,1,1,0,1,0),
     stock_count:        p(1,1,1,0,0,0),
     stock_ledger:       p(1,1,0,0,0,1),
+    stock_card:   p(1,0,0,0,0,1), // Thẻ kho (NXT)
+    stock_report: p(1,0,0,0,0,1), // Báo cáo kho
     customer:           p(0,0,0,0,0,0),
     sale_order:         p(0,0,0,0,0,0),
     expense:            p(0,0,0,0,0,0),
@@ -275,6 +291,8 @@ const STATIC_MATRIX = {
     stock_transfer:     p(0,0,0,0,0,0),
     stock_count:        p(0,0,0,0,0,0),
     stock_ledger:       p(1,0,0,0,0,0),
+    stock_card:   p(0,0,0,0,0,0), // Thẻ kho (NXT)
+    stock_report: p(0,0,0,0,0,0), // Báo cáo kho
     customer:           p(1,1,0,0,0,1),
     sale_order:         p(1,1,1,0,0,1),
     expense:            p(1,1,0,0,0,0),
@@ -305,6 +323,8 @@ const STATIC_MATRIX = {
     stock_transfer:     p(0,0,0,0,0,0),
     stock_count:        p(1,0,0,0,0,1),
     stock_ledger:       p(1,0,0,0,0,1),
+    stock_card:   p(1,0,0,0,0,1), // Thẻ kho (NXT)
+    stock_report: p(1,0,0,0,0,1), // Báo cáo kho
     customer:           p(1,0,0,0,0,1),
     sale_order:         p(1,1,1,0,0,1),
     expense:            p(1,1,1,1,0,1),
@@ -335,6 +355,8 @@ const STATIC_MATRIX = {
     stock_transfer:     p(1,0,0,0,0,0),
     stock_count:        p(1,0,0,0,0,0),
     stock_ledger:       p(1,0,0,0,0,0),
+    stock_card:   p(0,0,0,0,0,0), // Thẻ kho (NXT)
+    stock_report: p(0,0,0,0,0,0), // Báo cáo kho
     customer:           p(1,0,0,0,0,0),
     sale_order:         p(1,0,0,0,0,0),
     expense:            p(0,0,0,0,0,0),
@@ -365,6 +387,8 @@ const STATIC_MATRIX = {
     stock_transfer:     p(0,0,0,0,0,0),
     stock_count:        p(0,0,0,0,0,0),
     stock_ledger:       p(1,0,0,0,0,0),
+    stock_card:   p(0,0,0,0,0,0), // Thẻ kho (NXT)
+    stock_report: p(0,0,0,0,0,0), // Báo cáo kho
     customer:           p(1,1,0,0,0,0),
     sale_order:         p(1,0,0,0,0,0),
     expense:            p(0,0,0,0,0,0),
@@ -394,7 +418,9 @@ const STATIC_MATRIX = {
     stock_import:       p(0,0,0,0,0,0),
     stock_transfer:     p(0,0,0,0,0,0),
     stock_count:        p(0,0,0,0,0,0),
-    stock_ledger:       p(0,0,0,0,0,0),
+    stock_ledger:      p(1,0,0,0,0,0),
+    stock_card:   p(0,0,0,0,0,0), // Thẻ kho (NXT)
+    stock_report: p(0,0,0,0,0,0), // Báo cáo kho
     customer:           p(1,0,0,0,0,0),
     sale_order:         p(0,0,0,0,0,0),
     expense:            p(0,0,0,0,0,0),
@@ -424,7 +450,9 @@ const STATIC_MATRIX = {
     stock_import:       p(0,0,0,0,0,0),
     stock_transfer:     p(0,0,0,0,0,0),
     stock_count:        p(0,0,0,0,0,0),
-    stock_ledger:       p(0,0,0,0,0,0),
+    stock_ledger:      p(1,0,0,0,0,0),
+    stock_card:   p(0,0,0,0,0,0), // Thẻ kho (NXT)
+    stock_report: p(0,0,0,0,0,0), // Báo cáo kho
     customer:           p(1,1,1,0,0,1),
     sale_order:         p(1,0,0,0,0,1),
     expense:            p(0,0,0,0,0,0),
@@ -455,6 +483,8 @@ const STATIC_MATRIX = {
     stock_transfer:     p(0,0,0,0,0,0),
     stock_count:        p(0,0,0,0,0,0),
     stock_ledger:       p(1,0,0,0,0,0),
+    stock_card:   p(0,0,0,0,0,0), // Thẻ kho (NXT)
+    stock_report: p(0,0,0,0,0,0), // Báo cáo kho
     customer:           p(1,1,1,0,0,1),
     sale_order:         p(1,1,1,0,0,1),
     expense:            p(0,0,0,0,0,0),
@@ -485,6 +515,8 @@ const STATIC_MATRIX = {
     stock_transfer:     p(1,0,0,0,0,0),
     stock_count:        p(0,0,0,0,0,0),
     stock_ledger:       p(1,0,0,0,0,0),
+    stock_card:   p(0,0,0,0,0,0), // Thẻ kho (NXT)
+    stock_report: p(0,0,0,0,0,0), // Báo cáo kho
     customer:           p(0,0,0,0,0,0),
     sale_order:         p(1,0,0,0,0,0),
     expense:            p(0,0,0,0,0,0),
@@ -515,6 +547,8 @@ const STATIC_MATRIX = {
     stock_transfer:     p(1,0,0,0,1,0),
     stock_count:        p(1,0,1,0,1,0),
     stock_ledger:       p(1,0,0,0,0,1),
+    stock_card:   p(1,0,0,0,0,1), // Thẻ kho (NXT)
+    stock_report: p(1,0,0,0,0,1), // Báo cáo kho
     customer:           p(1,0,1,0,0,1),
     sale_order:         p(1,0,0,0,1,1),
     expense:            p(1,0,0,0,0,1),
@@ -547,6 +581,8 @@ const STATIC_MATRIX = {
     stock_transfer:     p(0,0,0,0,0,0),
     stock_count:        p(0,0,0,0,0,0),
     stock_ledger:       p(1,0,0,0,0,1),
+    stock_card:   p(1,0,0,0,0,0), // Thẻ kho (NXT)
+    stock_report: p(1,0,0,0,0,0), // Báo cáo kho
     customer:           p(1,0,0,0,0,0),
     sale_order:         p(1,0,0,0,0,0),
     expense:            p(0,0,0,0,0,0),
@@ -577,6 +613,8 @@ const STATIC_MATRIX = {
     stock_transfer:     p(0,0,0,0,0,0),
     stock_count:        p(0,0,0,0,0,0),
     stock_ledger:       p(0,0,0,0,0,0),
+    stock_card:   p(0,0,0,0,0,0), // Thẻ kho (NXT)
+    stock_report: p(0,0,0,0,0,0), // Báo cáo kho
     customer:           p(0,0,0,0,0,0),
     sale_order:         p(0,0,0,0,0,0),
     expense:            p(0,0,0,0,0,0),

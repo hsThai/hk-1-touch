@@ -36,6 +36,8 @@ const RESOURCE_META = {
   profit_report:      { label:"Báo cáo lợi nhuận",     module:"Báo cáo",    icon:"trending_up" },
   pack_order:         { label:"Soạn hàng (Picking)",   module:"Kho",        icon:"inventory" },
   ship_order:         { label:"Giao nhận (Giao hàng)", module:"Kho",        icon:"local_shipping" },
+  stock_card:         { label:"Thẻ kho (NXT)",          module:"Kho",        icon:"assessment" },
+  stock_report:       { label:"Báo cáo kho",             module:"Kho",        icon:"bar_chart" },
 };
 
 const MODULES   = [

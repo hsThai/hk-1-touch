@@ -14,7 +14,7 @@ export const PAGE_PERMS = {
   price_policy:    ["sale_order", "view"],
   product_mgr:     ["sale_order", "view"],
   revenue:         ["revenue_report", "view"],
-  stock_nxt:       ["stock_ledger", "view"],
+  stock_nxt:       ["stock_card", "view"],
   expense:         ["expense", "view"],
   rma:             ["stock_import", "view"],
   cash_journal:    ["cash_journal", "view"],
@@ -37,7 +37,7 @@ export const PAGE_PERMS = {
   wh_ledger:       ["stock_ledger", "view"],
   wh_defect:       ["stock_import", "view"],
   wh_shipping:     ["stock_import", "view"],
-  wh_report:       ["stock_ledger", "view"],
+  wh_report:       ["stock_report", "view"],
   wh_orders:       ["repair_order", "view"],
   wh_home:         ["repair_order", "view"],
   wh_import_ncc:   ["stock_import", "view"],
@@ -159,7 +159,7 @@ export function renderSalesPages(page, user, can) {
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
         : <Suspense fallback={<Loading />}><RevenueReportPage user={user} /></Suspense>
       )}
-      {page === "stock_nxt" && (can && !can("stock_ledger","view")
+      {page === "stock_nxt" && (can && !can("stock_card","view")
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
         : <Suspense fallback={<Loading />}><StockReportNXT user={user} /></Suspense>
       )}
@@ -193,7 +193,7 @@ export function renderSalesPages(page, user, can) {
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
         : <Suspense fallback={<Loading />}><WhShippingPageLazy user={user} /></Suspense>
       )}
-      {page === "wh_report" && user && (can && !can("stock_ledger","view")
+      {page === "wh_report" && user && (can && !can("stock_report","view")
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
         : <Suspense fallback={<Loading />}><WhReportPageLazy user={user} /></Suspense>
       )}
@@ -357,7 +357,7 @@ export function renderMobilePages(page, user, extraProps = {}) {
       )}
       {page==="wh_report" && user && (
         <Suspense fallback={<Loading />}>
-          {extraProps.can && !extraProps.can("stock_ledger","view")
+          {extraProps.can && !extraProps.can("stock_report","view")
             ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
             : <WhReportPageLazy user={user} />}
         </Suspense>

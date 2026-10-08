@@ -1435,11 +1435,11 @@ function MainAppContent({ onUserChange }) {
         { key:"pack_ship",      icon:"inventory",              label:"Soạn hàng & Giao",  perm:["pack_order","view"] },
         { key:"wh_manager",     icon:"warehouse",              label:"Thiết lập kho",    perm:["warehouse_mgr","view"] },
         { key:"wh_ledger",      icon:"inventory_2",            label:"Tồn kho",          perm:["stock_ledger","view"] },
-        { key:"stock_nxt",      icon:"assessment",             label:"Thẻ kho (NXT)",    perm:["stock_ledger","view"] },
+        { key:"stock_nxt",      icon:"assessment",             label:"Thẻ kho (NXT)",    perm:["stock_card","view"] },
         { key:"stock_count",    icon:"fact_check",             label:"Kiểm kê kho",      perm:["stock_count","view"] },
         { key:"wh_defect",      icon:"warning",                label:"LK lỗi / RMA",     perm:["stock_import","view"] },
         { key:"wh_shipping",    icon:"local_shipping",         label:"Vận đơn",          perm:["stock_import","view"] },
-        { key:"wh_report",      icon:"bar_chart",              label:"Báo cáo kho",      perm:["stock_ledger","view"] },
+        { key:"wh_report",      icon:"bar_chart",              label:"Báo cáo kho",      perm:["stock_report","view"] },
         // ── Mua hàng (NCC) ──
         { key:"purchase_order", icon:"add_shopping_cart",      label:"Đặt hàng NCC",     perm:["purchase_order","view"] },
         { key:"wh_import_ncc",  icon:"move_to_inbox",          label:"Nhập hàng (NCC)",  perm:["stock_import","view"] },
@@ -1483,7 +1483,7 @@ function MainAppContent({ onUserChange }) {
       items.push({ key:"wh_export",   icon:"outbox",          label:"Xuất kho" });
     if ((can("pack_order","view") || can("ship_order","view")) && !isManager)
       items.push({ key:"pack_ship",   icon:"inventory",       label:"Soạn hàng & Giao" });
-    if (can("stock_ledger","view") && !isManager)
+    if (can("stock_card","view") && !isManager)
       items.push({ key:"stock_nxt",   icon:"assessment",      label:"Thẻ kho (NXT)" });
     if (can("stock_count","view") && !isManager && !isRoleHome)
       items.push({ key:"stock_count", icon:"fact_check", label:"Kiểm kê kho" });
@@ -1491,7 +1491,7 @@ function MainAppContent({ onUserChange }) {
       items.push({ key:"wh_defect",   icon:"warning",         label:"LK lỗi / RMA" });
     if (can("stock_import","view") && !isManager)
       items.push({ key:"wh_shipping", icon:"local_shipping",  label:"Vận đơn" });
-    if (can("stock_ledger","view") && !isManager)
+    if (can("stock_report","view") && !isManager)
       items.push({ key:"wh_report",   icon:"bar_chart",       label:"Báo cáo kho" });
 
     // 5. MUA HÀNG NCC — mỗi mục lọc theo permission riêng (khớp PAGE_PERMS)
