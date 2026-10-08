@@ -299,7 +299,24 @@ export default function SaleHistoryPage({ user }) {
     return () => window.removeEventListener("resize", fn);
   }, []);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load(); openRequestedOrder();
+    const h = () => openRequestedOrder();
+    window.addEventListener("open-sale-order", h);
+    return () => window.removeEventListener("open-sale-order", h);
+  }, []);
+
+  // Mở thẳng chi tiết đơn khi được chuyển từ nút quét QR (mã đơn lưu ở sessionStorage)
+  async function openRequestedOrder() {
+    let code = null;
+    try { code = sessionStorage.getItem("open_sale_order"); sessionStorage.removeItem("open_sale_order"); } catch {}
+    if (!code) return;
+    try {
+      const esc = String(code).replace(/"/g, '\\"');
+      const found = await SaleOrder.list({ filter: `order_code="${esc}"`, limit: 1 });
+      if (found && found[0]) openDetail(found[0]);
+    } catch (e) { console.error(e); }
+  }
 
   async function load() {
     setLoading(true);

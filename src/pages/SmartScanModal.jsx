@@ -313,15 +313,19 @@ export default function SmartScanModal({ user, orders = [], onClose,
                 </button>
                 <div style={{ display:"flex", gap:8 }}>
                   <button style={{ ...BTN2, flex:1 }} onClick={onClose}>Đóng</button>
-                  <button style={{ ...BTN2, flex:1 }} onClick={() => { onClose(); onGoSaleHistory && onGoSaleHistory(); }}>
-                    Lịch sử bán hàng
+                  <button style={{ ...BTN2, flex:1 }} onClick={() => {
+                    try { sessionStorage.setItem("open_sale_order", res.topSale.order_code); } catch {}
+                    onClose(); onGoSaleHistory && onGoSaleHistory();
+                    setTimeout(() => window.dispatchEvent(new Event("open-sale-order")), 300);
+                  }}>
+                    Chi tiết đơn hàng
                   </button>
                 </div>
               </div>
               {/* Đơn bán khác chứa cùng SKU */}
               {res.kind === "sold" && res.saleOrders.length > 1 && (
                 <div style={{ marginTop:10, fontSize:12, color:"#9ca3af" }}>
-                  +{res.saleOrders.length - 1} đơn bán khác chứa sản phẩm này (xem trong Lịch sử bán hàng)
+                  +{res.saleOrders.length - 1} đơn bán khác chứa sản phẩm này (xem trong danh sách đơn bán)
                 </div>
               )}
             </Card>
