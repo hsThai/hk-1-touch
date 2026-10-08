@@ -31,13 +31,14 @@ const PV_BAR = `<style>@media print{.pv-bar{display:none!important}} body{paddin
 </div>`;
 const PV_VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1">';
 // Chỉ áp dụng khi xem trên màn hình điện thoại: nội dung full bề rộng + chữ to dễ đọc (không ảnh hưởng bản in)
-const PV_MOBILE_CSS = '<style>@media screen and (max-width:700px){body{max-width:100%!important;width:100%!important;zoom:1.55;padding-left:10px!important;padding-right:10px!important}}</style>';
+const PV_MOBILE_CSS = '<style>@media screen and (max-width:700px){html{-webkit-text-size-adjust:100%}body{width:100%!important;max-width:100%!important;padding:10px 12px 24px!important;font-size:15.5px!important}.pv-bar{margin:-10px -12px 10px!important}}</style>';
 function openBlobHtml(html) {
   if (!/name=["']viewport["']/i.test(html)) {
     html = /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, m => m + PV_VIEWPORT) : PV_VIEWPORT + html;
   }
+  const hasBar = html.includes('class="pv-bar"'); // kiểm tra TRƯỚC khi chèn CSS (CSS cũng chứa chữ "pv-bar")
   if (/<\/head>/i.test(html)) html = html.replace(/<\/head>/i, PV_MOBILE_CSS + "</head>");
-  if (!html.includes("pv-bar")) {
+  if (!hasBar) {
     html = /<body[^>]*>/i.test(html) ? html.replace(/<body[^>]*>/i, m => m + PV_BAR) : PV_BAR + html;
   }
   const url = URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));
@@ -273,104 +274,99 @@ export async function previewReceiptForm(order, quotedParts = [], shopInfo = {})
 <title>PHIEU TIEP NHAN ${order.order_code||order.id}</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:"Times New Roman",Times,serif;font-size:13px;max-width:190mm;margin:0 auto;
-       padding:8mm 7mm;color:#111;background:#fff;line-height:1.55}
-  .title-shop{font-size:15px;font-weight:bold;text-align:center;text-transform:uppercase;letter-spacing:.5px}
-  .sub-shop{font-size:11px;text-align:center;color:#444;margin-bottom:1px}
-  .doc-title{font-size:18px;font-weight:bold;text-align:center;margin:8px 0 2px;letter-spacing:2px;
-             text-transform:uppercase;text-decoration:underline}
-  .doc-sub{text-align:center;font-size:11px;color:#888;margin-bottom:6px}
-  .sep-solid{border:none;border-top:2px solid #111;margin:6px 0}
-  .sep-dash{border:none;border-top:1px dashed #777;margin:5px 0}
-  /* 2 cột info */
-  .info-2col{display:grid;grid-template-columns:1fr 1fr;gap:2px 20px;margin:6px 0}
-  .info-row{display:flex;font-size:12px;gap:4px;margin:1px 0}
-  .lbl{color:#555;white-space:nowrap;min-width:92px}
-  .val{font-weight:700;flex:1}
-  /* Tiêu đề section */
-  .section-title{font-size:12px;font-weight:bold;background:#222;color:#fff;
-                 padding:4px 8px;margin:8px 0 4px;letter-spacing:.5px}
+  body{font-family:"Times New Roman",Times,serif;font-size:12.5px;width:148mm;max-width:100%;margin:0 auto;
+       padding:6mm 6mm;color:#111;background:#fff;line-height:1.45}
+  /* Header: cửa hàng bên trái, QR bên phải */
+  .hd{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:6px;border-bottom:2px solid #111}
+  .hd-shop{flex:1;min-width:0}
+  .title-shop{font-size:16px;font-weight:bold;text-transform:uppercase;letter-spacing:.5px}
+  .sub-shop{font-size:11px;color:#444;margin-top:1px}
+  .hd-qr{flex-shrink:0;text-align:center}
+  .hd-qr img{width:68px;height:68px;display:block}
+  .hd-qr .c1{font-size:8px;color:#666;margin-top:1px}
+  .hd-qr .c2{font-size:9px;font-weight:bold;color:#111}
+  /* Tiêu đề phiếu */
+  .doc-title{font-size:19px;font-weight:bold;text-align:center;margin:9px 0 1px;letter-spacing:2px;text-transform:uppercase}
+  .doc-sub{text-align:center;font-size:10.5px;color:#777;font-style:italic;margin-bottom:6px}
+  .sep-dash{border:none;border-top:1px dashed #888;margin:6px 0}
+  /* Mã phiếu nổi bật */
+  .code-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:2px 0 6px}
+  .code-box{font-size:17px;font-weight:900;border:2px solid #111;padding:1px 10px;letter-spacing:.5px}
+  .code-dates{text-align:right;font-size:11.5px;line-height:1.5}
+  .code-dates b.due{color:#dc2626}
+  /* Thông tin: lưới 2 cột nhãn/giá trị */
+  .info{display:grid;grid-template-columns:auto 1fr auto 1fr;column-gap:8px;row-gap:3px;font-size:12px;margin:4px 0;align-items:baseline}
+  .info .l{color:#555;white-space:nowrap}
+  .info .v{font-weight:700;overflow-wrap:anywhere}
+  .info .full{grid-column:2 / -1}
+  .issue{margin:4px 0;font-size:12px}
+  .issue .l{color:#555}
+  .issue .v{font-weight:700;font-style:italic}
+  /* Tiêu đề mục */
+  .section-title{font-size:11.5px;font-weight:bold;background:#222;color:#fff;padding:3px 8px;margin:7px 0 4px;letter-spacing:.4px}
   /* Bảng */
-  table{width:100%;border-collapse:collapse;font-size:12px}
-  thead th{background:#f0f0f0;border:1px solid #ccc;padding:4px 5px;font-size:11px;font-weight:bold}
+  table{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixed}
+  thead th{background:#f0f0f0;border:1px solid #ccc;padding:3px 4px;font-size:10.5px;font-weight:bold}
   thead th.r{text-align:right} thead th.c{text-align:center}
-  tbody td{border:1px solid #ddd;padding:4px 5px;vertical-align:top}
+  tbody td{border:1px solid #ddd;padding:3px 4px;vertical-align:top;overflow-wrap:anywhere}
   tbody td.r{text-align:right} tbody td.c{text-align:center}
-  tfoot td{border:1px solid #ccc;padding:5px;font-weight:bold;background:#f9f9f9}
+  tfoot td{border:1px solid #ccc;padding:4px;font-weight:bold;background:#f9f9f9}
   tfoot td.r{text-align:right}
-  /* Tổng giá trị */
-  .price-block{margin:6px 0;font-size:12px}
-  .price-row{display:flex;justify-content:space-between;padding:2px 0}
-  .grand-row{display:flex;justify-content:space-between;font-size:14px;font-weight:bold;
-              border-top:2px solid #111;border-bottom:2px solid #111;padding:5px 0;margin:4px 0}
-  /* Ghi chú */
-  .note-box{border:1px solid #ccc;border-radius:3px;padding:6px 8px;font-size:11px;
-            color:#444;min-height:42px;margin:4px 0;background:#fafafa}
-  /* Xác nhận */
-  .confirm-box{border:1.5px solid #333;border-radius:4px;padding:8px 10px;margin:6px 0;font-size:12px;
-               background:#fffbf0}
+  .price-row{display:flex;justify-content:space-between;gap:8px;padding:2px 0;font-size:12px}
+  .note-box{border:1px solid #ccc;border-radius:3px;padding:5px 8px;font-size:11px;color:#444;min-height:34px;margin:4px 0;background:#fafafa}
+  .confirm-box{border:1.5px solid #333;border-radius:4px;padding:6px 9px;margin:6px 0;font-size:11.5px;background:#fffbf0}
   /* Ký tên */
-  .sign-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 32px;margin-top:16px}
+  .sign-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 24px;margin-top:14px}
   .sign-box{text-align:center;border-top:1.5px solid #333;padding-top:4px}
-  .sign-title{font-size:12px;font-weight:bold;margin-bottom:1px}
-  .sign-note{font-size:10px;color:#777;font-style:italic;margin-bottom:48px}
-  .sign-name{font-size:11px;font-style:italic;color:#666;border-top:1px dashed #ccc;
-             padding-top:3px;margin-top:4px}
-  .terms{font-size:10px;color:#666;margin-top:8px;line-height:1.7;
-         border:1px dashed #ccc;padding:5px 8px;border-radius:3px;background:#fafafa}
-  @media print{@page{size:A5 portrait;margin:6mm}body{padding:0}}
+  .sign-title{font-size:11.5px;font-weight:bold;margin-bottom:1px}
+  .sign-note{font-size:10px;color:#777;font-style:italic;margin-bottom:42px}
+  .sign-name{font-size:11px;font-style:italic;color:#666;border-top:1px dashed #ccc;padding-top:3px;margin-top:4px}
+  .terms{font-size:10px;color:#555;margin-top:7px;line-height:1.6;border:1px dashed #ccc;padding:4px 7px;border-radius:3px;background:#fafafa}
+  @media print{@page{size:A5 portrait;margin:6mm}body{padding:0;width:auto}}
 </style>
 </head><body>
 
 <!-- ══ HEADER ══ -->
-<div class="title-shop">${shopInfo.shop_name||"HOÀNG KHÁNH MOBILE"}</div>
-${shopInfo.shop_address?`<div class="sub-shop">📍 ${shopInfo.shop_address}</div>`:""}
-${shopInfo.shop_phone  ?`<div class="sub-shop">📞 ${shopInfo.shop_phone}</div>`:""}
-<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-top:4px">
-  <div style="flex:1">
-    <hr style="border:none;border-top:2px solid #111;margin:5px 0"/>
-    <div style="display:flex;align-items:center;justify-content:space-between">
-      <div style="flex:1">
-        <div style="font-size:18px;font-weight:bold;text-align:center;margin:7px 0 2px;letter-spacing:2px;text-transform:uppercase;text-decoration:underline">Phiếu tiếp nhận máy</div>
-        <div style="text-align:center;font-size:11px;color:#888;margin-bottom:5px">Phiếu này là bằng chứng bàn giao thiết bị giữa khách hàng và cửa hàng</div>
-      </div>
-    </div>
+<div class="hd">
+  <div class="hd-shop">
+    <div class="title-shop">${shopInfo.shop_name||"HOÀNG KHÁNH MOBILE"}</div>
+    ${shopInfo.shop_address?`<div class="sub-shop">📍 ${shopInfo.shop_address}</div>`:""}
+    ${shopInfo.shop_phone?`<div class="sub-shop">📞 ${shopInfo.shop_phone}</div>`:""}
   </div>
-  <div style="margin-left:10px;text-align:center;flex-shrink:0">
-    <img src="${orderQrUrl}" style="width:72px;height:72px;display:block"/>
-    <div style="font-size:8px;color:#666;margin-top:1px">Quét theo dõi sửa chữa</div>
-    <div style="font-size:9px;color:#888;margin-top:1px">${order.order_code||order.id}</div>
+  <div class="hd-qr">
+    <img src="${orderQrUrl}"/>
+    <div class="c1">Quét theo dõi sửa chữa</div>
+    <div class="c2">${order.order_code||order.id}</div>
   </div>
 </div>
-<hr style="border:none;border-top:1px dashed #777;margin:4px 0"/>
+
+<div class="doc-title">Phiếu tiếp nhận máy</div>
 <div class="doc-sub">Phiếu này là bằng chứng bàn giao thiết bị giữa khách hàng và cửa hàng</div>
+
+<!-- ══ MÃ PHIẾU + NGÀY ══ -->
+<div class="code-row">
+  <span class="code-box">${order.order_code||order.id}</span>
+  <div class="code-dates">
+    <div>Tiếp nhận: <b>${fmtDt(order.received_date)}</b></div>
+    <div>Hẹn trả: <b class="due">${fmtDt(order.estimated_done_date)}</b></div>
+  </div>
+</div>
 <hr class="sep-dash"/>
 
-<!-- ══ THÔNG TIN ĐƠN ══ -->
-<div class="info-2col">
-  <div>
-    <div class="info-row"><span class="lbl">Mã phiếu:</span>
-      <span class="val" style="font-size:15px;font-weight:900;border:2px solid #111;padding:0 6px">${order.order_code||order.id}</span></div>
-    <div class="info-row"><span class="lbl">Ngày tiếp nhận:</span>
-      <span class="val">${fmtDt(order.received_date)}</span></div>
-    <div class="info-row"><span class="lbl">Ngày hẹn trả:</span>
-      <span class="val" style="color:#dc2626;font-weight:900">${fmtDt(order.estimated_done_date)}</span></div>
-    <div class="info-row"><span class="lbl">Nhân viên TN:</span>
-      <span class="val">${order.assigned_to_name||"—"}</span></div>
-  </div>
-  <div>
-    <div class="info-row"><span class="lbl">Khách hàng:</span><span class="val">${order.customer_name||"—"}</span></div>
-    <div class="info-row"><span class="lbl">Số điện thoại:</span><span class="val">${order.customer_phone||"—"}</span></div>
-    <div class="info-row"><span class="lbl">Thiết bị:</span><span class="val">${order.device_name||order.device_model||"—"}</span></div>
-    <div class="info-row"><span class="lbl">Model:</span><span class="val">${order.device_model||"—"}</span></div>
-    ${order.imei?`<div class="info-row"><span class="lbl">IMEI/SN:</span><span class="val">${order.imei}</span></div>`:""}
-    ${order.passcode?`<div class="info-row"><span class="lbl">Mật khẩu MK:</span><span class="val">${order.passcode}</span></div>`:""}
-  </div>
+<!-- ══ THÔNG TIN KHÁCH & MÁY ══ -->
+<div class="info">
+  <span class="l">Khách hàng:</span><span class="v">${order.customer_name||"—"}</span>
+  <span class="l">Điện thoại:</span><span class="v">${order.customer_phone||"—"}</span>
+
+  <span class="l">Thiết bị:</span><span class="v">${order.device_name||order.device_model||"—"}</span>
+  <span class="l">Model:</span><span class="v">${order.device_model||"—"}</span>
+
+  ${order.imei?`<span class="l">IMEI/SN:</span><span class="v">${order.imei}</span>`:`<span class="l"></span><span class="v"></span>`}
+  ${order.passcode?`<span class="l">Mật khẩu:</span><span class="v">${order.passcode}</span>`:`<span class="l"></span><span class="v"></span>`}
+
+  <span class="l">NV tiếp nhận:</span><span class="v full">${order.assigned_to_name||"—"}</span>
 </div>
-<div class="info-row" style="font-size:12px;margin:3px 0">
-  <span class="lbl">Lỗi / Yêu cầu:</span>
-  <span class="val" style="font-style:italic">${order.issue_description||"—"}</span>
-</div>
+<div class="issue"><span class="l">Lỗi / Yêu cầu:</span> <span class="v">${order.issue_description||"—"}</span></div>
 <hr class="sep-dash"/>
 
 <!-- ══ TÌNH TRẠNG NGOẠI QUAN KHI TIẾP NHẬN ══ -->
@@ -388,11 +384,11 @@ ${order.qt1_note?`
 <div class="section-title">💰 BÁO GIÁ LINH KIỆN / DỊCH VỤ DỰ KIẾN</div>
 <table>
   <thead><tr>
-    <th class="c" style="width:30px">#</th>
-    <th>Tên linh kiện / Dịch vụ</th>
-    <th class="c" style="width:40px">SL</th>
-    <th class="r" style="width:110px">Đơn giá (đ)</th>
-    <th class="r" style="width:120px">Thành tiền (đ)</th>
+    <th class="c" style="width:7%">#</th>
+    <th>Linh kiện / Dịch vụ</th>
+    <th class="c" style="width:9%">SL</th>
+    <th class="r" style="width:22%">Đơn giá</th>
+    <th class="r" style="width:24%">Thành tiền</th>
   </tr></thead>
   <tbody>${quotedHTML}</tbody>
   ${quotedParts&&quotedParts.length>0?`
