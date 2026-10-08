@@ -1,7 +1,7 @@
 /* v1774860462-5727 */
 import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
 import HandoverModal from "./HandoverModal.jsx";
-import { printReceiptA5, printBillA5, previewBill, previewReceiptForm } from "../utils/printClient.js";
+import { previewBill, previewReceiptForm, openPreviewWindow, setPreWindow } from "../utils/printClient.js";
 import EditOrderModal from "./EditOrderModal.jsx";
 import PreCheckModal, { QT2Modal, CustomerConfirmModal } from "./PreCheckModal.jsx";
 const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ default: ({ onClose }) => (
@@ -656,20 +656,22 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
     } catch(e) { console.warn("updateCustomerStats:", e.message); }
   }
 
-    async function handlePrintReceipt() {
+  // In phiếu: luôn mở bản xem trước trước (không bị chặn popup trên điện thoại).
+  // Nếu Print Agent trên PC đang chạy thì gửi lệnh in luôn; không thì in thủ công từ trang xem trước.
+  async function handlePrintReceipt() {
     setPrinting(true);
+    setPreWindow(openPreviewWindow());
     try {
       const shopInfo = await getShopInfo();
-      await printReceiptA5(order, shopInfo);
+      await previewBill(order, [], shopInfo);
     } catch (e) {
-      const shopInfo = await getShopInfo();
-      previewBill(order, [], shopInfo);
-      alert("Print Agent không kết nối — mở preview để in thủ công.\n\n" + e.message);
+      alert("Lỗi tạo bản xem trước: " + e.message);
     } finally { setPrinting(false); }
   }
 
   async function handlePrintReceiptForm() {
     setPrinting(true);
+    setPreWindow(openPreviewWindow());
     try {
       const [shopInfo, parts] = await Promise.all([
         getShopInfo(),
@@ -683,16 +685,15 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
 
   async function handlePrintBill() {
     setPrinting(true);
+    setPreWindow(openPreviewWindow());
     try {
       const [shopInfo, parts] = await Promise.all([
         getShopInfo(),
         SparePartUsage.filter({ order_id: order.id }).catch(()=>[]),
       ]);
-      await printBillA5(order, parts, shopInfo);
+      await previewBill(order, parts, shopInfo);
     } catch (e) {
-      const shopInfo = await getShopInfo();
-      previewBill(order, [], shopInfo);
-      alert("Print Agent không kết nối — mở preview để in thủ công.\n\n" + e.message);
+      alert("Lỗi tạo bản xem trước: " + e.message);
     } finally { setPrinting(false); }
   }
 

@@ -4,6 +4,38 @@
 const PRINT_AGENT_URL = "http://localhost:7979";
 const TOKEN = "hk-print-2026";
 
+
+/**
+ * Mở sẵn tab preview NGAY trong cú click (trước mọi await) để trình duyệt di động không chặn popup.
+ * Trả về window; dùng writePreview(win, html) để ghi nội dung sau.
+ */
+export function openPreviewWindow() {
+  try {
+    const w = window.open("", "_blank");
+    if (w) { w.document.write('<div style="font-family:sans-serif;padding:24px;color:#555">⏳ Đang tạo bản xem trước...</div>'); }
+    return w;
+  } catch { return null; }
+}
+
+let _preWin = null;
+/** Ghi nhận tab đã mở sẵn (từ openPreviewWindow) để các hàm preview dùng lại */
+export function setPreWindow(w) { _preWin = w; }
+const PV_BAR = `<style>@media print{.pv-bar{display:none!important}} body{padding-top:0}</style>
+<div class="pv-bar" style="position:sticky;top:0;z-index:99;display:flex;gap:10px;justify-content:center;padding:10px;background:#1e1b4b;box-shadow:0 2px 8px rgba(0,0,0,.3)">
+  <button onclick="window.print()" style="background:#16a34a;color:#fff;border:none;border-radius:10px;padding:12px 28px;font-size:16px;font-weight:700;cursor:pointer">🖨 In</button>
+  <button onclick="window.close();if(!window.closed)history.back()" style="background:#fff;color:#333;border:none;border-radius:10px;padding:12px 22px;font-size:15px;font-weight:600;cursor:pointer">Đóng</button>
+</div>`;
+function openBlobHtml(html) {
+  if (!html.includes("pv-bar")) {
+    html = /<body[^>]*>/i.test(html) ? html.replace(/<body[^>]*>/i, m => m + PV_BAR) : PV_BAR + html;
+  }
+  const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+  const w = _preWin; _preWin = null;
+  if (w && !w.closed) { try { w.location.href = url; return; } catch {} }
+  const nw = window.open(url, "_blank");
+  if (!nw) { window.location.href = url; } // popup bị chặn → mở ngay trong tab hiện tại
+}
+
 async function callPrintAgent(endpoint, body) {
   try {
     const res = await fetch(`${PRINT_AGENT_URL}${endpoint}`, {
@@ -390,13 +422,12 @@ ${order.deposit>0?`
   </div>
 </div>
 
-<script>window.onload=()=>window.print()</script>
+
 </body></html>`;
 
   const finalHtml = await loadTemplate("receipt_form", html);
   if (!finalHtml) { alert("Mẫu phiếu tiếp nhận đã bị tắt."); return; }
-  const blob = new Blob([finalHtml], { type:"text/html" });
-  window.open(URL.createObjectURL(blob), "_blank");
+  openBlobHtml(finalHtml);
 }
 
 
@@ -530,13 +561,12 @@ export async function previewBill(order, parts = [], shopInfo = {}) {
     <div style="margin-top:3px">Cảm ơn quý khách! Hẹn gặp lại.</div>
   </div>
 
-  <script>window.onload=()=>window.print()</script>
+  
 </body></html>`;
 
   const finalHtml = await loadTemplate("bill", html);
   if (!finalHtml) { alert("Mẫu hóa đơn SC đã bị tắt."); return; }
-  const blob = new Blob([finalHtml], { type: "text/html" });
-  window.open(URL.createObjectURL(blob), "_blank");
+  openBlobHtml(finalHtml);
 }
 
 /**
@@ -566,8 +596,8 @@ export async function printSaleReceiptA5(saleOrder, shopInfo = null) {
       },
     });
   } catch (e) {
-    previewSaleReceipt(saleOrder, shopInfo);
-    throw e;
+    // Không có Print Agent (điện thoại / PC chưa bật) → mở bản xem trước để in thủ công
+    await previewSaleReceipt(saleOrder, shopInfo);
   }
 }
 
@@ -696,13 +726,12 @@ export async function previewSaleReceipt(saleOrder, shopInfo = {}) {
   <div class="footer">
     <div>Cảm ơn quý khách! Hẹn gặp lại.</div>
   </div>
-  <script>window.onload=()=>setTimeout(()=>window.print(),300)</script>
+  
 </body></html>`;
 
   const finalHtml = await loadTemplate("sale_receipt", html);
   if (!finalHtml) { alert("Mẫu hóa đơn bán lẻ đã bị tắt."); return; }
-  const blob = new Blob([finalHtml], { type: "text/html" });
-  window.open(URL.createObjectURL(blob), "_blank");
+  openBlobHtml(finalHtml);
 }
 
 /**
@@ -731,13 +760,12 @@ export async function previewWarrantyLabel(order, shopInfo = {}) {
   <div class="row"><span>${order.customer_name || ""}</span></div>
   <div class="row"><span>${order.device_model || order.device_name || ""}</span></div>
   <div class="bh">BH: ${fmtDate(new Date())} → ${fmtDate(expireDate)} (${order.warranty_days || 30}N)</div>
-  <script>window.onload=()=>setTimeout(()=>window.print(),300)</script>
+  
   </body></html>`;
 
   const finalHtml = await loadTemplate("warranty", html);
   if (!finalHtml) { alert("Mẫu tem bảo hành đã bị tắt."); return; }
-  const blob = new Blob([finalHtml], { type: "text/html" });
-  window.open(URL.createObjectURL(blob), "_blank");
+  openBlobHtml(finalHtml);
 }
 
 /**
@@ -772,13 +800,12 @@ export async function previewSparePartLabel(part, qty = 1) {
   </style>
   </head><body>
   ${labels}
-  <script>window.onload=()=>setTimeout(()=>window.print(),300)</script>
+  
   </body></html>`;
 
   const finalHtml = await loadTemplate("spare_label", html);
   if (!finalHtml) { alert("Mẫu tem linh kiện đã bị tắt."); return; }
-  const blob = new Blob([finalHtml], { type: "text/html" });
-  window.open(URL.createObjectURL(blob), "_blank");
+  openBlobHtml(finalHtml);
 }
 
 /**
