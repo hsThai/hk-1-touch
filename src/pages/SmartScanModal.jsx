@@ -130,6 +130,10 @@ export default function SmartScanModal({ user, orders = [], onClose,
       }
     } finally { clearTimeout(guard); }
   }
+  function logScan(kind, target) {
+    try { logAction(user, "scan", "qr_scan", target, `Quét QR đa năng → ${kind}`); } catch {}
+  }
+
   async function resolveInner(rawIn) {
     // QR in trên phiếu là URL (?sale=… / ?order=…) → tách mã trần
     const norm = normalizeScanCode(rawIn);
