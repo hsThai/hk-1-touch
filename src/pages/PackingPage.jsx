@@ -17,7 +17,7 @@ import {
   logAction, logHistory, uploadFile, normalizePbUrl, notifyLeaderOf,
 } from "./pb.jsx";
 import { usePermission } from "./PermissionContext.jsx";
-import { ScanCodeModal, ScannerShell, useScannerEngine } from "./QRComponents.jsx";
+import { ScanCodeModal, ScannerShell, useScannerEngine, normalizeScanCode } from "./QRComponents.jsx";
 
 /* ─────────────── Helpers ─────────────── */
 
@@ -1047,14 +1047,42 @@ export default function PackingPage({ user, onBack, focusOrderCode, onFocusConsu
   const [scanOrder, setScanOrder] = useState(false);
   async function handleOrderScan(raw) {
     setScanOrder(false);
-    const m = String(raw).match(/order=([^&\s]+)/);
-    const code = m ? decodeURIComponent(m[1]) : String(raw).trim();
-    const found = orders.find(o => o.order_code === code || o.id === code);
-    if (!found) { showToast(`❌ Không tìm thấy đơn ${code}`, "err"); return; }
+    // QR in tren phieu la URL (?code= / ?sale= / ?order=) hoac ma tran -> tach ra ma don
+    const code = normalizeScanCode(raw).code;
+    if (!code) { showToast("⚠️ Không đọc được mã", "err"); return; }
+    const low = code.toLowerCase();
+    const same = o => (o.order_code || "").toLowerCase() === low || o.id === code;
+
+    let found = orders.find(same);
+    if (!found) {
+      // Don cu hon 200 don da tai -> tra thang tren server
+      try {
+        const rs = await SaleOrder.filter({ order_code: code });
+        const hit = (rs || []).find(o => o.status !== "cancelled");
+        if (hit) { found = hit; setOrders(prev => prev.some(x => x.id === hit.id) ? prev : [hit, ...prev]); }
+      } catch {}
+    }
+    if (!found) { showToast(`⚠️ Không tìm thấy đơn ${code}`, "err"); return; }
+
     const st = found.pack_status || "";
-    if (canEditPack && (st === "" || st === "to_pick" || st === "picking")) setModal({ type: "picking", order: found });
-    else if (canEditShip && st === "packed") setModal({ type: "handover", order: found });
-    else setExpanded(found.id);
+    const isPick = st === "" || st === "to_pick" || st === "picking";
+    const isPickup = (found.delivery_type || "") === "pickup";
+
+    // Chuyen sang dung tab + mo the cua don de nguoi dung thay ngay
+    const targetTab = isPick ? "pick" : st === "packed" ? "handover"
+      : (st === "shipped" || st === "carrier_received") ? "transit"
+      : st === "failed" ? "failed" : "done";
+    const tabAllowed = TABS.some(t => t.key === targetTab);
+    if (tabAllowed) setTab(targetTab);
+    setSearch("");
+    setExpanded(found.id);
+    setTimeout(() => document.getElementById("pkcard_" + found.id)?.scrollIntoView({ behavior: "smooth", block: "center" }), 250);
+
+    if (isPick && found.status !== "completed") { showToast(`ℹ️ Đơn ${found.order_code} chưa thu tiền — chưa soạn được`, "info"); return; }
+    if (isPick && isPickup) { showToast(`ℹ️ Đơn ${found.order_code} khách lấy tại quầy — không cần soạn`, "info"); return; }
+    if (canEditPack && isPick) setModal({ type: "picking", order: found });
+    else if (canEditShip && st === "packed") setModal({ type: isPickup ? "pickup_confirm" : "handover", order: found });
+    else if (isPick || st === "packed") showToast(`ℹ️ Bạn không có quyền ${isPick ? "soạn" : "bàn giao"} đơn ${found.order_code}`, "info");
   }
 
   // ── Tabs theo quyền ──
