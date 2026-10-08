@@ -815,6 +815,8 @@ export default function PackingPage({ user, onBack, focusOrderCode, onFocusConsu
       const notYetPacked = (st === "" || st === "to_pick" || st === "picking");
       // Chỉ vào hàng đợi soạn hàng khi: NV bán hàng đã lên đơn VÀ thu ngân đã thu tiền (status="completed")
       if (notYetPacked && o.status !== "completed") continue;
+      // Khach lay tai quay (pickup) khong qua buoc soan/dong goi/giao -> khong vao hang doi
+      if (notYetPacked && (o.delivery_type || "") === "pickup") continue;
       if (st === "delivered" || st === "counter") q.done.push(o);
       else if (st === "failed") q.failed.push(o);
       else if (st === "packed") q.handover.push(o);
