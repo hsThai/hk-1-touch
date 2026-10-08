@@ -152,6 +152,8 @@ function Row({ icon, label, value, mono, highlight }) {
 // ── Main ─────────────────────────────────────────────────
 export default function OrderPublic() {
   const [order, setOrder]       = useState(null);
+  const [orderType, setOrderType] = useState("repair");
+  const [saleItems, setSaleItems] = useState([]);
   const [history, setHistory]   = useState([]);
   const [shopInfo, setShopInfo] = useState({});
   const [loading, setLoading]   = useState(false);
@@ -169,11 +171,13 @@ export default function OrderPublic() {
     setLoading(true); setError(""); setSearched(true);
     try {
       const result = await fetchPublicOrder(c);
+      setOrderType(result.type || "repair");
       setOrder(result.order);
+      setSaleItems(result.items || []);
       setHistory(result.history || []);
       setShopInfo(result.shopInfo || {});
     } catch(e) {
-      setError(e.message || "Không tìm thấy đơn sửa");
+      setError(e.message || "Không tìm thấy đơn");
     }
     setLoading(false);
   }
@@ -195,19 +199,19 @@ export default function OrderPublic() {
           <MI name="phone_android" style={{ fontSize:36, color:"#fff" }} />
         </div>
         <div style={{ color:"#fff", fontWeight:800, fontSize:22 }}>{shopName}</div>
-        <div style={{ color:"rgba(255,255,255,.55)", fontSize:12, marginTop:2 }}>Tra cứu tiến độ sửa chữa</div>
+        <div style={{ color:"rgba(255,255,255,.55)", fontSize:12, marginTop:2 }}>Tra cứu đơn hàng</div>
       </div>
 
       {/* Search box */}
       {!order && (
         <div style={{ width:"100%", maxWidth:420, background:"rgba(255,255,255,.1)", borderRadius:20, padding:20, backdropFilter:"blur(12px)", border:"1px solid rgba(255,255,255,.15)", marginBottom:16 }}>
-          <div style={{ color:"#fff", fontWeight:700, fontSize:15, marginBottom:12 }}>Nhập mã đơn sửa chữa</div>
+          <div style={{ color:"#fff", fontWeight:700, fontSize:15, marginBottom:12 }}>Nhập mã đơn (sửa chữa / bán hàng)</div>
           <div style={{ display:"flex", gap:8 }}>
             <input
               value={code}
               onChange={e => setCode(e.target.value)}
               onKeyDown={e => e.key === "Enter" && code && load(code)}
-              placeholder="VD: SC242934"
+              placeholder="VD: SC242934 / BL-261006-9641"
               autoCapitalize="characters"
               style={{ flex:1, height:48, borderRadius:12, border:"none", padding:"0 14px", fontSize:15, outline:"none", background:"rgba(255,255,255,.92)" }}
             />
@@ -225,7 +229,7 @@ export default function OrderPublic() {
               <MI name="error_outline" style={{ fontSize:16, color:"#fca5a5" }} />{error}
             </div>
           )}
-          <div style={{ color:"rgba(255,255,255,.45)", fontSize:11, marginTop:12, textAlign:"center" }}>Mã đơn có trên phiếu tiếp nhận hoặc được nhân viên cung cấp</div>
+          <div style={{ color:"rgba(255,255,255,.45)", fontSize:11, marginTop:12, textAlign:"center" }}>Mã đơn có trên phiếu in hoặc được nhân viên cung cấp</div>
         </div>
       )}
 
@@ -238,8 +242,91 @@ export default function OrderPublic() {
         </div>
       )}
 
-      {/* Order card */}
-      {order && !loading && (
+
+      {/* Order card — đơn BÁN: chỉ xem nội dung đơn */}
+      {order && !loading && orderType === "sale" && (
+        <div style={{ width:"100%", maxWidth:460 }}>
+          <div style={{ background:"#fff", borderRadius:20, overflow:"hidden", boxShadow:"0 12px 40px rgba(0,0,0,.28)", marginBottom:14 }}>
+            <div style={{ background:"linear-gradient(135deg,#059669,#047857)", padding:"16px 20px", color:"#fff" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <MI name="receipt_long" style={{ fontSize:24, color:"#fff" }} />
+                <div>
+                  <div style={{ fontWeight:800, fontSize:16 }}>Đơn bán hàng {order.order_code}</div>
+                  <div style={{ fontSize:12, opacity:.85, marginTop:2 }}>
+                    {order.created_date ? new Date(order.created_date).toLocaleString("vi-VN", { hour12:false, day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" }) : ""}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ padding:20 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+                <span style={{ color:"#6b7280", fontSize:13 }}>Khách hàng</span>
+                <span style={{ fontWeight:700, fontSize:13 }}>{order.customer_name || "—"}</span>
+              </div>
+              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+                <span style={{ color:"#6b7280", fontSize:13 }}>Thanh toán</span>
+                <span style={{ fontWeight:700, fontSize:13 }}>{{cash:"Tiền mặt",transfer:"Chuyển khoản",combo:"Kết hợp",credit:"Bán chịu"}[order.payment_method] || order.payment_method || "—"}</span>
+              </div>
+              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
+                <span style={{ color:"#6b7280", fontSize:13 }}>Trạng thái</span>
+                <span style={{ fontWeight:700, fontSize:13, color: order.status === "completed" ? "#059669" : order.status === "cancelled" ? "#dc2626" : "#d97706" }}>
+                  {{completed:"Hoàn tất",pending_payment:"Chờ thanh toán",cancelled:"Đã hủy"}[order.status] || order.status || "—"}
+                </span>
+              </div>
+
+              {(saleItems.length > 0) && (
+                <>
+                  <div style={{ fontWeight:800, fontSize:13, marginBottom:8, display:"flex", alignItems:"center", gap:6 }}>
+                    <MI name="inventory_2" style={{ fontSize:17, color:"#4f46e5" }} />Sản phẩm ({saleItems.length})
+                  </div>
+                  <div style={{ borderTop:"1px solid #f3f4f6" }}>
+                    {saleItems.map((it, i) => (
+                      <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 0", borderBottom:"1px solid #f3f4f6" }}>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontWeight:600, fontSize:13 }}>{it.part_name || it.sku}</div>
+                          <div style={{ fontSize:11, color:"#9ca3af" }}>SL {it.qty} × {Number(it.unit_price||0).toLocaleString("vi-VN")}đ</div>
+                        </div>
+                        <div style={{ fontWeight:700, fontSize:13 }}>{Number(it.total_price||0).toLocaleString("vi-VN")}đ</div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {Number(order.discount) > 0 && (
+                <div style={{ display:"flex", justifyContent:"space-between", marginTop:12, fontSize:13 }}>
+                  <span style={{ color:"#6b7280" }}>Giảm giá</span>
+                  <span style={{ fontWeight:700 }}>-{Number(order.discount).toLocaleString("vi-VN")}đ</span>
+                </div>
+              )}
+              <div style={{ display:"flex", justifyContent:"space-between", marginTop:12, paddingTop:12, borderTop:"2px dashed #e5e7eb" }}>
+                <span style={{ fontWeight:800, fontSize:15 }}>TỔNG CỘNG</span>
+                <span style={{ fontWeight:900, fontSize:18, color:"#059669" }}>{Number(order.total||0).toLocaleString("vi-VN")}đ</span>
+              </div>
+
+              {shopPhone && (
+                <a href={`tel:${shopPhone}`} style={{ display:"flex", alignItems:"center", gap:8, marginTop:16, background:"#f0fdf4", borderRadius:12, padding:"10px 14px", textDecoration:"none" }}>
+                  <MI name="support_agent" style={{ fontSize:20, color:"#059669" }} />
+                  <span style={{ fontSize:12.5, color:"#065f46" }}>Cần hỗ trợ về đơn hàng? Gọi {shopPhone}</span>
+                </a>
+              )}
+            </div>
+          </div>
+
+          <div style={{ textAlign:"center" }}>
+            <button
+              onClick={() => { setOrder(null); setSaleItems([]); setShopInfo({}); setCode(""); setError(""); setSearched(false); }}
+              style={{ background:"rgba(255,255,255,.12)", border:"1px solid rgba(255,255,255,.25)", color:"#fff", borderRadius:12, padding:"10px 22px", fontSize:13, cursor:"pointer", display:"inline-flex", alignItems:"center", gap:6 }}>
+              <MI name="search" style={{ fontSize:16, color:"#fff" }} />
+              Tra cứu đơn khác
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Order card — đơn SỬA */}
+      {order && !loading && orderType !== "sale" && (
         <div style={{ width:"100%", maxWidth:460 }}>
           <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
 
@@ -362,7 +449,7 @@ export default function OrderPublic() {
           {/* Tra cứu đơn khác */}
           <div style={{ textAlign:"center" }}>
             <button
-              onClick={() => { setOrder(null); setHistory([]); setShopInfo({}); setCode(""); setError(""); setSearched(false); }}
+              onClick={() => { setOrder(null); setSaleItems([]); setHistory([]); setShopInfo({}); setCode(""); setError(""); setSearched(false); }}
               style={{ background:"rgba(255,255,255,.12)", border:"1px solid rgba(255,255,255,.25)", color:"#fff", borderRadius:12, padding:"10px 22px", fontSize:13, cursor:"pointer", display:"inline-flex", alignItems:"center", gap:6 }}>
               <MI name="search" style={{ fontSize:16, color:"#fff" }} />
               Tra cứu đơn khác

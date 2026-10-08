@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from "react";
 import { getPbUrl, pbSettings } from "./pb.jsx";
 
-const PUBLIC_URL = "https://hk-app-copy-4cefbb7c.base44.app/OrderPublic";
+const PUBLIC_URL = "https://hk-1-touch.vercel.app/OrderPublic";
 
 // ── PASTE NGUYÊN SI từ OrderDrawer.jsx ──────────────────────
 

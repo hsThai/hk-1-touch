@@ -114,7 +114,7 @@ export async function printReceiptA5(order, shopInfo = null) {
 export async function printBillA5(order, parts = [], shopInfo = null) {
   if (!shopInfo || Object.keys(shopInfo).length === 0) { shopInfo = await loadShopInfo(); }
   const remaining = Math.max(0, (order.final_cost || order.estimated_cost || 0) - (order.deposit || 0));
-  const orderUrl = "https://hk-1-touch.vercel.app?order=" + encodeURIComponent(order.order_code || order.id);
+  const orderUrl = "https://hk-1-touch.vercel.app/OrderPublic?code=" + encodeURIComponent(order.order_code || order.id);
   const orderQrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=" + encodeURIComponent(orderUrl);
   const vietqrUrl = shopInfo.bank_account && shopInfo.bank_name
     ? `https://img.vietqr.io/image/${shopInfo.bank_name}-${shopInfo.bank_account}-compact2.png?amount=${remaining}&addInfo=${encodeURIComponent("HK " + (order.order_code || order.id))}&accountName=${encodeURIComponent(shopInfo.shop_name || "Hoang Khanh")}`
@@ -180,7 +180,7 @@ export async function previewReceiptForm(order, quotedParts = [], shopInfo = {})
     note:    qt1[key]?.note    || "",
   }));
 
-  const orderUrl = "https://hk-1-touch.vercel.app?order=" + encodeURIComponent(order.order_code || order.id);
+  const orderUrl = "https://hk-1-touch.vercel.app/OrderPublic?code=" + encodeURIComponent(order.order_code || order.id);
   const orderQrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=" + encodeURIComponent(orderUrl);
   const fmtDt = (s) => s ? new Date(s).toLocaleString("vi-VN",{
     hour12:false,day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"
@@ -282,6 +282,7 @@ ${shopInfo.shop_phone  ?`<div class="sub-shop">📞 ${shopInfo.shop_phone}</div>
   </div>
   <div style="margin-left:10px;text-align:center;flex-shrink:0">
     <img src="${orderQrUrl}" style="width:72px;height:72px;display:block"/>
+    <div style="font-size:8px;color:#666;margin-top:1px">Quét theo dõi sửa chữa</div>
     <div style="font-size:9px;color:#888;margin-top:1px">${order.order_code||order.id}</div>
   </div>
 </div>
@@ -462,6 +463,7 @@ export async function previewBill(order, parts = [], shopInfo = {}) {
     </div>
     <div style="margin-left:10px;text-align:center;flex-shrink:0">
       <img src="${orderQrUrl}" style="width:68px;height:68px;display:block"/>
+      <div style="font-size:8px;color:#666;margin-top:1px">Quét theo dõi sửa chữa</div>
       <div style="font-size:9px;color:#888;margin-top:1px">${order.order_code||order.id}</div>
     </div>
   </div>
@@ -575,7 +577,7 @@ export async function printSaleReceiptA5(saleOrder, shopInfo = null) {
 export async function previewSaleReceipt(saleOrder, shopInfo = {}) {
   if (!shopInfo || !shopInfo.shop_name) shopInfo = await loadShopInfo();
   const fmtMoney = (n) => Number(n || 0).toLocaleString("vi-VN") + "đ";
-  const saleQrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=" + encodeURIComponent("https://hk-1-touch.vercel.app?sale=" + encodeURIComponent(saleOrder.order_code || saleOrder.id));
+  const saleQrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=" + encodeURIComponent("https://hk-1-touch.vercel.app/OrderPublic?code=" + encodeURIComponent(saleOrder.order_code || saleOrder.id));
   const fmtDate  = (s) => s ? new Date(s).toLocaleString("vi-VN", { hour12: false }) : "";
   const PM_LABELS = { cash:"Tiền mặt", transfer:"Chuyển khoản", combo:"Kết hợp", credit:"Bán chịu" };
 

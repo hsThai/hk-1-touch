@@ -1874,7 +1874,7 @@ export { OrderDrawer };
 // ══════════════════════════════════════════════
 //  SHARE ORDER MODAL
 // ══════════════════════════════════════════════
-const PUBLIC_URL = "https://hk-app-copy-4cefbb7c.base44.app/OrderPublic";
+const PUBLIC_URL = "https://hk-1-touch.vercel.app/OrderPublic";
 
 // Inline QR loader — không phụ thuộc module scope của QRComponents
 // Wrapper: inject permission vào props
