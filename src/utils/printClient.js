@@ -12,7 +12,11 @@ const TOKEN = "hk-print-2026";
 export function openPreviewWindow() {
   try {
     const w = window.open("", "_blank");
-    if (w) { w.document.write('<div style="font-family:sans-serif;padding:24px;color:#555">⏳ Đang tạo bản xem trước...</div>'); }
+    if (w) {
+      w.document.open();
+      w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="font-family:sans-serif;padding:24px;color:#555;font-size:18px">⏳ Đang tạo bản xem trước...</body></html>');
+      w.document.close(); // đóng ngay để lần ghi sau render lại bình thường
+    }
     return w;
   } catch { return null; }
 }
@@ -27,7 +31,7 @@ const PV_BAR = `<style>@media print{.pv-bar{display:none!important}} body{paddin
 </div>`;
 const PV_VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1">';
 // Chỉ áp dụng khi xem trên màn hình điện thoại: nội dung full bề rộng + chữ to dễ đọc (không ảnh hưởng bản in)
-const PV_MOBILE_CSS = '<style>@media screen and (max-width:700px){body{max-width:100%!important;width:100%!important;zoom:1.25;padding-left:10px!important;padding-right:10px!important}}</style>';
+const PV_MOBILE_CSS = '<style>@media screen and (max-width:700px){body{max-width:100%!important;width:100%!important;zoom:1.55;padding-left:10px!important;padding-right:10px!important}}</style>';
 function openBlobHtml(html) {
   if (!/name=["']viewport["']/i.test(html)) {
     html = /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, m => m + PV_VIEWPORT) : PV_VIEWPORT + html;
@@ -39,7 +43,13 @@ function openBlobHtml(html) {
   const w = _preWin; _preWin = null;
   // Ghi thẳng HTML vào tab đã mở sẵn (ổn định trên Chrome Android, không phụ thuộc blob URL)
   if (w && !w.closed) {
-    try { w.document.open(); w.document.write(html); w.document.close(); return; } catch {}
+    try {
+      w.document.open("text/html", "replace");
+      w.document.write(html);
+      w.document.close();
+      return;
+    } catch {}
+    try { w.document.documentElement.innerHTML = html; return; } catch {}
   }
   const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
   const nw = window.open(url, "_blank");
