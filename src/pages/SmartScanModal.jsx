@@ -23,6 +23,9 @@ const STATUS_COLORS = {
   draft:"#3b82f6", cancelled:"#6b7280",
 };
 
+function withTimeout(promise, ms = 6000) {
+  return Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error("Hết thời gian chờ")), ms))]);
+}
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN")+"đ"; }
 function fmtDT(iso) {
   if (!iso) return "";
@@ -83,16 +86,29 @@ export default function SmartScanModal({ user, orders = [], onClose,
   const [printing, setPrinting] = useState(false);
 
   /* ── Phân loại mã quét ── */
-  const resolve = useCallback(async (rawIn) => {
+  async function resolve(rawIn) {
+    setRes(null);
     setPhase("resolving");
-    // Bảo hiểm: nếu tra cứu kẹt quá 10s → không treo ở "Đang tra cứu mã..."
+    // Bảo hiểm: tra cứu kẹt quá 8s → báo "không tìm thấy" thay vì treo mãi
+    let finished = false;
     const guard = setTimeout(() => {
-      setRes(r => r ? r : { kind:"unknown", qr: String(rawIn||"") });
-      setPhase(p2 => p2 === "resolving" ? "result" : p2);
-    }, 10000);
-    try { await resolveInner(rawIn); }
-    finally { clearTimeout(guard); }
-  }, [orders]);
+      if (finished) return;
+      finished = true;
+      setRes({ kind:"unknown", qr: normalizeScanCode(rawIn).code, timeout:true });
+      setPhase("result");
+    }, 8000);
+    try {
+      await resolveInner(rawIn);
+      finished = true;
+    } catch (e) {
+      console.error("[SmartScan] resolve lỗi:", e);
+      if (!finished) {
+        finished = true;
+        setRes({ kind:"unknown", qr: normalizeScanCode(rawIn).code, error: String(e && e.message || e) });
+        setPhase("result");
+      }
+    } finally { clearTimeout(guard); }
+  }
   async function resolveInner(rawIn) {
     // QR in trên phiếu là URL (?sale=… / ?order=…) → tách mã trần
     const norm = normalizeScanCode(rawIn);
@@ -102,14 +118,14 @@ export default function SmartScanModal({ user, orders = [], onClose,
     let ro = norm.kind === "sale" ? null : (orders||[]).find(o => o.order_code === raw || o.id === raw || o.qr_code === raw);
     if (!ro && norm.kind !== "sale") {
       try {
-        const found = await RepairOrder.list({ filter: `order_code="${esc}"`, limit: 1 });
+        const found = await withTimeout(RepairOrder.list({ filter: `order_code="${esc}"`, limit: 1 }));
         ro = found && found[0];
       } catch {}
     }
     if (ro) { logScan("repair_order", ro.order_code || ro.id); setRes({ kind:"repair", order:ro }); setPhase("result"); return; }
 
     try {
-      const so = await SaleOrder.list({ filter: `order_code="${esc}"`, limit: 1 });
+      const so = await withTimeout(SaleOrder.list({ filter: `order_code="${esc}"`, limit: 1 }));
       if (so && so[0]) {
         const detail = await loadSaleDetail(so[0]);
         logScan("sale_order", so[0].order_code);
@@ -123,12 +139,12 @@ export default function SmartScanModal({ user, orders = [], onClose,
 
     let part = null;
     try {
-      const parts = await SparePart.filter({ sku: raw });
+      const parts = await withTimeout(SparePart.filter({ sku: raw }));
       if (parts && parts[0]) part = parts[0];
     } catch {}
     if (part) {
       let usages = [];
-      try { usages = await SparePartUsage.filter({ sku: raw }); } catch {}
+      try { usages = await withTimeout(SparePartUsage.filter({ sku: raw })); } catch {}
       const repairIds = [...new Set((usages||[]).map(u => u.order_id).filter(Boolean))];
       let repairOrders = (orders||[]).filter(o => repairIds.includes(o.id));
       if (repairIds.length > repairOrders.length) {
@@ -139,7 +155,7 @@ export default function SmartScanModal({ user, orders = [], onClose,
         } catch {}
       }
       let saleItems = [];
-      try { saleItems = await SaleOrderItem.filter({ sku: raw }); } catch {}
+      try { saleItems = await withTimeout(SaleOrderItem.filter({ sku: raw })); } catch {}
       const saleIds = [...new Set((saleItems||[]).map(i => i.sale_order_id).filter(Boolean))];
       let saleOrders = [];
       for (const sid of saleIds.slice(0, 5)) {
@@ -172,7 +188,7 @@ export default function SmartScanModal({ user, orders = [], onClose,
 
   async function loadSaleItems(order) {
     if (order.items && Array.isArray(order.items) && order.items.length > 0) return order.items;
-    try { return (await SaleOrderItem.filter({ sale_order_id: order.id })) || []; } catch { return []; }
+    try { return (await withTimeout(SaleOrderItem.filter({ sale_order_id: order.id }))) || []; } catch { return []; }
   }
   async function loadSaleDetail(order) {
     return await loadSaleItems(order);
@@ -210,6 +226,7 @@ export default function SmartScanModal({ user, orders = [], onClose,
         <div style={{ background:"#fff", borderRadius:20, padding:"40px 50px", textAlign:"center", boxShadow:"0 20px 60px rgba(0,0,0,.3)" }}>
           <div style={{ fontSize:34, marginBottom:10 }}>⏳</div>
           <div style={{ fontWeight:800, color:"#4f46e5" }}>Đang tra cứu mã...</div>
+          <button onClick={onClose} style={{ marginTop:18, padding:"10px 22px", borderRadius:12, border:"none", background:"#f3f4f6", color:"#374151", fontWeight:800, fontSize:14, cursor:"pointer" }}>Đóng</button>
         </div>
       )}
 
@@ -346,7 +363,7 @@ export default function SmartScanModal({ user, orders = [], onClose,
             <Card icon="qr_code_2" tint={["#6b7280","#4b5563"]} title="Không tìm thấy mã"
               sub={res.qr}>
               <div style={{ background:"#fef9c3", borderRadius:10, padding:"10px 14px", marginBottom:14, fontSize:12.5, color:"#854d0e" }}>
-                Mã này không thuộc đơn bán, đơn sửa hay hàng hóa nào. Nếu là QR dán trên máy cần tạo đơn sửa, hãy gán nó cho đơn mới.
+                {res.timeout ? "Tra cứu quá lâu, có thể mạng yếu. Bấm Quét lại để thử lại." : res.error ? "Lỗi tra cứu: " + res.error : "Mã này không thuộc đơn bán, đơn sửa hay hàng hóa nào. Nếu là QR dán trên máy cần tạo đơn sửa, hãy gán nó cho đơn mới."}
               </div>
               <div style={{ display:"flex", gap:10 }}>
                 <button style={{ ...BTN2, flex:1 }} onClick={() => { setRes(null); setPhase("scan"); }}>Quét lại</button>
