@@ -340,7 +340,7 @@ function PickingModal({ order, user, onDone, onClose, showToast }) {
   const pct = rows.length ? Math.round(pickedDone / rows.length * 100) : 0;
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 4400, background: "#f8fafc", display: "flex", flexDirection: "column" }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 4400, background: "#f8fafc", display: "flex", flexDirection: "column", paddingTop: scanOn && step === 1 ? "34vh" : 0, boxSizing: "border-box", transition: "padding-top .2s" }}>
       {/* Header */}
       <div style={{ background: "linear-gradient(135deg,#1e1b4b,#4f46e5)", padding: "16px 18px", color: "#fff", flexShrink: 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
