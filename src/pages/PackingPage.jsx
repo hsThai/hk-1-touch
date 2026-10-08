@@ -152,35 +152,23 @@ function PickScanner({ rows, flashMsg, onCode, onClose }) {
   const allDone = rows.length > 0 && done === rows.length;
   return (
     <ScannerShell engine={engine} videoRef={videoRef} canvasRef={canvasRef}
-      title={allDone ? "✅ Đã lấy đủ hàng" : `Quét mã từng món — ${done}/${rows.length}`}
-      hint="Quét SKU / mã vạch trên sản phẩm. Quét liên tục, không cần bấm lại."
+      compact
+      title={`Quét mã từng món — ${done}/${rows.length}`}
+      hint="Quét SKU / mã vạch trên sản phẩm"
       frame="wide"
       manual={manual} setManual={setManual}
       onManual={() => { if (manual.trim()) { onCode(manual.trim()); setManual(""); } }}
       manualPlaceholder="Nhập SKU thủ công" onClose={onClose}>
-      {flashMsg && (
-        <div style={{ marginTop: 10, padding: "9px 12px", borderRadius: 12, fontWeight: 800, fontSize: 13.5, textAlign: "center",
-          background: flashMsg.ok ? "rgba(16,185,129,.9)" : "rgba(239,68,68,.9)", color: "#fff" }}>{flashMsg.text}</div>
-      )}
-      <div style={{ marginTop: 10, maxHeight: "22vh", overflowY: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
-        {rows.map((r, i) => {
-          const ok = r.picked >= r.qty;
-          return (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 10,
-              background: ok ? "rgba(16,185,129,.25)" : "rgba(255,255,255,.1)", color: "#fff", fontSize: 13 }}>
-              <span style={{ fontWeight: 900, width: 18 }}>{ok ? "✓" : i + 1}</span>
-              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                textDecoration: ok ? "line-through" : "none", opacity: ok ? .8 : 1 }}>{r.part_name}</span>
-              <b style={{ color: ok ? "#6ee7b7" : "#fbbf24" }}>{r.picked}/{r.qty}</b>
-            </div>
-          );
-        })}
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 6 }}>
+        <div style={{ padding: "5px 14px", borderRadius: 99, fontWeight: 800, fontSize: 13,
+          background: allDone ? "rgba(16,185,129,.9)" : "rgba(255,255,255,.14)", color: "#fff" }}>
+          {allDone ? `✅ Đã lấy đủ ${rows.length} món — tắt camera để chụp ảnh gói hàng` : `Đã lấy ${done}/${rows.length} món`}
+        </div>
+        {flashMsg && (
+          <div style={{ marginLeft: 6, padding: "5px 14px", borderRadius: 99, fontWeight: 800, fontSize: 13,
+            background: flashMsg.ok ? "rgba(16,185,129,.9)" : "rgba(239,68,68,.9)", color: "#fff" }}>{flashMsg.text}</div>
+        )}
       </div>
-      <button onClick={onClose}
-        style={{ marginTop: 10, width: "100%", height: 46, borderRadius: 23, border: "none", fontWeight: 900, fontSize: 15, cursor: "pointer",
-          background: allDone ? "#10b981" : "rgba(255,255,255,.18)", color: "#fff" }}>
-        {allDone ? "XONG — CHỤP ẢNH GÓI HÀNG" : "ĐÓNG CAMERA"}
-      </button>
     </ScannerShell>
   );
 }

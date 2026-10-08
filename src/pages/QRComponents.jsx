@@ -377,6 +377,7 @@ function ScannerCorners({ w, h }) {
 }
 
 export function ScannerShell({ engine, videoRef, canvasRef, title, hint, frame = "square",
+  compact = false,
   manual, setManual, onManual, manualPlaceholder = "Nhập mã thủ công", onClose, children }) {
   const { status, errMsg, streamRef, cameras, switchCamera, deviceId } = engine;
   const [zoomCap, setZoomCap] = React.useState(null);
@@ -422,14 +423,16 @@ export function ScannerShell({ engine, videoRef, canvasRef, title, hint, frame =
   const mi = (n, size=24) => <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:size, lineHeight:1 }}>{n}</span>;
 
   return (
-    <div style={{ position:"fixed", inset:0, zIndex:4500, background:"#000", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+    <div style={compact
+      ? { position:"fixed", top:0, left:0, right:0, height:"34vh", zIndex:4500, background:"#000", display:"flex", flexDirection:"column", overflow:"hidden", borderBottomLeftRadius:16, borderBottomRightRadius:16, boxShadow:"0 6px 18px rgba(0,0,0,.45)" }
+      : { position:"fixed", inset:0, zIndex:4500, background:"#000", display:"flex", flexDirection:"column", overflow:"hidden" }}>
       {/* Camera phủ kín */}
       <video ref={videoRef} muted playsInline style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />
       <canvas ref={canvasRef} style={{ display:"none" }} />
 
       {/* Lớp tối + khung ngắm ở giữa vùng nhìn */}
       {status === "scanning" && (
-        <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none", paddingBottom:"8vh" }}>
+        <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none", paddingBottom: compact ? "8%" : "8vh" }}>
           <div style={{ position:"relative", width:fw, height:fh, boxShadow:"0 0 0 100vmax rgba(0,0,0,.55)", borderRadius:R_FRAME }}>
             <ScannerCorners w="100%" h="100%" />
             <div style={{ position:"absolute", left:"6%", right:"6%", height:2, background:"rgba(255,255,255,.75)", top:"50%", animation:"hkscanline 1.8s ease-in-out infinite", borderRadius:2 }} />
@@ -459,6 +462,22 @@ export function ScannerShell({ engine, videoRef, canvasRef, title, hint, frame =
       )}
 
       <div style={{ flex:1 }} />
+
+      {compact ? (
+        <div style={{ position:"relative", zIndex:6, background:"linear-gradient(to top, rgba(0,0,0,.85) 60%, rgba(0,0,0,0))", padding:"8px 12px 10px" }}>
+          {children}
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <input value={manual} onChange={e => setManual(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && onManual()}
+              placeholder={manualPlaceholder}
+              style={{ flex:1, height:38, borderRadius:19, border:"1.5px solid rgba(255,255,255,.35)", background:"rgba(255,255,255,.12)", color:"#fff", padding:"0 14px", fontSize:14, outline:"none" }} />
+            {cameras && cameras.length > 1 && (
+              <button onClick={switchCamera} style={{ ...iconBtn, width:38, height:38 }}>{mi("flip_camera_android", 20)}</button>
+            )}
+          </div>
+        </div>
+      ) : (
+      <>
 
       {/* Vùng dưới: gợi ý + zoom + nhập tay */}
       <div style={{ position:"relative", zIndex:6, background:"linear-gradient(to top, rgba(0,0,0,.92) 55%, rgba(0,0,0,0))", padding:"40px 16px calc(env(safe-area-inset-bottom,0px) + 16px)" }}>
@@ -495,6 +514,8 @@ export function ScannerShell({ engine, videoRef, canvasRef, title, hint, frame =
         </div>
         {children}
       </div>
+      </>
+      )}
       <style>{`@keyframes hkscanline { 0%,100%{top:8%} 50%{top:92%} }`}</style>
     </div>
   );
@@ -623,10 +644,11 @@ export function useScannerEngine({ videoRef, canvasRef, onResult, engineTimeoutM
 
   function doCrop(v, c) {
     // Khớp đúng khung ngắm của ScannerShell (toàn màn hình, khung nằm cao hơn tâm 4vh)
-    const vw = window.innerWidth, vh = window.innerHeight;
-    const boxW = squareCrop ? vw * 0.68 : vw * 0.82;
-    const boxH = squareCrop ? vw * 0.68 : vw * 0.30;
-    return cropRegion(v, c, boxW, boxH, vh * -0.04);
+    // Kich thuoc phan tu video (toan man hinh = window; compact = khung nho) -> crop luon dung khung ngam
+    const ew = v.clientWidth || window.innerWidth, eh = v.clientHeight || window.innerHeight;
+    const boxW = squareCrop ? ew * 0.68 : ew * 0.82;
+    const boxH = squareCrop ? ew * 0.68 : ew * 0.30;
+    return cropRegion(v, c, boxW, boxH, eh * -0.04);
   }
 
   function done(raw) {
