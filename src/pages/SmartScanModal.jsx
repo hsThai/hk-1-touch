@@ -84,9 +84,30 @@ export default function SmartScanModal({ user, orders = [], onClose,
   const [phase, setPhase]   = useState("scan"); // scan | resolving | result
   const [res, setRes]       = useState(null);
   const [printing, setPrinting] = useState(false);
+  const lastRawRef = React.useRef("");
+  const [step, setStep]     = useState("");   // bước đang chạy (chẩn đoán)
+  const [waited, setWaited] = useState(0);    // số giây đã chờ
+
+  // Đếm giây chờ; quá 8s mà vẫn "resolving" → ép sang kết quả "không tìm thấy" (không bao giờ treo)
+  React.useEffect(() => {
+    if (phase !== "resolving") { setWaited(0); return; }
+    const t0 = Date.now();
+    const iv = setInterval(() => {
+      const s = Math.floor((Date.now() - t0) / 1000);
+      setWaited(s);
+      if (s >= 8) {
+        clearInterval(iv);
+        setRes({ kind:"unknown", qr: lastRawRef.current, timeout:true, step });
+        setPhase("result");
+      }
+    }, 500);
+    return () => clearInterval(iv);
+  }, [phase]);
 
   /* ── Phân loại mã quét ── */
   async function resolve(rawIn) {
+    lastRawRef.current = normalizeScanCode(rawIn).code;
+    setStep("bắt đầu");
     setRes(null);
     setPhase("resolving");
     // Bảo hiểm: tra cứu kẹt quá 8s → báo "không tìm thấy" thay vì treo mãi
@@ -114,6 +135,7 @@ export default function SmartScanModal({ user, orders = [], onClose,
     const norm = normalizeScanCode(rawIn);
     const raw = norm.code;
     const esc = String(raw).replace(/"/g, '\\"');
+    setStep("tra đơn sửa");
 
     let ro = norm.kind === "sale" ? null : (orders||[]).find(o => o.order_code === raw || o.id === raw || o.qr_code === raw);
     if (!ro && norm.kind !== "sale") {
@@ -124,9 +146,11 @@ export default function SmartScanModal({ user, orders = [], onClose,
     }
     if (ro) { logScan("repair_order", ro.order_code || ro.id); setRes({ kind:"repair", order:ro }); setPhase("result"); return; }
 
+    setStep("tra đơn bán");
     try {
       const so = await withTimeout(SaleOrder.list({ filter: `order_code="${esc}"`, limit: 1 }));
       if (so && so[0]) {
+        setStep("tải chi tiết đơn bán");
         const detail = await loadSaleDetail(so[0]);
         logScan("sale_order", so[0].order_code);
         setRes({ kind:"sale", order:so[0], items:detail, topSale:so[0], topItems:detail });
@@ -137,6 +161,7 @@ export default function SmartScanModal({ user, orders = [], onClose,
     const byQR = (orders||[]).filter(o => o.product_qr && o.product_qr === raw);
     if (byQR.length > 0) { logScan("product_history", raw); setRes({ kind:"history", qr:raw, orders:byQR }); setPhase("result"); return; }
 
+    setStep("tra hàng hóa");
     let part = null;
     try {
       const parts = await withTimeout(SparePart.filter({ sku: raw }));
@@ -226,6 +251,7 @@ export default function SmartScanModal({ user, orders = [], onClose,
         <div style={{ background:"#fff", borderRadius:20, padding:"40px 50px", textAlign:"center", boxShadow:"0 20px 60px rgba(0,0,0,.3)" }}>
           <div style={{ fontSize:34, marginBottom:10 }}>⏳</div>
           <div style={{ fontWeight:800, color:"#4f46e5" }}>Đang tra cứu mã...</div>
+          <div style={{ fontSize:11, color:"#9ca3af", marginTop:6 }}>{step} · {waited}s</div>
           <button onClick={onClose} style={{ marginTop:18, padding:"10px 22px", borderRadius:12, border:"none", background:"#f3f4f6", color:"#374151", fontWeight:800, fontSize:14, cursor:"pointer" }}>Đóng</button>
         </div>
       )}
@@ -363,7 +389,7 @@ export default function SmartScanModal({ user, orders = [], onClose,
             <Card icon="qr_code_2" tint={["#6b7280","#4b5563"]} title="Không tìm thấy mã"
               sub={res.qr}>
               <div style={{ background:"#fef9c3", borderRadius:10, padding:"10px 14px", marginBottom:14, fontSize:12.5, color:"#854d0e" }}>
-                {res.timeout ? "Tra cứu quá lâu, có thể mạng yếu. Bấm Quét lại để thử lại." : res.error ? "Lỗi tra cứu: " + res.error : "Mã này không thuộc đơn bán, đơn sửa hay hàng hóa nào. Nếu là QR dán trên máy cần tạo đơn sửa, hãy gán nó cho đơn mới."}
+                {res.timeout ? "Tra cứu quá lâu (kẹt ở bước: " + (res.step || "?") + "). Bấm Quét lại để thử lại." : res.error ? "Lỗi tra cứu: " + res.error : "Mã này không thuộc đơn bán, đơn sửa hay hàng hóa nào. Nếu là QR dán trên máy cần tạo đơn sửa, hãy gán nó cho đơn mới."}
               </div>
               <div style={{ display:"flex", gap:10 }}>
                 <button style={{ ...BTN2, flex:1 }} onClick={() => { setRes(null); setPhase("scan"); }}>Quét lại</button>
