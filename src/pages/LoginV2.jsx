@@ -251,6 +251,7 @@ export default function LoginV2({ onLogin, loggedOut }) {
             phone: rec.phone || "", must_change_password: rec.must_change_password,
             avatar_url: rec.avatar_url || "",
             warehouse_ids: rec.warehouse_ids || [],
+            is_leader: !!rec.is_leader, department_id: rec.department_id || "", leader_id: rec.leader_id || "",
           };
         }
       } catch {
@@ -267,6 +268,7 @@ export default function LoginV2({ onLogin, loggedOut }) {
               phone: found.phone || "", must_change_password: found.must_change_password,
               avatar_url: found.avatar_url || "",
               warehouse_ids: found.warehouse_ids || [],
+              is_leader: !!found.is_leader, department_id: found.department_id || "", leader_id: found.leader_id || "",
             };
             // Thử lấy token qua pbAuth để SSE realtime hoạt động
             try { await pbAuth.loginStaff(uname, pwd); } catch {}

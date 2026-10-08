@@ -707,6 +707,21 @@ function MainAppContent({ onUserChange }) {
   const [productHistory, setProductHistory] = useState(null);
   const [warehouseStockModal, setWarehouseStockModal] = useState(null);
 
+  // Đồng bộ cờ tổ trưởng cho user hiện tại từ danh sách staff (session cũ không cần đăng nhập lại)
+  useEffect(() => {
+    if (!user?.id || !users.length) return;
+    const me = users.find(u => u.id === user.id);
+    if (!me) return;
+    if (!!me.is_leader !== !!user.is_leader || me.department_id !== user.department_id || me.leader_id !== user.leader_id) {
+      setUser(prev => ({ ...prev, is_leader: !!me.is_leader, department_id: me.department_id || "", leader_id: me.leader_id || "" }));
+    }
+  }, [users, user?.id]);
+
+  // Cập nhật đơn từ màn "Việc của tôi" (giao lại bởi tổ trưởng)
+  const handleTaskOrderUpdated = (orderId, patch) => {
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...patch } : o));
+  };
+
   // ── Load real data from entities ──────────────────────────
   useEffect(() => {
     async function loadData() {
@@ -735,6 +750,7 @@ function MainAppContent({ onUserChange }) {
           is_active: s.is_active !== false,
           avatar_url: s.avatar_url || "",
           must_change_password: s.must_change_password || false,
+          is_leader: !!s.is_leader, department_id: s.department_id || "", leader_id: s.leader_id || "",
         }));
         const mappedOrders = orderList.map(o => mapPbOrder(o, STATUS_DISPLAY, PRIORITY_DISPLAY));
         setUsers(mappedUsers);
@@ -937,6 +953,16 @@ function MainAppContent({ onUserChange }) {
       let pbPatches    = []; // [{ orderId, pbId, patch }]
       let notifPayload = []; // thông báo đẩy vào PocketBase + state
 
+      // Tìm tổ trưởng phụ trách 1 nhân viên (theo leader_id; nếu chưa gán → tổ trưởng đầu tiên cùng phòng ban)
+      const usNow = usersRef?.current || [];
+      const resolveLeader = (assignedTo) => {
+        const m = usNow.find(u => u.id === assignedTo);
+        if (!m) return null;
+        if (m.leader_id) { const l = usNow.find(u => u.id === m.leader_id); if (l) return l; }
+        const leaders = usNow.filter(u => u.is_leader && u.department_id === m.department_id);
+        return leaders[0] || null;
+      };
+
       // Kiểm tra nhanh trước khi setOrders để tránh re-render không cần thiết
       const snapshot = ordersRef.current;
       const hasActive = snapshot.some(o =>
@@ -1000,12 +1026,23 @@ function MainAppContent({ onUserChange }) {
                 message: `Chưa bấm Nhận Đơn → -1 KPI. Hệ thống tự chuyển sang đếm tiếp 60 phút lần 2.`,
                 orderId: o.id, orderCode: o.order_code || o.id, type: "kpi_penalty", role: null,
               });
-              notifPayload.push({
-                userId: null,
-                title: `⚠️ KTV chậm nhận — ${o.order_code || o.id}`,
-                message: `KTV ${o.assigned_to_name || "?"} quá 60p không nhận đơn → -1 KPI. Đang đếm tiếp 60p.`,
-                orderId: o.id, orderCode: o.order_code || o.id, type: "kpi_penalty", role: "manager",
-              });
+              const leader0 = resolveLeader(o.assigned_to);
+              if (leader0) {
+                // Báo tổ trưởng trước — quản lý chỉ được báo ở ngưỡng 120p nếu tổ trưởng không xử lý
+                notifPayload.push({
+                  userId: leader0.id,
+                  title: `⚠️ Tổ viên chậm nhận — ${o.order_code || o.id}`,
+                  message: `Tổ viên ${o.assigned_to_name || "?"} quá 60p chưa nhận đơn → -1 KPI. Vào "Việc của tôi" → Của tổ để nhắc hoặc giao lại.`,
+                  orderId: o.id, orderCode: o.order_code || o.id, type: "kpi_penalty", role: null,
+                });
+              } else {
+                notifPayload.push({
+                  userId: null,
+                  title: `⚠️ KTV chậm nhận — ${o.order_code || o.id}`,
+                  message: `KTV ${o.assigned_to_name || "?"} quá 60p không nhận đơn → -1 KPI. Đang đếm tiếp 60p.`,
+                  orderId: o.id, orderCode: o.order_code || o.id, type: "kpi_penalty", role: "manager",
+                });
+              }
               changed = true;
             }
           }
@@ -1047,6 +1084,15 @@ function MainAppContent({ onUserChange }) {
                 message: `KTV ${o.assigned_to_name||"?"} quá 120p không nhận → -2 KPI. Vui lòng giao KTV khác.`,
                 orderId: o.id, orderCode: o.order_code || o.id, type: "needs_reassign", role: "manager",
               });
+              const leader1 = resolveLeader(o.assigned_to);
+              if (leader1) {
+                notifPayload.push({
+                  userId: leader1.id,
+                  title: `🚨 Tổ viên không nhận việc — ${o.order_code || o.id}`,
+                  message: `Tổ viên ${o.assigned_to_name||"?"} quá 120p không nhận đơn → -2 KPI, đã báo quản lý. Vào "Việc của tôi" → Của tổ để giao lại ngay.`,
+                  orderId: o.id, orderCode: o.order_code || o.id, type: "needs_reassign", role: null,
+                });
+              }
               changed = true;
             }
           }
@@ -2152,7 +2198,7 @@ function MainAppContent({ onUserChange }) {
           })()}
           <div style={{ flex:1, overflowY:"auto" }}>
             <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
-              {page==="my_tasks" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><MyTasksPage user={user} orders={orders} setPage={setPage} onNewOrder={()=>setShowNewOrder(true)} onOpenCashier={(tab)=>{setCashierTab(tab||"");setPage("cashier_home");}} onOpenPackShip={openPackShip} /></Suspense>}
+              {page==="my_tasks" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><MyTasksPage user={user} orders={orders} setPage={setPage} onNewOrder={()=>setShowNewOrder(true)} onOpenCashier={(tab)=>{setCashierTab(tab||"");setPage("cashier_home");}} onOpenPackShip={openPackShip} onOrderUpdated={handleTaskOrderUpdated} /></Suspense>}
               {page==="ktv_home" && <TechnicianHome user={user} orders={orders} setPage={setPage} />}
               {page==="rec_home" && <ReceptionHome user={user} orders={orders} setPage={setPage} />}
               {page==="board" && (can("repair_order","view") ? <KanbanBoard /> : <AccessDenied pageName="Theo dõi đơn sửa" />)}
@@ -2422,7 +2468,7 @@ function MainAppContent({ onUserChange }) {
       {/* Main content */}
       <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
         <div style={{ paddingBottom:72 }}>
-        {page==="my_tasks" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><MyTasksPage user={user} orders={orders} setPage={setPage} onNewOrder={()=>setShowNewOrder(true)} onOpenCashier={(tab)=>{setCashierTab(tab||"");setPage("cashier_home");}} onOpenPackShip={openPackShip} /></Suspense>}
+        {page==="my_tasks" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><MyTasksPage user={user} orders={orders} setPage={setPage} onNewOrder={()=>setShowNewOrder(true)} onOpenCashier={(tab)=>{setCashierTab(tab||"");setPage("cashier_home");}} onOpenPackShip={openPackShip} onOrderUpdated={handleTaskOrderUpdated} /></Suspense>}
         {page==="ktv_home" && <TechnicianHome user={user} orders={orders} setPage={setPage} />}
         {page==="rec_home" && <ReceptionHome user={user} orders={orders} setPage={setPage} />}
         {page==="board" && (can("repair_order","view") ? <KanbanBoard /> : <AccessDenied pageName="Theo dõi đơn sửa" />)}

@@ -4,7 +4,7 @@
  * Replaces individual home pages (ktv_home, rec_home, role_home, dashboard).
  */
 import React, { useState, useEffect, useMemo } from "react";
-import { StockExportRequest, SparePart, StockImport, StockLedger, SaleOrder, DebtVoucher, RepairOrder } from "./pb.jsx";
+import { StockExportRequest, SparePart, StockImport, StockLedger, SaleOrder, DebtVoucher, RepairOrder, Staff, Notification, logHistory, logAction } from "./pb.jsx";
 import { usePermission } from "./PermissionContext.jsx";
 
 const fmtTime = (d) => {
@@ -22,6 +22,13 @@ const fmtTime = (d) => {
 const isOverdue = (d, thresholdMins = 60) => {
   if (!d) return false;
   return Date.now() - new Date(d).getTime() > thresholdMins * 60000;
+};
+
+const ROLE_LABELS = {
+  technician: "KTV điện thoại", mm_tech: "KTV máy móc", receptionist: "Giao dịch viên",
+  cashier: "Thu ngân", accountant: "Kế toán", warehouse: "Nhân viên kho",
+  sales_rep: "NV bán hàng", sales: "Bán hàng", marketing: "Marketing",
+  manager: "Quản lý", packer: "NV soạn đóng hàng", delivery: "Giao nhận",
 };
 
 // ─── Task card ────────────────────────────────────────────
@@ -78,7 +85,7 @@ function SectionHeader({ icon, title, count, color }) {
 }
 
 // ─── Main component ───────────────────────────────────────
-export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, onOpenCashier, onOpenPackShip }) {
+export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, onOpenCashier, onOpenPackShip, onOrderUpdated }) {
   const role = user?.role || "viewer";
   const { can } = usePermission();
   const canViewPack = can("pack_order", "view");
@@ -86,6 +93,167 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
   const canViewRepair = can("repair_order", "view");
   const [extraData, setExtraData] = useState({});
   const [loading, setLoading] = useState(true);
+
+  // ═══ TỔ TRƯỞNG: tab "Của tổ" ═══
+  const isLeader    = !!user?.is_leader;
+  const myDeptId    = user?.department_id || "";
+  const canReassign = isLeader && ["technician", "mm_tech"].includes(role); // chỉ tổ trưởng KTV được giao lại
+  const [tab, setTab]             = useState("mine");   // mine | team
+  const [staffList, setStaffList] = useState([]);
+  const [teamSales, setTeamSales] = useState([]);
+  const [reassignOrder, setReassignOrder] = useState(null);
+  const [reassignBusy, setReassignBusy]   = useState(false);
+  const [toast, setToast]                 = useState("");
+
+  useEffect(() => { if (toast) { const t = setTimeout(() => setToast(""), 3000); return () => clearTimeout(t); } }, [toast]);
+
+  // Tải danh sách staff + đơn bán của tổ (nếu bộ phận kinh doanh) khi là tổ trưởng
+  useEffect(() => {
+    if (!isLeader) return;
+    let cancelled = false;
+    (async () => {
+      const st = await Staff.list().catch(() => []);
+      if (!cancelled) setStaffList(st);
+      if (["sales_rep", "sales", "marketing"].includes(role)) {
+        const so = await SaleOrder.list({ limit: 200, sort: "-id" }).catch(() => []);
+        if (!cancelled) setTeamSales(so);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isLeader, role]);
+
+  // Tổ viên: gán rõ qua leader_id; ai cùng phòng ban + chưa gán tổ → tính cho tổ trưởng đầu tiên của phòng (khớp logic StaffManager)
+  const members = useMemo(() => {
+    if (!isLeader || !staffList.length) return [];
+    const firstLeaderId = staffList.find(s => s.is_leader && s.department_id === myDeptId)?.id;
+    return staffList.filter(s =>
+      !s.is_leader && s.department_id === myDeptId &&
+      (s.leader_id === user?.id || (!s.leader_id && firstLeaderId === user?.id))
+    );
+  }, [isLeader, staffList, myDeptId, user?.id]);
+
+  const memberIds  = useMemo(() => members.map(m => m.id), [members]);
+  const teamOrders = useMemo(() =>
+    orders.filter(o => o.assigned_to && memberIds.includes(o.assigned_to) && o.status !== "Đã Giao"),
+  [orders, memberIds]);
+
+  // Giao lại đơn cho tổ viên khác (tổ trưởng KTV)
+  async function doReassign(order, member) {
+    setReassignBusy(true);
+    try {
+      const patch = {
+        assigned_to: member.id, assigned_to_name: member.full_name,
+        assigned_at: new Date().toISOString(),
+        accept_stage: 0, stage1_at: null, stage2_at: null,
+        kpi_manually_accepted: false, kpi_stage1_penalized: false, kpi_stage2_penalized: false,
+        needs_reassign: false,
+      };
+      await RepairOrder.update(order._id, patch);
+      logHistory({
+        order_id: order.id, order_code: order.order_code, action_type: "reassigned",
+        action_label: "Tổ trưởng giao lại", changed_by_id: user?.id, changed_by_name: user?.name,
+        changed_by_role: role, old_value: order.assigned_to_name || "", new_value: member.full_name,
+        note: "Tổ trưởng giao lại do tổ viên không nhận việc",
+      }).catch(() => {});
+      logAction(user, "reassign_order", "repair_order", order._id,
+        `Giao lại ${order.order_code}: ${order.assigned_to_name||"?"} → ${member.full_name}`).catch(() => {});
+      await Notification.create({
+        user_id: member.id, user_name: member.full_name,
+        title: `🔧 Đơn được giao lại: ${order.order_code}`,
+        message: `Tổ trưởng ${user?.name || ""} giao lại đơn ${order.order_code} (${order.device_name || ""}) cho bạn. Vào đơn và bấm Nhận ngay.`,
+        order_id: order.id, order_code: order.order_code, type: "reassigned", is_read: false,
+      }).catch(() => {});
+      onOrderUpdated?.(order.id, patch);
+      setToast(`✅ Đã giao ${order.order_code} cho ${member.full_name}`);
+      setReassignOrder(null);
+    } catch (e) {
+      setToast("❌ Lỗi giao lại: " + (e?.message || e));
+    }
+    setReassignBusy(false);
+  }
+
+  // Giao diện tab "Của tổ"
+  function renderTeam() {
+    if (!members.length) return (
+      <div style={{ textAlign:"center", padding:50, color:"#9ca3af" }}>
+        <div style={{ fontSize:40, marginBottom:8 }}>👥</div>
+        <div style={{ fontSize:14, fontWeight:700 }}>Chưa có tổ viên nào</div>
+        <div style={{ fontSize:12, marginTop:4 }}>Liên hệ quản lý để được gán tổ viên vào tổ của bạn.</div>
+      </div>
+    );
+    const activeStatuses = ["Chờ KTV","Chờ KTV Sửa","Đang Sửa","Chờ Linh Kiện","KTV Đang Kiểm","Chờ Báo Giá"];
+    const salesPending = teamSales.filter(o => memberIds.includes(o.seller_id) && !["completed","paid"].includes(o.status));
+    return (
+      <div>
+        <SectionHeader icon="groups" title="Tổ của tôi" count={members.length} color="#4f46e5" />
+        {members.map(m => {
+          const mActive = orders.filter(o => o.assigned_to === m.id && activeStatuses.includes(o.status)).length;
+          return (
+            <div key={m.id} style={{ background:"#fff", border:"1px solid #f3f4f6", borderRadius:14, padding:"12px 14px", marginBottom:8, display:"flex", alignItems:"center", gap:12 }}>
+              <div style={{ width:40, height:40, borderRadius:"50%", background:"#eef2ff", color:"#4f46e5", fontWeight:900, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16 }}>{(m.full_name||"?").charAt(0)}</div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontWeight:800, fontSize:14, color:"#1f2937" }}>{m.full_name}</div>
+                <div style={{ fontSize:12, color:"#6b7280" }}>{ROLE_LABELS[m.role] || m.role}</div>
+              </div>
+              <div style={{ textAlign:"right" }}>
+                <div style={{ fontSize:13, fontWeight:800, color: mActive ? "#d97706" : "#9ca3af" }}>{mActive} việc</div>
+                <div style={{ fontSize:11, color:"#9ca3af" }}>KPI {m.kpi_score ?? 0}</div>
+              </div>
+            </div>
+          );
+        })}
+
+        {teamOrders.length > 0 && (
+          <>
+            <SectionHeader icon="build" title="Đơn đang giữ của tổ" count={teamOrders.length} color="#d97706" />
+            {teamOrders.map(o => {
+              const notAccepted = (o.accept_stage ?? 0) < 2;
+              const overdue = notAccepted && o.assigned_at && (Date.now() - new Date(o.assigned_at).getTime() > 60*60000);
+              const showRa = canReassign && (notAccepted || o.needs_reassign);
+              return (
+                <div key={o.id} style={{ background: overdue ? "#fef2f2" : "#fff", borderRadius:12, padding:"12px 14px", marginBottom:8, border: overdue ? "1.5px solid #fecaca" : "1px solid #f3f4f6" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontWeight:700, fontSize:14, color:"#1f2937", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{o.device_name || o.order_code}</div>
+                      <div style={{ fontSize:12, color:"#6b7280", marginTop:2 }}>{o.order_code} · {o.assigned_to_name || "?"}</div>
+                    </div>
+                    {overdue
+                      ? <span style={{ background:"#dc2626", color:"#fff", borderRadius:99, padding:"3px 10px", fontSize:11, fontWeight:800, flexShrink:0 }}>Quá hạn chưa nhận</span>
+                      : <span style={{ background:"#e5e7eb", color:"#374151", borderRadius:99, padding:"3px 10px", fontSize:11, fontWeight:800, flexShrink:0 }}>{o.status}</span>}
+                  </div>
+                  {showRa && (
+                    <button onClick={() => setReassignOrder(o)} disabled={reassignBusy}
+                      style={{ marginTop:8, width:"100%", padding:10, borderRadius:10, border:"none", background:"#4f46e5", color:"#fff", fontWeight:800, fontSize:13, cursor:"pointer" }}>
+                      🔄 Giao lại cho tổ viên khác
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </>
+        )}
+
+        {salesPending.length > 0 && (
+          <>
+            <SectionHeader icon="receipt_long" title="Đơn bán của tổ viên" count={salesPending.length} color="#059669" />
+            {salesPending.map(o => (
+              <TaskCard key={"s"+o.id} icon="receipt_long"
+                title={`${o.order_code || ""} — ${o.customer_name || "Khách lẻ"}`}
+                subtitle={`${o.seller_name || ""} · ${Number(o.total||0).toLocaleString("vi-VN")}đ`}
+                badge={o.status === "pending_payment" ? "Chờ thu" : o.status}
+                badgeColor={o.status === "pending_payment" ? "#d97706" : "#6b7280"}
+                urgency={o.status === "pending_payment" ? "today" : "waiting"}
+                onClick={() => setPage("sale_history")} />
+            ))}
+          </>
+        )}
+
+        {teamOrders.length === 0 && salesPending.length === 0 && (
+          <div style={{ textAlign:"center", padding:40, color:"#9ca3af", fontSize:13 }}>Tổ đang không có việc nào đang xử lý ✅</div>
+        )}
+      </div>
+    );
+  }
 
   // Load extra data based on role
   useEffect(() => {
@@ -468,7 +636,16 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
         </div>
       </div>
 
-      {loading ? (
+      {isLeader && (
+        <div style={{ display:"flex", gap:8, marginBottom:14 }}>
+          {[["mine","Của tôi"],["team",`Của tổ (${members.length})`]].map(([k,label]) => (
+            <button key={k} onClick={() => setTab(k)} style={{ flex:1, padding:"10px 0", borderRadius:12, border:"none", cursor:"pointer", fontWeight:800, fontSize:14,
+              background: tab===k ? "#4f46e5" : "#f3f4f6", color: tab===k ? "#fff" : "#6b7280" }}>{label}</button>
+          ))}
+        </div>
+      )}
+
+      {tab === "team" ? renderTeam() : loading ? (
         <div style={{ textAlign: "center", padding: 40, color: "#9ca3af" }}>⏳ Đang tải...</div>
       ) : (
         <>
@@ -505,6 +682,31 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
             </div>
           )}
         </>
+      )}
+
+      {/* Sheet chọn tổ viên nhận lại đơn */}
+      {reassignOrder && (
+        <div onClick={() => setReassignOrder(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.45)", zIndex:120, display:"flex", alignItems:"flex-end" }}>
+          <div onClick={e => e.stopPropagation()} style={{ width:"100%", background:"#fff", borderRadius:"20px 20px 0 0", padding:20, maxHeight:"70vh", overflowY:"auto" }}>
+            <div style={{ fontWeight:900, fontSize:16, marginBottom:4 }}>Giao lại đơn {reassignOrder.order_code}</div>
+            <div style={{ fontSize:12, color:"#6b7280", marginBottom:14 }}>Đang giữ: {reassignOrder.assigned_to_name || "?"} → chọn tổ viên nhận mới</div>
+            {members.filter(m => ["technician","mm_tech"].includes(m.role) && m.id !== reassignOrder.assigned_to && m.is_active !== false).map(m => (
+              <button key={m.id} disabled={reassignBusy} onClick={() => doReassign(reassignOrder, m)}
+                style={{ width:"100%", display:"flex", alignItems:"center", gap:10, padding:"12px 14px", borderRadius:12, border:"1px solid #e5e7eb", background:"#f9fafb", marginBottom:8, cursor:"pointer", textAlign:"left" }}>
+                <span style={{ width:36, height:36, borderRadius:"50%", background:"#eef2ff", color:"#4f46e5", fontWeight:900, display:"flex", alignItems:"center", justifyContent:"center" }}>{(m.full_name||"?").charAt(0)}</span>
+                <span style={{ flex:1 }}>
+                  <span style={{ display:"block", fontWeight:800, fontSize:14, color:"#1f2937" }}>{m.full_name}</span>
+                  <span style={{ display:"block", fontSize:12, color:"#6b7280" }}>{ROLE_LABELS[m.role] || m.role} · KPI {m.kpi_score ?? 0}</span>
+                </span>
+              </button>
+            ))}
+            <button onClick={() => setReassignOrder(null)} style={{ width:"100%", padding:12, borderRadius:12, border:"none", background:"#e5e7eb", fontWeight:800, color:"#374151", cursor:"pointer" }}>Đóng</button>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div style={{ position:"fixed", bottom:80, left:"50%", transform:"translateX(-50%)", background:"#1e1b4b", color:"#fff", padding:"10px 18px", borderRadius:99, fontSize:13, fontWeight:700, zIndex:130, boxShadow:"0 4px 12px rgba(0,0,0,.25)", whiteSpace:"nowrap" }}>{toast}</div>
       )}
     </div>
   );
