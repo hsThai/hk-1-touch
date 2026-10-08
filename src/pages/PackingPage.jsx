@@ -14,7 +14,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   SaleOrder, SaleOrderItem, Staff, Notification, OrderHistory,
-  logAction, logHistory, uploadFile, normalizePbUrl,
+  logAction, logHistory, uploadFile, normalizePbUrl, notifyLeaderOf,
 } from "./pb.jsx";
 import { usePermission } from "./PermissionContext.jsx";
 import { ScanCodeModal, openScannerStream, cropViewfinder, TorchButton, loadZxing, makeZxingDecoder } from "./QRComponents.jsx";
@@ -359,6 +359,11 @@ function PickingModal({ order, user, onDone, onClose, showToast }) {
       await notifyRoles(["delivery", "warehouse", "manager", "admin", "owner"], {
         title: `📦 Đơn ${order.order_code} đã đóng gói`,
         message: `${user.full_name || user.name || ""} đã đóng gói xong — sẵn sàng bàn giao ĐVVC`,
+        order: { id: order.id, order_code: order.order_code },
+      });
+      await notifyLeaderOf(user.id, {
+        title: `📦 Đơn ${order.order_code} đã đóng gói`,
+        message: `${user.full_name || user.name || ""} soạn xong — sẵn sàng bàn giao ĐVVC`,
         order: { id: order.id, order_code: order.order_code },
       });
       showToast("✅ Đã xác nhận đóng gói", "ok");
@@ -959,6 +964,16 @@ export default function PackingPage({ user, onBack, focusOrderCode, onFocusConsu
         message: `Khách đã nhận hàng — ${order.tracking_code || ""}`,
         order: { id: order.id, order_code: order.order_code },
       });
+      await notifyLeaderOf(user.id, {
+        title: `✅ Đơn ${order.order_code} đã giao xong`,
+        message: `Khách đã nhận hàng — ${user.full_name || user.name || ""}`,
+        order: { id: order.id, order_code: order.order_code },
+      });
+      await notifyRoles(["manager", "admin", "owner"], {
+        title: `✅ Đơn ${order.order_code} đã giao xong`,
+        message: `Khách đã nhận hàng — ${user.full_name || user.name || ""}`,
+        order: { id: order.id, order_code: order.order_code },
+      });
       showToast("🎉 Đơn đã giao xong!", "ok");
       setModal(null);
       applyUpdate(order.id, updates);
@@ -997,6 +1012,11 @@ export default function PackingPage({ user, onBack, focusOrderCode, onFocusConsu
         message: `${note || ""} — cần xử lý`,
         order: { id: order.id, order_code: order.order_code },
       });
+      await notifyLeaderOf(user.id, {
+        title: `⚠️ Đơn ${order.order_code} giao lỗi`,
+        message: note || "Cần xử lý",
+        order: { id: order.id, order_code: order.order_code },
+      });
       showToast("Đã ghi nhận giao lỗi", "err");
       setModal(null);
       applyUpdate(order.id, updates);
@@ -1027,6 +1047,16 @@ export default function PackingPage({ user, onBack, focusOrderCode, onFocusConsu
       await notifyUser(order.seller_id, order.seller_name, {
         title: `✅ Đơn ${order.order_code} khách đã nhận`,
         message: "Khách đã đến nhận hàng tại tiệm",
+        order: { id: order.id, order_code: order.order_code },
+      });
+      await notifyLeaderOf(user.id, {
+        title: `✅ Đơn ${order.order_code} khách đã nhận`,
+        message: "Khách nhận hàng tại tiệm",
+        order: { id: order.id, order_code: order.order_code },
+      });
+      await notifyRoles(["manager", "admin", "owner"], {
+        title: `✅ Đơn ${order.order_code} khách đã nhận`,
+        message: `Khách nhận tại tiệm — ${user.full_name || user.name || ""}`,
         order: { id: order.id, order_code: order.order_code },
       });
       showToast("🎉 Đã xác nhận khách nhận hàng!", "ok");

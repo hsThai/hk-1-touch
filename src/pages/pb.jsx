@@ -256,6 +256,23 @@ export const Notification  = {
 };
 
 // Gửi thông báo tới tất cả nhân viên đang hoạt động thuộc các role chỉ định (loại trừ người thao tác)
+// Báo tổ trưởng trực tiếp của một nhân viên (theo leader_id trên hồ sơ staff)
+export async function notifyLeaderOf(staffId, { title, message, order, type = "assign" }) {
+  if (!staffId) return;
+  try {
+    const me = await Staff.get(staffId).catch(() => null);
+    const leaderId = me?.leader_id;
+    if (!leaderId) return;
+    const leader = await Staff.get(leaderId).catch(() => null);
+    await Notification.create({
+      user_id: leaderId, user_name: leader?.full_name || "",
+      title, message: message || "",
+      order_id: order?.id || "", order_code: order?.order_code || "",
+      type, is_read: false,
+    });
+  } catch (e) { console.warn("[notifyLeaderOf]", e.message); }
+}
+
 export async function notifyRoles(roles, { title, message, order, type = "assign", excludeId = "" }) {
   try {
     const staff = await Staff.filter({ is_active: true });

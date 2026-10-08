@@ -83,7 +83,7 @@ export default function CashierConfirmPage({ user }) {
       logAction(user, "confirm_payment", "sale_order", confirming.id, `Thu tiền ${confirming.order_code}: ${confirming.total.toLocaleString("vi-VN")}đ (${payMethod})`);
       // Bao NV soan dong hang: don da thu tien can soan (don lay tai quay thi khong can)
       if ((confirming.delivery_type || "") !== "pickup") {
-        notifyRoles(["packer"], {
+        notifyRoles(["packer", "delivery"], {
           title: `📦 Đơn cần soạn: ${confirming.order_code}`,
           message: `${confirming.customer_name || "Khách lẻ"} · ${(confirming.total||0).toLocaleString("vi-VN")}đ${confirming.delivery_address ? " · " + confirming.delivery_address : ""}`,
           order: confirming, type: "pack_ship", excludeId: user?.id || "",
