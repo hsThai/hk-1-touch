@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 
 // ── Checklist QT1 — Ngoại quan (Tiếp tân) ──────────────────────────
 const QT1_ITEMS = [
