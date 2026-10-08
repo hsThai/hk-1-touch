@@ -248,7 +248,27 @@ function makeCollection(collectionName) {
 export const Staff         = makeCollection("staff");
 export const RepairOrder   = makeCollection("repair_orders");
 export const RepairChat    = makeCollection("repair_chats");
-export const Notification  = makeCollection("notifications");
+const _NotifBase = makeCollection("notifications");
+// Luôn gắn created_at (trước đây 327/676 thông báo thiếu mốc thời gian -> bộ nhận bỏ sót / hiển thị sai giờ)
+export const Notification  = {
+  ..._NotifBase,
+  create: (data = {}) => _NotifBase.create({ is_read:false, ...data, created_at: data.created_at || new Date().toISOString() }),
+};
+
+// Gửi thông báo tới tất cả nhân viên đang hoạt động thuộc các role chỉ định (loại trừ người thao tác)
+export async function notifyRoles(roles, { title, message, order, type = "assign", excludeId = "" }) {
+  try {
+    const staff = await Staff.filter({ is_active: true });
+    const targets = (staff || []).filter(s => roles.includes(s.role) && s.id !== excludeId);
+    await Promise.all(targets.map(st => Notification.create({
+      user_id: st.id, user_name: st.full_name || "",
+      title, message: message || "",
+      order_id: order?.id || "", order_code: order?.order_code || "",
+      type, is_read: false,
+    }).catch(() => {})));
+    return targets.length;
+  } catch (e) { console.warn("[notifyRoles]", e.message); return 0; }
+}
 export const Customer      = makeCollection("customers");
 export const SparePart     = makeCollection("product_catalog");
 export const SparePartUsage= makeCollection("spare_part_usages");

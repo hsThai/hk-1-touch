@@ -1,7 +1,7 @@
 // CashierConfirmPage.jsx — Trang xác nhận thu tiền cho Thu ngân
 // HK One Touch
 import React, { useState, useEffect } from "react";
-import { SaleOrder, SaleOrderItem, CashJournal, DebtVoucher, getLocalDate, logAction } from "./pb.jsx";
+import { SaleOrder, SaleOrderItem, CashJournal, DebtVoucher, getLocalDate, logAction, notifyRoles } from "./pb.jsx";
 import { printSaleReceiptA5 } from "../utils/printClient.js";
 
 const PM_COLORS = { cash:"#059669", transfer:"#0369a1", combined:"#7c3aed", credit:"#dc2626" };
@@ -81,6 +81,14 @@ export default function CashierConfirmPage({ user }) {
         payment_method: payMethod,
       });
       logAction(user, "confirm_payment", "sale_order", confirming.id, `Thu tiền ${confirming.order_code}: ${confirming.total.toLocaleString("vi-VN")}đ (${payMethod})`);
+      // Bao NV soan dong hang: don da thu tien can soan (don lay tai quay thi khong can)
+      if ((confirming.delivery_type || "") !== "pickup") {
+        notifyRoles(["packer"], {
+          title: `📦 Đơn cần soạn: ${confirming.order_code}`,
+          message: `${confirming.customer_name || "Khách lẻ"} · ${(confirming.total||0).toLocaleString("vi-VN")}đ${confirming.delivery_address ? " · " + confirming.delivery_address : ""}`,
+          order: confirming, type: "pack_ship", excludeId: user?.id || "",
+        });
+      }
       if(payMethod==="credit"){
         await DebtVoucher.create({
           voucher_code:"PT-BL-"+String(Date.now()).slice(-6),

@@ -632,7 +632,8 @@ function MainAppContent({ onUserChange }) {
     // Chỉ xử lý notif của user hiện tại
     if (n.user_id && n.user_id !== user?.id) return;
     // Chỉ notif mới (dưới 5 phút)
-    const age = Date.now() - new Date(n.created_date || n.updated).getTime();
+    const _t = new Date(n.created_at || n.created_date || n.updated || n.created || Date.now()).getTime();
+    const age = Number.isFinite(_t) ? Date.now() - _t : 0;
     if (age > 300000) return;
     // Cập nhật state
     setDbNotifications(p => {

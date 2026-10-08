@@ -1,6 +1,6 @@
 /* SaleOrderPage.jsx — POS bán hàng lẻ */
 import React, { useState, useEffect, useRef } from "react";
-import { SparePart, SaleOrder, SaleOrderItem, StockMovement, StockLedger, AppSettings, Customer , DebtVoucher, CashJournal, logAction } from "./pb.jsx";
+import { SparePart, SaleOrder, SaleOrderItem, StockMovement, StockLedger, AppSettings, Customer , DebtVoucher, CashJournal, logAction, notifyRoles } from "./pb.jsx";
 import { previewSaleReceipt } from "../utils/printClient.js";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
@@ -217,6 +217,12 @@ export default function SaleOrderPage({ user }) {
         });
         console.log("✅ Tạo sale_order thành công:", so);
         logAction(user, "create_sale", "sale_order", so.id, `Tạo đơn bán ${orderCode}: ${custName} — ${total.toLocaleString("vi-VN")}đ`);
+        // Bao thu ngan: co don cho thu tien
+        notifyRoles(["cashier","accountant"], {
+          title: `💰 Đơn chờ thu tiền: ${orderCode}`,
+          message: `${custName.trim() || "Khách lẻ"} · ${total.toLocaleString("vi-VN")}đ · ${user.full_name || user.name || ""}`,
+          order: so, type: "assign", excludeId: user.id || "",
+        });
       } catch(e) {
         console.error("❌ Lỗi tạo sale_order:", e);
         showToast("❌ Lỗi tạo đơn: " + (e?.message || e?.data?.message || JSON.stringify(e)));
@@ -345,6 +351,11 @@ export default function SaleOrderPage({ user }) {
   async function handleConfirmDraft(draft) {
     try {
       await SaleOrder.update(draft.id, { status: "pending_payment" });
+      notifyRoles(["cashier","accountant"], {
+        title: `💰 Đơn chờ thu tiền: ${draft.order_code}`,
+        message: `${draft.customer_name || "Khách lẻ"} · ${(draft.total||0).toLocaleString("vi-VN")}đ · ${user.full_name || user.name || ""}`,
+        order: draft, type: "assign", excludeId: user.id || "",
+      });
       logAction(user, "update", "sale_order", draft.id, `Xác nhận đơn ${draft.order_code}`);
       setLastDraft(null);
       loadTodayOrders();
