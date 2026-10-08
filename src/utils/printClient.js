@@ -25,13 +25,23 @@ const PV_BAR = `<style>@media print{.pv-bar{display:none!important}} body{paddin
   <button onclick="window.print()" style="background:#16a34a;color:#fff;border:none;border-radius:10px;padding:12px 28px;font-size:16px;font-weight:700;cursor:pointer">🖨 In</button>
   <button onclick="window.close();if(!window.closed)history.back()" style="background:#fff;color:#333;border:none;border-radius:10px;padding:12px 22px;font-size:15px;font-weight:600;cursor:pointer">Đóng</button>
 </div>`;
+const PV_VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1">';
+// Chỉ áp dụng khi xem trên màn hình điện thoại: nội dung full bề rộng + chữ to dễ đọc (không ảnh hưởng bản in)
+const PV_MOBILE_CSS = '<style>@media screen and (max-width:700px){body{max-width:100%!important;width:100%!important;zoom:1.25;padding-left:10px!important;padding-right:10px!important}}</style>';
 function openBlobHtml(html) {
+  if (!/name=["']viewport["']/i.test(html)) {
+    html = /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, m => m + PV_VIEWPORT) : PV_VIEWPORT + html;
+  }
+  if (/<\/head>/i.test(html)) html = html.replace(/<\/head>/i, PV_MOBILE_CSS + "</head>");
   if (!html.includes("pv-bar")) {
     html = /<body[^>]*>/i.test(html) ? html.replace(/<body[^>]*>/i, m => m + PV_BAR) : PV_BAR + html;
   }
-  const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
   const w = _preWin; _preWin = null;
-  if (w && !w.closed) { try { w.location.href = url; return; } catch {} }
+  // Ghi thẳng HTML vào tab đã mở sẵn (ổn định trên Chrome Android, không phụ thuộc blob URL)
+  if (w && !w.closed) {
+    try { w.document.open(); w.document.write(html); w.document.close(); return; } catch {}
+  }
+  const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
   const nw = window.open(url, "_blank");
   if (!nw) { window.location.href = url; } // popup bị chặn → mở ngay trong tab hiện tại
 }
