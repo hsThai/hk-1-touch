@@ -24,6 +24,19 @@ function makeWHCol(colName) {
     return res.json();
   }
   return {
+    // Tải TOÀN BỘ bản ghi khớp filter (phân trang 500/lần) — tránh bị cắt ở 500 dòng đầu
+    all: async (f="", p={}) => {
+      const out = []; let page = 1;
+      for (;;) {
+        const qs = new URLSearchParams({ perPage: 500, page, ...(p.sort?{sort:p.sort}:{}) });
+        if (f) qs.set("filter", f);
+        const r = await pbFetch(`collections/${colName}/records?${qs}`);
+        out.push(...(r.items||[]));
+        if (page >= (r.totalPages||1) || page >= 40) break;
+        page++;
+      }
+      return out;
+    },
     list:   (p={})   => {
       const { limit, sort, ...rest } = p;
       const qp = { perPage: limit||500, ...rest };
@@ -636,6 +649,9 @@ function StockLedgerTab({ user, toast }) {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState("ledger"); // ledger | movements
+  const [groupMode, setGroupMode] = useState("warehouse"); // warehouse | product
+  const [allLedger, setAllLedger] = useState([]);   // tồn của tất cả kho được phép (cho chế độ theo hàng hóa)
+  const [shown, setShown] = useState(60);           // số thẻ đang hiển thị (tải dần)
   const [adjustModal, setAdjustModal] = useState(null);
   const [adjForm, setAdjForm] = useState({ qty:"", note:"" });
 
@@ -643,12 +659,44 @@ function StockLedgerTab({ user, toast }) {
 
   useEffect(() => {
     if (!selWH) return;
-    setLoading(true);
+    let cancelled = false;
+    setLoading(true); setLedger([]); setShown(60);
     Promise.all([
-      Ledger.filter(`warehouse_id='${selWH}'`),
-      canSeeHistory ? Move.filter(`warehouse_id='${selWH}'`) : Promise.resolve([]),
-    ]).then(([l,m]) => { setLedger(l); setMovements(m); }).finally(()=>setLoading(false));
+      Ledger.all(`warehouse_id="${selWH}"`),
+      canSeeHistory ? Move.filter(`warehouse_id="${selWH}"`, { limit: 200, sort: "-id" }) : Promise.resolve([]),
+    ]).then(([l,m]) => { if (cancelled) return; setLedger(l); setMovements(m); })
+      .catch(e => { if (!cancelled) toast.show(e.message || "Lỗi tải tồn kho","error"); })
+      .finally(()=>{ if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [selWH, canSeeHistory]);
+
+  // Chế độ "theo hàng hóa": tải tồn của tất cả kho được phép, gộp theo món
+  useEffect(() => {
+    if (groupMode !== "product" || warehouses.length === 0) return;
+    let cancelled = false;
+    setLoading(true); setShown(60);
+    Promise.all(warehouses.map(w => Ledger.all(`warehouse_id="${w.id}"`)))
+      .then(arr => { if (!cancelled) setAllLedger(arr.flat()); })
+      .catch(e => { if (!cancelled) toast.show(e.message || "Lỗi tải tồn kho","error"); })
+      .finally(()=>{ if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [groupMode, warehouses]);
+
+  // Gộp theo hàng hóa: mỗi món -> danh sách tồn từng kho
+  const productGroups = React.useMemo(() => {
+    const map = new Map();
+    allLedger.forEach(l => {
+      const key = l.part_id || l.sku || l.part_name;
+      if (!key) return;
+      if (!map.has(key)) map.set(key, { key, name:l.part_name, sku:l.sku, items:[], total:0, avail:0 });
+      const g = map.get(key);
+      g.items.push(l); g.total += (l.qty_on_hand||0); g.avail += (l.qty_available||0);
+    });
+    const q = search.trim().toLowerCase();
+    return [...map.values()]
+      .filter(g => !q || g.name?.toLowerCase().includes(q) || g.sku?.toLowerCase().includes(q))
+      .sort((a,b)=> (a.name||"").localeCompare(b.name||"","vi"));
+  }, [allLedger, search]);
 
   const wh = warehouses.find(w=>w.id===selWH);
   const filteredLedger = ledger.filter(l =>
@@ -693,7 +741,7 @@ function StockLedgerTab({ user, toast }) {
     <div>
       {/* ── Thanh chọn kho (dropdown) + tìm kiếm ── */}
       <div style={{ background:"#fff", border:"1px solid #e5e7eb", borderRadius:14, padding:12, marginBottom:12, display:"flex", flexDirection:"column", gap:10 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+        <div style={{ display:(effMode==="ledger" && groupMode==="product") ? "none" : "flex", alignItems:"center", gap:10 }}>
           <span className="material-icons" style={{ fontSize:22, color:"#4f46e5" }}>warehouse</span>
           <select value={selWH} onChange={e=>setSelWH(e.target.value)}
             style={{ flex:1, minWidth:0, padding:"11px 12px", borderRadius:10, border:"1.5px solid #c7d2fe", background:"#f5f3ff", fontSize:15, fontWeight:700, color:"#1e1b4b", outline:"none", appearance:"auto" }}>
@@ -702,9 +750,19 @@ function StockLedgerTab({ user, toast }) {
           </select>
         </div>
         {effMode==="ledger" && (
+          <div style={{ display:"flex", gap:6, background:"#f3f4f6", borderRadius:10, padding:4 }}>
+            {[["warehouse","Theo kho"],["product","Theo hàng hóa"]].map(([k,lb])=>(
+              <button key={k} onClick={()=>setGroupMode(k)}
+                style={{ flex:1, padding:"9px 8px", border:"none", borderRadius:8, fontWeight:700, fontSize:13, cursor:"pointer",
+                  background:groupMode===k?"#fff":"transparent", color:groupMode===k?"#4f46e5":"#6b7280",
+                  boxShadow:groupMode===k?"0 1px 3px rgba(0,0,0,.12)":"none" }}>{lb}</button>
+            ))}
+          </div>
+        )}
+        {effMode==="ledger" && (
           <div style={{ position:"relative" }}>
             <span className="material-icons" style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", fontSize:20, color:"#9ca3af", pointerEvents:"none" }}>search</span>
-            <input style={{ ...S.input, paddingLeft:44, paddingTop:11, paddingBottom:11, fontSize:14 }} placeholder="Tìm linh kiện, SKU, vị trí kệ..." value={search} onChange={e=>setSearch(e.target.value)} />
+            <input style={{ ...S.input, paddingLeft:44, paddingTop:11, paddingBottom:11, fontSize:14 }} placeholder="Tìm linh kiện, SKU, vị trí kệ..." value={search} onChange={e=>{ setSearch(e.target.value); setShown(60); }} />
           </div>
         )}
         {canSeeHistory && (
@@ -720,7 +778,18 @@ function StockLedgerTab({ user, toast }) {
       </div>
 
       {/* ── Thống kê nhanh ── */}
-      {effMode==="ledger" && selWH && (
+      {effMode==="ledger" && groupMode==="product" && (
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:8, marginBottom:12 }}>
+          {[{label:"Mã hàng", value:productGroups.length, color:"#4f46e5"},
+            {label:"Số kho", value:warehouses.length, color:"#059669"}].map(st=>(
+            <div key={st.label} style={{ background:"#fff", borderRadius:12, border:"1px solid #e5e7eb", padding:"10px 8px", textAlign:"center" }}>
+              <div style={{ fontSize:20, fontWeight:800, color:st.color, lineHeight:1.2 }}>{st.value}</div>
+              <div style={{ fontSize:11, color:"#6b7280", marginTop:2 }}>{st.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {effMode==="ledger" && groupMode==="warehouse" && selWH && (
         <div style={{ display:"grid", gridTemplateColumns:canSeeCost?"repeat(3,1fr)":"repeat(2,1fr)", gap:8, marginBottom:12 }}>
           {[
             { label:"Mã hàng", value:filteredLedger.length, color:"#4f46e5" },
@@ -738,12 +807,51 @@ function StockLedgerTab({ user, toast }) {
       {loading ? <div style={S.empty}>⏳ Đang tải...</div> : (
         <>
           {/* ── DANH SÁCH TỒN: dạng thẻ, không bảng ngang ── */}
-          {effMode==="ledger" && (
+          {effMode==="ledger" && groupMode==="product" && (
+            productGroups.length===0 ? (
+              <div style={{ ...S.empty, background:"#fff", borderRadius:12, border:"1px solid #e5e7eb" }}>Không tìm thấy hàng hóa</div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                {productGroups.slice(0, shown).map(g=>(
+                  <div key={g.key} style={{ background:"#fff", border:"1px solid #e5e7eb", borderLeft:"4px solid #4f46e5", borderRadius:12, padding:"12px 14px" }}>
+                    <div style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontWeight:700, fontSize:14, color:"#111827", lineHeight:1.35, wordBreak:"break-word" }}>{g.name}</div>
+                        {g.sku && <code style={{ display:"inline-block", marginTop:6, fontSize:11, background:"#f3f4f6", padding:"2px 6px", borderRadius:4, color:"#374151" }}>{g.sku}</code>}
+                      </div>
+                      <div style={{ textAlign:"right", flexShrink:0 }}>
+                        <div style={{ fontSize:26, fontWeight:800, color:g.avail>0?"#059669":"#dc2626", lineHeight:1 }}>{fmt(g.avail)}</div>
+                        <div style={{ fontSize:10, color:"#6b7280", marginTop:3 }}>tổng khả dụng</div>
+                      </div>
+                    </div>
+                    <div style={{ marginTop:10, paddingTop:8, borderTop:"1px dashed #e5e7eb", display:"flex", flexDirection:"column", gap:4 }}>
+                      {warehouses.map(w=>{
+                        const rows = g.items.filter(i=>i.warehouse_id===w.id);
+                        const qty = rows.reduce((a,i)=>a+(i.qty_available||0),0);
+                        const loc = rows.map(i=>i.location_code).filter(Boolean).join(", ");
+                        return (
+                          <div key={w.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:13, opacity:rows.length?1:.45 }}>
+                            <span style={{ color:"#374151" }}>{w.name}{loc && <span style={{ color:"#9ca3af", fontSize:11 }}> · Kệ {loc}</span>}</span>
+                            <b style={{ color:qty>0?"#111827":"#9ca3af" }}>{rows.length?fmt(qty):"—"}</b>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+                {productGroups.length>shown && (
+                  <button style={{ ...S.btnGhost(), width:"100%", padding:12 }} onClick={()=>setShown(n=>n+60)}>Xem thêm ({productGroups.length-shown} mã hàng)</button>
+                )}
+              </div>
+            )
+          )}
+
+          {effMode==="ledger" && groupMode==="warehouse" && (
             filteredLedger.length===0 ? (
               <div style={{ ...S.empty, background:"#fff", borderRadius:12, border:"1px solid #e5e7eb" }}>Chưa có dữ liệu tồn kho</div>
             ) : (
               <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                {filteredLedger.map(l=>{
+                {filteredLedger.slice(0, shown).map(l=>{
                   const isLow = l.min_qty>0 && l.qty_available<=l.min_qty;
                   return (
                     <div key={l.id} style={{ background:"#fff", border:`1px solid ${isLow?"#fdba74":"#e5e7eb"}`, borderLeft:`4px solid ${isLow?"#f97316":"#4f46e5"}`, borderRadius:12, padding:"12px 14px" }}>
@@ -773,6 +881,9 @@ function StockLedgerTab({ user, toast }) {
                     </div>
                   );
                 })}
+                {filteredLedger.length>shown && (
+                  <button style={{ ...S.btnGhost(), width:"100%", padding:12 }} onClick={()=>setShown(n=>n+60)}>Xem thêm ({filteredLedger.length-shown} mã hàng)</button>
+                )}
               </div>
             )
           )}
