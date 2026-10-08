@@ -625,6 +625,10 @@ function ZoneLocationTab({ user, toast }) {
 function StockLedgerTab({ user, toast }) {
   const { can } = usePermission();
   const canAdjust = !!(can && can("stock_count","edit"));
+  // Chỉ quản lý kho/kế toán trở lên mới xem lịch sử biến động & giá vốn; nhân viên chỉ xem tồn
+  const isStaffView = !["owner","admin","manager","supervisor","warehouse","accountant"].includes(user?.role);
+  const canSeeHistory = !isStaffView;
+  const canSeeCost = !isStaffView;
   const [warehouses, setWarehouses] = useState([]);
   const [selWH, setSelWH] = useState("");
   const [ledger, setLedger] = useState([]);
@@ -642,9 +646,9 @@ function StockLedgerTab({ user, toast }) {
     setLoading(true);
     Promise.all([
       Ledger.filter(`warehouse_id='${selWH}'`),
-      Move.filter(`warehouse_id='${selWH}'`),
+      canSeeHistory ? Move.filter(`warehouse_id='${selWH}'`) : Promise.resolve([]),
     ]).then(([l,m]) => { setLedger(l); setMovements(m); }).finally(()=>setLoading(false));
-  }, [selWH]);
+  }, [selWH, canSeeHistory]);
 
   const wh = warehouses.find(w=>w.id===selWH);
   const filteredLedger = ledger.filter(l =>
@@ -682,118 +686,126 @@ function StockLedgerTab({ user, toast }) {
 
   const moveTypeLabel = { import:"📥 Nhập", export:"📤 Xuất", transfer_out:"🔄 Xuất chuyển", transfer_in:"🔄 Nhận chuyển", adjust:"⚖️ Điều chỉnh", count_adjust:"📋 Kiểm kho", borrow:"🤝 Mượn", return:"↩️ Hoàn trả" };
 
+  const effMode = canSeeHistory ? viewMode : "ledger";
+  const fmt = (n) => Number(n||0).toLocaleString("vi");
+
   return (
     <div>
-      <div style={{ display:"flex", gap:8, alignItems:"center", marginBottom:12, flexWrap:"wrap" }}>
-        <div style={{ fontWeight:700, color:"#1e1b4b" }}>🏭 Kho:</div>
-        {warehouses.map(w=>(
-          <button key={w.id} onClick={()=>setSelWH(w.id)}
-            style={{ padding:"7px 14px", borderRadius:8, border:"2px solid", fontWeight:600, fontSize:13, cursor:"pointer",
-              borderColor:selWH===w.id?"#4f46e5":"#e5e7eb",
-              background:selWH===w.id?"#ede9fe":"#fff",
-              color:selWH===w.id?"#4f46e5":"#374151" }}>
-            {w.name}
-          </button>
-        ))}
+      {/* ── Thanh chọn kho (dropdown) + tìm kiếm ── */}
+      <div style={{ background:"#fff", border:"1px solid #e5e7eb", borderRadius:14, padding:12, marginBottom:12, display:"flex", flexDirection:"column", gap:10 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <span className="material-icons" style={{ fontSize:22, color:"#4f46e5" }}>warehouse</span>
+          <select value={selWH} onChange={e=>setSelWH(e.target.value)}
+            style={{ flex:1, minWidth:0, padding:"11px 12px", borderRadius:10, border:"1.5px solid #c7d2fe", background:"#f5f3ff", fontSize:15, fontWeight:700, color:"#1e1b4b", outline:"none", appearance:"auto" }}>
+            {warehouses.length===0 && <option value="">Chưa có kho được phép</option>}
+            {warehouses.map(w=>(<option key={w.id} value={w.id}>{w.name}</option>))}
+          </select>
+        </div>
+        {effMode==="ledger" && (
+          <div style={{ position:"relative" }}>
+            <span className="material-icons" style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", fontSize:20, color:"#9ca3af", pointerEvents:"none" }}>search</span>
+            <input style={{ ...S.input, paddingLeft:44, paddingTop:11, paddingBottom:11, fontSize:14 }} placeholder="Tìm linh kiện, SKU, vị trí kệ..." value={search} onChange={e=>setSearch(e.target.value)} />
+          </div>
+        )}
+        {canSeeHistory && (
+          <div style={{ display:"flex", gap:6, background:"#f3f4f6", borderRadius:10, padding:4 }}>
+            {[["ledger","Tồn kho"],["movements","Lịch sử biến động"]].map(([k,lb])=>(
+              <button key={k} onClick={()=>setViewMode(k)}
+                style={{ flex:1, padding:"9px 8px", border:"none", borderRadius:8, fontWeight:700, fontSize:13, cursor:"pointer",
+                  background:viewMode===k?"#fff":"transparent", color:viewMode===k?"#4f46e5":"#6b7280",
+                  boxShadow:viewMode===k?"0 1px 3px rgba(0,0,0,.12)":"none" }}>{lb}</button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* View toggle */}
-      <div style={{ display:"flex", gap:8, marginBottom:12 }}>
-        <button style={viewMode==="ledger"?S.btn():S.btnGhost()} onClick={()=>setViewMode("ledger")}>📊 Tồn kho</button>
-        <button style={viewMode==="movements"?S.btn():S.btnGhost()} onClick={()=>setViewMode("movements")}>📜 Lịch sử biến động</button>
-      </div>
-
-      {/* Stats */}
-      {viewMode==="ledger" && selWH && (
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:10, marginBottom:16 }}>
+      {/* ── Thống kê nhanh ── */}
+      {effMode==="ledger" && selWH && (
+        <div style={{ display:"grid", gridTemplateColumns:canSeeCost?"repeat(3,1fr)":"repeat(2,1fr)", gap:8, marginBottom:12 }}>
           {[
-            { label:"Tổng SKU", value:filteredLedger.length, color:"#4f46e5", icon:"📦" },
-            { label:"Tổng giá trị", value:`${(totalValue/1e6).toFixed(1)}M`, color:"#059669", icon:"💰" },
-            { label:"Sắp hết hàng", value:lowStock, color:lowStock>0?"#dc2626":"#059669", icon:"⚠️" },
-          ].map(s=>(
-            <div key={s.label} style={{ background:"#fff", borderRadius:10, border:`1.5px solid ${s.color}22`, padding:"12px 14px" }}>
-              <div style={{ fontSize:20, marginBottom:4 }}>{s.icon}</div>
-              <div style={{ fontSize:22, fontWeight:800, color:s.color }}>{s.value}</div>
-              <div style={{ fontSize:11, color:"#6b7280" }}>{s.label}</div>
+            { label:"Mã hàng", value:filteredLedger.length, color:"#4f46e5" },
+            ...(canSeeCost ? [{ label:"Giá trị tồn", value:`${(totalValue/1e6).toFixed(1)}tr`, color:"#059669" }] : []),
+            { label:"Sắp hết", value:lowStock, color:lowStock>0?"#dc2626":"#059669" },
+          ].map(st=>(
+            <div key={st.label} style={{ background:"#fff", borderRadius:12, border:"1px solid #e5e7eb", padding:"10px 8px", textAlign:"center" }}>
+              <div style={{ fontSize:20, fontWeight:800, color:st.color, lineHeight:1.2 }}>{st.value}</div>
+              <div style={{ fontSize:11, color:"#6b7280", marginTop:2 }}>{st.label}</div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Search */}
-      {viewMode==="ledger" && (
-        <div style={{ marginBottom:12 }}>
-          <input style={S.input} placeholder="🔍 Tìm linh kiện, SKU, vị trí kệ..." value={search} onChange={e=>setSearch(e.target.value)} />
-        </div>
-      )}
-
       {loading ? <div style={S.empty}>⏳ Đang tải...</div> : (
         <>
-          {viewMode==="ledger" && (
-            <div style={S.card}>
-              <div style={{ overflowX:"auto" }}>
-                <table style={S.table}>
-                  <thead>
-                    <tr>
-                      {["Linh kiện","SKU","Vị trí","Tồn kho","Đặt sẵn","Khả dụng","Giá vốn","Tổng giá trị","Ngưỡng tối thiểu",""].map(h=>(
-                        <th key={h} style={S.th}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredLedger.length===0 ? (
-                      <tr><td colSpan={10} style={{ ...S.td, textAlign:"center", color:"#9ca3af", padding:32 }}>Chưa có dữ liệu tồn kho</td></tr>
-                    ) : filteredLedger.map(l => {
-                      const isLow = l.min_qty>0 && l.qty_available<=l.min_qty;
-                      return (
-                        <tr key={l.id} style={{ background:isLow?"#fff7ed":"#fff" }}>
-                          <td style={S.td}><div style={{ fontWeight:600 }}>{l.part_name}</div>{isLow&&<span style={{ fontSize:10, color:"#dc2626" }}>⚠️ Sắp hết</span>}</td>
-                          <td style={S.td}><code style={{ fontSize:11, background:"#f3f4f6", padding:"2px 6px", borderRadius:4 }}>{l.sku||"—"}</code></td>
-                          <td style={S.td}><span style={S.badge("#4f46e5")}>{l.location_code||"—"}</span></td>
-                          <td style={S.td}><b>{l.qty_on_hand||0}</b></td>
-                          <td style={S.td}>{l.qty_reserved||0}</td>
-                          <td style={S.td}><b style={{ color:isLow?"#dc2626":"#059669" }}>{l.qty_available||0}</b></td>
-                          <td style={S.td}>{(l.cost_price||0).toLocaleString("vi")}</td>
-                          <td style={S.td}>{((l.qty_on_hand||0)*(l.cost_price||0)).toLocaleString("vi")}</td>
-                          <td style={S.td}>{l.min_qty||0}</td>
-                          <td style={S.td}>{canAdjust ? <button style={S.btnSm("#6b7280")} onClick={()=>{ setAdjustModal(l); setAdjForm({qty:String(l.qty_on_hand||0),note:""}); }}>⚖️ Điều chỉnh</button> : <span style={{color:"#d1d5db",fontSize:12}}>—</span>}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+          {/* ── DANH SÁCH TỒN: dạng thẻ, không bảng ngang ── */}
+          {effMode==="ledger" && (
+            filteredLedger.length===0 ? (
+              <div style={{ ...S.empty, background:"#fff", borderRadius:12, border:"1px solid #e5e7eb" }}>Chưa có dữ liệu tồn kho</div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                {filteredLedger.map(l=>{
+                  const isLow = l.min_qty>0 && l.qty_available<=l.min_qty;
+                  return (
+                    <div key={l.id} style={{ background:"#fff", border:`1px solid ${isLow?"#fdba74":"#e5e7eb"}`, borderLeft:`4px solid ${isLow?"#f97316":"#4f46e5"}`, borderRadius:12, padding:"12px 14px" }}>
+                      <div style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontWeight:700, fontSize:14, color:"#111827", lineHeight:1.35, wordBreak:"break-word" }}>{l.part_name}</div>
+                          <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:6, alignItems:"center" }}>
+                            {l.sku && <code style={{ fontSize:11, background:"#f3f4f6", padding:"2px 6px", borderRadius:4, color:"#374151" }}>{l.sku}</code>}
+                            {l.location_code && <span style={S.badge("#4f46e5")}>Kệ {l.location_code}</span>}
+                            {isLow && <span style={S.badge("#dc2626")}>Sắp hết</span>}
+                          </div>
+                        </div>
+                        <div style={{ textAlign:"right", flexShrink:0 }}>
+                          <div style={{ fontSize:26, fontWeight:800, color:isLow?"#dc2626":"#059669", lineHeight:1 }}>{fmt(l.qty_available)}</div>
+                          <div style={{ fontSize:10, color:"#6b7280", marginTop:3 }}>khả dụng</div>
+                        </div>
+                      </div>
+                      <div style={{ display:"flex", gap:14, marginTop:10, paddingTop:8, borderTop:"1px dashed #e5e7eb", fontSize:12, color:"#6b7280", flexWrap:"wrap" }}>
+                        <span>Tồn: <b style={{ color:"#111827" }}>{fmt(l.qty_on_hand)}</b></span>
+                        <span>Đặt sẵn: <b style={{ color:"#111827" }}>{fmt(l.qty_reserved)}</b></span>
+                        {canSeeCost && <span>Giá vốn: <b style={{ color:"#111827" }}>{fmt(l.cost_price)}</b></span>}
+                        {canAdjust && (
+                          <button style={{ ...S.btnSm("#6b7280"), marginLeft:"auto" }}
+                            onClick={()=>{ setAdjustModal(l); setAdjForm({qty:String(l.qty_on_hand||0),note:""}); }}>⚖️ Điều chỉnh</button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
+            )
           )}
 
-          {viewMode==="movements" && (
-            <div style={S.card}>
-              <div style={{ overflowX:"auto" }}>
-                <table style={S.table}>
-                  <thead>
-                    <tr>{["Mã","Loại","Linh kiện","Vị trí","Trước","Thay đổi","Sau","Ghi chú","Người tạo","Thời gian"].map(h=><th key={h} style={S.th}>{h}</th>)}</tr>
-                  </thead>
-                  <tbody>
-                    {movements.length===0 ? (
-                      <tr><td colSpan={10} style={{ ...S.td, textAlign:"center", color:"#9ca3af", padding:32 }}>Chưa có biến động</td></tr>
-                    ) : movements.map(m=>(
-                      <tr key={m.id}>
-                        <td style={S.td}><code style={{ fontSize:10 }}>{m.movement_code}</code></td>
-                        <td style={S.td}>{moveTypeLabel[m.movement_type]||m.movement_type}</td>
-                        <td style={S.td}>{m.part_name}</td>
-                        <td style={S.td}><span style={S.badge("#4f46e5")}>{m.location_code||"—"}</span></td>
-                        <td style={S.td}>{m.qty_before}</td>
-                        <td style={S.td}><b style={{ color:m.qty_change>0?"#059669":"#dc2626" }}>{m.qty_change>0?"+":""}{m.qty_change}</b></td>
-                        <td style={S.td}><b>{m.qty_after}</b></td>
-                        <td style={S.td}>{m.note}</td>
-                        <td style={S.td}>{m.created_by_name}</td>
-                        <td style={S.td}>{new Date(m.created||m.created_date).toLocaleString("vi")}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {/* ── LỊCH SỬ BIẾN ĐỘNG: chỉ quản lý kho trở lên ── */}
+          {effMode==="movements" && canSeeHistory && (
+            movements.length===0 ? (
+              <div style={{ ...S.empty, background:"#fff", borderRadius:12, border:"1px solid #e5e7eb" }}>Chưa có biến động</div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                {movements.map(m=>(
+                  <div key={m.id} style={{ background:"#fff", border:"1px solid #e5e7eb", borderRadius:12, padding:"10px 14px" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", gap:8, alignItems:"flex-start" }}>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:12, fontWeight:700, color:"#4f46e5" }}>{moveTypeLabel[m.movement_type]||m.movement_type}</div>
+                        <div style={{ fontWeight:600, fontSize:13, color:"#111827", marginTop:2, wordBreak:"break-word" }}>{m.part_name}</div>
+                      </div>
+                      <div style={{ textAlign:"right", flexShrink:0 }}>
+                        <div style={{ fontSize:20, fontWeight:800, color:m.qty_change>0?"#059669":"#dc2626", lineHeight:1 }}>{m.qty_change>0?"+":""}{m.qty_change}</div>
+                        <div style={{ fontSize:11, color:"#6b7280", marginTop:3 }}>{m.qty_before} → {m.qty_after}</div>
+                      </div>
+                    </div>
+                    <div style={{ fontSize:11, color:"#9ca3af", marginTop:6, display:"flex", flexWrap:"wrap", gap:"2px 10px" }}>
+                      <span>{new Date(m.created||m.created_date).toLocaleString("vi")}</span>
+                      {m.created_by_name && <span>{m.created_by_name}</span>}
+                      {m.location_code && <span>Kệ {m.location_code}</span>}
+                      <code>{m.movement_code}</code>
+                    </div>
+                    {m.note && <div style={{ fontSize:12, color:"#6b7280", marginTop:4 }}>{m.note}</div>}
+                  </div>
+                ))}
               </div>
-            </div>
+            )
           )}
         </>
       )}
