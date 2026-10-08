@@ -193,7 +193,7 @@ const STATIC_MATRIX = {
     stock_export:       p(1,1,0,0,0,0), // yêu cầu xuất kho
     stock_import:       p(0,0,0,0,0,0),
     stock_transfer:     p(0,0,0,0,0,0),
-    stock_count:        p(1,0,1,0,0,0), // tham gia kiểm kho
+    stock_count:        p(0,0,0,0,0,0), // tham gia kiểm kho
     stock_ledger:       p(1,0,0,0,0,0),
     stock_card:   p(0,0,0,0,0,0), // Thẻ kho (NXT)
     stock_report: p(0,0,0,0,0,0), // Báo cáo kho
@@ -224,7 +224,7 @@ const STATIC_MATRIX = {
     stock_export:       p(1,1,0,0,0,0), // yêu cầu xuất kho
     stock_import:       p(0,0,0,0,0,0),
     stock_transfer:     p(0,0,0,0,0,0),
-    stock_count:        p(1,0,1,0,0,0), // tham gia kiểm kho
+    stock_count:        p(0,0,0,0,0,0), // tham gia kiểm kho
     stock_ledger:       p(1,0,0,0,0,0),
     stock_card:   p(0,0,0,0,0,0), // Thẻ kho (NXT)
     stock_report: p(0,0,0,0,0,0), // Báo cáo kho
@@ -353,7 +353,7 @@ const STATIC_MATRIX = {
     stock_export:       p(1,0,0,0,0,0),
     stock_import:       p(1,0,0,0,0,0),
     stock_transfer:     p(1,0,0,0,0,0),
-    stock_count:        p(1,0,0,0,0,0),
+    stock_count:        p(0,0,0,0,0,0),
     stock_ledger:       p(1,0,0,0,0,0),
     stock_card:   p(0,0,0,0,0,0), // Thẻ kho (NXT)
     stock_report: p(0,0,0,0,0,0), // Báo cáo kho
