@@ -11,6 +11,7 @@ import {
   PurchaseOrder, PurchaseOrderItem, Warehouse,
   getPbUrl, getAuth, logHistory, logAction, getLocalDate } from "./pb.jsx";
 import { uploadFile, getVideoDuration, MAX_VIDEO_SECONDS } from "./pb.jsx";
+import { scopeByTeam, canSeeAll } from "../utils/teamScope.js";
 import {
   timeAgo, genOrderId, getKpiTimerInfo,
   MediaViewer, AcceptChecklistModal, AcceptTimer,
@@ -367,7 +368,11 @@ function WarehouseExport({ user }) {
     setLoading(true);
     try {
       // Luôn lấy all rồi filter client-side để tránh lỗi query PocketBase
-      const all = await StockExportRequest.list({ sort:"due_datetime", limit:200 });
+      const allRaw = await StockExportRequest.list({ sort:"due_datetime", limit:200 });
+      // Phạm vi: KTV chỉ thấy phiếu của mình; tổ trưởng thấy thêm phiếu tổ viên; kho/quản lý thấy tất cả
+      let staffList = [];
+      if (!canSeeAll(user) && user?.is_leader) staffList = await Staff.list().catch(() => []);
+      const all = scopeByTeam(allRaw, user, staffList, r => r.requested_by);
       const data = filter === "all" ? all : all.filter(r => r.status === filter);
       setRequests(data.sort((a,b) => new Date(a.due_datetime||0)-new Date(b.due_datetime||0)));
     } catch(e){ console.error(e); }
