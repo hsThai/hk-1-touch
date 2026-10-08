@@ -85,12 +85,20 @@ export default function SmartScanModal({ user, orders = [], onClose,
   /* ── Phân loại mã quét ── */
   const resolve = useCallback(async (rawIn) => {
     setPhase("resolving");
+    // Bảo hiểm: nếu tra cứu kẹt quá 10s → không treo ở "Đang tra cứu mã..."
+    const guard = setTimeout(() => {
+      setRes(r => r ? r : { kind:"unknown", qr: String(rawIn||"") });
+      setPhase(p2 => p2 === "resolving" ? "result" : p2);
+    }, 10000);
+    try { await resolveInner(rawIn); }
+    finally { clearTimeout(guard); }
+  }, [orders]);
+  async function resolveInner(rawIn) {
     // QR in trên phiếu là URL (?sale=… / ?order=…) → tách mã trần
     const norm = normalizeScanCode(rawIn);
     const raw = norm.code;
-    const esc = String(raw).replace(/"/g, '\\"'); // escape cho PB filter
+    const esc = String(raw).replace(/"/g, '\\"');
 
-    // 1) Đơn sửa theo mã đơn (SC-code / id / qr_code) — ưu tiên trong list đã load
     let ro = norm.kind === "sale" ? null : (orders||[]).find(o => o.order_code === raw || o.id === raw || o.qr_code === raw);
     if (!ro && norm.kind !== "sale") {
       try {
@@ -100,43 +108,36 @@ export default function SmartScanModal({ user, orders = [], onClose,
     }
     if (ro) { logScan("repair_order", ro.order_code || ro.id); setRes({ kind:"repair", order:ro }); setPhase("result"); return; }
 
-    // 2) Đơn bán hàng theo mã đơn
     try {
       const so = await SaleOrder.list({ filter: `order_code="${esc}"`, limit: 1 });
       if (so && so[0]) {
         const detail = await loadSaleDetail(so[0]);
         logScan("sale_order", so[0].order_code);
-        setRes({ kind:"sale", order:so[0], items:detail });
+        setRes({ kind:"sale", order:so[0], items:detail, topSale:so[0], topItems:detail });
         setPhase("result"); return;
       }
     } catch {}
 
-    // 3) QR dán trên máy đang/đã sửa (product_qr)
     const byQR = (orders||[]).filter(o => o.product_qr && o.product_qr === raw);
     if (byQR.length > 0) { logScan("product_history", raw); setRes({ kind:"history", qr:raw, orders:byQR }); setPhase("result"); return; }
 
-    // 4) Hàng hóa theo SKU / IMEI / Serial
     let part = null;
     try {
       const parts = await SparePart.filter({ sku: raw });
       if (parts && parts[0]) part = parts[0];
     } catch {}
     if (part) {
-      // 4a) Đã dùng cho đơn sửa nào? (linh kiện hoặc máy)
       let usages = [];
       try { usages = await SparePartUsage.filter({ sku: raw }); } catch {}
       const repairIds = [...new Set((usages||[]).map(u => u.order_id).filter(Boolean))];
       let repairOrders = (orders||[]).filter(o => repairIds.includes(o.id));
       if (repairIds.length > repairOrders.length) {
-        // có đơn chưa load trong list → fetch thêm
         try {
           const idList = repairIds.map(id => '"' + String(id).replace(/"/g, '\\"') + '"').join(",");
           const extra = await RepairOrder.list({ filter: `id in (${idList})`, limit: 50 });
           (extra||[]).forEach(o => { if (!repairOrders.find(x => x.id === o.id)) repairOrders.push(o); });
         } catch {}
       }
-
-      // 4b) Đã bán trong đơn bán nào?
       let saleItems = [];
       try { saleItems = await SaleOrderItem.filter({ sku: raw }); } catch {}
       const saleIds = [...new Set((saleItems||[]).map(i => i.sale_order_id).filter(Boolean))];
@@ -148,35 +149,25 @@ export default function SmartScanModal({ user, orders = [], onClose,
         } catch {}
       }
       saleOrders.sort((a,b) => String(b.created_date||"").localeCompare(String(a.created_date||"")));
-
-      const isDevice = part.category === "device_stock";
       if (saleOrders.length > 0) {
-        // Đã bán → ưu tiên hiển thị đơn bán gần nhất
         logScan("sold_item", raw);
         const detail = saleOrders[0].items || await loadSaleItems(saleOrders[0]);
         setRes({ kind:"sold", part, saleOrders, saleItems, repairOrders, topSale:saleOrders[0], topItems:detail });
         setPhase("result"); return;
       }
       if (repairOrders.length > 0) {
-        // Đã dùng để sửa
-        logScan("used_in_repair", raw);
+        logScan("used_repair", raw);
         setRes({ kind:"used_repair", part, repairOrders });
         setPhase("result"); return;
       }
-      // Chưa bán, chưa dùng → hàng trong kho → chọn hành động
       logScan("in_stock", raw);
       setRes({ kind:"stock", part });
       setPhase("result"); return;
     }
 
-    // 5) Không tìm thấy gì → cho gán QR cho đơn mới
     logScan("unknown", raw);
     setRes({ kind:"unknown", qr:raw });
     setPhase("result");
-  }, [orders]);
-
-  function logScan(kind, target) {
-    try { logAction(user, "scan", "qr_scan", target, `Quét QR đa năng → ${kind}`); } catch {}
   }
 
   async function loadSaleItems(order) {
