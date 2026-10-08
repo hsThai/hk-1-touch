@@ -17,7 +17,7 @@ import {
   logAction, logHistory, uploadFile, normalizePbUrl, notifyLeaderOf,
 } from "./pb.jsx";
 import { usePermission } from "./PermissionContext.jsx";
-import { ScanCodeModal, openScannerStream, cropViewfinder, TorchButton, loadZxing, makeZxingDecoder } from "./QRComponents.jsx";
+import { ScanCodeModal, ScannerShell, useScannerEngine } from "./QRComponents.jsx";
 
 /* ─────────────── Helpers ─────────────── */
 
@@ -139,12 +139,61 @@ function useToast() {
  * Quy trình: quét mã phiếu đơn (nếu cần) → đến kệ quét mã từng món
  * → hệ thống gạch chéo món đủ số → chụp ảnh gói hàng → xác nhận.
  * ════════════════════════════════════════════════════════════════ */
+// Quet lien tuc cho man Soan hang -- dung chung engine + giao dien voi "quet don"
+// (BarcodeDetector -> ZXing -> jsQR, zoom, den pin, doi camera, lay nen quet toan khung)
+function PickScanner({ rows, flashMsg, onCode, onClose }) {
+  const videoRef  = useRef(null);
+  const canvasRef = useRef(null);
+  const [manual, setManual] = useState("");
+  const engine = useScannerEngine({ videoRef, canvasRef, continuous: true, onResult: onCode });
+  useEffect(() => { engine.start(); return () => engine.stop(); }, []);
+
+  const done = rows.filter(r => r.picked >= r.qty).length;
+  const allDone = rows.length > 0 && done === rows.length;
+  return (
+    <ScannerShell engine={engine} videoRef={videoRef} canvasRef={canvasRef}
+      title={allDone ? "✅ Đã lấy đủ hàng" : `Quét mã từng món — ${done}/${rows.length}`}
+      hint="Quét SKU / mã vạch trên sản phẩm. Quét liên tục, không cần bấm lại."
+      frame="wide"
+      manual={manual} setManual={setManual}
+      onManual={() => { if (manual.trim()) { onCode(manual.trim()); setManual(""); } }}
+      manualPlaceholder="Nhập SKU thủ công" onClose={onClose}>
+      {flashMsg && (
+        <div style={{ marginTop: 10, padding: "9px 12px", borderRadius: 12, fontWeight: 800, fontSize: 13.5, textAlign: "center",
+          background: flashMsg.ok ? "rgba(16,185,129,.9)" : "rgba(239,68,68,.9)", color: "#fff" }}>{flashMsg.text}</div>
+      )}
+      <div style={{ marginTop: 10, maxHeight: "22vh", overflowY: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
+        {rows.map((r, i) => {
+          const ok = r.picked >= r.qty;
+          return (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 10,
+              background: ok ? "rgba(16,185,129,.25)" : "rgba(255,255,255,.1)", color: "#fff", fontSize: 13 }}>
+              <span style={{ fontWeight: 900, width: 18 }}>{ok ? "✓" : i + 1}</span>
+              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                textDecoration: ok ? "line-through" : "none", opacity: ok ? .8 : 1 }}>{r.part_name}</span>
+              <b style={{ color: ok ? "#6ee7b7" : "#fbbf24" }}>{r.picked}/{r.qty}</b>
+            </div>
+          );
+        })}
+      </div>
+      <button onClick={onClose}
+        style={{ marginTop: 10, width: "100%", height: 46, borderRadius: 23, border: "none", fontWeight: 900, fontSize: 15, cursor: "pointer",
+          background: allDone ? "#10b981" : "rgba(255,255,255,.18)", color: "#fff" }}>
+        {allDone ? "XONG — CHỤP ẢNH GÓI HÀNG" : "ĐÓNG CAMERA"}
+      </button>
+    </ScannerShell>
+  );
+}
+
+
 function PickingModal({ order, user, onDone, onClose, showToast }) {
   const [rows, setRows] = useState([]);          // [{part_id, part_name, sku, qty, picked, picked_at}]
   const [loading, setLoading] = useState(true);
   const [step, setStep] = useState(1);            // 1 = picking, 2 = ảnh + xác nhận
   const [scanOn, setScanOn] = useState(false);
   const [flash, setFlash] = useState(null);      // {idx, ok}
+  const [scanMsg, setScanMsg] = useState(null);   // thong bao tren lop camera
+  const rowsRef = useRef([]);
   const [photos, setPhotos] = useState([]);      // [{url}]
   const [uploading, setUploading] = useState(false);
   const [note, setNote] = useState(order.pack_note || "");
@@ -152,12 +201,6 @@ function PickingModal({ order, user, onDone, onClose, showToast }) {
 
   const videoRef = useRef(null);
   const scanCanvasRef = useRef(null);
-  const zxReaderRef = useRef(null);      // decoder ZXing (dự phòng cho máy không có BarcodeDetector)
-  const lastDecodeRef = useRef(0);       // throttle decode ZXing
-  const scanStartRef = useRef(0);        // mốc bắt đầu quét — dùng để tự chuyển engine
-  const streamRef = useRef(null);
-  const intervalRef = useRef(null);
-  const lastScanRef = useRef({ code: "", at: 0 });
   const fileRef = useRef(null);
   const galleryRef = useRef(null);
 
@@ -194,114 +237,46 @@ function PickingModal({ order, user, onDone, onClose, showToast }) {
     return () => { cancelled = true; stopCamera(); };
   }, [order.id]);
 
+  rowsRef.current = rows;
   const pickedDone = rows.filter(r => r.picked >= r.qty).length;
   const allDone = rows.length > 0 && pickedDone === rows.length;
 
-  function stopCamera() {
-    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
-    if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null; }
-    setScanOn(false);
-  }
-
-  async function toggleScan() {
-    if (scanOn) { stopCamera(); return; }
-    try {
-      const stream = await openScannerStream();
-      streamRef.current = stream;
-      setTimeout(() => {
-        if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play(); }
-      }, 100);
-      setScanOn(true);
-      if (!scanCanvasRef.current) scanCanvasRef.current = document.createElement("canvas");
-      zxReaderRef.current = null;
-      scanStartRef.current = performance.now();
-
-      let bd = null;
-      if ("BarcodeDetector" in window) {
-        try { bd = new BarcodeDetector({ formats: ["qr_code", "code_128", "ean_13", "ean_8", "code_39", "itf", "data_matrix"] }); } catch {}
-      }
-      if (!bd) {
-        // Máy không có BarcodeDetector (thường là tablet) → nạp ZXing để quét mã vạch 1D
-        loadZxing(ok => {
-          if (ok) { try { zxReaderRef.current = makeZxingDecoder(); } catch { zxReaderRef.current = null; } }
-          if (!zxReaderRef.current) showToast("⚠️ Thiết bị không hỗ trợ quét tự động — dùng nút +/- thủ công", "err");
-        });
-      }
-
-      intervalRef.current = setInterval(async () => {
-        const v = videoRef.current; const c = scanCanvasRef.current;
-        if (!v || !c || v.readyState < 2) return;
-
-        // 1) Ưu tiên BarcodeDetector native — crop khung ngắm + dự phòng toàn khung
-        if (bd) {
-          try {
-            cropViewfinder(v, c, 0.8, 64);
-            const codes = await bd.detect(c);
-            if (codes.length > 0) { processScan(codes[0].rawValue); return; }
-            const full = await bd.detect(v);
-            if (full.length > 0) { processScan(full[0].rawValue); return; }
-          } catch {}
-          // Native có nhưng hoảng loạn (có máy API hỏng) → sau 8s tự nạp ZXing dự phòng
-          if (performance.now() - scanStartRef.current > 8000 && !zxReaderRef.current) {
-            loadZxing(ok => { if (ok) { try { zxReaderRef.current = makeZxingDecoder(); } catch {} } });
-          }
-          return;
-        }
-
-        // 2) ZXing — đọc được cả mã vạch 1D (Code128/EAN...) + QR
-        if (zxReaderRef.current) {
-          const now = performance.now();
-          if (now - lastDecodeRef.current < 350) return; // decode nặng → throttle
-          lastDecodeRef.current = now;
-          try {
-            cropViewfinder(v, c, 0.8, 64);
-            const txt = zxReaderRef.current(c);
-            if (txt) { processScan(txt); return; }
-          } catch {}
-          try {
-            c.width = v.videoWidth; c.height = v.videoHeight;
-            c.getContext("2d").drawImage(v, 0, 0);
-            const txt2 = zxReaderRef.current(c);
-            if (txt2) { processScan(txt2); return; }
-          } catch {}
-        }
-      }, 400);
-    } catch (e) {
-      showToast("Không mở được camera: " + e.message, "err");
-    }
-  }
+  function stopCamera() { setScanOn(false); }
+  function toggleScan() { setScanOn(v => !v); }
 
   // Xử lý mã quét được: khớp SKU → gạch chéo tự động
   function processScan(raw) {
     const code = String(raw || "").trim();
     if (!code) return;
-    const now = Date.now();
-    // Chống quét trùng liên tiếp (cùng mã trong 1.2s)
-    if (lastScanRef.current.code === code && now - lastScanRef.current.at < 1200) return;
-    lastScanRef.current = { code, at: now };
-
-    // QR phiếu đơn (in trên hóa đơn) — không phải mã món hàng
-    if (/order=/.test(code)) { showToast("📄 Đây là mã phiếu đơn — quét mã trên từng món hàng", "info"); return; }
+    const say = (ok, text, ms = 1600) => {
+      setScanMsg({ ok, text });
+      setTimeout(() => setScanMsg(m => (m && m.text === text ? null : m)), ms);
+    };
+    // QR phieu don (in tren hoa don) -- khong phai ma mon hang
+    if (/order=|sale=/.test(code)) { say(false, "Đây là mã phiếu đơn — hãy quét mã trên từng món hàng"); return; }
 
     const norm = code.toLowerCase();
-    const idx = rows.findIndex(r => (r.sku || "").toLowerCase() === norm);
+    const cur = rowsRef.current;
+    const idx = cur.findIndex(r => (r.sku || "").toLowerCase() === norm);
     if (idx === -1) {
       vibrate([60, 40, 60]);
-      showToast(`❌ Mã "${code}" không khớp món nào trong đơn`, "err");
+      say(false, `Mã "${code}" không khớp món nào trong đơn`);
       return;
     }
-    const row = rows[idx];
+    const row = cur[idx];
     if (row.picked >= row.qty) {
       vibrate(150);
-      showToast(`⚠️ ${row.sku || row.part_name} đã đủ ${row.qty}`, "info");
+      say(false, `${row.sku || row.part_name} đã đủ ${row.qty}`);
       return;
     }
-    setRows(prev => prev.map((r, i) => i === idx
-      ? { ...r, picked: r.picked + 1, picked_at: new Date().toISOString() } : r));
+    // cap nhat ngay rowsRef de lan quet ke tiep (chua kip render) van thay so moi
+    const nextRows = cur.map((r, i) => i === idx ? { ...r, picked: r.picked + 1, picked_at: new Date().toISOString() } : r);
+    rowsRef.current = nextRows;
+    setRows(nextRows);
     setFlash(idx);
     setTimeout(() => setFlash(null), 600);
     vibrate();
-    showToast(`✅ ${row.sku || row.part_name}: ${row.picked + 1}/${row.qty}`, "ok");
+    say(true, `✓ ${row.part_name || row.sku}: ${row.picked + 1}/${row.qty}`);
   }
 
   function adjust(idx, delta) {
@@ -405,16 +380,6 @@ function PickingModal({ order, user, onDone, onClose, showToast }) {
       ) : step === 1 ? (
         <div style={{ flex: 1, overflowY: "auto", padding: 14 }}>
           {/* Camera quét liên tục */}
-          {scanOn && (
-            <div style={{ position: "relative", borderRadius: 14, overflow: "hidden", background: "#000", marginBottom: 12 }}>
-              <video ref={videoRef} muted playsInline style={{ width: "100%", aspectRatio: "16/9", objectFit: "cover" }} />
-              <TorchButton stream={streamRef.current} />
-              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-                <div style={{ width: "80%", height: 64, border: "2.5px solid #fbbf24", borderRadius: 8, boxShadow: "0 0 0 2000px rgba(0,0,0,.35)" }} />
-              </div>
-            </div>
-          )}
-
           <button onClick={toggleScan}
             style={{
               width: "100%", padding: "14px", borderRadius: 14, border: "none", marginBottom: 14,
@@ -527,6 +492,11 @@ function PickingModal({ order, user, onDone, onClose, showToast }) {
           </>
         )}
       </div>
+
+      {/* Camera quet lien tuc -- cung bo quet voi "Quet don" */}
+      {scanOn && step === 1 && (
+        <PickScanner rows={rows} flashMsg={scanMsg} onCode={processScan} onClose={() => setScanOn(false)} />
+      )}
     </div>
   );
 }

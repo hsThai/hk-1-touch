@@ -594,7 +594,7 @@ const ZXING_FORMATS = ["code_128","code_39","ean_13","ean_8","qr_code","data_mat
  *   (một số máy có API native nhưng bị hỏng, không bao giờ detect được)
  * - Quét ưu tiên vùng crop khung ngắm, có dự phòng toàn khung hình
  * Trả về: { start, stop, status, errMsg, streamRef, engineRef } */
-export function useScannerEngine({ videoRef, canvasRef, onResult, engineTimeoutMs = 8000, squareCrop = false }) {
+export function useScannerEngine({ videoRef, canvasRef, onResult, engineTimeoutMs = 8000, squareCrop = false, continuous = false }) {
   const streamRef   = React.useRef(null);
   const rafRef      = React.useRef(null);
   const detectorRef = React.useRef(null);
@@ -608,6 +608,10 @@ export function useScannerEngine({ videoRef, canvasRef, onResult, engineTimeoutM
   const [deviceId, setDeviceId] = React.useState(null);
   const deviceIdRef = React.useRef(null);
   const camsRef = React.useRef([]);
+  const onResultRef = React.useRef(onResult);
+  onResultRef.current = onResult;
+  const pauseUntilRef = React.useRef(0);
+  const lastCodeRef = React.useRef({ code: "", at: 0 });
 
   React.useEffect(() => () => { stop(); }, []);
 
@@ -625,7 +629,17 @@ export function useScannerEngine({ videoRef, canvasRef, onResult, engineTimeoutM
     return cropRegion(v, c, boxW, boxH, vh * -0.04);
   }
 
-  function done(raw) { stop(); onResult(String(raw || "").trim()); }
+  function done(raw) {
+    const code = String(raw || "").trim();
+    if (!continuous) { stop(); onResultRef.current(code); return; }
+    // Che do lien tuc (soan hang): giu camera, quet tiep sau khi nghi ngan
+    const now = performance.now();
+    if (!code) return;
+    if (lastCodeRef.current.code === code && now - lastCodeRef.current.at < 1500) return; // cung ma -> bo qua
+    lastCodeRef.current = { code, at: now };
+    pauseUntilRef.current = now + 700;
+    onResultRef.current(code);
+  }
 
   function tryInitZxing() {
     return new Promise(resolve => {
@@ -737,6 +751,7 @@ export function useScannerEngine({ videoRef, canvasRef, onResult, engineTimeoutM
     rafRef.current = requestAnimationFrame(async () => {
       const v = videoRef.current; const c = canvasRef.current;
       if (!v || !c || v.readyState < 2) { scanLoop(); return; }
+      if (continuous && performance.now() < pauseUntilRef.current) { scanLoop(); return; }
       let found = false;
       const eng = engineRef.current;
 
@@ -745,11 +760,11 @@ export function useScannerEngine({ videoRef, canvasRef, onResult, engineTimeoutM
         try {
           if (ctx) {
             const bars = await detectorRef.current.detect(c);
-            if (bars.length > 0) { found = true; done(bars[0].rawValue); return; }
+            if (bars.length > 0) { found = true; done(bars[0].rawValue); if (continuous) scanLoop(); return; }
           }
           // Dự phòng: quét cả khung hình (đề phòng crop lệch)
           const full = await detectorRef.current.detect(v);
-          if (full.length > 0) { found = true; done(full[0].rawValue); return; }
+          if (full.length > 0) { found = true; done(full[0].rawValue); if (continuous) scanLoop(); return; }
         } catch {}
         // Tự chuyển sang ZXing nếu native "có mà không làm việc" sau engineTimeoutMs
         if (!found && performance.now() - engineStartRef.current > engineTimeoutMs && !zxingDecodeRef.current) {
@@ -763,7 +778,7 @@ export function useScannerEngine({ videoRef, canvasRef, onResult, engineTimeoutM
           try {
             if (ctx) {
               const txt = zxingDecodeRef.current(c);
-              if (txt) { found = true; done(txt); return; }
+              if (txt) { found = true; done(txt); if (continuous) scanLoop(); return; }
             }
           } catch {}
           if (!found) {
@@ -771,7 +786,7 @@ export function useScannerEngine({ videoRef, canvasRef, onResult, engineTimeoutM
               c.width = v.videoWidth; c.height = v.videoHeight;
               c.getContext("2d").drawImage(v, 0, 0);
               const txt2 = zxingDecodeRef.current(c);
-              if (txt2) { found = true; done(txt2); return; }
+              if (txt2) { found = true; done(txt2); if (continuous) scanLoop(); return; }
             } catch {}
           }
         }
@@ -784,7 +799,7 @@ export function useScannerEngine({ videoRef, canvasRef, onResult, engineTimeoutM
             if (ctx) {
               const img = ctx.getImageData(0, 0, c.width, c.height);
               const code = window.jsQR(img.data, img.width, img.height, { inversionAttempts: "attemptBoth" });
-              if (code?.data) { found = true; done(code.data.trim()); return; }
+              if (code?.data) { found = true; done(code.data.trim()); if (continuous) scanLoop(); return; }
             }
           } catch {}
           if (!found) {
@@ -793,7 +808,7 @@ export function useScannerEngine({ videoRef, canvasRef, onResult, engineTimeoutM
               const ctx2 = c.getContext("2d"); ctx2.drawImage(v, 0, 0);
               const img2 = ctx2.getImageData(0, 0, c.width, c.height);
               const code2 = window.jsQR(img2.data, img2.width, img2.height, { inversionAttempts: "attemptBoth" });
-              if (code2?.data) { found = true; done(code2.data.trim()); return; }
+              if (code2?.data) { found = true; done(code2.data.trim()); if (continuous) scanLoop(); return; }
             } catch {}
           }
         }
