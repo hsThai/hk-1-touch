@@ -334,34 +334,6 @@ export function renderMobilePages(page, user, extraProps = {}) {
             : <WarehouseManagerLazy user={user} onBack={() => setPage("wh_home")} />}
         </Suspense>
       )}
-      {page==="wh_ledger" && user && (
-        <Suspense fallback={<Loading />}>
-          {extraProps.can && !extraProps.can("stock_ledger","view")
-            ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
-            : <WhLedgerPageLazy user={user} />}
-        </Suspense>
-      )}
-      {page==="wh_defect" && user && (
-        <Suspense fallback={<Loading />}>
-          {extraProps.can && !extraProps.can("stock_import","view")
-            ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
-            : <WhDefectPageLazy user={user} />}
-        </Suspense>
-      )}
-      {page==="wh_shipping" && user && (
-        <Suspense fallback={<Loading />}>
-          {extraProps.can && !extraProps.can("stock_import","view")
-            ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
-            : <WhShippingPageLazy user={user} />}
-        </Suspense>
-      )}
-      {page==="wh_report" && user && (
-        <Suspense fallback={<Loading />}>
-          {extraProps.can && !extraProps.can("stock_report","view")
-            ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
-            : <WhReportPageLazy user={user} />}
-        </Suspense>
-      )}
 
       {/* === Thu ngân — CashierApp === */}
       {page==="cashier_home" && user && (
