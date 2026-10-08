@@ -1,7 +1,7 @@
 /* v1774860462-5727 */
 import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
 import HandoverModal from "./HandoverModal.jsx";
-import { previewBill, previewReceiptForm, openPreviewWindow, setPreWindow } from "../utils/printClient.js";
+import { previewBill, previewReceiptForm, openPreviewWindow, setPreWindow, showPreviewMessage } from "../utils/printClient.js";
 import EditOrderModal from "./EditOrderModal.jsx";
 import PreCheckModal, { QT2Modal, CustomerConfirmModal } from "./PreCheckModal.jsx";
 const SparePartModal = lazy(() => import("./SparePartModal").catch(() => ({ default: ({ onClose }) => (
@@ -665,7 +665,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
       const shopInfo = await getShopInfo();
       await previewBill(order, [], shopInfo);
     } catch (e) {
-      alert("Lỗi tạo bản xem trước: " + e.message);
+      showPreviewMessage("Lỗi tạo bản xem trước: " + (e.message||e));
     } finally { setPrinting(false); }
   }
 
@@ -679,7 +679,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
       ]);
       await previewReceiptForm(order, parts, shopInfo);
     } catch (e) {
-      alert("Lỗi in phiếu tiếp nhận: " + e.message);
+      showPreviewMessage("Lỗi in phiếu tiếp nhận: " + (e.message||e));
     } finally { setPrinting(false); }
   }
 
@@ -693,7 +693,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
       ]);
       await previewBill(order, parts, shopInfo);
     } catch (e) {
-      alert("Lỗi tạo bản xem trước: " + e.message);
+      showPreviewMessage("Lỗi tạo bản xem trước: " + (e.message||e));
     } finally { setPrinting(false); }
   }
 

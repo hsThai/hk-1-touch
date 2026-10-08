@@ -40,20 +40,24 @@ function openBlobHtml(html) {
   if (!html.includes("pv-bar")) {
     html = /<body[^>]*>/i.test(html) ? html.replace(/<body[^>]*>/i, m => m + PV_BAR) : PV_BAR + html;
   }
+  const url = URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));
   const w = _preWin; _preWin = null;
-  // Ghi thẳng HTML vào tab đã mở sẵn (ổn định trên Chrome Android, không phụ thuộc blob URL)
   if (w && !w.closed) {
-    try {
-      w.document.open("text/html", "replace");
-      w.document.write(html);
-      w.document.close();
-      return;
-    } catch {}
-    try { w.document.documentElement.innerHTML = html; return; } catch {}
+    // Cách 1: điều hướng tab sang blob (render đầy đủ, chạy được script/ảnh)
+    try { w.location.replace(url); return; } catch {}
+    // Cách 2: ghi trực tiếp
+    try { w.document.open("text/html", "replace"); w.document.write(html); w.document.close(); return; } catch {}
   }
-  const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
   const nw = window.open(url, "_blank");
   if (!nw) { window.location.href = url; } // popup bị chặn → mở ngay trong tab hiện tại
+}
+
+/** Ghi thông báo vào tab đang chờ (để không kẹt ở "Đang tạo...") */
+export function showPreviewMessage(msg) {
+  const w = _preWin; _preWin = null;
+  const box = '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="font-family:sans-serif;padding:24px;font-size:18px;color:#b91c1c">' + msg + '<br><br><button onclick="window.close();history.back()" style="padding:12px 24px;font-size:16px">Đóng</button></body></html>';
+  if (w && !w.closed) { try { w.document.open(); w.document.write(box); w.document.close(); return; } catch {} }
+  alert(msg.replace(/<[^>]+>/g, ""));
 }
 
 async function callPrintAgent(endpoint, body) {
@@ -446,13 +450,15 @@ ${order.deposit>0?`
 </body></html>`;
 
   const finalHtml = await loadTemplate("receipt_form", html);
-  if (!finalHtml) { alert("Mẫu phiếu tiếp nhận đã bị tắt."); return; }
+  if (!finalHtml) { showPreviewMessage("Mẫu phiếu tiếp nhận đã bị tắt."); return; }
   openBlobHtml(finalHtml);
 }
 
 
 export async function previewBill(order, parts = [], shopInfo = {}) {
   if (!shopInfo || !shopInfo.shop_name) shopInfo = await loadShopInfo();
+  const orderUrl = "https://hk-1-touch.vercel.app/OrderPublic?code=" + encodeURIComponent(order.order_code || order.id);
+  const orderQrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=" + encodeURIComponent(orderUrl);
   const remaining = Math.max(0, (order.final_cost || order.estimated_cost || 0) - (order.deposit || 0));
   const vietqrUrl = shopInfo.bank_account && shopInfo.bank_name
     ? `https://img.vietqr.io/image/${shopInfo.bank_name}-${shopInfo.bank_account}-compact2.png?amount=${remaining}&addInfo=${encodeURIComponent("HK " + (order.order_code || order.id))}&accountName=${encodeURIComponent(shopInfo.shop_name || "")}`
@@ -585,7 +591,7 @@ export async function previewBill(order, parts = [], shopInfo = {}) {
 </body></html>`;
 
   const finalHtml = await loadTemplate("bill", html);
-  if (!finalHtml) { alert("Mẫu hóa đơn SC đã bị tắt."); return; }
+  if (!finalHtml) { showPreviewMessage("Mẫu hóa đơn SC đã bị tắt."); return; }
   openBlobHtml(finalHtml);
 }
 
@@ -750,7 +756,7 @@ export async function previewSaleReceipt(saleOrder, shopInfo = {}) {
 </body></html>`;
 
   const finalHtml = await loadTemplate("sale_receipt", html);
-  if (!finalHtml) { alert("Mẫu hóa đơn bán lẻ đã bị tắt."); return; }
+  if (!finalHtml) { showPreviewMessage("Mẫu hóa đơn bán lẻ đã bị tắt."); return; }
   openBlobHtml(finalHtml);
 }
 
@@ -784,7 +790,7 @@ export async function previewWarrantyLabel(order, shopInfo = {}) {
   </body></html>`;
 
   const finalHtml = await loadTemplate("warranty", html);
-  if (!finalHtml) { alert("Mẫu tem bảo hành đã bị tắt."); return; }
+  if (!finalHtml) { showPreviewMessage("Mẫu tem bảo hành đã bị tắt."); return; }
   openBlobHtml(finalHtml);
 }
 
@@ -824,7 +830,7 @@ export async function previewSparePartLabel(part, qty = 1) {
   </body></html>`;
 
   const finalHtml = await loadTemplate("spare_label", html);
-  if (!finalHtml) { alert("Mẫu tem linh kiện đã bị tắt."); return; }
+  if (!finalHtml) { showPreviewMessage("Mẫu tem linh kiện đã bị tắt."); return; }
   openBlobHtml(finalHtml);
 }
 
