@@ -44,7 +44,7 @@ export const PAGE_PERMS = {
   new:             ["repair_order", "create"],
   board:           ["repair_order", "view"],
   tasks:           ["repair_order", "view"],
-  cashier_home:    ["sale_order", "view"],
+  cashier_home:    ["pos_sale", "view"],  // placeholder: cong that su xu ly o duoi (any-of 4 tab POS)
 };
 
 
@@ -338,7 +338,7 @@ export function renderMobilePages(page, user, extraProps = {}) {
       {/* === Thu ngân — CashierApp === */}
       {page==="cashier_home" && user && (
         <Suspense fallback={<Loading />}>
-          {extraProps.can ? (extraProps.can("sale_order","view")
+          {extraProps.can ? (["pos_sale","pos_orders","pos_collect","pos_reconcile"].some(r => extraProps.can(r,"view"))
             ? <CashierApp user={user} forceTab={cashierTab||""} onTabChange={setCashierTab||(()=>{})} />
             : <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
           ) : <CashierApp user={user} forceTab={cashierTab||""} onTabChange={setCashierTab||(()=>{})} />}

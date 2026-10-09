@@ -288,6 +288,7 @@ function AccessDenied({ pageName }) {
 
 // ── Page guard: kiểm tra quyền trước khi render page ──────
 function usePageGuard(page, can) {
+  if (page === "cashier_home") return ["pos_sale","pos_orders","pos_collect","pos_reconcile"].some(r => can(r,"view"));
   const perm = PAGE_PERMS[page];
   if (!perm) return true; // trang không có trong PAGE_PERMS → cho phép (trang nội bộ)
   return can(perm[0], perm[1]);
@@ -533,6 +534,7 @@ function MainAppContent({ onUserChange }) {
   const canCreateRepair = can("repair_order","create");
   const canViewRepair   = can("repair_order","view");
   const canViewSale     = can("sale_order","view");
+  const canPOS          = ["pos_sale","pos_orders","pos_collect","pos_reconcile"].some(r => can(r,"view"));
   const canViewPack     = can("pack_order","view");
   const canViewShip     = can("ship_order","view");
   const isManager    = ["manager","admin","owner","supervisor"].includes(role);
@@ -1464,7 +1466,7 @@ function MainAppContent({ onUserChange }) {
       items.push({ key:"tasks", icon:"list_alt",   label:"Danh sách & Lịch sử đơn" });
 
     // 3. BÁN HÀNG
-    if (can("sale_order","view"))
+    if (canPOS)
       items.push({ key:"cashier_home", icon:"point_of_sale", label:"Thu ngân (POS)" });
     if (can("sale_order","view") && !isKtv && !isWarehouse)
       items.push({ key:"sale_order",   icon:"receipt_long",  label:"Đơn bán hàng" });
@@ -2217,7 +2219,7 @@ function MainAppContent({ onUserChange }) {
               {page==="pack_ship" && (can("pack_order","view") || can("ship_order","view")
                 ? <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><PackingPageLazy user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"my_tasks")} focusOrderCode={focusOrderCode} onFocusConsumed={()=>setFocusOrderCode(null)} focusTab={focusPackTab} onFocusTabConsumed={()=>setFocusPackTab(null)} /></Suspense>
                 : <AccessDenied pageName="Soạn hàng & Giao nhận" />)}
-              {page==="cashier_home" && (can("sale_order","view") ? <CashierApp user={user} onNotif={()=>setShowNotif(v=>!v)} onQRScan={()=>setShowSmartScan(true)} notifCount={notifications.length+dbNotifications.length} forceTab={cashierTab} onTabChange={setCashierTab} /> : <AccessDenied pageName="Thu ngân" />)}
+              {page==="cashier_home" && (canPOS ? <CashierApp user={user} onNotif={()=>setShowNotif(v=>!v)} onQRScan={()=>setShowSmartScan(true)} notifCount={notifications.length+dbNotifications.length} forceTab={cashierTab} onTabChange={setCashierTab} /> : <AccessDenied pageName="Thu ngân" />)}
               {page==="sale_order" && user && can("sale_order","view") && (
                 <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
                   <SaleHistoryPage user={user} />
@@ -2603,8 +2605,8 @@ function MainAppContent({ onUserChange }) {
               </button>
             )}
 
-            {/* Thu ngân — chỉ hiện nếu có quyền sale_order */}
-            {canViewSale && (
+            {/* Thu ngân — hiện nếu có quyền ít nhất 1 tab POS */}
+            {canPOS && (
               <button onClick={() => { setCashierTab(""); setPage("cashier_home"); }}
                 style={{ flex:1, padding:"10px 4px", background:"none", border:"none",
                   cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>

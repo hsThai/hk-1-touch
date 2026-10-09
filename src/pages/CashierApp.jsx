@@ -486,17 +486,18 @@ export default function CashierApp({ user, onNotif, onQRScan, notifCount=0, forc
   // NAV_TABS dynamic theo role
   const NAV_TABS = React.useMemo(() => {
     const tabs = [];
-    // Tab "Bán hàng" theo quyen ban hang lẻ (sale_order.view) thay vi hard-code role
-    if (can("sale_order","view")) {
-      tabs.push({ key:"sale",    label:"Bán hàng",  icon:"storefront" });
-    }
-    tabs.push({ key:"history", label:"Đơn hàng",  icon:"receipt_long" });
-    if(["cashier","accountant","manager","admin","owner"].includes(user?.role)){
-      tabs.push({ key:"confirm", label:"Thu tiền",  icon:"payments" });
-    }
-    tabs.push({ key:"shift", label:"Đối soát", icon:"balance" });
+    // Moi tab POS co quyen rieng (Phan quyen > Kinh doanh > "POS · Tab ...")
+    if (can("pos_sale","view"))      tabs.push({ key:"sale",    label:"Bán hàng", icon:"storefront" });
+    if (can("pos_orders","view"))    tabs.push({ key:"history", label:"Đơn hàng", icon:"receipt_long" });
+    if (can("pos_collect","view"))   tabs.push({ key:"confirm", label:"Thu tiền", icon:"payments" });
+    if (can("pos_reconcile","view")) tabs.push({ key:"shift",   label:"Đối soát", icon:"balance" });
     return tabs;
   }, [user?.role, can]);
+
+  // Tab mac dinh = tab dau tien user co quyen (uu tien Thu tien cho thu ngan/ke toan)
+  useEffect(() => {
+    if (NAV_TABS.length && !NAV_TABS.some(t => t.key === tab)) setTab(NAV_TABS[0].key);
+  }, [NAV_TABS]);
 
   // forceTab từ MainApp (MyTasksPage "Chờ thu" → "confirm")
   useEffect(() => {
@@ -603,12 +604,15 @@ export default function CashierApp({ user, onNotif, onQRScan, notifCount=0, forc
       {/* Đường viền nối tab với nội dung */}
       <div style={{ height:1, background:"#d1fae5", position:"relative", zIndex:1 }} />
 
+      {NAV_TABS.length === 0 && (
+        <div style={{ padding:40, textAlign:"center", color:"#6b7280", fontSize:14 }}>🔒 Vai trò của bạn chưa được cấp quyền dùng tab nào trong Thu ngân.</div>
+      )}
       {/* Nội dung tab */}
       <div style={{ maxWidth: tab==="shift" ? 900 : "100%", margin:"0 auto", padding: (tab==="sale") ? 0 : "20px 24px 60px" }}>
-        {tab === "sale"    && (SaleOrderPage     ? <SaleOrderPage user={user} />     : <Fallback />)}
-        {tab === "history" && (SaleHistoryPage    ? <SaleHistoryPage user={user} />     : <Fallback />)}
-        {tab === "confirm" && (CashierConfirmPage ? <CashierConfirmPage user={user} /> : <Fallback />)}
-        {tab === "shift"   && <ShiftReconcilePage user={user} />}
+        {tab === "sale"    && can("pos_sale","view") && (SaleOrderPage     ? <SaleOrderPage user={user} />     : <Fallback />)}
+        {tab === "history" && can("pos_orders","view") && (SaleHistoryPage    ? <SaleHistoryPage user={user} />     : <Fallback />)}
+        {tab === "confirm" && can("pos_collect","view") && (CashierConfirmPage ? <CashierConfirmPage user={user} /> : <Fallback />)}
+        {tab === "shift"   && can("pos_reconcile","view") && <ShiftReconcilePage user={user} />}
       </div>
 
     </div>
