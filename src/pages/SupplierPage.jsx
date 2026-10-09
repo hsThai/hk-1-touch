@@ -4,6 +4,7 @@
  */
 import React, { useState, useEffect } from "react";
 import { Supplier, StockImport, logAction } from "./pb.jsx";
+import { usePermission } from "./PermissionContext.jsx";
 
 const TYPES = {
   goods:    { label:"🏭 Hàng hóa",   color:"#d97706", bg:"#fef3c7" },
@@ -109,7 +110,8 @@ export default function SupplierPage({ user }) {
     const fn = () => setIsPC(window.innerWidth >= 1024);
     window.addEventListener("resize", fn);
     return () => window.removeEventListener("resize", fn);
-  }, []);  const isAdmin = ADMIN.includes(user?.role);
+  }, []);  const { can } = usePermission();
+  const isAdmin = !!can("supplier","edit"); // theo phan quyen
   const [list,            setList]            = useState([]);
   const [loading,         setLoading]         = useState(true);
   const [modal,           setModal]           = useState(null); // null | false | supplier

@@ -50,7 +50,7 @@ const TABS = [
 
 export default function SettingsHub({ user, initialTab }) {
   const { can } = usePermission();
-  const isAdmin = ["owner","admin","manager"].includes(user?.role);
+  const isAdmin = !!can("settings","edit"); // theo phan quyen
 
   const visibleTabs = TABS.filter(t => !t.adminOnly || isAdmin);
   const [tab, setTab] = useState(initialTab && visibleTabs.find(t=>t.key===initialTab) ? initialTab : (visibleTabs[0]?.key || "settings"));

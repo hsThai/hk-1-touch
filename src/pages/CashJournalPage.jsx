@@ -4,6 +4,7 @@
  */
 import React, { useState, useEffect, useMemo } from "react";
 import { CashJournal, logAction } from "./pb.jsx";
+import { usePermission } from "./PermissionContext.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 function fmtDate(s) {
@@ -134,7 +135,8 @@ export default function CashJournalPage({ user }) {
     const fn = () => setIsPC(window.innerWidth >= 1024);
     window.addEventListener("resize", fn);
     return () => window.removeEventListener("resize", fn);
-  }, []);  const canManage = ALLOWED.includes(user?.role);
+  }, []);  const { can } = usePermission();
+  const canManage = !!can("cash_journal","view"); // vao trang theo phan quyen
   const [month,   setMonth]   = useState(new Date().toISOString().slice(0,7));
   const [all,     setAll]     = useState([]);
   const [loading, setLoading] = useState(true);
@@ -240,7 +242,7 @@ export default function CashJournalPage({ user }) {
           <div style={{ fontWeight:900, fontSize:18, color:"#1e1b4b" }}>📒 Sổ quỹ tiền mặt</div>
           <div style={{ fontSize:12, color:"#6b7280" }}>{monthData.length} bút toán</div>
         </div>
-        {["owner","admin","manager","accountant"].includes(user?.role) && (
+        {can("cash_journal","create") && (
           <button onClick={()=>setModal(true)}
             style={{ background:"#4f46e5", color:"#fff", border:"none", borderRadius:10, padding:"8px 12px", fontSize:12, fontWeight:700, cursor:"pointer" }}>
             ➕ Ghi thủ công

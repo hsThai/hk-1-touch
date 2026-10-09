@@ -4,6 +4,7 @@
  */
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { SparePart, ProductCategory, logAction } from "./pb.jsx";
+import { usePermission } from "./PermissionContext.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 
@@ -85,7 +86,8 @@ export default function PricePolicyPage({ user }) {
   const [category,    setCategory]  = useState("all");
   const [editing,     setEditing]   = useState(null);
 
-  const isAdmin = ADMIN_ROLES.includes(user?.role);
+  const { can } = usePermission();
+  const isAdmin = !!can("price_policy","edit"); // theo phan quyen, khong khoa cung role
 
   const catMap = useMemo(() => {
     const m = {};

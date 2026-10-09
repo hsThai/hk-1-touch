@@ -1,6 +1,7 @@
 /* SaleHistoryPage.jsx — Quản lý đơn bán hàng (nâng cấp đầy đủ) */
 import React, { useState, useEffect, lazy, Suspense } from "react";
 import { SaleOrder, SaleOrderItem, DebtPayment, DebtVoucher, logAction, sortNewestFirst } from "./pb.jsx";
+import { usePermission } from "./PermissionContext.jsx";
 import { printSaleReceiptA5, previewSaleReceipt } from "../utils/printClient.js";
 
 const ReturnFormLazy = lazy(() =>
@@ -87,7 +88,8 @@ function DetailContent({ detail, detailItems, onClose, user }) {
   const sb = statusBadge(detail.status);
   const subtotal = detail.subtotal ?? detailItems.reduce((s,i)=>s+(i.total_price||0),0);
   const [showReturnForm, setShowReturnForm] = useState(false);
-  const canReturn = RETURN_ADMIN_ROLES.includes(user?.role);
+  const { can } = usePermission();
+  const canReturn = !!can("return_order","create"); // theo phan quyen
 
   return (
     <div style={{ padding: 24 }}>

@@ -1,6 +1,7 @@
 /* ExpensePage.jsx — Quản lý chi phí */
 import React, { useState, useEffect } from "react";
 import { Expense, CashJournal , getLocalDate, logAction } from "./pb.jsx";
+import { usePermission } from "./PermissionContext.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 function fmtDate(dateStr) {
@@ -150,7 +151,7 @@ export default function ExpensePage({ user }) {
   }
 
   async function handleDelete(exp) {
-    const canDel = MGMT_ROLES.includes(user.role) || exp.created_by===user.id;
+    const canDel = can("expense","delete") || exp.created_by===user.id;
     if (!canDel) { showToast("❌ Bạn không có quyền xóa chi phí này"); return; }
     if (!window.confirm('Xóa chi phí "' + (exp.description||exp.category) + '"?')) return;
     try {
@@ -252,7 +253,7 @@ export default function ExpensePage({ user }) {
               <tbody>
                 {filtered.map(e => {
                   const cat = CAT_MAP[e.category]||{label:e.category,color:"#6b7280"};
-                  const canDel = MGMT_ROLES.includes(user.role)||e.created_by===user.id;
+                  const canDel = can("expense","delete")||e.created_by===user.id;
                   return (
                     <tr key={e.id}>
                       <td style={TD}>
@@ -273,7 +274,7 @@ export default function ExpensePage({ user }) {
                       </td>
                       <td style={{...TD,textAlign:"center"}}>
                         <div style={{ display:"flex", gap:4, justifyContent:"center", flexWrap:"wrap" }}>
-                        {APPROVER_ROLES.includes(user.role) && (e.status==="pending"||!e.status) && (<>
+                        {can("expense","approve") && (e.status==="pending"||!e.status) && (<>
                           <button onClick={()=>handleApprove(e)}
                             style={{ background:"#dcfce7", color:"#059669", border:"none", borderRadius:8, padding:"3px 8px", fontSize:11, fontWeight:700, cursor:"pointer" }}>
                             ✅

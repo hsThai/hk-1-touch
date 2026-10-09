@@ -77,6 +77,7 @@ function OverviewTab({ user }) {
 // ShiftReconcile — Đối soát ca ngày
 // ─────────────────────────────────────────────────────────────────────────────
 function ShiftReconcilePage({ user }) {
+  const { can } = usePermission();
   const [date, setDate]       = useState(new Date().toISOString().slice(0,10));
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(false);
@@ -85,7 +86,7 @@ function ShiftReconcilePage({ user }) {
   const [reconcileRecord, setReconcileRecord] = useState(null); // Bản ghi đối soát đã lưu
   const [saving, setSaving] = useState(false);
   const [reconciledDates, setReconciledDates] = useState({}); // {date: status}
-  const isManager = user && ["manager","admin"].includes(user.role);
+  const isManager = !!can("pos_reconcile","approve"); // "Xac nhan & chot ca" theo phan quyen
 
   useEffect(() => { load(); }, [date]);
 
@@ -513,7 +514,7 @@ export default function CashierApp({ user, onNotif, onQRScan, notifCount=0, forc
     import("./SaleHistoryPage.jsx").then(m => setSaleHistoryPage(() => m.default)).catch(()=>{});
   }, []);
 
-  if (!user || !ALLOWED_ROLES.includes(user.role)) {
+  if (!user || !["pos_sale","pos_orders","pos_collect","pos_reconcile"].some(r => can(r,"view"))) {
     return (
       <div style={{ padding:48, textAlign:"center", color:"#6b7280" }}>
         <div style={{ fontSize:48, marginBottom:12 }}>🔒</div>

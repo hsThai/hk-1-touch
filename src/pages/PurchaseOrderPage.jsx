@@ -509,7 +509,7 @@ export default function PurchaseOrderPage({ user }) {
   const [filterNCC,    setFilterNCC]    = useState("");
   const [allParts,     setAllParts]     = useState([]);
 
-  const canManage = ["owner","admin","manager","supervisor"].includes(user?.role);
+  const canManage = can("purchase_order","create") || can("purchase_order","edit"); // theo phan quyen
 
   const showToast = (msg) => { setToast(msg); setTimeout(()=>setToast(""),3000); };
 

@@ -5,6 +5,7 @@
 */
 import React, { useState, useEffect, useCallback } from "react";
 import { DebtVoucher, DebtPayment, CashJournal, logAction, getLocalDate } from "./pb.jsx";
+import { usePermission } from "./PermissionContext.jsx";
 
 const fmt = (n) => (n || 0).toLocaleString("vi-VN") + "đ";
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString("vi-VN") : "—";
@@ -156,7 +157,7 @@ export default function DebtNccPage({ user }) {
 
   const showToast = (msg) => { setToast(msg); setTimeout(()=>setToast(""), 3000); };
 
-  const canManage = ["owner","admin","manager","supervisor","accountant"].includes(user?.role);
+  const canManage = can("debt","create") || can("debt","edit") || can("debt","approve"); // theo phan quyen
 
   const load = useCallback(async () => {
     setLoading(true);

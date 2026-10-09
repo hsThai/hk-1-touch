@@ -5,6 +5,7 @@
  */
 import { useState, useEffect } from "react";
 import { Department, Staff, logAction } from "./pb.jsx";
+import { usePermission } from "./PermissionContext.jsx";
 import { ROLE_DEFINITIONS } from "./seedRoles.js";
 
 const ROLE_MAP = Object.fromEntries(ROLE_DEFINITIONS.map(r => [r.key, r]));
@@ -299,7 +300,7 @@ function DeptCard({ dept, staffList }) {
 }
 
 export default function DepartmentPage({ user }) {
-  const isAdmin = ["owner","admin","manager"].includes(user?.role);
+  const isAdmin = !!can("department","edit"); // theo phan quyen
   const [depts,     setDepts]   = useState([]);
   const [staffList, setStaff]   = useState([]);
   const [loading,   setLoading] = useState(true);

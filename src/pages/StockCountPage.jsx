@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Warehouse, WarehouseZone,
          StockLedger, StockMovement,
          StockCount, StockCountItem, logAction } from "./pb.jsx";
+import { usePermission } from "./PermissionContext.jsx";
 
 // ── Helpers ────────────────────────────────────────────────
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
@@ -95,6 +96,7 @@ function Modal({ title, onClose, children, wide }) {
 // SCREEN 1: Danh sách phiếu kiểm kho
 // ══════════════════════════════════════════════════════════
 function CountList({ user, onOpen, onNew }) {
+  const { can } = usePermission();
   const [counts,     setCounts]     = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [loading,    setLoading]    = useState(true);
@@ -121,7 +123,7 @@ function CountList({ user, onOpen, onNew }) {
     (!filterWh || c.warehouse_id===filterWh)
   );
 
-  const canCreate = WH_ROLES.includes(user?.role);
+  const canCreate = !!can("stock_count","create"); // theo phan quyen
 
   return (
     <div style={{ padding:"16px 14px 100px" }}>
@@ -665,6 +667,7 @@ function CountingScreen({ count: initCount, user, onBack, onRefresh }) {
 // SCREEN 4: Duyệt kiểm kho (status=completed)
 // ══════════════════════════════════════════════════════════
 function ReviewScreen({ count, user, onBack, onRefresh }) {
+  const { can } = usePermission();
   const [items,    setItems]    = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [approving,setApproving]= useState(false);
@@ -766,7 +769,7 @@ function ReviewScreen({ count, user, onBack, onRefresh }) {
     } catch(e) { toast.show("❌ "+e.message,"error"); }
   }
 
-  const isManager = MGMT_ROLES.includes(user?.role);
+  const isManager = !!can("stock_count","approve"); // duyet lech theo phan quyen
 
   return (
     <div style={{ padding:"14px 14px 100px" }}>
@@ -957,6 +960,7 @@ function StockCountHistory({ user }) {
 }
 
 export default function StockCountPage({ user }) {
+  const { can } = usePermission();
 
   const [isPC, setIsPC] = React.useState(window.innerWidth >= 1024);
   React.useEffect(() => {
@@ -991,7 +995,7 @@ export default function StockCountPage({ user }) {
 
   function handleRefresh() { setRefreshKey(k=>k+1); }
 
-  if (!user || !WH_ROLES.includes(user.role)) {
+  if (!user || !can("stock_count","view")) {
     return (
       <div style={{ padding:48, textAlign:"center", color:"#6b7280" }}>
         <div style={{ fontSize:48 }}>🔒</div>

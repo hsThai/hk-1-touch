@@ -5,6 +5,7 @@
  */
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { SparePart, ProductCategory, logAction, uploadFile, normalizePbUrl, ensureStockLedgerForPart } from "./pb.jsx";
+import { usePermission } from "./PermissionContext.jsx";
 import CategoryManagerModal from "./CategoryManagerModal.jsx";
 import ProductImportExportModal from "./ProductImportExportModal.jsx";
 import { MediaViewer } from "./MediaViewer.jsx";
@@ -351,7 +352,8 @@ export default function ProductManagerPage({ user }) {
   const [showImportExport, setShowImportExport] = useState(false);
   const [tableViewer, setTableViewer] = useState(null);
 
-  const isAdmin = ADMIN_ROLES.includes(user?.role);
+  const { can } = usePermission();
+  const isAdmin = !!can("product_mgr","edit"); // theo phan quyen
 
   const catMap = useMemo(() => {
     const m = {};

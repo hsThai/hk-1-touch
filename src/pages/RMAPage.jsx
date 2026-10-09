@@ -5,6 +5,7 @@
  */
 import React, { useState, useEffect } from "react";
 import { SparePart, StockLedger, Supplier, logAction } from "./pb.jsx";
+import { usePermission } from "./PermissionContext.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 function fmtDate(s) {
@@ -200,7 +201,7 @@ export default function RMAPage({ user }) {
         || (l.sku||"").toLowerCase().includes(q);
   });
 
-  const canCreate = ["owner","admin","manager","warehouse","team_leader"].includes(user?.role);
+  const canCreate = !!can("wh_defect","create"); // theo phan quyen
 
   return (
     <div style={{ padding:"16px 14px 80px", maxWidth:960, margin:"0 auto" }}>
