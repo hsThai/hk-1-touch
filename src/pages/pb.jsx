@@ -590,3 +590,12 @@ export const B44Staff = {
 };
 export const PurchaseOrder     = makeCollection("purchase_orders");
 export const PurchaseOrderItem = makeCollection("purchase_order_items");
+
+
+/* Sap xep moi nhat len tren theo ngay gio tao (id PocketBase la ma ngau nhien, khong theo thoi gian).
+ * Don ban dung created_date, don sua chua dung received_date. Khong co ngay -> xuong cuoi. */
+export function sortNewestFirst(list, ...fields) {
+  const keys = fields.length ? fields : ["created_date", "received_date", "created"];
+  const ts = o => { for (const k of keys) { const t = Date.parse(o && o[k]); if (!isNaN(t)) return t; } return 0; };
+  return [...(list || [])].sort((a, b) => ts(b) - ts(a));
+}

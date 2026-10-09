@@ -1,6 +1,6 @@
 /* SaleHistoryPage.jsx — Quản lý đơn bán hàng (nâng cấp đầy đủ) */
 import React, { useState, useEffect, lazy, Suspense } from "react";
-import { SaleOrder, SaleOrderItem, DebtPayment, DebtVoucher, logAction } from "./pb.jsx";
+import { SaleOrder, SaleOrderItem, DebtPayment, DebtVoucher, logAction, sortNewestFirst } from "./pb.jsx";
 import { printSaleReceiptA5, previewSaleReceipt } from "../utils/printClient.js";
 
 const ReturnFormLazy = lazy(() =>
@@ -322,7 +322,7 @@ export default function SaleHistoryPage({ user }) {
     setLoading(true);
     try {
       const data = await SaleOrder.list({ sort: "-id", limit: 500 });
-      setOrders(data || []);
+      setOrders(sortNewestFirst(data));
     } catch(e) { console.error(e); }
     setLoading(false);
   }

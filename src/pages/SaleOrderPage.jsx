@@ -1,6 +1,6 @@
 /* SaleOrderPage.jsx — POS bán hàng lẻ */
 import React, { useState, useEffect, useRef } from "react";
-import { SparePart, SaleOrder, SaleOrderItem, StockMovement, StockLedger, AppSettings, Customer , DebtVoucher, CashJournal, logAction, notifyRoles } from "./pb.jsx";
+import { SparePart, SaleOrder, SaleOrderItem, StockMovement, StockLedger, AppSettings, Customer , DebtVoucher, CashJournal, logAction, notifyRoles, sortNewestFirst } from "./pb.jsx";
 import { previewSaleReceipt } from "../utils/printClient.js";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
@@ -128,7 +128,7 @@ export default function SaleOrderPage({ user }) {
   async function loadTodayOrders() {
     try {
       const list = await SaleOrder.list({ limit:100, sort:"-id" });
-      setTodayOrders((list||[]).filter(o => {
+      setTodayOrders(sortNewestFirst(list).filter(o => {
         const dateVal = o.created_date || o.created || o.created_at || "";
         return isToday(dateVal);
       }));

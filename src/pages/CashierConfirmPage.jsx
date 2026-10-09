@@ -1,7 +1,7 @@
 // CashierConfirmPage.jsx — Trang xác nhận thu tiền cho Thu ngân
 // HK One Touch
 import React, { useState, useEffect } from "react";
-import { SaleOrder, SaleOrderItem, CashJournal, DebtVoucher, getLocalDate, logAction, notifyRoles } from "./pb.jsx";
+import { SaleOrder, SaleOrderItem, CashJournal, DebtVoucher, getLocalDate, logAction, notifyRoles, sortNewestFirst } from "./pb.jsx";
 import { printSaleReceiptA5 } from "../utils/printClient.js";
 
 const PM_COLORS = { cash:"#059669", transfer:"#0369a1", combined:"#7c3aed", credit:"#dc2626" };
@@ -43,7 +43,7 @@ export default function CashierConfirmPage({ user }) {
         SaleOrder.list({limit:200,sort:"-id"}),
         CashJournal.list({limit:500,sort:"-id",filter:`(journal_date="${getLocalDate()}")&&(ref_type="sale_order")`}),
       ]);
-      setOrders(all||[]);
+      setOrders(sortNewestFirst(all));
       // Lưu tập ref_id đã thu hôm nay theo journal (chính xác hơn dùng created_date)
       const todayPaidIds = new Set((journals||[]).map(j=>j.ref_id).filter(Boolean));
       setTodayPaidIds(todayPaidIds);
