@@ -288,7 +288,7 @@ function AccessDenied({ pageName }) {
 
 // ── Page guard: kiểm tra quyền trước khi render page ──────
 function usePageGuard(page, can) {
-  if (page === "cashier_home") return ["pos_sale","pos_orders","pos_collect","pos_reconcile"].some(r => can(r,"view"));
+  if (page === "cashier_home") return ((can("pos_sale","create")||can("pos_sale","edit")) || ["pos_orders","pos_collect","pos_reconcile"].some(r => can(r,"view")));
   const perm = PAGE_PERMS[page];
   if (!perm) return true; // trang không có trong PAGE_PERMS → cho phép (trang nội bộ)
   return can(perm[0], perm[1]);
@@ -534,7 +534,7 @@ function MainAppContent({ onUserChange }) {
   const canCreateRepair = can("repair_order","create");
   const canViewRepair   = can("repair_order","view");
   const canViewSale     = can("sale_order","view");
-  const canPOS          = ["pos_sale","pos_orders","pos_collect","pos_reconcile"].some(r => can(r,"view"));
+  const canPOS          = ((can("pos_sale","create")||can("pos_sale","edit")) || ["pos_orders","pos_collect","pos_reconcile"].some(r => can(r,"view")));
   const canViewPack     = can("pack_order","view");
   const canViewShip     = can("ship_order","view");
   const isManager    = ["manager","admin","owner","supervisor"].includes(role);

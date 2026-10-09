@@ -15,7 +15,7 @@ const RESOURCE_META = {
   repair_order:       { label:"Đơn sửa chữa (Tạo đơn · Theo dõi · Danh sách)", module:"Dịch vụ Sửa chữa", icon:"build" },
   repair_order_price: { label:"Báo giá / Duyệt giá sửa chữa",    module:"Dịch vụ Sửa chữa", icon:"request_quote" },
   // ── Bán hàng
-  pos_sale:           { label:"Thu ngân (POS) · Tab Bán hàng",   module:"Bán hàng", icon:"storefront", actions:["can_view","can_create","can_edit"] },
+  pos_sale:           { label:"Thu ngân (POS) · Tab Bán hàng",   module:"Bán hàng", icon:"storefront", actions:["can_create","can_edit"] },
   pos_orders:         { label:"Thu ngân (POS) · Tab Đơn hàng",   module:"Bán hàng", icon:"receipt_long", actions:["can_view","can_edit","can_delete"] },
   pos_collect:        { label:"Thu ngân (POS) · Tab Thu tiền",   module:"Bán hàng", icon:"payments", actions:["can_view","can_approve"] },
   pos_reconcile:      { label:"Thu ngân (POS) · Tab Đối soát",   module:"Bán hàng", icon:"balance", actions:["can_view","can_approve"] },
@@ -74,7 +74,7 @@ const byModule  = (mod) =>
 
 // Nhãn thao tác riêng cho từng dòng (override) — để tick "Lưu" thay vì "Sửa" ở tab Bán hàng, v.v.
 const ACTION_OVERRIDE = {
-  pos_sale:      { can_create:"Tạo (Xác nhận bán)", can_edit:"Lưu (Lưu tạm)" },
+  pos_sale:      { can_create:"Tạo (Xác nhận bán)", can_edit:"Lưu (Lưu tạm)" }, // tab chỉ thao tác — không có Xem
   pos_orders:    { can_edit:"Sửa / Huỷ / Xác nhận", can_delete:"Xoá" },
   pos_collect:   { can_approve:"Xác nhận thu tiền" },
   pos_reconcile: { can_approve:"Chốt ca" },

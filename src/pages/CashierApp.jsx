@@ -488,7 +488,7 @@ export default function CashierApp({ user, onNotif, onQRScan, notifCount=0, forc
   const NAV_TABS = React.useMemo(() => {
     const tabs = [];
     // Moi tab POS co quyen rieng (Phan quyen > Kinh doanh > "POS · Tab ...")
-    if (can("pos_sale","view"))      tabs.push({ key:"sale",    label:"Bán hàng", icon:"storefront" });
+    if ((can("pos_sale","create")||can("pos_sale","edit")))      tabs.push({ key:"sale",    label:"Bán hàng", icon:"storefront" });
     if (can("pos_orders","view"))    tabs.push({ key:"history", label:"Đơn hàng", icon:"receipt_long" });
     if (can("pos_collect","view"))   tabs.push({ key:"confirm", label:"Thu tiền", icon:"payments" });
     if (can("pos_reconcile","view")) tabs.push({ key:"shift",   label:"Đối soát", icon:"balance" });
@@ -514,7 +514,7 @@ export default function CashierApp({ user, onNotif, onQRScan, notifCount=0, forc
     import("./SaleHistoryPage.jsx").then(m => setSaleHistoryPage(() => m.default)).catch(()=>{});
   }, []);
 
-  if (!user || !["pos_sale","pos_orders","pos_collect","pos_reconcile"].some(r => can(r,"view"))) {
+  if (!user || !((can("pos_sale","create")||can("pos_sale","edit")) || ["pos_orders","pos_collect","pos_reconcile"].some(r => can(r,"view")))) {
     return (
       <div style={{ padding:48, textAlign:"center", color:"#6b7280" }}>
         <div style={{ fontSize:48, marginBottom:12 }}>🔒</div>
@@ -610,7 +610,7 @@ export default function CashierApp({ user, onNotif, onQRScan, notifCount=0, forc
       )}
       {/* Nội dung tab */}
       <div style={{ maxWidth: tab==="shift" ? 900 : "100%", margin:"0 auto", padding: (tab==="sale") ? 0 : "20px 24px 60px" }}>
-        {tab === "sale"    && can("pos_sale","view") && (SaleOrderPage     ? <SaleOrderPage user={user} />     : <Fallback />)}
+        {tab === "sale"    && (can("pos_sale","create")||can("pos_sale","edit")) && (SaleOrderPage     ? <SaleOrderPage user={user} />     : <Fallback />)}
         {tab === "history" && can("pos_orders","view") && (SaleHistoryPage    ? <SaleHistoryPage user={user} />     : <Fallback />)}
         {tab === "confirm" && can("pos_collect","view") && (CashierConfirmPage ? <CashierConfirmPage user={user} /> : <Fallback />)}
         {tab === "shift"   && can("pos_reconcile","view") && <ShiftReconcilePage user={user} />}

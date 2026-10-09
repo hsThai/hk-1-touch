@@ -337,7 +337,7 @@ export function renderMobilePages(page, user, extraProps = {}) {
       {/* === Thu ngân — CashierApp === */}
       {page==="cashier_home" && user && (
         <Suspense fallback={<Loading />}>
-          {extraProps.can ? (["pos_sale","pos_orders","pos_collect","pos_reconcile"].some(r => extraProps.can(r,"view"))
+          {extraProps.can ? (((extraProps.can("pos_sale","create")||extraProps.can("pos_sale","edit")) || ["pos_orders","pos_collect","pos_reconcile"].some(r => extraProps.can(r,"view")))
             ? <CashierApp user={user} forceTab={cashierTab||""} onTabChange={setCashierTab||(()=>{})} />
             : <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
           ) : <CashierApp user={user} forceTab={cashierTab||""} onTabChange={setCashierTab||(()=>{})} />}
