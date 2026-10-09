@@ -8,39 +8,38 @@ export const PAGE_PERMS = {
   report_profit:   ["profit_report", "view"],
   report_staff:    ["kpi", "view"],
   purchase_order:  ["purchase_order", "view"],
-  wh_import_ncc:   ["stock_import", "view"],
+  wh_import_ncc:   ["wh_import_ncc", "view"],
   debt_ncc:        ["debt", "view"],
-  return_order:    ["sale_order", "view"],
-  price_policy:    ["sale_order", "view"],
-  product_mgr:     ["sale_order", "view"],
+  return_order:    ["return_order", "view"],
+  price_policy:    ["price_policy", "view"],
+  product_mgr:     ["product_mgr", "view"],
   revenue:         ["revenue_report", "view"],
   stock_nxt:       ["stock_card", "view"],
   expense:         ["expense", "view"],
   rma:             ["stock_import", "view"],
   cash_journal:    ["cash_journal", "view"],
   stock_count:     ["stock_count", "view"],
-  integrations:   ["settings", "view"],
-  action_log:      ["settings", "view"],
+  integrations:    ["integrations", "view"],
+  action_log:      ["action_log", "view"],
   customers:       ["customer", "view"],
   suppliers:       ["supplier", "view"],
   debts:           ["debt", "view"],
   department:      ["department", "view"],
-  role_perm:       ["settings", "view"],
+  role_perm:       ["role_perm", "view"],
   settings:        ["settings", "view"],
-  print_settings:  ["settings", "view"],
-  print_template:  ["settings", "view"],
+  print_settings:  ["print_settings", "view"],
+  print_template:  ["print_settings", "view"],
   staff:           ["staff", "view"],
   sale_order:      ["sale_order", "view"],
   wh_manager:      ["warehouse_mgr", "view"],
   wh_import:       ["stock_import", "view"],
   wh_export:       ["stock_export", "view"],
   wh_ledger:       ["stock_ledger", "view"],
-  wh_defect:       ["stock_import", "view"],
-  wh_shipping:     ["stock_import", "view"],
+  wh_defect:       ["wh_defect", "view"],
+  wh_shipping:     ["wh_shipping", "view"],
   wh_report:       ["stock_report", "view"],
   wh_orders:       ["repair_order", "view"],
   wh_home:         ["repair_order", "view"],
-  wh_import_ncc:   ["stock_import", "view"],
   new:             ["repair_order", "create"],
   board:           ["repair_order", "view"],
   tasks:           ["repair_order", "view"],
@@ -93,7 +92,7 @@ export function renderPurchaseNccPages(page, user, can) {
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
         : <Suspense fallback={<Loading />}><PurchaseOrderPage user={user} /></Suspense>
       )}
-      {page === "wh_import_ncc" && user && (can && !can("stock_import","view")
+      {page === "wh_import_ncc" && user && (can && !can("wh_import_ncc","view")
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
         : <WarehouseImport user={user} />
       )}
@@ -143,15 +142,15 @@ const ExpensePage     = lazy(() => import("./ExpensePage.jsx").catch(()=>({ defa
 export function renderSalesPages(page, user, can) {
   return (
     <>
-      {page === "return_order" && user && (can && !can("sale_order","view")
+      {page === "return_order" && user && (can && !can("return_order","view")
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
         : <Suspense fallback={<Loading />}><ReturnOrderPage user={user} /></Suspense>
       )}
-      {page === "product_mgr" && user && (can && !can("sale_order","view")
+      {page === "product_mgr" && user && (can && !can("product_mgr","view")
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
         : <Suspense fallback={<Loading />}><ProductManagerPage user={user} /></Suspense>
       )}
-      {page === "price_policy" && user && (can && !can("sale_order","view")
+      {page === "price_policy" && user && (can && !can("price_policy","view")
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
         : <Suspense fallback={<Loading />}><PricePolicyPage user={user} /></Suspense>
       )}
@@ -207,11 +206,11 @@ export function renderSalesPages(page, user, can) {
 export function renderSetupPages(page, user, can) {
   return (
     <>
-      {page === "integrations" && (can && !can("settings","view")
+      {page === "integrations" && (can && !can("integrations","view")
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
         : <Suspense fallback={<Loading />}><IntegrationsPage user={user} /></Suspense>
       )}
-      {page === "action_log" && (can && !can("settings","view")
+      {page === "action_log" && (can && !can("action_log","view")
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
         : <Suspense fallback={<Loading />}><ActionLogPage user={user} /></Suspense>
       )}
@@ -300,7 +299,7 @@ export function renderMobilePages(page, user, extraProps = {}) {
       )}
 
       {/* === In ấn === */}
-      {page==="print_template" && user && (extraProps.can && !extraProps.can("settings","view")
+      {page==="print_template" && user && (extraProps.can && !extraProps.can("print_settings","view")
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
         : <Suspense fallback={<Loading />}><PrintTemplatePage user={user} /></Suspense>
       )}

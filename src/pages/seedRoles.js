@@ -80,7 +80,7 @@ export const ROLE_DEFINITIONS = [
 const RESOURCES = [
   "repair_order","repair_order_price","spare_part","stock_export",
   "stock_import","stock_transfer","stock_count","stock_ledger","stock_card","stock_report",
-  "customer","sale_order","pos_sale","pos_orders","pos_collect","pos_reconcile","expense","revenue_report","staff","kpi",
+  "customer","sale_order","expense","revenue_report","staff","kpi",
   "settings","media_post","notification","warehouse_mgr",
   "supplier","debt","cash_journal","department",
 ];

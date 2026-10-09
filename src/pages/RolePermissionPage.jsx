@@ -10,44 +10,64 @@ import { STATIC_MATRIX } from "./PermissionContext.jsx";
 
 // ── Resource meta ─────────────────────────────────────────
 const RESOURCE_META = {
-  // Quyền đặt theo VỊ TRÍ trên app: "Menu ..." = mục trên sidebar/bottom-nav, "Tab ..." = tab bên trong trang
-  repair_order:       { label:"Menu Đơn sửa chữa",        module:"Sửa chữa",   icon:"build" },
-  repair_order_price: { label:"Menu Báo giá / Duyệt giá", module:"Sửa chữa",   icon:"request_quote" },
-  spare_part:         { label:"Menu Linh kiện",           module:"Kho",         icon:"memory" },
-  stock_export:       { label:"Menu Xuất kho",            module:"Kho",         icon:"outbox" },
-  stock_import:       { label:"Menu Nhập kho",            module:"Kho",         icon:"move_to_inbox" },
-  stock_transfer:     { label:"Menu Chuyển kho",          module:"Kho",         icon:"swap_horiz" },
-  stock_count:        { label:"Menu Kiểm kho",            module:"Kho",         icon:"fact_check" },
-  stock_ledger:       { label:"Menu Sổ cái kho",          module:"Kho",         icon:"menu_book" },
-  stock_card:         { label:"Menu Thẻ kho (NXT)",        module:"Kho",         icon:"assessment" },
-  stock_report:       { label:"Menu Báo cáo kho",        module:"Kho",         icon:"bar_chart" },
-  pack_order:         { label:"Menu Soạn hàng",           module:"Kho",         icon:"inventory" },
-  ship_order:         { label:"Menu Giao nhận",           module:"Kho",         icon:"local_shipping" },
-  customer:           { label:"Menu Khách hàng",          module:"Kinh doanh",  icon:"group" },
-  sale_order:         { label:"Menu Đơn bán hàng",        module:"Kinh doanh",  icon:"receipt_long" },
-  pos_sale:           { label:"POS · Tab Bán hàng",       module:"Kinh doanh",  icon:"storefront" },
-  pos_orders:         { label:"POS · Tab Đơn hàng",       module:"Kinh doanh",  icon:"receipt_long" },
-  pos_collect:        { label:"POS · Tab Thu tiền",       module:"Kinh doanh",  icon:"payments" },
-  pos_reconcile:     { label:"POS · Tab Đối soát",       module:"Kinh doanh",  icon:"balance" },
-  expense:            { label:"Menu Chi phí",            module:"Kinh doanh",  icon:"payments" },
-  revenue_report:     { label:"Menu Báo cáo doanh thu",  module:"Kinh doanh",  icon:"bar_chart" },
-  supplier:           { label:"Menu Nhà cung cấp",        module:"Kế toán",    icon:"storefront" },
-  debt:               { label:"Menu Công nợ",             module:"Kế toán",    icon:"account_balance_wallet" },
-  cash_journal:       { label:"Menu Sổ quỹ",              module:"Kế toán",    icon:"menu_book" },
-  purchase_order:     { label:"Menu Đơn mua hàng NCC",    module:"Mua hàng",   icon:"shopping_cart" },
-  profit_report:      { label:"Menu Báo cáo lợi nhuận",  module:"Báo cáo",    icon:"trending_up" },
-  staff:              { label:"Menu Nhân viên",           module:"Quản trị",    icon:"person" },
-  kpi:                { label:"Menu KPI",                 module:"Quản trị",    icon:"emoji_events" },
-  settings:           { label:"Menu Cài đặt hệ thống",   module:"Quản trị",    icon:"settings" },
-  media_post:         { label:"Menu Bài đăng / Media",    module:"Quản trị",    icon:"campaign" },
-  notification:       { label:"Menu Thông báo",           module:"Quản trị",    icon:"notifications" },
-  warehouse_mgr:      { label:"Menu Quản lý kho (config)", module:"Quản trị",  icon:"warehouse" },
-  department:         { label:"Menu Phòng ban",            module:"Quản trị",    icon:"corporate_fare" },
+  // Mỗi dòng = 1 mục menu / 1 tab, đặt tên & nhóm GIỐNG HỆT sidebar của Quản lý
+  // ── Dịch vụ Sửa chữa
+  repair_order:       { label:"Đơn sửa chữa (Tạo đơn · Theo dõi · Danh sách)", module:"Dịch vụ Sửa chữa", icon:"build" },
+  repair_order_price: { label:"Báo giá / Duyệt giá sửa chữa",    module:"Dịch vụ Sửa chữa", icon:"request_quote" },
+  // ── Bán hàng
+  pos_sale:           { label:"Thu ngân (POS) · Tab Bán hàng",   module:"Bán hàng", icon:"storefront" },
+  pos_orders:         { label:"Thu ngân (POS) · Tab Đơn hàng",   module:"Bán hàng", icon:"receipt_long" },
+  pos_collect:        { label:"Thu ngân (POS) · Tab Thu tiền",   module:"Bán hàng", icon:"payments" },
+  pos_reconcile:      { label:"Thu ngân (POS) · Tab Đối soát",   module:"Bán hàng", icon:"balance" },
+  sale_order:         { label:"Menu Quản lý đơn bán hàng",       module:"Bán hàng", icon:"receipt_long" },
+  return_order:       { label:"Menu Xử lý Đổi trả",              module:"Bán hàng", icon:"swap_horiz" },
+  // ── Hàng hóa
+  product_mgr:        { label:"Menu Danh mục hàng hóa",          module:"Hàng hóa", icon:"inventory_2" },
+  price_policy:       { label:"Menu Chính sách giá",             module:"Hàng hóa", icon:"price_change" },
+  // ── Kho & Vật tư
+  warehouse_mgr:      { label:"Menu Thiết lập kho",              module:"Kho & Vật tư", icon:"warehouse" },
+  stock_ledger:       { label:"Menu Tồn kho",                    module:"Kho & Vật tư", icon:"inventory_2" },
+  stock_import:       { label:"Menu Nhập kho",                   module:"Kho & Vật tư", icon:"move_to_inbox" },
+  stock_export:       { label:"Menu Xuất kho",                   module:"Kho & Vật tư", icon:"outbox" },
+  pack_order:         { label:"Menu Soạn hàng & Giao nhận · Soạn hàng", module:"Kho & Vật tư", icon:"inventory" },
+  ship_order:         { label:"Menu Soạn hàng & Giao nhận · Giao nhận", module:"Kho & Vật tư", icon:"local_shipping" },
+  stock_card:         { label:"Menu Thẻ kho (NXT)",              module:"Kho & Vật tư", icon:"assessment" },
+  stock_count:        { label:"Menu Kiểm kê kho",                module:"Kho & Vật tư", icon:"fact_check" },
+  wh_defect:          { label:"Menu LK lỗi / RMA",               module:"Kho & Vật tư", icon:"warning" },
+  wh_shipping:        { label:"Menu Vận đơn",                    module:"Kho & Vật tư", icon:"local_shipping" },
+  stock_report:       { label:"Menu Báo cáo kho",                module:"Kho & Vật tư", icon:"bar_chart" },
+  spare_part:         { label:"Linh kiện (dữ liệu dùng trong đơn sửa)", module:"Kho & Vật tư", icon:"memory" },
+  stock_transfer:     { label:"Chuyển kho (trong Thiết lập kho)", module:"Kho & Vật tư", icon:"swap_horiz" },
+  // ── Mua hàng (NCC)
+  purchase_order:     { label:"Menu Đặt hàng NCC",               module:"Mua hàng (NCC)", icon:"add_shopping_cart" },
+  wh_import_ncc:      { label:"Menu Nhập kho (nhận hàng)",       module:"Mua hàng (NCC)", icon:"move_to_inbox" },
+  debt_ncc:           { label:"Menu Công nợ NCC",                module:"Mua hàng (NCC)", icon:"account_balance_wallet" },
+  supplier:           { label:"Menu Danh sách NCC",              module:"Mua hàng (NCC)", icon:"storefront" },
+  // ── Khách hàng
+  customer:           { label:"Menu Danh sách khách hàng",       module:"Khách hàng", icon:"group" },
+  // ── Kế toán
+  cash_journal:       { label:"Menu Sổ quỹ",                     module:"Kế toán", icon:"menu_book" },
+  debt:               { label:"Menu Công nợ khách hàng",         module:"Kế toán", icon:"account_balance_wallet" },
+  expense:            { label:"Menu Thu / Chi",                  module:"Kế toán", icon:"receipt" },
+  // ── Báo cáo
+  revenue_report:     { label:"Menu Doanh thu",                  module:"Báo cáo", icon:"bar_chart" },
+  profit_report:      { label:"Menu Lợi nhuận",                  module:"Báo cáo", icon:"trending_up" },
+  kpi:                { label:"Menu KPI Nhân viên",              module:"Báo cáo", icon:"people" },
+  // ── Thiết lập
+  staff:              { label:"Menu Nhân viên",                  module:"Thiết lập", icon:"badge" },
+  department:         { label:"Menu Phòng ban",                  module:"Thiết lập", icon:"account_tree" },
+  role_perm:          { label:"Menu Vai trò & Quyền",            module:"Thiết lập", icon:"admin_panel_settings" },
+  settings:           { label:"Menu Cài đặt cửa hàng",           module:"Thiết lập", icon:"store" },
+  integrations:       { label:"Menu Tích hợp",                   module:"Thiết lập", icon:"cable" },
+  print_settings:     { label:"Menu Mẫu in & Cài đặt",           module:"Thiết lập", icon:"print" },
+  action_log:         { label:"Menu Nhật ký thao tác",           module:"Thiết lập", icon:"history" },
+  media_post:         { label:"Bài đăng / Media",                module:"Thiết lập", icon:"campaign" },
+  notification:       { label:"Thông báo",                       module:"Thiết lập", icon:"notifications" },
 };
 
 const MODULES   = [
-  "Sửa chữa", "Kho", "Kinh doanh", "Kế toán",
-  "Mua hàng", "Báo cáo", "Quản trị",
+  "Dịch vụ Sửa chữa", "Bán hàng", "Hàng hóa", "Kho & Vật tư", "Mua hàng (NCC)",
+  "Khách hàng", "Kế toán", "Báo cáo", "Thiết lập",
 ];
 const byModule  = (mod) =>
   Object.entries(RESOURCE_META).filter(([,v]) => v.module === mod).map(([k]) => k);

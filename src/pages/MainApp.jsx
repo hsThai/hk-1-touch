@@ -2228,8 +2228,8 @@ function MainAppContent({ onUserChange }) {
               {page==="suppliers" && user && (can("supplier","view") ? <Suspense fallback={<div style={{padding:40}}>⏳</div>}><SupplierPage user={user} /></Suspense> : <AccessDenied pageName="Nhà cung cấp" />)}
               {page==="debts" && user && (can("debt","view") ? <Suspense fallback={<div style={{padding:40}}>⏳</div>}><DebtPage user={user} /></Suspense> : <AccessDenied pageName="Công nợ" />)}
               {page==="department" && (can("department","view") ? <Suspense fallback={<div style={{padding:40}}>⏳</div>}><DepartmentPageLazy user={user} /></Suspense> : <AccessDenied pageName="Phòng ban" />)}
-              {page==="role_perm" && (["manager","admin","owner","supervisor"].includes(user?.role) ? <Suspense fallback={<div style={{padding:40}}>⏳</div>}><RolePermissionPageLazy /></Suspense> : <AccessDenied pageName="Vai trò & Quyền" />)}
-              {page==="print_settings" && (can("settings","view") ? <Suspense fallback={<div style={{padding:40}}>⏳</div>}><SettingsHub user={user} initialTab="print" /></Suspense> : <AccessDenied pageName="Mẫu in" />)}
+              {page==="role_perm" && (["manager","admin","owner","supervisor"].includes(user?.role) && can("role_perm","view") ? <Suspense fallback={<div style={{padding:40}}>⏳</div>}><RolePermissionPageLazy /></Suspense> : <AccessDenied pageName="Vai trò & Quyền" />)}
+              {page==="print_settings" && (can("print_settings","view") ? <Suspense fallback={<div style={{padding:40}}>⏳</div>}><SettingsHub user={user} initialTab="print" /></Suspense> : <AccessDenied pageName="Mẫu in" />)}
               {page==="print_template" && user && (can("settings","view") ? <PrintTemplatePage user={user} /> : <AccessDenied pageName="Mẫu in" />)}
               {/* Sales, Kho, Tài chính */}
               {renderSalesPages(page, user, can)}
