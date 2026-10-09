@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { SparePart, ProductCategory, logAction, uploadFile, normalizePbUrl, ensureStockLedgerForPart } from "./pb.jsx";
 import { usePermission } from "./PermissionContext.jsx";
+import { refreshProductImages } from "./ProductThumb.jsx";
 import CategoryManagerModal from "./CategoryManagerModal.jsx";
 import ProductImportExportModal from "./ProductImportExportModal.jsx";
 import { MediaViewer } from "./MediaViewer.jsx";
@@ -124,6 +125,7 @@ function ProductFormModal({ item, categories, onSave, onClose, user }) {
         // Ghi sổ kho mặc định (Kho 1) để xuất linh kiện không bị "không có trong kho này"
         await ensureStockLedgerForPart(rec);
       }
+      refreshProductImages(); // cap nhat anh tren cac trang khac ngay lap tuc
       onSave();
       onClose();
     } catch (e) { alert("Lỗi: " + e.message); }
