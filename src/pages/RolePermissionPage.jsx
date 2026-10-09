@@ -23,7 +23,7 @@ const RESOURCE_META = {
   sale_order:         { label:"Menu Quản lý đơn bán hàng",       module:"Bán hàng", icon:"receipt_long", actions:["can_view"] },
   return_order:       { label:"Menu Xử lý Đổi trả",              module:"Bán hàng", icon:"swap_horiz", actions:["can_view","can_create"] },
   // ── Hàng hóa
-  product_mgr:        { label:"Menu Danh mục hàng hóa",          module:"Hàng hóa", icon:"inventory_2", actions:["can_view","can_edit"] },
+  product_mgr:        { label:"Menu Danh mục hàng hóa",          module:"Hàng hóa", icon:"inventory_2", actions:["can_view","can_edit","can_export"] },
   price_policy:       { label:"Menu Chính sách giá",             module:"Hàng hóa", icon:"price_change", actions:["can_view","can_edit"] },
   // ── Kho & Vật tư
   warehouse_mgr:      { label:"Menu Thiết lập kho",              module:"Kho & Vật tư", icon:"warehouse", actions:["can_view"] },
@@ -86,7 +86,7 @@ const ACTION_LABELS = [
   { key:"can_edit",    short:"Sửa",    icon:"edit" },
   { key:"can_delete",  short:"Xoá",   icon:"delete" },
   { key:"can_approve", short:"Duyệt", icon:"check_circle" },
-  { key:"can_export",  short:"Export",icon:"download" },
+  { key:"can_export",  short:"Nhập/Xuất File",icon:"import_export" },
 ];
 
 // ── Component ─────────────────────────────────────────────

@@ -455,6 +455,7 @@ export default function ProductManagerPage({ user }) {
             }}>
               🏷️ Quản lý danh mục
             </button>
+            {can("product_mgr","export") && (
             <button onClick={()=>setShowImportExport(true)} style={{
               height:44, padding:"0 16px", borderRadius:12, border:"1.5px solid #e5e7eb",
               background:"#fff", color:"#374151", fontWeight:700, fontSize:13, cursor:"pointer",
@@ -462,6 +463,7 @@ export default function ProductManagerPage({ user }) {
             }}>
               📁 Nhập / Xuất file
             </button>
+            )}
             <button onClick={()=>{ setEditing(null); setShowForm(true); }} style={{
               height:44, padding:"0 20px", borderRadius:12, border:"none",
               background:"#6366f1", color:"#fff", fontWeight:800, fontSize:14, cursor:"pointer",
