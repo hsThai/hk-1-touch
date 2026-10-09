@@ -4,6 +4,7 @@
  */
 import React, { useState, useEffect } from "react";
 import { CashJournal, getPbUrl, getAuth, logAction } from "./pb.jsx";
+import { usePermission } from "./PermissionContext.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 function fmtDate(s) {
@@ -358,7 +359,9 @@ export default function ReturnOrderPage({ user }) {
   const [search,  setSearch]  = useState("");
   const [filter,  setFilter]  = useState("all");
 
-  const isAdmin = ADMIN_ROLES.includes(user?.role);
+  const { can } = usePermission();
+  // Nut "Tao don doi tra" theo quyen phan quyen (return_order: Xem/Tao), khong khoa cung role nua
+  const isAdmin = !!can("return_order","create");
 
   async function load() {
     setLoading(true);
