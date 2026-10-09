@@ -69,6 +69,8 @@ export default function RolePermissionPage() {
   const [openMod,    setOpenMod]    = useState({});
   const [activeRole, setActiveRole] = useState(null);
   const [seeding,    setSeeding]    = useState(false);
+  const [seedConfirm, setSeedConfirm] = useState(false); // Khoa nút Seed: phai qua modal canh bao
+  const [seedText,   setSeedText]   = useState("");
 
   useEffect(() => {
     (async () => {
@@ -289,8 +291,8 @@ export default function RolePermissionPage() {
   }
 
   async function handleSeed() {
-    if (!confirm("Seed toàn bộ ma trận quyền từ file mặc định? Các quyền hiện có sẽ bị ghi đè.")) return;
-    setSeeding(true);
+    if (!seedConfirm) { setSeedConfirm(true); return; } // KHOA: yeu cau xac nhan qua modal canh bao
+    setSeedConfirm(false); setSeedText(""); setSeeding(true);
     try {
       const { seedAll } = await import("./seedRoles.js");
       await seedAll(msg => showToast(msg, 1500));
@@ -350,7 +352,7 @@ export default function RolePermissionPage() {
               </option>
             ))}
           </select>
-          <button onClick={handleSeed} disabled={seeding}
+          <button onClick={handleSeed} disabled={seeding} title="⚠️ RESET toàn bộ quyền về mặc định — cần xác nhận"
             style={{
               flexShrink:0, height:38, padding:"0 12px", borderRadius:10,
               border:"1.5px solid #e5e7eb", background:"#f9fafb",
@@ -359,6 +361,42 @@ export default function RolePermissionPage() {
             }}>
             {seeding ? "⏳" : "🌱"} Seed
           </button>
+
+          {/* — MODAL KHOA SEED: canh bao reset toan bo quyen — */}
+          {seedConfirm && (
+            <div style={{ position:"fixed", inset:0, zIndex:1000, background:"rgba(0,0,0,.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}
+                 onClick={() => { setSeedConfirm(false); setSeedText(""); }}>
+              <div onClick={e => e.stopPropagation()}
+                   style={{ background:"#fff", borderRadius:14, padding:24, width:"min(440px, 92vw)", boxShadow:"0 20px 50px rgba(0,0,0,.25)", border:"2px solid #fecaca" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
+                  <span style={{ fontSize:30 }}>⚠️</span>
+                  <div style={{ fontWeight:800, fontSize:17, color:"#b91c1c" }}>Reset toàn bộ phân quyền?</div>
+                </div>
+                <div style={{ fontSize:13.5, color:"#374151", lineHeight:1.55, background:"#fef2f2", border:"1px solid #fecaca", borderRadius:10, padding:12, marginBottom:14 }}>
+                  🌱 Nút này sẽ <b style={{ color:"#b91c1c" }}>RESET toàn bộ quyền về mặc định</b> của hệ thống.
+                  <br />Mọi tùy chỉnh anh/chị đã thiết lập cho từng vai trò sẽ <b>bị mất và ghi đè</b>.
+                </div>
+                <div style={{ fontSize:12.5, color:"#6b7280", marginBottom:10 }}>
+                  Để xác nhận, gõ <b style={{ color:"#b91c1c" }}>RESET</b> vào ô bên dưới:
+                </div>
+                <input value={seedText}
+                       onChange={e => setSeedText(e.target.value)}
+                       placeholder="Gõ RESET để xác nhận"
+                       style={{ width:"100%", height:42, borderRadius:10, border:"1.5px solid #d1d5db", padding:"0 12px", fontSize:15, marginBottom:16, outline:"none" }} />
+                <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
+                  <button onClick={() => { setSeedConfirm(false); setSeedText(""); }}
+                          style={{ height:40, padding:"0 16px", borderRadius:10, border:"1.5px solid #d1d5db", background:"#f9fafb", fontSize:13.5, fontWeight:700, cursor:"pointer" }}>
+                    Hủy
+                  </button>
+                  <button onClick={() => { if (seedText.trim().toUpperCase() === "RESET") handleSeed(); }}
+                          disabled={seedText.trim().toUpperCase() !== "RESET" || seeding}
+                          style={{ height:40, padding:"0 18px", borderRadius:10, border:"none", background: seedText.trim().toUpperCase() === "RESET" ? "#dc2626" : "#e5e7eb", color:"#fff", fontSize:13.5, fontWeight:800, cursor: seedText.trim().toUpperCase() === "RESET" ? "pointer" : "not-allowed" }}>
+                    {seeding ? "⏳ Đang reset..." : "Reset toàn bộ"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Dòng 2: Role info card */}
