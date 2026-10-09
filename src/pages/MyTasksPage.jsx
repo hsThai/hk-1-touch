@@ -552,7 +552,7 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
     // Chi tinh don da thu tien (completed); don chua thu tien / da huy chua can soan
     const activeSo = so.filter(o => o.status === "completed");
     const st = o => o.pack_status || "";
-    const chờSoạn     = activeSo.filter(o => (o.delivery_type || "") !== "pickup" && ["", "to_pick", "picking"].includes(st(o)));
+    const chờSoạn     = activeSo.filter(o => ["", "to_pick", "picking"].includes(st(o))); // kể cả đơn tại quầy (quy trình 2026-10-09)
     const chờBànGiao  = activeSo.filter(o => st(o) === "packed");
     const đangGiao    = activeSo.filter(o => ["shipped", "carrier_received"].includes(st(o)));
     const giaoLỗi     = activeSo.filter(o => st(o) === "failed");

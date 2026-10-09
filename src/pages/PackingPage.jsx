@@ -817,8 +817,8 @@ export default function PackingPage({ user, onBack, focusOrderCode, onFocusConsu
       const notYetPacked = (st === "" || st === "to_pick" || st === "picking");
       // Chỉ vào hàng đợi soạn hàng khi: NV bán hàng đã lên đơn VÀ thu ngân đã thu tiền (status="completed")
       if (notYetPacked && o.status !== "completed") continue;
-      // Khach lay tai quay (pickup) khong qua buoc soan/dong goi/giao -> khong vao hang doi
-      if (notYetPacked && (o.delivery_type || "") === "pickup") continue;
+      // Quy trinh 2026-10-09: don lay tai quay (pickup) sau thu tien cung phai soan/xuat kho
+      // de truy vet ai lay hang; buoc cuoi la "KHACH DA NHAN" thay vi ban giao DVVC.
       if (st === "delivered" || st === "counter") q.done.push(o);
       else if (st === "failed") q.failed.push(o);
       else if (st === "packed") q.handover.push(o);
@@ -1081,7 +1081,7 @@ export default function PackingPage({ user, onBack, focusOrderCode, onFocusConsu
     setTimeout(() => document.getElementById("pkcard_" + found.id)?.scrollIntoView({ behavior: "smooth", block: "center" }), 250);
 
     if (isPick && found.status !== "completed") { showToast(`ℹ️ Đơn ${found.order_code} chưa thu tiền — chưa soạn được`, "info"); return; }
-    if (isPick && isPickup) { showToast(`ℹ️ Đơn ${found.order_code} khách lấy tại quầy — không cần soạn`, "info"); return; }
+    // Quy trinh 2026-10-09: đơn tại quầy vẫn phải soạn hàng trước khi bàn giao cho khách
     if (canEditPack && isPick) setModal({ type: "picking", order: found });
     else if (canEditShip && st === "packed") setModal({ type: isPickup ? "pickup_confirm" : "handover", order: found });
     else if (isPick || st === "packed") showToast(`ℹ️ Bạn không có quyền ${isPick ? "soạn" : "bàn giao"} đơn ${found.order_code}`, "info");

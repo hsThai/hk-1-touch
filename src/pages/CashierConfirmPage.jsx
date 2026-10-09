@@ -81,11 +81,11 @@ export default function CashierConfirmPage({ user }) {
         payment_method: payMethod,
       });
       logAction(user, "confirm_payment", "sale_order", confirming.id, `Thu tiền ${confirming.order_code}: ${confirming.total.toLocaleString("vi-VN")}đ (${payMethod})`);
-      // Bao NV soan dong hang: don da thu tien can soan (don lay tai quay thi khong can)
-      if ((confirming.delivery_type || "") !== "pickup") {
+      // Quy trình 2026-10-09: mọi đơn đã thu tiền đều phải soạn/xuất kho (kể cả lấy tại quầy)
+      {
         notifyRoles(["packer", "delivery"], {
-          title: `📦 Đơn cần soạn: ${confirming.order_code}`,
-          message: `${confirming.customer_name || "Khách lẻ"} · ${(confirming.total||0).toLocaleString("vi-VN")}đ${confirming.delivery_address ? " · " + confirming.delivery_address : ""}`,
+          title: `${(confirming.delivery_type || "") === "pickup" ? "Đơn tại quầy cần soạn" : "Đơn cần soạn"}: ${confirming.order_code}`,
+          message: `${(confirming.delivery_type || "") === "pickup" ? " . Khách lấy tại quầy" : ""}${confirming.customer_name || "Khách lẻ"} · ${(confirming.total||0).toLocaleString("vi-VN")}đ${confirming.delivery_address ? " · " + confirming.delivery_address : ""}`,
           order: confirming, type: "pack_ship", excludeId: user?.id || "",
         });
       }
