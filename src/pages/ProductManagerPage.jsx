@@ -431,7 +431,7 @@ export default function ProductManagerPage({ user }) {
   }
 
   const CARD = {
-    background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", padding:"16px 20px",
+    background:"#fff", borderRadius:16, border:"1.5px solid #e5e7eb", padding:"14px 16px", minWidth:0,
     display:"flex", flexDirection:"column", gap:4,
   };
   const STAT_NUM = { fontSize:22, fontWeight:900, color:"#1e1b4b" };
@@ -474,7 +474,8 @@ export default function ProductManagerPage({ user }) {
         )}
       </div>
 
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(140px, 1fr))", gap:12, marginBottom:16 }}>
+      <style>{`.pm-stats{display:grid;grid-template-columns:1fr 1fr 1fr 1.9fr;gap:10px;margin-bottom:16px}@media(max-width:600px){.pm-stats{grid-template-columns:1fr 1fr}.pm-stats>.pm-stat-wide{grid-column:1 / -1}}`}</style>
+      <div className="pm-stats">
         <div style={CARD}>
           <span style={STAT_NUM}>{stats.total}</span>
           <span style={STAT_LBL}>Tổng hàng hóa</span>
@@ -487,8 +488,8 @@ export default function ProductManagerPage({ user }) {
           <span style={{ ...STAT_NUM, color: stats.outOfStock > 0 ? "#dc2626" : "#1e1b4b" }}>{stats.outOfStock}</span>
           <span style={STAT_LBL}>Hết hàng</span>
         </div>
-        <div style={CARD}>
-          <span style={STAT_NUM}>{fmtMoney(stats.totalValue)}</span>
+        <div className="pm-stat-wide" style={{ ...CARD, minWidth:0 }}>
+          <span style={{ ...STAT_NUM, fontSize: fmtMoney(stats.totalValue).length > 14 ? 18 : fmtMoney(stats.totalValue).length > 11 ? 20 : 22, whiteSpace:"nowrap" }}>{fmtMoney(stats.totalValue)}</span>
           <span style={STAT_LBL}>Giá trị tồn kho</span>
         </div>
       </div>
