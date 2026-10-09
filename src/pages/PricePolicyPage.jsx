@@ -105,7 +105,7 @@ export default function PricePolicyPage({ user }) {
     setLoading(true);
     try {
       const [data, catData] = await Promise.all([
-        SparePart.list({ limit:500, sort:"category,name" }),
+        SparePart.listAll({ sort:"category,name", filter:'name!=""' }),
         ProductCategory.list({ limit: 200, sort: "sort_order,name" }),
       ]);
       setItems(data || []);
@@ -116,6 +116,8 @@ export default function PricePolicyPage({ user }) {
 
   useEffect(() => { load(); }, [load]);
 
+  const [showCount, setShowCount] = useState(100);
+  useEffect(() => { setShowCount(100); }, [search, category]);
   const displayed = useMemo(() => items.filter(i => {
     const matchSearch = !search || [i.name, i.sku, i.category]
       .some(v => (v||"").toLowerCase().includes(search.toLowerCase()));
@@ -170,7 +172,7 @@ export default function PricePolicyPage({ user }) {
               </tr>
             </thead>
             <tbody>
-              {displayed.map(item => {
+              {displayed.slice(0, showCount).map(item => {
                 const retail    = item.retail_price    || item.price || 0;
                 const wholesale = item.wholesale_price || 0;
                 const cost      = item.cost_price      || 0;
@@ -220,6 +222,14 @@ export default function PricePolicyPage({ user }) {
               })}
             </tbody>
           </table>
+          {displayed.length > showCount && (
+            <div style={{ padding:14, textAlign:"center", borderTop:"1px solid #f3f4f6" }}>
+              <button onClick={() => setShowCount(n => n + 200)}
+                style={{ padding:"8px 20px", borderRadius:10, border:"1px solid #c7d2fe", background:"#eef2ff", color:"#4f46e5", fontWeight:700, cursor:"pointer" }}>
+                Xem thêm ({displayed.length - showCount} sản phẩm nữa)
+              </button>
+            </div>
+          )}
         </div>
       )}
 
