@@ -553,7 +553,8 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
     const activeSo = so.filter(o => o.status === "completed");
     const st = o => o.pack_status || "";
     const chờSoạn     = activeSo.filter(o => ["", "to_pick", "picking"].includes(st(o))); // kể cả đơn tại quầy (quy trình 2026-10-09)
-    const chờBànGiao  = activeSo.filter(o => st(o) === "packed");
+    const chờBànGiao  = activeSo.filter(o => st(o) === "packed" && (o.delivery_type || "") !== "pickup");
+    const chờKháchNhận = activeSo.filter(o => st(o) === "packed" && (o.delivery_type || "") === "pickup");
     const đangGiao    = activeSo.filter(o => ["shipped", "carrier_received"].includes(st(o)));
     const giaoLỗi     = activeSo.filter(o => st(o) === "failed");
     if (canViewPack && chờSoạn.length > 0) result.urgent.push({
@@ -561,6 +562,12 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
       subtitle: "Lấy hàng theo mã + đóng gói",
       badge: String(chờSoạn.length), badgeColor: "#4f46e5", urgency: "urgent",
       onClick: () => onOpenPackShip ? onOpenPackShip("pick") : setPage("pack_ship"),
+    });
+    if (canViewShip && chờKháchNhận.length > 0) result.urgent.push({
+      icon: "storefront", title: `${chờKháchNhận.length} đơn tại quầy chờ khách nhận`,
+      subtitle: "Đã đóng gói — khách sẽ đến nhận tại quầy",
+      badge: String(chờKháchNhận.length), badgeColor: "#059669", urgency: "urgent",
+      onClick: () => onOpenPackShip ? onOpenPackShip("handover") : setPage("pack_ship"),
     });
     if (canViewShip && chờBànGiao.length > 0) result.urgent.push({
       icon: "local_shipping", title: `${chờBànGiao.length} đơn chờ bàn giao ĐVVC`,

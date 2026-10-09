@@ -322,12 +322,12 @@ function PickingModal({ order, user, onDone, onClose, showToast }) {
       logAction(user, "pack_order", "sale_order", order.id, `Đóng gói xong đơn ${order.order_code} (${rows.length} món)`);
       await notifyRoles(["delivery", "warehouse", "manager", "admin", "owner"], {
         title: `📦 Đơn ${order.order_code} đã đóng gói`,
-        message: `${user.full_name || user.name || ""} đã đóng gói xong — sẵn sàng bàn giao ĐVVC`,
+        message: `${user.full_name || user.name || ""} đã đóng gói xong — ${(order.delivery_type || "") === "pickup" ? "sẵn sàng giao cho khách tại quầy" : "sẵn sàng bàn giao ĐVVC"}`,
         order: { id: order.id, order_code: order.order_code },
       });
       await notifyLeaderOf(user.id, {
         title: `📦 Đơn ${order.order_code} đã đóng gói`,
-        message: `${user.full_name || user.name || ""} soạn xong — sẵn sàng bàn giao ĐVVC`,
+        message: `${user.full_name || user.name || ""} soạn xong — ${(order.delivery_type || "") === "pickup" ? "sẵn sàng giao cho khách tại quầy" : "sẵn sàng bàn giao ĐVVC"}`,
         order: { id: order.id, order_code: order.order_code },
       });
       showToast("✅ Đã xác nhận đóng gói", "ok");
