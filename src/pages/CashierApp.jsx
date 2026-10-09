@@ -475,6 +475,7 @@ function ShiftReconcilePage({ user }) {
 
 
 export default function CashierApp({ user, onNotif, onQRScan, notifCount=0, forceTab="", onTabChange }) {
+  const { can } = usePermission();
   const defaultTab = ["cashier","accountant"].includes(user?.role) ? "confirm" : "sale";
   const [tab, setTab] = useState(defaultTab);
   const [SaleOrderPage, setSaleOrderPage]             = useState(null);
@@ -484,7 +485,8 @@ export default function CashierApp({ user, onNotif, onQRScan, notifCount=0, forc
   // NAV_TABS dynamic theo role
   const NAV_TABS = React.useMemo(() => {
     const tabs = [];
-    if(["sales","team_leader","manager","admin","owner"].includes(user?.role)){
+    // Tab "Bán hàng" theo quyen ban hang lẻ (sale_order.view) thay vi hard-code role
+    if (can("sale_order","view")) {
       tabs.push({ key:"sale",    label:"Bán hàng",  icon:"storefront" });
     }
     tabs.push({ key:"history", label:"Đơn hàng",  icon:"receipt_long" });
@@ -493,7 +495,7 @@ export default function CashierApp({ user, onNotif, onQRScan, notifCount=0, forc
     }
     tabs.push({ key:"shift", label:"Đối soát", icon:"balance" });
     return tabs;
-  }, [user?.role]);
+  }, [user?.role, can]);
 
   // forceTab từ MainApp (MyTasksPage "Chờ thu" → "confirm")
   useEffect(() => {
