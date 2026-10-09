@@ -1550,11 +1550,7 @@ function MainAppContent({ onUserChange }) {
       <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
         {MGR_ACCORDIONS.filter(acc => {
           // Ẩn accordion nếu không có item nào được phép
-          const visibleItems = acc.items.filter(sub => {
-            const perm = PAGE_PERMS[sub.key];
-            if (!perm) return true;
-            return can(perm[0], perm[1]);
-          });
+          const visibleItems = acc.items.filter(sub => usePageGuard(sub.key, can));
           return visibleItems.length > 0;
         }).map(acc => {
           const isOpen = openAccordion === acc.key;
@@ -1600,11 +1596,7 @@ function MainAppContent({ onUserChange }) {
               {/* Sub-items */}
               {isOpen && (
                 <div style={{ paddingLeft:12, marginTop:1, marginBottom:2 }}>
-                  {acc.items.filter(sub => {
-                    const perm = PAGE_PERMS[sub.key];
-                    if (!perm) return true;
-                    return can(perm[0], perm[1]);
-                  }).map(sub => {
+                  {acc.items.filter(sub => usePageGuard(sub.key, can)).map(sub => {
                     const isActive = sub.key.includes("__")
                       ? (page === sub.key.split("__")[0] && dashboardTab === sub.key.split("__")[1])
                       : page === sub.key;
