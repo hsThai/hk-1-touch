@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { SaleOrder, SaleOrderItem, CashJournal, DebtVoucher, getLocalDate, logAction, notifyRoles, sortNewestFirst } from "./pb.jsx";
 import { printSaleReceiptA5 } from "../utils/printClient.js";
+import { usePermission } from "./PermissionContext.jsx";
 
 const PM_COLORS = { cash:"#059669", transfer:"#0369a1", combined:"#7c3aed", credit:"#dc2626" };
 const PM_LABELS = { cash:"💵 Tiền mặt", transfer:"🏦 Chuyển khoản", combined:"🔀 Kết hợp", credit:"💳 Ghi nợ" };
@@ -15,6 +16,8 @@ function fmtTime(s){
 }
 
 export default function CashierConfirmPage({ user }) {
+  const { can } = usePermission();
+  const canCollect = !!can("pos_collect","approve"); // Xác nhận thu tiền
   const [isPC, setIsPC] = useState(() => window.innerWidth >= 900);
   useEffect(() => {
     const fn = () => setIsPC(window.innerWidth >= 900);
@@ -71,6 +74,7 @@ export default function CashierConfirmPage({ user }) {
   }
 
   async function handleConfirm(){
+    if(!canCollect){ alert("⛔ Bạn không có quyền xác nhận thu tiền"); return; }
     if(!confirming||!payMethod) return;
     setSubmitting(true);
     try{
@@ -207,7 +211,7 @@ export default function CashierConfirmPage({ user }) {
               {/* Nút xác nhận */}
               {isPending&&(
                 <div style={{padding:"10px 16px 14px"}}>
-                  <button onClick={()=>openConfirm(o)} style={{width:"100%",padding:"13px",borderRadius:12,border:"none",
+                  <button onClick={()=>openConfirm(o)} disabled={!canCollect} title={!canCollect?"Bạn không có quyền xác nhận thu tiền":""} style={{opacity:canCollect?1:.45,width:"100%",padding:"13px",borderRadius:12,border:"none",
                     background: o.payment_method==="credit"
                       ? "linear-gradient(135deg,#7c3aed,#6d28d9)"
                       : "linear-gradient(135deg,#059669,#047857)",

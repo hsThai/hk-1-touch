@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { ProductThumb } from "./ProductThumb.jsx";
 import { SparePart, SaleOrder, SaleOrderItem, StockMovement, StockLedger, AppSettings, Customer , DebtVoucher, CashJournal, logAction, notifyRoles, sortNewestFirst } from "./pb.jsx";
 import { previewSaleReceipt } from "../utils/printClient.js";
+import { usePermission } from "./PermissionContext.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 function padZ(n) { return String(n).padStart(4,"0"); }
@@ -33,6 +34,9 @@ const PM_COLORS = { cash:"#059669", transfer:"#2563eb", combo:"#7c3aed", credit:
 const INP = { width:"100%", height:44, borderRadius:12, border:"1.5px solid #e5e7eb", padding:"0 14px", fontSize:14, outline:"none", boxSizing:"border-box", transition:"border-color .15s, box-shadow .15s" };
 
 export default function SaleOrderPage({ user }) {
+  const { can } = usePermission();
+  const canCreate = !!can("pos_sale","create"); // Xác nhận bán
+  const canSave   = !!can("pos_sale","edit");   // Lưu tạm
   const [search,      setSearch]      = useState("");
   const [searchRes,   setSearchRes]   = useState([]);
   const [cart,        setCart]        = useState([]);
@@ -183,6 +187,7 @@ export default function SaleOrderPage({ user }) {
   const total    = Math.max(0, subtotal - (discount||0));
 
   async function handleSubmit() {
+    if (!canCreate) { showToast("⛔ Bạn không có quyền tạo đơn bán", "err"); return; }
     if (!custName.trim()) { showToast("⚠️ Vui lòng nhập tên khách hàng!"); return; }
     if (cart.length===0) { showToast("⚠️ Giỏ hàng trống!"); return; }
     if (!payMethod)       { showToast("⚠️ Chưa chọn hình thức thanh toán!"); return; }
@@ -307,6 +312,7 @@ export default function SaleOrderPage({ user }) {
   }
 
   async function handleSaveDraft() {
+    if (!canSave) { showToast("⛔ Bạn không có quyền lưu tạm đơn", "err"); return; }
     if (!custName.trim()) { showToast("⚠️ Vui lòng nhập tên khách hàng!"); return; }
     if (cart.length === 0) return;
     setSubmitting(true);
@@ -780,7 +786,8 @@ export default function SaleOrderPage({ user }) {
       <div style={{ display:"flex", gap:10, marginBottom:28 }}>
         <button
           onClick={handleSaveDraft}
-          disabled={submitting || cart.length === 0}
+          disabled={submitting || cart.length === 0 || !canSave}
+          title={!canSave ? "Bạn không có quyền Lưu tạm" : ""}
           style={{
             flex:1, height:56, borderRadius:14,
             border:"2px solid #e5e7eb",
@@ -793,17 +800,18 @@ export default function SaleOrderPage({ user }) {
         </button>
         <button
           onClick={handleSubmit}
-          disabled={submitting || cart.length === 0 || !payMethod}
+          disabled={submitting || cart.length === 0 || !payMethod || !canCreate}
+          title={!canCreate ? "Bạn không có quyền tạo đơn" : ""}
           style={{
             flex:2, height:56, borderRadius:14, border:"none",
-            background: (submitting || cart.length === 0 || !payMethod) ? "#d1d5db" : "linear-gradient(135deg,#059669,#047857)",
-            color: (submitting || cart.length === 0 || !payMethod) ? "#9ca3af" : "#fff",
+            background: (submitting || cart.length === 0 || !payMethod || !canCreate) ? "#d1d5db" : "linear-gradient(135deg,#059669,#047857)",
+            color: (submitting || cart.length === 0 || !payMethod || !canCreate) ? "#9ca3af" : "#fff",
             fontWeight:900, fontSize:17, letterSpacing:"0.3px",
-            cursor: (submitting || cart.length === 0 || !payMethod) ? "not-allowed" : "pointer",
+            cursor: (submitting || cart.length === 0 || !payMethod || !canCreate) ? "not-allowed" : "pointer",
             boxShadow: (cart.length > 0 && payMethod) ? "0 4px 16px rgba(5,150,105,.35)" : "none",
             transition:"all .15s",
           }}>
-          {submitting ? "⏳ Đang lưu..." : cart.length === 0 ? "Chưa có sản phẩm" : !payMethod ? "Chọn hình thức TT" : "✅ Xác nhận bán"}
+          {!canCreate ? "🔒 Không có quyền tạo đơn" : submitting ? "⏳ Đang lưu..." : cart.length === 0 ? "Chưa có sản phẩm" : !payMethod ? "Chọn hình thức TT" : "✅ Xác nhận bán"}
         </button>
       </div>
 

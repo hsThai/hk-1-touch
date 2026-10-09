@@ -284,6 +284,8 @@ function DetailContent({ detail, detailItems, onClose, user }) {
 }
 
 export default function SaleHistoryPage({ user }) {
+  const { can: canPerm } = usePermission();
+  const canEditOrd = !!canPerm("pos_orders","edit"); // Sửa / Huỷ / Xác nhận đơn nháp
   const [orders, setOrders]           = useState([]);
   const [loading, setLoading]         = useState(true);
   const [search, setSearch]           = useState("");
@@ -346,6 +348,7 @@ export default function SaleHistoryPage({ user }) {
   function closeDetail() { setDetail(null); setDetailItems([]); }
 
   async function handleConfirmFromHistory(order) {
+    if (!canEditOrd) { alert("⛔ Bạn không có quyền xác nhận đơn"); return; }
     if (!window.confirm(`Xác nhận khách đồng ý đơn ${order.order_code}?`)) return;
     try {
       await SaleOrder.update(order.id, { status: "pending_payment" });
@@ -355,6 +358,7 @@ export default function SaleHistoryPage({ user }) {
   }
 
   async function handleCancelFromHistory(order) {
+    if (!canEditOrd) { alert("⛔ Bạn không có quyền huỷ đơn"); return; }
     if (!window.confirm(`Hủy đơn ${order.order_code}?`)) return;
     try {
       await SaleOrder.update(order.id, { status: "cancelled" });
@@ -443,7 +447,7 @@ export default function SaleHistoryPage({ user }) {
             <div style={{ fontWeight:900, fontSize:17, color:"#059669" }}>{fmtMoney(o.total)}</div>
           </div>
         </div>
-        {o.status === "draft" && (
+        {o.status === "draft" && canEditOrd && (
           <div style={{ display:"flex", gap:8, marginTop:10 }}>
             <button onClick={(e)=>{ e.stopPropagation(); handleCancelFromHistory(o); }}
               style={{ flex:1, padding:"8px", border:"1.5px solid #fca5a5", borderRadius:10,

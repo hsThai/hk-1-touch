@@ -15,10 +15,10 @@ const RESOURCE_META = {
   repair_order:       { label:"Đơn sửa chữa (Tạo đơn · Theo dõi · Danh sách)", module:"Dịch vụ Sửa chữa", icon:"build" },
   repair_order_price: { label:"Báo giá / Duyệt giá sửa chữa",    module:"Dịch vụ Sửa chữa", icon:"request_quote" },
   // ── Bán hàng
-  pos_sale:           { label:"Thu ngân (POS) · Tab Bán hàng",   module:"Bán hàng", icon:"storefront" },
-  pos_orders:         { label:"Thu ngân (POS) · Tab Đơn hàng",   module:"Bán hàng", icon:"receipt_long" },
-  pos_collect:        { label:"Thu ngân (POS) · Tab Thu tiền",   module:"Bán hàng", icon:"payments" },
-  pos_reconcile:      { label:"Thu ngân (POS) · Tab Đối soát",   module:"Bán hàng", icon:"balance" },
+  pos_sale:           { label:"Thu ngân (POS) · Tab Bán hàng",   module:"Bán hàng", icon:"storefront", actions:["can_view","can_create","can_edit"] },
+  pos_orders:         { label:"Thu ngân (POS) · Tab Đơn hàng",   module:"Bán hàng", icon:"receipt_long", actions:["can_view","can_edit","can_delete"] },
+  pos_collect:        { label:"Thu ngân (POS) · Tab Thu tiền",   module:"Bán hàng", icon:"payments", actions:["can_view","can_approve"] },
+  pos_reconcile:      { label:"Thu ngân (POS) · Tab Đối soát",   module:"Bán hàng", icon:"balance", actions:["can_view","can_approve"] },
   sale_order:         { label:"Menu Quản lý đơn bán hàng",       module:"Bán hàng", icon:"receipt_long" },
   return_order:       { label:"Menu Xử lý Đổi trả",              module:"Bán hàng", icon:"swap_horiz" },
   // ── Hàng hóa
@@ -72,6 +72,13 @@ const MODULES   = [
 const byModule  = (mod) =>
   Object.entries(RESOURCE_META).filter(([,v]) => v.module === mod).map(([k]) => k);
 
+// Nhãn thao tác riêng cho từng dòng (override) — để tick "Lưu" thay vì "Sửa" ở tab Bán hàng, v.v.
+const ACTION_OVERRIDE = {
+  pos_sale:      { can_create:"Tạo (Xác nhận bán)", can_edit:"Lưu (Lưu tạm)" },
+  pos_orders:    { can_edit:"Sửa / Huỷ / Xác nhận", can_delete:"Xoá" },
+  pos_collect:   { can_approve:"Xác nhận thu tiền" },
+  pos_reconcile: { can_approve:"Chốt ca" },
+};
 const ACTION_LABELS = [
   { key:"can_view",    short:"Xem",    icon:"visibility" },
   { key:"can_create",  short:"Tạo",    icon:"add_circle" },
@@ -268,10 +275,12 @@ export default function RolePermissionPage() {
     setSaving(p => ({ ...p, [cellKey]: true }));
 
     const existingBefore = permsRef.current[roleKey]?.[resource];
+    const rowActs = RESOURCE_META[resource]?.actions || ACTION_LABELS.map(x=>x.key);
+    const val = k => rowActs.includes(k) ? newVal : !!existingBefore?.[k];
     const nextResourceState = {
       id: existingBefore?.id,
-      can_view: newVal, can_create: newVal, can_edit: newVal,
-      can_delete: newVal, can_approve: newVal, can_export: newVal,
+      can_view: val("can_view"), can_create: val("can_create"), can_edit: val("can_edit"),
+      can_delete: val("can_delete"), can_approve: val("can_approve"), can_export: val("can_export"),
     };
     permsRef.current = {
       ...permsRef.current,
@@ -285,8 +294,8 @@ export default function RolePermissionPage() {
     try {
       const payload = {
         role_key: roleKey, resource,
-        can_view: newVal, can_create: newVal, can_edit: newVal,
-        can_delete: newVal, can_approve: newVal, can_export: newVal,
+        can_view: nextResourceState.can_view, can_create: nextResourceState.can_create, can_edit: nextResourceState.can_edit,
+        can_delete: nextResourceState.can_delete, can_approve: nextResourceState.can_approve, can_export: nextResourceState.can_export,
       };
       if (existingBefore?.id) {
         await RolePermission.update(existingBefore.id, payload);
@@ -563,7 +572,8 @@ export default function RolePermissionPage() {
                       const cellKey   = `${activeRole}/${resKey}`;
                       const isSaving  = !!saving[cellKey];
                       const bg        = isSaving ? "#fffbeb" : ri % 2 === 0 ? "#fff" : "#fafafa";
-                      const allChecked = ACTION_LABELS.every(a => !!current[a.key]);
+                      const rowActs = meta.actions || ACTION_LABELS.map(a=>a.key);
+                      const allChecked = ACTION_LABELS.filter(a=>rowActs.includes(a.key)).every(a => !!current[a.key]);
 
                       function toggleAllForResource() {
                         const newVal = !allChecked;
@@ -620,12 +630,21 @@ export default function RolePermissionPage() {
                               textAlign:"center", padding:"8px 2px",
                               borderTop:"1px solid #f0f0f0",
                             }}>
-                              <input
-                                type="checkbox"
-                                checked={!!current[a.key]}
-                                onChange={e => saveCell(activeRole, resKey, a.key, e.target.checked)}
-                                style={{ width:22, height:22, cursor:"pointer", accentColor:"#4f46e5" }}
-                              />
+                              {rowActs.includes(a.key) ? (
+                                <label title={ACTION_OVERRIDE[resKey]?.[a.key] || a.short} style={{ display:"inline-flex", flexDirection:"column", alignItems:"center", gap:2, cursor:"pointer" }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={!!current[a.key]}
+                                    onChange={e => saveCell(activeRole, resKey, a.key, e.target.checked)}
+                                    style={{ width:22, height:22, cursor:"pointer", accentColor:"#4f46e5" }}
+                                  />
+                                  {ACTION_OVERRIDE[resKey]?.[a.key] && (
+                                    <span style={{ fontSize:9, fontWeight:700, color:"#4f46e5", lineHeight:1.1, maxWidth:64, textAlign:"center" }}>{ACTION_OVERRIDE[resKey][a.key]}</span>
+                                  )}
+                                </label>
+                              ) : (
+                                <span style={{ color:"#d1d5db", fontSize:14 }}>–</span>
+                              )}
                             </td>
                           ))}
                         </tr>
