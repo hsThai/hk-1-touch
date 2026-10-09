@@ -9,7 +9,7 @@ export const PAGE_PERMS = {
   report_staff:    ["kpi", "view"],
   purchase_order:  ["purchase_order", "view"],
   wh_import_ncc:   ["wh_import_ncc", "view"],
-  debt_ncc:        ["debt", "view"],
+  debt_ncc:        ["debt_ncc", "view"],
   return_order:    ["return_order", "view"],
   price_policy:    ["price_policy", "view"],
   product_mgr:     ["product_mgr", "view"],
@@ -96,7 +96,7 @@ export function renderPurchaseNccPages(page, user, can) {
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
         : <WarehouseImport user={user} />
       )}
-      {page === "debt_ncc" && user && (can && !can("debt","view")
+      {page === "debt_ncc" && user && (can && !can("debt_ncc","view")
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
         : <Suspense fallback={<Loading />}><DebtNccPage user={user} /></Suspense>
       )}
@@ -184,11 +184,11 @@ export function renderSalesPages(page, user, can) {
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
         : <Suspense fallback={<Loading />}><WhLedgerPageLazy user={user} /></Suspense>
       )}
-      {page === "wh_defect" && user && (can && !can("stock_import","view")
+      {page === "wh_defect" && user && (can && !can("wh_defect","view")
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
         : <Suspense fallback={<Loading />}><WhDefectPageLazy user={user} /></Suspense>
       )}
-      {page === "wh_shipping" && user && (can && !can("stock_import","view")
+      {page === "wh_shipping" && user && (can && !can("wh_shipping","view")
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
         : <Suspense fallback={<Loading />}><WhShippingPageLazy user={user} /></Suspense>
       )}

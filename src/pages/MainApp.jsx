@@ -1440,13 +1440,13 @@ function MainAppContent({ onUserChange }) {
         { key:"wh_ledger",      icon:"inventory_2",            label:"Tồn kho",          perm:["stock_ledger","view"] },
         { key:"stock_nxt",      icon:"assessment",             label:"Thẻ kho (NXT)",    perm:["stock_card","view"] },
         { key:"stock_count",    icon:"fact_check",             label:"Kiểm kê kho",      perm:["stock_count","view"] },
-        { key:"wh_defect",      icon:"warning",                label:"LK lỗi / RMA",     perm:["stock_import","view"] },
-        { key:"wh_shipping",    icon:"local_shipping",         label:"Vận đơn",          perm:["stock_import","view"] },
+        { key:"wh_defect",      icon:"warning",                label:"LK lỗi / RMA",     perm:["wh_defect","view"] },
+        { key:"wh_shipping",    icon:"local_shipping",         label:"Vận đơn",          perm:["wh_shipping","view"] },
         { key:"wh_report",      icon:"bar_chart",              label:"Báo cáo kho",      perm:["stock_report","view"] },
         // ── Mua hàng (NCC) ──
         { key:"purchase_order", icon:"add_shopping_cart",      label:"Đặt hàng NCC",     perm:["purchase_order","view"] },
-        { key:"wh_import_ncc",  icon:"move_to_inbox",          label:"Nhập hàng (NCC)",  perm:["stock_import","view"] },
-        { key:"debt_ncc",       icon:"account_balance_wallet", label:"Công nợ NCC",      perm:["debt","view"] },
+        { key:"wh_import_ncc",  icon:"move_to_inbox",          label:"Nhập hàng (NCC)",  perm:["wh_import_ncc","view"] },
+        { key:"debt_ncc",       icon:"account_balance_wallet", label:"Công nợ NCC",      perm:["debt_ncc","view"] },
         // ── Đối tác ──
         { key:"suppliers",      icon:"storefront",             label:"Danh sách NCC",    perm:["supplier","view"] },
         { key:"customers",      icon:"group",                  label:"Khách hàng",       perm:["customer","view"] },
@@ -1500,9 +1500,9 @@ function MainAppContent({ onUserChange }) {
     // 5. MUA HÀNG NCC — mỗi mục lọc theo permission riêng (khớp PAGE_PERMS)
     if (can("purchase_order","view") && !isManager)
       items.push({ key:"purchase_order", icon:"add_shopping_cart",      label:"Đặt hàng NCC" });
-    if (can("stock_import","view") && !isManager)
+    if (can("wh_import_ncc","view") && !isManager)
       items.push({ key:"wh_import_ncc",  icon:"move_to_inbox",          label:"Nhập kho (nhận NCC)" });
-    if (can("debt","view") && !isManager)
+    if (can("debt_ncc","view") && !isManager)
       items.push({ key:"debt_ncc",       icon:"account_balance_wallet",  label:"Công nợ NCC" });
     if (can("supplier","view") && !isManager && !isKtv) {
       items.push({ key:"suppliers",      icon:"storefront",              label:"Danh sách NCC" });

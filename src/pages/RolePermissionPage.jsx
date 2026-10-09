@@ -12,57 +12,57 @@ import { STATIC_MATRIX } from "./PermissionContext.jsx";
 const RESOURCE_META = {
   // Mỗi dòng = 1 mục menu / 1 tab, đặt tên & nhóm GIỐNG HỆT sidebar của Quản lý
   // ── Dịch vụ Sửa chữa
-  repair_order:       { label:"Đơn sửa chữa (Tạo đơn · Theo dõi · Danh sách)", module:"Dịch vụ Sửa chữa", icon:"build" },
-  repair_order_price: { label:"Báo giá / Duyệt giá sửa chữa",    module:"Dịch vụ Sửa chữa", icon:"request_quote" },
+  repair_order:       { label:"Đơn sửa chữa (Tạo đơn · Theo dõi · Danh sách)", module:"Dịch vụ Sửa chữa", icon:"build", actions:["can_view","can_create","can_edit","can_delete"] },
+  repair_order_price: { label:"Báo giá / Duyệt giá sửa chữa",    module:"Dịch vụ Sửa chữa", icon:"request_quote", actions:["can_view","can_edit","can_approve"] },
   // ── Bán hàng
   pos_sale:           { label:"Thu ngân (POS) · Tab Bán hàng",   module:"Bán hàng", icon:"storefront", actions:["can_create","can_edit"] },
   pos_orders:         { label:"Thu ngân (POS) · Tab Đơn hàng",   module:"Bán hàng", icon:"receipt_long", actions:["can_view","can_edit","can_delete"] },
   pos_collect:        { label:"Thu ngân (POS) · Tab Thu tiền",   module:"Bán hàng", icon:"payments", actions:["can_view","can_approve"] },
   pos_reconcile:      { label:"Thu ngân (POS) · Tab Đối soát",   module:"Bán hàng", icon:"balance", actions:["can_view","can_approve"] },
-  sale_order:         { label:"Menu Quản lý đơn bán hàng",       module:"Bán hàng", icon:"receipt_long" },
-  return_order:       { label:"Menu Xử lý Đổi trả",              module:"Bán hàng", icon:"swap_horiz" },
+  sale_order:         { label:"Menu Quản lý đơn bán hàng",       module:"Bán hàng", icon:"receipt_long", actions:["can_view"] },
+  return_order:       { label:"Menu Xử lý Đổi trả",              module:"Bán hàng", icon:"swap_horiz", actions:["can_view","can_create"] },
   // ── Hàng hóa
-  product_mgr:        { label:"Menu Danh mục hàng hóa",          module:"Hàng hóa", icon:"inventory_2" },
-  price_policy:       { label:"Menu Chính sách giá",             module:"Hàng hóa", icon:"price_change" },
+  product_mgr:        { label:"Menu Danh mục hàng hóa",          module:"Hàng hóa", icon:"inventory_2", actions:["can_view","can_edit"] },
+  price_policy:       { label:"Menu Chính sách giá",             module:"Hàng hóa", icon:"price_change", actions:["can_view","can_edit"] },
   // ── Kho & Vật tư
-  warehouse_mgr:      { label:"Menu Thiết lập kho",              module:"Kho & Vật tư", icon:"warehouse" },
-  stock_ledger:       { label:"Menu Tồn kho",                    module:"Kho & Vật tư", icon:"inventory_2" },
-  stock_import:       { label:"Menu Nhập kho",                   module:"Kho & Vật tư", icon:"move_to_inbox" },
-  stock_export:       { label:"Menu Xuất kho",                   module:"Kho & Vật tư", icon:"outbox" },
-  pack_order:         { label:"Menu Soạn hàng & Giao nhận · Soạn hàng", module:"Kho & Vật tư", icon:"inventory" },
-  ship_order:         { label:"Menu Soạn hàng & Giao nhận · Giao nhận", module:"Kho & Vật tư", icon:"local_shipping" },
-  stock_card:         { label:"Menu Thẻ kho (NXT)",              module:"Kho & Vật tư", icon:"assessment" },
-  stock_count:        { label:"Menu Kiểm kê kho",                module:"Kho & Vật tư", icon:"fact_check" },
-  wh_defect:          { label:"Menu LK lỗi / RMA",               module:"Kho & Vật tư", icon:"warning" },
-  wh_shipping:        { label:"Menu Vận đơn",                    module:"Kho & Vật tư", icon:"local_shipping" },
-  stock_report:       { label:"Menu Báo cáo kho",                module:"Kho & Vật tư", icon:"bar_chart" },
-  spare_part:         { label:"Linh kiện (dữ liệu dùng trong đơn sửa)", module:"Kho & Vật tư", icon:"memory" },
-  stock_transfer:     { label:"Chuyển kho (trong Thiết lập kho)", module:"Kho & Vật tư", icon:"swap_horiz" },
+  warehouse_mgr:      { label:"Menu Thiết lập kho",              module:"Kho & Vật tư", icon:"warehouse", actions:["can_view"] },
+  stock_ledger:       { label:"Menu Tồn kho",                    module:"Kho & Vật tư", icon:"inventory_2", actions:["can_view"] },
+  stock_import:       { label:"Menu Nhập kho",                   module:"Kho & Vật tư", icon:"move_to_inbox", actions:["can_view"] },
+  stock_export:       { label:"Menu Xuất kho",                   module:"Kho & Vật tư", icon:"outbox", actions:["can_view"] },
+  pack_order:         { label:"Menu Soạn hàng & Giao nhận · Soạn hàng", module:"Kho & Vật tư", icon:"inventory", actions:["can_view","can_edit"] },
+  ship_order:         { label:"Menu Soạn hàng & Giao nhận · Giao nhận", module:"Kho & Vật tư", icon:"local_shipping", actions:["can_view","can_edit"] },
+  stock_card:         { label:"Menu Thẻ kho (NXT)",              module:"Kho & Vật tư", icon:"assessment", actions:["can_view"] },
+  stock_count:        { label:"Menu Kiểm kê kho",                module:"Kho & Vật tư", icon:"fact_check", actions:["can_view","can_create","can_edit","can_approve"] },
+  wh_defect:          { label:"Menu LK lỗi / RMA",               module:"Kho & Vật tư", icon:"warning", actions:["can_view","can_create"] },
+  wh_shipping:        { label:"Menu Vận đơn",                    module:"Kho & Vật tư", icon:"local_shipping", actions:["can_view"] },
+  stock_report:       { label:"Menu Báo cáo kho",                module:"Kho & Vật tư", icon:"bar_chart", actions:["can_view"] },
+  spare_part:         { label:"Linh kiện (dữ liệu dùng trong đơn sửa)", module:"Kho & Vật tư", icon:"memory", actions:["can_view","can_approve"] },
+  stock_transfer:     { label:"Chuyển kho (trong Thiết lập kho)", module:"Kho & Vật tư", icon:"swap_horiz", actions:["can_view","can_create","can_approve"] },
   // ── Mua hàng (NCC)
-  purchase_order:     { label:"Menu Đặt hàng NCC",               module:"Mua hàng (NCC)", icon:"add_shopping_cart" },
-  wh_import_ncc:      { label:"Menu Nhập kho (nhận hàng)",       module:"Mua hàng (NCC)", icon:"move_to_inbox" },
-  debt_ncc:           { label:"Menu Công nợ NCC",                module:"Mua hàng (NCC)", icon:"account_balance_wallet" },
-  supplier:           { label:"Menu Danh sách NCC",              module:"Mua hàng (NCC)", icon:"storefront" },
+  purchase_order:     { label:"Menu Đặt hàng NCC",               module:"Mua hàng (NCC)", icon:"add_shopping_cart", actions:["can_view","can_create","can_edit","can_delete"] },
+  wh_import_ncc:      { label:"Menu Nhập kho (nhận hàng)",       module:"Mua hàng (NCC)", icon:"move_to_inbox", actions:["can_view"] },
+  debt_ncc:           { label:"Menu Công nợ NCC",                module:"Mua hàng (NCC)", icon:"account_balance_wallet", actions:["can_view"] },
+  supplier:           { label:"Menu Danh sách NCC",              module:"Mua hàng (NCC)", icon:"storefront", actions:["can_view","can_edit"] },
   // ── Khách hàng
-  customer:           { label:"Menu Danh sách khách hàng",       module:"Khách hàng", icon:"group" },
+  customer:           { label:"Menu Danh sách khách hàng",       module:"Khách hàng", icon:"group", actions:["can_view"] },
   // ── Kế toán
-  cash_journal:       { label:"Menu Sổ quỹ",                     module:"Kế toán", icon:"menu_book" },
-  debt:               { label:"Menu Công nợ khách hàng",         module:"Kế toán", icon:"account_balance_wallet" },
-  expense:            { label:"Menu Thu / Chi",                  module:"Kế toán", icon:"receipt" },
+  cash_journal:       { label:"Menu Sổ quỹ",                     module:"Kế toán", icon:"menu_book", actions:["can_view","can_create"] },
+  debt:               { label:"Menu Công nợ khách hàng",         module:"Kế toán", icon:"account_balance_wallet", actions:["can_view","can_create","can_edit","can_approve"] },
+  expense:            { label:"Menu Thu / Chi",                  module:"Kế toán", icon:"receipt", actions:["can_view","can_delete","can_approve"] },
   // ── Báo cáo
-  revenue_report:     { label:"Menu Doanh thu",                  module:"Báo cáo", icon:"bar_chart" },
-  profit_report:      { label:"Menu Lợi nhuận",                  module:"Báo cáo", icon:"trending_up" },
-  kpi:                { label:"Menu KPI Nhân viên",              module:"Báo cáo", icon:"people" },
+  revenue_report:     { label:"Menu Doanh thu",                  module:"Báo cáo", icon:"bar_chart", actions:["can_view"] },
+  profit_report:      { label:"Menu Lợi nhuận",                  module:"Báo cáo", icon:"trending_up", actions:["can_view"] },
+  kpi:                { label:"Menu KPI Nhân viên",              module:"Báo cáo", icon:"people", actions:["can_view"] },
   // ── Thiết lập
-  staff:              { label:"Menu Nhân viên",                  module:"Thiết lập", icon:"badge" },
-  department:         { label:"Menu Phòng ban",                  module:"Thiết lập", icon:"account_tree" },
-  role_perm:          { label:"Menu Vai trò & Quyền",            module:"Thiết lập", icon:"admin_panel_settings" },
-  settings:           { label:"Menu Cài đặt cửa hàng",           module:"Thiết lập", icon:"store" },
-  integrations:       { label:"Menu Tích hợp",                   module:"Thiết lập", icon:"cable" },
-  print_settings:     { label:"Menu Mẫu in & Cài đặt",           module:"Thiết lập", icon:"print" },
-  action_log:         { label:"Menu Nhật ký thao tác",           module:"Thiết lập", icon:"history" },
-  media_post:         { label:"Bài đăng / Media",                module:"Thiết lập", icon:"campaign" },
-  notification:       { label:"Thông báo",                       module:"Thiết lập", icon:"notifications" },
+  staff:              { label:"Menu Nhân viên",                  module:"Thiết lập", icon:"badge", actions:["can_view"] },
+  department:         { label:"Menu Phòng ban",                  module:"Thiết lập", icon:"account_tree", actions:["can_view","can_edit"] },
+  role_perm:          { label:"Menu Vai trò & Quyền",            module:"Thiết lập", icon:"admin_panel_settings", actions:["can_view"] },
+  settings:           { label:"Menu Cài đặt cửa hàng",           module:"Thiết lập", icon:"store", actions:["can_view","can_edit"] },
+  integrations:       { label:"Menu Tích hợp",                   module:"Thiết lập", icon:"cable", actions:["can_view"] },
+  print_settings:     { label:"Menu Mẫu in & Cài đặt",           module:"Thiết lập", icon:"print", actions:["can_view"] },
+  action_log:         { label:"Menu Nhật ký thao tác",           module:"Thiết lập", icon:"history", actions:["can_view"] },
+  media_post:         { label:"Bài đăng / Media",                module:"Thiết lập", icon:"campaign", actions:["can_view"] },
+  notification:       { label:"Thông báo",                       module:"Thiết lập", icon:"notifications", actions:["can_view"] },
 };
 
 const MODULES   = [
@@ -631,17 +631,13 @@ export default function RolePermissionPage() {
                               borderTop:"1px solid #f0f0f0",
                             }}>
                               {rowActs.includes(a.key) ? (
-                                <label title={ACTION_OVERRIDE[resKey]?.[a.key] || a.short} style={{ display:"inline-flex", flexDirection:"column", alignItems:"center", gap:2, cursor:"pointer" }}>
-                                  <input
-                                    type="checkbox"
-                                    checked={!!current[a.key]}
-                                    onChange={e => saveCell(activeRole, resKey, a.key, e.target.checked)}
-                                    style={{ width:22, height:22, cursor:"pointer", accentColor:"#4f46e5" }}
-                                  />
-                                  {ACTION_OVERRIDE[resKey]?.[a.key] && (
-                                    <span style={{ fontSize:9, fontWeight:700, color:"#4f46e5", lineHeight:1.1, maxWidth:64, textAlign:"center" }}>{ACTION_OVERRIDE[resKey][a.key]}</span>
-                                  )}
-                                </label>
+                                <input
+                                  type="checkbox"
+                                  title={ACTION_OVERRIDE[resKey]?.[a.key] || a.short}
+                                  checked={!!current[a.key]}
+                                  onChange={e => saveCell(activeRole, resKey, a.key, e.target.checked)}
+                                  style={{ width:22, height:22, cursor:"pointer", accentColor:"#4f46e5", display:"block", margin:"0 auto" }}
+                                />
                               ) : (
                                 <span style={{ color:"#d1d5db", fontSize:14 }}>–</span>
                               )}
