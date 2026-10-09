@@ -4,6 +4,7 @@
  * Tách từ MainApp.jsx để giảm kích thước file
  */
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { ProductThumb } from "./ProductThumb.jsx";
 import {
   RepairChat, Notification, Staff, RepairOrder, Customer,
   SparePart, StockExportRequest, StockImport, StockImportItem,
@@ -536,7 +537,7 @@ function WarehouseExport({ user }) {
               <div style={{ fontWeight:800, fontSize:14, color:"#1e1b4b", marginBottom:8 }}>Danh sách linh kiện</div>
               {(Array.isArray(viewReq.items)?viewReq.items:viewReq.items?JSON.parse(viewReq.items):[]).map((item,i) => (
                 <div key={i} style={{ background:"#f3f4f6", borderRadius:10, padding:"8px 12px", marginBottom:6, display:"flex", justifyContent:"space-between", fontSize:13 }}>
-                  <div><div style={{fontWeight:700}}>{item.part_name}</div>{item.sku&&<div style={{color:"#6b7280",fontSize:12}}>SKU: {item.sku}</div>}</div>
+                  <div style={{display:"flex",alignItems:"center",gap:10}}><ProductThumb partId={item.part_id} sku={item.sku} size={40} /><div><div style={{fontWeight:700}}>{item.part_name}</div>{item.sku&&<div style={{color:"#6b7280",fontSize:12}}>SKU: {item.sku}</div>}</div></div>
                   <div style={{textAlign:"right"}}><div style={{fontWeight:800,color:"#4f46e5"}}>{(item.total_price||0).toLocaleString("vi-VN")}đ</div><div style={{color:"#6b7280",fontSize:12}}>×{item.qty}</div></div>
                 </div>
               ))}
@@ -634,10 +635,15 @@ function PartNameInput({ value, onChange, parts=[], placeholder="Tên hàng...",
               onMouseEnter={e=>e.currentTarget.style.background="#f5f3ff"}
               onMouseLeave={e=>e.currentTarget.style.background="#fff"}
             >
+              <div style={{ display:"flex", alignItems:"center", gap:9 }}>
+                <ProductThumb partId={p.id} sku={p.sku} size={34} zoom={false} />
+                <div style={{ minWidth:0 }}>
               <div style={{ fontWeight:600, fontSize:13 }}>{p.name}</div>
               <div style={{ fontSize:11, color:"#9ca3af" }}>
                 {p.sku ? `SKU: ${p.sku}` : ""}
                 {(p.cost_price ?? p.price) ? `  •  ${((p.cost_price ?? p.price)||0).toLocaleString("vi")}đ` : ""}
+              </div>
+                </div>
               </div>
             </div>
           ))}

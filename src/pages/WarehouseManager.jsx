@@ -4,6 +4,7 @@
  * Quản lý kho đa điểm — Kho / Zone / Kệ / Tồn kho / Nhập / Xuất / Chuyển / Kiểm kho
  */
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { ProductThumb } from "./ProductThumb.jsx";
 import { getPbUrl, getAuth, logAction } from "./pb.jsx";
 import { usePermission } from "./PermissionContext.jsx";
 import StockCountPage from "./StockCountPage.jsx";
@@ -815,6 +816,7 @@ function StockLedgerTab({ user, toast }) {
                 {productGroups.slice(0, shown).map(g=>(
                   <div key={g.key} style={{ background:"#fff", border:"1px solid #e5e7eb", borderLeft:"4px solid #4f46e5", borderRadius:12, padding:"12px 14px" }}>
                     <div style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
+                      <ProductThumb partId={g.items?.[0]?.part_id} sku={g.sku} size={48} />
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ fontWeight:700, fontSize:14, color:"#111827", lineHeight:1.35, wordBreak:"break-word" }}>{g.name}</div>
                         {g.sku && <code style={{ display:"inline-block", marginTop:6, fontSize:11, background:"#f3f4f6", padding:"2px 6px", borderRadius:4, color:"#374151" }}>{g.sku}</code>}

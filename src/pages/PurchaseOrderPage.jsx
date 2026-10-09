@@ -1,5 +1,6 @@
 /* PurchaseOrderPage.jsx — Đặt hàng NCC — HK One Touch */
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { ProductThumb } from "./ProductThumb.jsx";
 import { PurchaseOrder, PurchaseOrderItem, SparePart, Supplier, logAction } from "./pb.jsx";
 import { usePermission } from "./PermissionContext.jsx";
 
@@ -359,7 +360,7 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
                     </>
                   ) : (
                     <div>
-                      <div style={{fontWeight:600}}>{row.part_name}</div>
+                      <div style={{display:"flex",alignItems:"center",gap:8}}><ProductThumb partId={row.part_id} sku={row.sku} size={34} /><div style={{fontWeight:600}}>{row.part_name}</div></div>
                       {row.sku&&<div style={{fontSize:11,color:"#9ca3af"}}>SKU: {row.sku}</div>}
                     </div>
                   )}
@@ -443,7 +444,7 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
                       const diff = (row.qty_received||0)-(row.qty_ordered||0);
                       return (
                         <tr key={row.id} style={{borderBottom:"1px solid #f3f4f6"}}>
-                          <td style={{padding:"8px 10px",fontWeight:600}}>{row.part_name}</td>
+                          <td style={{padding:"8px 10px",fontWeight:600}}><div style={{display:"flex",alignItems:"center",gap:8}}><ProductThumb partId={row.part_id} sku={row.sku} size={34} />{row.part_name}</div></td>
                           <td style={{padding:"8px 10px",textAlign:"center"}}>{row.qty_ordered}</td>
                           <td style={{padding:"8px 10px",textAlign:"center",fontWeight:700}}>{row.qty_received||0}</td>
                           <td style={{padding:"8px 10px",textAlign:"center"}}>

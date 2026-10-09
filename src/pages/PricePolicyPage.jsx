@@ -3,6 +3,7 @@
  * @version 2026-08-18-v2 — dropdown danh mục đầy đủ (ProductCategory entity)
  */
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { ProductThumb } from "./ProductThumb.jsx";
 import { SparePart, ProductCategory, logAction } from "./pb.jsx";
 import { usePermission } from "./PermissionContext.jsx";
 
@@ -178,7 +179,12 @@ export default function PricePolicyPage({ user }) {
                   : null;
                 return (
                   <tr key={item.id} style={{ borderBottom:"1px solid #f3f4f6" }}>
-                    <td style={{ padding:"10px 14px", fontWeight:600, color:"#1f2937" }}>{item.name}</td>
+                    <td style={{ padding:"10px 14px", fontWeight:600, color:"#1f2937" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                        <ProductThumb partId={item.id} sku={item.sku} size={36} />
+                        <span>{item.name}</span>
+                      </div>
+                    </td>
                     <td style={{ padding:"10px 14px", color:"#9ca3af", fontFamily:"monospace" }}>{item.sku || "—"}</td>
                     <td style={{ padding:"10px 14px", color:"#6b7280" }}>
                       {catLabel(item.category)}

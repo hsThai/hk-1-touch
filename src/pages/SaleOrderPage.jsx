@@ -1,5 +1,6 @@
 /* SaleOrderPage.jsx — POS bán hàng lẻ */
 import React, { useState, useEffect, useRef } from "react";
+import { ProductThumb } from "./ProductThumb.jsx";
 import { SparePart, SaleOrder, SaleOrderItem, StockMovement, StockLedger, AppSettings, Customer , DebtVoucher, CashJournal, logAction, notifyRoles, sortNewestFirst } from "./pb.jsx";
 import { previewSaleReceipt } from "../utils/printClient.js";
 
@@ -527,9 +528,12 @@ export default function SaleOrderPage({ user }) {
                 style={{ padding:"12px 16px", cursor:p.stock_qty>0?"pointer":"not-allowed",
                   borderBottom:"1px solid #f3f4f6", opacity:p.stock_qty>0?1:0.5,
                   display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                <div>
+                <div style={{ display:"flex", alignItems:"center", gap:10, minWidth:0 }}>
+                  <ProductThumb partId={p.id} sku={p.sku} size={44} zoom={false} />
+                  <div style={{ minWidth:0 }}>
                   <div style={{ fontWeight:700, fontSize:14 }}>{p.name}</div>
                   <div style={{ fontSize:12, color:"#6b7280" }}>{p.sku} · {fmtMoney(p.price)}</div>
+                </div>
                 </div>
                 {p.stock_qty>0
                   ? <span style={{ fontSize:12, background:"#dcfce7", color:"#059669", borderRadius:99, padding:"2px 10px", fontWeight:700 }}>Còn {p.stock_qty}</span>
@@ -567,6 +571,7 @@ export default function SaleOrderPage({ user }) {
           {cart.map((item,idx) => (
             <div key={idx} style={{ padding:"12px 16px", borderBottom:"1px solid #f3f4f6",
               display:"flex", alignItems:"center", gap:10 }}>
+              <ProductThumb partId={item.part_id} sku={item.sku} size={48} />
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontWeight:700, fontSize:13, marginBottom:4 }}>{item.part_name}</div>
                 <div style={{ display:"flex", alignItems:"center", gap:8 }}>

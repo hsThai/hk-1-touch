@@ -12,6 +12,7 @@
  *   - Gửi notification cho người bước tiếp theo
  */
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { ProductThumb } from "./ProductThumb.jsx";
 import {
   SaleOrder, SaleOrderItem, Staff, Notification, OrderHistory,
   logAction, logHistory, uploadFile, normalizePbUrl, notifyLeaderOf,
@@ -394,6 +395,7 @@ function PickingModal({ order, user, onDone, onClose, showToast }) {
                     background: done ? "#059669" : "#e5e7eb", color: done ? "#fff" : "#9ca3af",
                     display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 14,
                   }}>{done ? "✓" : i + 1}</div>
+                  <ProductThumb partId={r.part_id} sku={r.sku} size={56} radius={10} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{
                       fontWeight: 700, fontSize: 14, color: "#1f2937",

@@ -9,6 +9,7 @@
  *  - Không tìm thấy            → gán QR cho đơn sửa mới
  */
 import React, { useState, useCallback } from "react";
+import { ProductThumb } from "./ProductThumb.jsx";
 import { ScanCodeModal, normalizeScanCode } from "./QRComponents.jsx";
 import { SaleOrder, SaleOrderItem, SparePart, SparePartUsage, RepairOrder, logAction } from "./pb.jsx";
 import { printSaleReceiptA5 } from "../utils/printClient.js";
@@ -288,7 +289,7 @@ export default function SmartScanModal({ user, orders = [], onClose,
               sub={res.topSale.order_code}>
               {res.kind === "sold" && (
                 <div style={{ background:"#ecfdf5", borderRadius:12, padding:"12px 14px", marginBottom:10 }}>
-                  <div style={{ fontWeight:800, fontSize:15, color:"#065f46" }}>{res.part.name}</div>
+                  <div style={{ display:"flex", alignItems:"center", gap:10 }}><ProductThumb partId={res.part.id} sku={res.part.sku} size={48} /><div style={{ fontWeight:800, fontSize:15, color:"#065f46" }}>{res.part.name}</div></div>
                   <div style={{ fontSize:12, color:"#059669", marginTop:3 }}>SKU/IMEI: {res.part.sku}</div>
                 </div>
               )}
@@ -336,7 +337,7 @@ export default function SmartScanModal({ user, orders = [], onClose,
             <Card icon="build_circle" tint={["#4f46e5","#7c3aed"]} title="Linh kiện đã dùng sửa"
               sub={res.part.name}>
               <div style={{ background:"#eef2ff", borderRadius:12, padding:"12px 14px", marginBottom:12 }}>
-                <div style={{ fontWeight:800, fontSize:15, color:"#312e81" }}>{res.part.name}</div>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}><ProductThumb partId={res.part.id} sku={res.part.sku} size={48} /><div style={{ fontWeight:800, fontSize:15, color:"#312e81" }}>{res.part.name}</div></div>
                 <div style={{ fontSize:12, color:"#4f46e5", marginTop:3 }}>SKU: {res.part.sku}</div>
               </div>
               <div style={{ fontSize:12, color:"#9ca3af", fontWeight:700, marginBottom:6 }}>Đã dùng trong {res.repairOrders.length} đơn sửa:</div>
@@ -370,7 +371,7 @@ export default function SmartScanModal({ user, orders = [], onClose,
           {res.kind === "stock" && (
             <Card icon="inventory_2" tint={["#0369a1","#0284c7"]} title="Hàng trong kho" sub="Chưa bán — chọn hành động">
               <div style={{ background:"#e0f2fe", borderRadius:12, padding:"12px 14px", marginBottom:14 }}>
-                <div style={{ fontWeight:800, fontSize:15, color:"#0369a1", marginBottom:4 }}>{res.part.name}</div>
+                <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}><ProductThumb partId={res.part.id} sku={res.part.sku} size={48} /><div style={{ fontWeight:800, fontSize:15, color:"#0369a1" }}>{res.part.name}</div></div>
                 <div style={{ fontSize:12, color:"#0369a1" }}>SKU/IMEI: {res.part.sku}</div>
                 <div style={{ fontSize:12, color:"#0369a1", marginTop:2 }}>Tồn: {res.part.stock_qty||0} · Giá: {fmtMoney(res.part.price)}</div>
               </div>
