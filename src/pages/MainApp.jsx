@@ -2245,6 +2245,105 @@ function MainAppContent({ onUserChange }) {
         </div>
       </div>
     )}
+
+      {/* Notification panel */}
+      {showNotif && (
+        <div style={{ position:"fixed", inset:0, zIndex:300 }}>
+          <div style={{ position:"absolute", inset:0 }} onClick={() => setShowNotif(false)} />
+          <div style={{ position:"absolute", top:60, right:8, width:320, background:"#fff", borderRadius:16, boxShadow:"0 8px 32px rgba(0,0,0,.2)", overflow:"hidden" }}>
+            <div style={{ padding:"14px 16px", fontWeight:800, borderBottom:"1px solid #f3f4f6", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <span><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle",lineHeight:1}}>notifications</span> Thông báo</span>
+              {(notifications.length+dbNotifications.length)>0 && (
+                <button onClick={() => {
+                  setNotifications([]);
+                  dbNotifications.forEach(n => Notification.update(n.id, { is_read: true }).catch(()=>{}));
+                  setDbNotifications([]);
+                  setShowNotif(false);
+                }} style={{ fontSize:11, background:"#f3f4f6", border:"none", borderRadius:8, padding:"4px 10px", cursor:"pointer", color:"#6b7280", fontWeight:600 }}>Đọc tất cả</button>
+              )}
+            </div>
+            <div style={{ maxHeight:400, overflowY:"auto" }}>
+              {notifications.length===0 && dbNotifications.length===0 && (
+                <div style={{ padding:24, textAlign:"center", color:"#9ca3af", fontSize:13 }}>Không có thông báo mới</div>
+              )}
+              {/* Merge local + DB notifications, sort mới nhất lên trên */}
+              {[
+                ...notifications.map(n => ({ _type:"local", _time: new Date(n.time||0).getTime(), ...n })),
+                ...dbNotifications.map(n => ({ _type:"db",    _time: new Date(n.created_date||n.updated_date||0).getTime(), ...n })),
+              ].sort((a,b) => b._time - a._time).map(n => n._type === "local" ? (
+                <div key={"loc_"+n.id} style={{ padding:"12px 16px", borderBottom:"1px solid #f9fafb", fontSize:13, display:"flex", gap:10, alignItems:"flex-start", background:"#fffbeb" }}>
+                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:"#d97706",marginTop:1,flexShrink:0}}>info</span>
+                  <div style={{ flex:1 }}>
+                    <div>{n.msg}</div>
+                    <div style={{ color:"#9ca3af", fontSize:11, marginTop:2 }}>{timeAgo(n.time)}</div>
+                  </div>
+                  <button onClick={() => setNotifications(p => p.filter(x=>x.id!==n.id))}
+                    style={{ background:"none", border:"none", cursor:"pointer", color:"#9ca3af", padding:2, flexShrink:0 }}>
+                    <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16}}>close</span>
+                  </button>
+                </div>
+              ) : (
+                <SwipeableNotif key={"db_"+n.id} notif={n}
+                  onDelete={() => {
+                    Notification.update(n.id, { is_read: true }).catch(()=>{});
+                    setDbNotifications(p => p.filter(x=>x.id!==n.id));
+                  }}
+                  onClick={async () => {
+                    Notification.update(n.id, { is_read: true }).catch(()=>{});
+                    setDbNotifications(p => p.filter(x=>x.id!==n.id));
+                    setShowNotif(false);
+                    const targetId   = n.order_id;
+                    const targetCode = n.order_code;
+
+                    // Thông báo soạn hàng/giao hàng (pack_ship) → nhảy thẳng vào đơn đó
+                    // ở trang "Soạn hàng & Giao nhận" (SaleOrder, không phải RepairOrder)
+                    if (n.type === "pack_ship") {
+                      setPage("pack_ship");
+                      setFocusOrderCode(targetCode || targetId || "");
+                      return;
+                    }
+
+                    if (targetId || targetCode) {
+                      try {
+                        let mapped = null;
+                        if (targetId)   mapped = orders.find(o => o._id === targetId);
+                        if (!mapped && targetCode) mapped = orders.find(o => o.id === targetCode || o.qr_code === targetCode);
+                        if (!mapped && targetId) {
+                          const raw = await RepairOrder.get(targetId);
+                          if (raw) mapped = mapPbOrder(raw, STATUS_DISPLAY, PRIORITY_DISPLAY);
+                        }
+                        if (mapped) {
+                          // Xác định tab cần mở theo loại thông báo
+                          const NOTIF_TAB_MAP = {
+                            "mention":        "chat",
+                            "chat":           "chat",
+                            "export_ready":   "exports",
+                            "export_deadline":"exports",
+                            "export_overdue": "exports",
+                            "assign":         "info",
+                            "new_order":      "info",
+                            "kpi_reminder":   "info",
+                            "kpi_penalty":    "info",
+                            "needs_reassign": "info",
+                            "status_change":  "info",
+                          };
+                          const openTab = NOTIF_TAB_MAP[n.type] || (["mention","chat"].includes(n.type) ? "chat" : "info");
+                          if (user?.role === "technician") setPage("tasks");
+                          else setPage("board");
+                          setTimeout(() => {
+                            setSelectedOrderSync({ ...mapped, _openTab: openTab });
+                          }, 150);
+                        }
+                      } catch {}
+                    }
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
     {!isPC && (
     <div style={{ minHeight:"100vh", width:"100%", maxWidth:"100vw", background:"#f8fafc", fontFamily:"system-ui,-apple-system,sans-serif", overflowX:"hidden" }}>
       {/* Header */}
@@ -2355,103 +2454,6 @@ function MainAppContent({ onUserChange }) {
         </div>
       )}
 
-      {/* Notification panel */}
-      {showNotif && (
-        <div style={{ position:"fixed", inset:0, zIndex:300 }}>
-          <div style={{ position:"absolute", inset:0 }} onClick={() => setShowNotif(false)} />
-          <div style={{ position:"absolute", top:60, right:8, width:320, background:"#fff", borderRadius:16, boxShadow:"0 8px 32px rgba(0,0,0,.2)", overflow:"hidden" }}>
-            <div style={{ padding:"14px 16px", fontWeight:800, borderBottom:"1px solid #f3f4f6", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <span><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle",lineHeight:1}}>notifications</span> Thông báo</span>
-              {(notifications.length+dbNotifications.length)>0 && (
-                <button onClick={() => {
-                  setNotifications([]);
-                  dbNotifications.forEach(n => Notification.update(n.id, { is_read: true }).catch(()=>{}));
-                  setDbNotifications([]);
-                  setShowNotif(false);
-                }} style={{ fontSize:11, background:"#f3f4f6", border:"none", borderRadius:8, padding:"4px 10px", cursor:"pointer", color:"#6b7280", fontWeight:600 }}>Đọc tất cả</button>
-              )}
-            </div>
-            <div style={{ maxHeight:400, overflowY:"auto" }}>
-              {notifications.length===0 && dbNotifications.length===0 && (
-                <div style={{ padding:24, textAlign:"center", color:"#9ca3af", fontSize:13 }}>Không có thông báo mới</div>
-              )}
-              {/* Merge local + DB notifications, sort mới nhất lên trên */}
-              {[
-                ...notifications.map(n => ({ _type:"local", _time: new Date(n.time||0).getTime(), ...n })),
-                ...dbNotifications.map(n => ({ _type:"db",    _time: new Date(n.created_date||n.updated_date||0).getTime(), ...n })),
-              ].sort((a,b) => b._time - a._time).map(n => n._type === "local" ? (
-                <div key={"loc_"+n.id} style={{ padding:"12px 16px", borderBottom:"1px solid #f9fafb", fontSize:13, display:"flex", gap:10, alignItems:"flex-start", background:"#fffbeb" }}>
-                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:"#d97706",marginTop:1,flexShrink:0}}>info</span>
-                  <div style={{ flex:1 }}>
-                    <div>{n.msg}</div>
-                    <div style={{ color:"#9ca3af", fontSize:11, marginTop:2 }}>{timeAgo(n.time)}</div>
-                  </div>
-                  <button onClick={() => setNotifications(p => p.filter(x=>x.id!==n.id))}
-                    style={{ background:"none", border:"none", cursor:"pointer", color:"#9ca3af", padding:2, flexShrink:0 }}>
-                    <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16}}>close</span>
-                  </button>
-                </div>
-              ) : (
-                <SwipeableNotif key={"db_"+n.id} notif={n}
-                  onDelete={() => {
-                    Notification.update(n.id, { is_read: true }).catch(()=>{});
-                    setDbNotifications(p => p.filter(x=>x.id!==n.id));
-                  }}
-                  onClick={async () => {
-                    Notification.update(n.id, { is_read: true }).catch(()=>{});
-                    setDbNotifications(p => p.filter(x=>x.id!==n.id));
-                    setShowNotif(false);
-                    const targetId   = n.order_id;
-                    const targetCode = n.order_code;
-
-                    // Thông báo soạn hàng/giao hàng (pack_ship) → nhảy thẳng vào đơn đó
-                    // ở trang "Soạn hàng & Giao nhận" (SaleOrder, không phải RepairOrder)
-                    if (n.type === "pack_ship") {
-                      setPage("pack_ship");
-                      setFocusOrderCode(targetCode || targetId || "");
-                      return;
-                    }
-
-                    if (targetId || targetCode) {
-                      try {
-                        let mapped = null;
-                        if (targetId)   mapped = orders.find(o => o._id === targetId);
-                        if (!mapped && targetCode) mapped = orders.find(o => o.id === targetCode || o.qr_code === targetCode);
-                        if (!mapped && targetId) {
-                          const raw = await RepairOrder.get(targetId);
-                          if (raw) mapped = mapPbOrder(raw, STATUS_DISPLAY, PRIORITY_DISPLAY);
-                        }
-                        if (mapped) {
-                          // Xác định tab cần mở theo loại thông báo
-                          const NOTIF_TAB_MAP = {
-                            "mention":        "chat",
-                            "chat":           "chat",
-                            "export_ready":   "exports",
-                            "export_deadline":"exports",
-                            "export_overdue": "exports",
-                            "assign":         "info",
-                            "new_order":      "info",
-                            "kpi_reminder":   "info",
-                            "kpi_penalty":    "info",
-                            "needs_reassign": "info",
-                            "status_change":  "info",
-                          };
-                          const openTab = NOTIF_TAB_MAP[n.type] || (["mention","chat"].includes(n.type) ? "chat" : "info");
-                          if (user?.role === "technician") setPage("tasks");
-                          else setPage("board");
-                          setTimeout(() => {
-                            setSelectedOrderSync({ ...mapped, _openTab: openTab });
-                          }, 150);
-                        }
-                      } catch {}
-                    }
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Search + Tạo đơn bar (chỉ hiện ở board/tasks) */}
       {(page==="board"||page==="tasks") && (
