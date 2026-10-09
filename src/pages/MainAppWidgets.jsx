@@ -40,8 +40,8 @@ export const PAGE_PERMS = {
   wh_report:       ["stock_report", "view"],
   wh_orders:       ["repair_order", "view"],
   wh_home:         ["repair_order", "view"],
-  new:             ["repair_order", "create"],
-  board:           ["repair_order", "view"],
+  board:           ["repair_board", "view"],
+  new:             ["repair_create", "create"],
   tasks:           ["repair_order", "view"],
   cashier_home:    ["pos_sale", "view"],  // placeholder: cong that su xu ly o duoi (any-of 4 tab POS)
 };

@@ -12,8 +12,9 @@ import { STATIC_MATRIX } from "./PermissionContext.jsx";
 const RESOURCE_META = {
   // Mỗi dòng = 1 mục menu / 1 tab, đặt tên & nhóm GIỐNG HỆT sidebar của Quản lý
   // ── Dịch vụ Sửa chữa
-  repair_order:       { label:"Đơn sửa chữa (Tạo đơn · Theo dõi · Danh sách)", module:"Dịch vụ Sửa chữa", icon:"build", actions:["can_view","can_create","can_edit","can_delete"] },
-  repair_order_price: { label:"Báo giá / Duyệt giá sửa chữa",    module:"Dịch vụ Sửa chữa", icon:"request_quote", actions:["can_view","can_edit","can_approve"] },
+  repair_create:      { label:"Menu Tạo đơn",                    module:"Dịch vụ Sửa chữa", icon:"add_circle", actions:["can_create"] },
+  repair_board:       { label:"Menu Theo dõi đơn sửa",           module:"Dịch vụ Sửa chữa", icon:"view_kanban", actions:["can_view"] },
+  repair_order:       { label:"Menu Danh sách & Lịch sử đơn",    module:"Dịch vụ Sửa chữa", icon:"list_alt", actions:["can_view","can_edit","can_delete"] },
   // ── Bán hàng
   pos_sale:           { label:"Thu ngân (POS) · Tab Bán hàng",   module:"Bán hàng", icon:"storefront", actions:["can_create","can_edit"] },
   pos_orders:         { label:"Thu ngân (POS) · Tab Đơn hàng",   module:"Bán hàng", icon:"receipt_long", actions:["can_view","can_edit","can_delete"] },

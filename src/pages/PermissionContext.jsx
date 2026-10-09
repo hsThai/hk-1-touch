@@ -19,7 +19,8 @@ import { Role, RolePermission } from "./pb.jsx";
 // Tài nguyên hệ thống
 const RESOURCES = [
   "repair_order",      // Đơn sửa chữa
-  "repair_order_price",// Báo giá / duyệt giá
+  "repair_create",     // Menu Tạo đơn
+  "repair_board",      // Menu Theo dõi đơn sửa
   "spare_part",        // Linh kiện
   "stock_export",      // Xuất kho
   "stock_import",      // Nhập kho
@@ -60,7 +61,8 @@ const STATIC_MATRIX = {
   // ── OWNER: toàn quyền ──────────────────────────────────
   owner: {
     repair_order:       p(1,1,1,1,1,1),
-    repair_order_price: p(1,1,1,1,1,1),
+    repair_create:      p(1,1,1,1,1,1),
+    repair_board:       p(1,1,1,1,1,1),
     spare_part:         p(1,1,1,1,1,1),
     stock_export:       p(1,1,1,1,1,1),
     stock_import:       p(1,1,1,1,1,1),
@@ -92,7 +94,8 @@ const STATIC_MATRIX = {
   // ── ADMIN: giống owner, trừ một vài setting nhạy cảm ──
   admin: {
     repair_order:       p(1,1,1,1,1,1),
-    repair_order_price: p(1,1,1,1,1,1),
+    repair_create:      p(1,1,1,1,1,1),
+    repair_board:       p(1,1,1,1,1,1),
     spare_part:         p(1,1,1,1,1,1),
     stock_export:       p(1,1,1,1,1,1),
     stock_import:       p(1,1,1,1,1,1),
@@ -124,7 +127,8 @@ const STATIC_MATRIX = {
   // ── MANAGER: quản lý tổng ──────────────────────────────
   manager: {
     repair_order:       p(1,1,1,1,1,1),
-    repair_order_price: p(1,1,1,0,1,0),
+    repair_create:      p(1,1,1,1,1,1),
+    repair_board:       p(1,1,1,1,1,1),
     spare_part:         p(1,1,1,0,1,1),
     stock_export:       p(1,1,1,0,1,1),
     stock_import:       p(1,1,0,0,1,1),
@@ -156,7 +160,8 @@ const STATIC_MATRIX = {
   // ── RECEPTIONIST: Giao dịch viên ─────────────────────────────
   receptionist: {
     repair_order:       p(1,1,1,0,0,1),
-    repair_order_price: p(1,1,0,0,0,0),
+    repair_create:      p(1,1,1,0,0,1),
+    repair_board:       p(1,1,1,0,0,1),
     spare_part:         p(1,0,0,0,0,0),
     stock_export:       p(1,1,0,0,0,0),
     stock_import:       p(0,0,0,0,0,0),
@@ -188,7 +193,8 @@ const STATIC_MATRIX = {
   // ── TECHNICIAN: kỹ thuật viên ─────────────────────────
   technician: {
     repair_order:       p(1,0,1,0,0,0), // chỉ xem đơn được assign
-    repair_order_price: p(1,1,0,0,0,0), // nhập giá, không duyệt
+    repair_create:      p(1,0,1,0,0,0),
+    repair_board:       p(1,0,1,0,0,0),
     spare_part:         p(1,0,0,0,0,0),
     stock_export:       p(1,1,0,0,0,0), // yêu cầu xuất kho
     stock_import:       p(0,0,0,0,0,0),
@@ -219,7 +225,8 @@ const STATIC_MATRIX = {
 
   mm_tech: {
     repair_order:       p(1,0,1,0,0,0), // chỉ xem đơn được assign
-    repair_order_price: p(1,1,0,0,0,0), // nhập giá, không duyệt
+    repair_create:      p(1,0,1,0,0,0),
+    repair_board:       p(1,0,1,0,0,0),
     spare_part:         p(1,0,0,0,0,0),
     stock_export:       p(1,1,0,0,0,0), // yêu cầu xuất kho
     stock_import:       p(0,0,0,0,0,0),
@@ -252,7 +259,8 @@ const STATIC_MATRIX = {
   // ── WAREHOUSE: thủ kho ────────────────────────────────
   warehouse: {
     repair_order:       p(1,0,0,0,0,0),
-    repair_order_price: p(0,0,0,0,0,0),
+    repair_create:      p(1,0,0,0,0,0),
+    repair_board:       p(1,0,0,0,0,0),
     spare_part:         p(1,1,1,0,0,1),
     stock_export:       p(1,0,1,0,1,1), // xác nhận xuất
     stock_import:       p(1,1,1,0,1,1),
@@ -284,7 +292,8 @@ const STATIC_MATRIX = {
   // ── CASHIER: thu ngân ────────────────────────────────
   cashier: {
     repair_order:       p(1,0,0,0,0,1),
-    repair_order_price: p(1,0,0,0,0,0),
+    repair_create:      p(1,0,0,0,0,1),
+    repair_board:       p(1,0,0,0,0,1),
     spare_part:         p(1,0,0,0,0,0),
     stock_export:       p(0,0,0,0,0,0),
     stock_import:       p(0,0,0,0,0,0),
@@ -316,7 +325,8 @@ const STATIC_MATRIX = {
   // ── ACCOUNTANT: kế toán ──────────────────────────────
   accountant: {
     repair_order:       p(1,0,0,0,0,1),
-    repair_order_price: p(1,0,0,0,0,0),
+    repair_create:      p(1,0,0,0,0,1),
+    repair_board:       p(1,0,0,0,0,1),
     spare_part:         p(1,0,0,0,0,1),
     stock_export:       p(1,0,0,0,0,1),
     stock_import:       p(1,0,0,0,0,1),
@@ -348,7 +358,8 @@ const STATIC_MATRIX = {
   // ── VIEWER: chỉ xem ──────────────────────────────────
   viewer: {
     repair_order:       p(1,0,0,0,0,0),
-    repair_order_price: p(1,0,0,0,0,0),
+    repair_create:      p(1,0,0,0,0,0),
+    repair_board:       p(1,0,0,0,0,0),
     spare_part:         p(1,0,0,0,0,0),
     stock_export:       p(1,0,0,0,0,0),
     stock_import:       p(1,0,0,0,0,0),
@@ -380,7 +391,8 @@ const STATIC_MATRIX = {
   // ── SUPPORT: hỗ trợ kỹ thuật ─────────────────────────
   support: {
     repair_order:       p(1,1,1,0,0,0),
-    repair_order_price: p(1,0,0,0,0,0),
+    repair_create:      p(1,1,1,0,0,0),
+    repair_board:       p(1,1,1,0,0,0),
     spare_part:         p(1,0,0,0,0,0),
     stock_export:       p(1,1,0,0,0,0),
     stock_import:       p(0,0,0,0,0,0),
@@ -412,7 +424,8 @@ const STATIC_MATRIX = {
   // ── DELIVERY: giao nhận ───────────────────────────────
   delivery: {
     repair_order:       p(1,0,1,0,0,0), // update done_date, handover
-    repair_order_price: p(0,0,0,0,0,0),
+    repair_create:      p(1,0,1,0,0,0),
+    repair_board:       p(1,0,1,0,0,0),
     spare_part:         p(0,0,0,0,0,0),
     stock_export:       p(1,0,0,0,0,0),
     stock_import:       p(0,0,0,0,0,0),
@@ -444,7 +457,8 @@ const STATIC_MATRIX = {
   // ── MARKETING: marketing ─────────────────────────────
   marketing: {
     repair_order:       p(1,0,0,0,0,1),
-    repair_order_price: p(0,0,0,0,0,0),
+    repair_create:      p(1,0,0,0,0,1),
+    repair_board:       p(1,0,0,0,0,1),
     spare_part:         p(1,0,0,0,0,0),
     stock_export:       p(0,0,0,0,0,0),
     stock_import:       p(0,0,0,0,0,0),
@@ -476,7 +490,8 @@ const STATIC_MATRIX = {
   // ── SALES_REP: NV bán hàng ─────────────────────────────
   sales_rep: {
     repair_order:       p(1,1,0,0,0,1),
-    repair_order_price: p(1,1,0,0,0,0),
+    repair_create:      p(1,1,0,0,0,1),
+    repair_board:       p(1,1,0,0,0,1),
     spare_part:         p(1,0,0,0,0,0),
     stock_export:       p(1,0,0,0,0,0),
     stock_import:       p(0,0,0,0,0,0),
@@ -508,7 +523,8 @@ const STATIC_MATRIX = {
   // ── PACKER: NV soạn đóng hàng ─────────────────────────
   packer: {
     repair_order:       p(1,0,0,0,0,0),
-    repair_order_price: p(0,0,0,0,0,0),
+    repair_create:      p(1,0,0,0,0,0),
+    repair_board:       p(1,0,0,0,0,0),
     spare_part:         p(1,0,0,0,0,0),
     stock_export:       p(1,1,0,0,0,0),
     stock_import:       p(0,0,0,0,0,0),
@@ -540,7 +556,8 @@ const STATIC_MATRIX = {
   // ── SUPERVISOR: giám sát ─────────────────────────────
   supervisor: {
     repair_order:       p(1,0,1,0,1,1),
-    repair_order_price: p(1,0,0,0,1,0),
+    repair_create:      p(1,0,1,0,1,1),
+    repair_board:       p(1,0,1,0,1,1),
     spare_part:         p(1,0,0,0,0,1),
     stock_export:       p(1,0,1,0,1,1),
     stock_import:       p(1,0,0,0,1,1),
@@ -574,7 +591,8 @@ const STATIC_MATRIX = {
   // ── IT: IT/dev nội bộ ────────────────────────────────
   it: {
     repair_order:       p(1,0,0,0,0,1),
-    repair_order_price: p(1,0,0,0,0,0),
+    repair_create:      p(1,0,0,0,0,1),
+    repair_board:       p(1,0,0,0,0,1),
     spare_part:         p(1,1,1,1,0,1),
     stock_export:       p(1,0,0,0,0,0),
     stock_import:       p(1,0,0,0,0,0),
@@ -606,7 +624,8 @@ const STATIC_MATRIX = {
   // ── GUEST: khách ─────────────────────────────────────
   guest: {
     repair_order:       p(1,0,0,0,0,0), // chỉ xem đơn của mình (public link)
-    repair_order_price: p(0,0,0,0,0,0),
+    repair_create:      p(1,0,0,0,0,0),
+    repair_board:       p(1,0,0,0,0,0),
     spare_part:         p(0,0,0,0,0,0),
     stock_export:       p(0,0,0,0,0,0),
     stock_import:       p(0,0,0,0,0,0),

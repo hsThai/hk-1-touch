@@ -531,8 +531,8 @@ function MainAppContent({ onUserChange }) {
 
   const isWarehouse  = role === "warehouse";
   // Permission flags for bottom nav
-  const canCreateRepair = can("repair_order","create");
-  const canViewRepair   = can("repair_order","view");
+  const canCreateRepair = can("repair_create","create");
+  const canViewRepair   = can("repair_order","view") || can("repair_board","view");
   const canViewSale     = can("sale_order","view");
   const canPOS          = ((can("pos_sale","create")||can("pos_sale","edit")) || ["pos_orders","pos_collect","pos_reconcile"].some(r => can(r,"view")));
   const canViewPack     = can("pack_order","view");
@@ -1460,7 +1460,7 @@ function MainAppContent({ onUserChange }) {
     items.push({ key:"my_tasks", icon:"checklist", label:"Việc của tôi" });
 
     // 2. DỊCH VỤ SỬA CHỮA
-    if (can("repair_order","create") && !isKtv)
+    if (can("repair_create","create") && !isKtv)
       items.push({ key:"new",   icon:"add_circle", label:"Tạo đơn" });
     if (can("repair_order","view"))
       items.push({ key:"tasks", icon:"list_alt",   label:"Danh sách & Lịch sử đơn" });
@@ -2204,9 +2204,9 @@ function MainAppContent({ onUserChange }) {
               {page==="my_tasks" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><MyTasksPage user={user} orders={orders} setPage={setPage} onNewOrder={()=>setShowNewOrder(true)} onOpenCashier={(tab)=>{setCashierTab(tab||"");setPage("cashier_home");}} onOpenPackShip={openPackShip} onOrderUpdated={handleTaskOrderUpdated} /></Suspense>}
               {page==="ktv_home" && <TechnicianHome user={user} orders={orders} setPage={setPage} />}
               {page==="rec_home" && <ReceptionHome user={user} orders={orders} setPage={setPage} />}
-              {page==="board" && (can("repair_order","view") ? <KanbanBoard /> : <AccessDenied pageName="Theo dõi đơn sửa" />)}
+              {page==="board" && (can("repair_board","view") ? <KanbanBoard /> : <AccessDenied pageName="Theo dõi đơn sửa" />)}
               {page==="tasks" && (can("repair_order","view") ? <TaskList /> : <AccessDenied pageName="Danh sách đơn" />)}
-              {page==="new" && (can("repair_order","create") ? <div style={{padding:24}}><button onClick={() => setShowNewOrder(true)} style={{ width:"100%", height:52, background:"linear-gradient(135deg,#4f46e5,#7c3aed)", color:"#fff", border:"none", borderRadius:14, fontWeight:800, fontSize:16, cursor:"pointer" }}>+ Tạo Đơn Mới</button></div> : <AccessDenied pageName="Tạo đơn" />)}
+              {page==="new" && (can("repair_create","create") ? <div style={{padding:24}}><button onClick={() => setShowNewOrder(true)} style={{ width:"100%", height:52, background:"linear-gradient(135deg,#4f46e5,#7c3aed)", color:"#fff", border:"none", borderRadius:14, fontWeight:800, fontSize:16, cursor:"pointer" }}>+ Tạo Đơn Mới</button></div> : <AccessDenied pageName="Tạo đơn" />)}
               {page==="customers" && (can("customer","view") ? <Suspense fallback={<div style={{padding:32,textAlign:"center"}}>⏳</div>}><CustomerManagerPage user={user} /></Suspense> : <AccessDenied pageName="Khách hàng" />)}
               {page==="dashboard" && (["manager","admin","owner","supervisor"].includes(user.role) ? <Suspense fallback={<div style={{padding:32}}>⏳</div>}><ManagerDashboard user={user} initialTab={dashboardTab} /></Suspense> : <Dashboard />)}
               {page==="staff" && (can("staff","view") ? <StaffManagerPage currentStaff={user} /> : <AccessDenied pageName="Nhân viên" />)}
@@ -2476,9 +2476,9 @@ function MainAppContent({ onUserChange }) {
         {page==="my_tasks" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><MyTasksPage user={user} orders={orders} setPage={setPage} onNewOrder={()=>setShowNewOrder(true)} onOpenCashier={(tab)=>{setCashierTab(tab||"");setPage("cashier_home");}} onOpenPackShip={openPackShip} onOrderUpdated={handleTaskOrderUpdated} /></Suspense>}
         {page==="ktv_home" && <TechnicianHome user={user} orders={orders} setPage={setPage} />}
         {page==="rec_home" && <ReceptionHome user={user} orders={orders} setPage={setPage} />}
-        {page==="board" && (can("repair_order","view") ? <KanbanBoard /> : <AccessDenied pageName="Theo dõi đơn sửa" />)}
+        {page==="board" && (can("repair_board","view") ? <KanbanBoard /> : <AccessDenied pageName="Theo dõi đơn sửa" />)}
         {page==="tasks" && (can("repair_order","view") ? <TaskList /> : <AccessDenied pageName="Danh sách đơn" />)}
-        {page==="new" && can("repair_order","create") && (
+        {page==="new" && can("repair_create","create") && (
           <div style={{ padding:"0 0 80px" }}>
             {/* Nút tạo đơn sticky top */}
             <div style={{ padding:"12px 16px 8px", position:"sticky", top:0, zIndex:10, background:"#f8fafc", borderBottom:"1px solid #e5e7eb" }}>
