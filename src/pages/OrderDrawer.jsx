@@ -1047,12 +1047,6 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                       Cập nhật trạng thái
                   </button>
                 )}
-                {isPriceLocked && (
-                  <div style={{ padding:"14px 16px", background:"#f3f4f6", border:"2px dashed #d1d5db", borderRadius:14, textAlign:"center", marginBottom:8 }}>
-                    <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",marginRight:6,color:"#6b7280"}}>lock</span>
-                    <span style={{ fontWeight:700, color:"#4b5563", fontSize:13 }}>Đang trong quy trình báo giá — trạng thái đổi tự động theo từng bước, chưa thể chỉnh tay</span>
-                  </div>
-                )}
                 {!isPriceLocked && (!isKTV || (editMode && (order.accept_stage||0) >= 1)) && (
                   <>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
@@ -1214,12 +1208,6 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                   <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22}}>search</span>
                   Bắt đầu Kiểm Ngoại Quan (QT1)
                 </button>
-              </div>
-            )}
-            {order.qt1_checklist && ["Cho KTV"].includes(order.status) && !order.quote_by_name && (
-              <div style={{ marginTop:8, background:"#e0f2fe", border:"1.5px solid #7dd3fc", borderRadius:12, padding:"10px 14px", fontSize:13, color:"#0c4a6e" }}>
-                <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,verticalAlign:"middle",marginRight:6}}>info</span>
-                Đã kiểm ngoại quan (QT1) — đang chờ KTV nhận kiểm
               </div>
             )}
 
