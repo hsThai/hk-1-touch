@@ -21,6 +21,11 @@ export default function EditOrderModal({ order, users, currentUser, onClose, onS
     estimated_done_date: order.estimated_done_date?order.estimated_done_date.substring(0,16):"",
     done_date: order.done_date?order.done_date.substring(0,16):"",
   });
+  const toPbDate = (v, fallback) => {
+    if (!v) return fallback || "";
+    const d = new Date(v);                       // "2026-10-10T04:56" = giờ địa phương
+    return isNaN(d.getTime()) ? (fallback || "") : d.toISOString();
+  };
   const [saving, setSaving] = React.useState(false);
   const [custSearch,   setCustSearch]   = useState(order.customer_name || "");
   const [custSuggs,    setCustSuggs]    = useState([]);
@@ -80,8 +85,8 @@ export default function EditOrderModal({ order, users, currentUser, onClose, onS
         final_cost:form.final_cost===""?null:Number(form.final_cost),
         deposit:form.deposit===""?null:Number(form.deposit),
         warranty_days:Number(form.warranty_days)||0,
-        received_date:form.received_date||null, estimated_done_date:form.estimated_done_date||null,
-        done_date:form.done_date||null,
+        received_date:toPbDate(form.received_date, order.received_date), estimated_done_date:toPbDate(form.estimated_done_date, ""),
+        done_date:toPbDate(form.done_date, ""),
       };
       const pbId = order._id||order.id;
       const updated = await RepairOrder.update(pbId, payload);
