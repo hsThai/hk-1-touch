@@ -937,9 +937,9 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 const bgColor     = noKTV ? "#fffbeb" : "#fef2f2";
                 const iconColor   = noKTV ? "#d97706" : "#dc2626";
                 const icon        = noKTV ? "person_add" : "assignment_late";
-                const title       = noKTV ? "Chưa phân công KTV" : "⚠️ Cần Giao Việc Lại!";
+                const title       = noKTV ? (order.status === "Chờ Báo Giá" ? "Nhờ KTV kiểm tra (không bắt buộc)" : "Chưa phân công KTV") : "⚠️ Cần Giao Việc Lại!";
                 const subtitle    = noKTV
-                  ? "Đơn này chưa có KTV xử lý — chọn KTV để giao việc"
+                  ? (order.status === "Chờ Báo Giá" ? "Đang báo giá trực tiếp. Chỉ chọn KTV nếu muốn nhờ KTV kiểm tra" : "Đơn này chưa có KTV xử lý — chọn KTV để giao việc")
                   : order.needs_reassign
                     ? `KTV ${order.assigned_to_name||"?"} quá hạn → -3 KPI & ngừng nhận việc`
                   : order.kpi_stage2_penalized
@@ -963,52 +963,28 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                       </div>
                     </div>
 
-                    <div style={{ fontSize:13, fontWeight:700, color:"#374151", marginBottom:8 }}>
-                      <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:14,verticalAlign:"middle",marginRight:4}}>engineering</span>
-                      {mode === "assign" ? "Chọn KTV để giao đơn:" : "Chọn KTV mới để giao:"}
-                    </div>
-
-                    <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                      {availableKTVs.length === 0 && (
-                        <div style={{ fontSize:13, color:"#9ca3af", fontStyle:"italic", padding:"10px 0" }}>Không có KTV khả dụng</div>
-                      )}
-                      {availableKTVs.map(u => (
-                        <button key={u.id}
-                          onClick={async () => {
-                            const now = new Date().toISOString();
-                            onUpdate(order.id, {
-                              assigned_to:           u.id,
-                              assigned_to_name:      u.name || u.full_name,
-                              assigned_at:           now,
-                              accept_stage:          0,
-                              stage1_at:             null,
-                              stage2_at:             null,
-                              kpi_manually_accepted: false,
-                              kpi_stage1_penalized:  false,
-                              kpi_stage2_penalized:  false,
-                              needs_reassign:        false,
-                              status:                "Cho KTV",
-                            }, null);
-                            showToast(`✅ Đã giao đơn cho ${u.name || u.full_name}`);
-                          }}
-                          style={{
-                            display:"flex", alignItems:"center", justifyContent:"space-between",
-                            padding:"12px 14px", borderRadius:12,
-                            border:`2px solid ${mode==="assign"?"#f59e0b":"#4f46e5"}`,
-                            background: mode==="assign" ? "#fef3c7" : "#eef2ff",
-                            fontWeight:700, fontSize:14, cursor:"pointer", textAlign:"left"
-                          }}>
-                          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                            <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:mode==="assign"?"#d97706":"#4f46e5"}}>engineering</span>
-                            <span style={{ color: mode==="assign"?"#92400e":"#1e1b4b" }}>{u.name || u.full_name}</span>
-                          </div>
-                          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                            <span style={{ fontSize:12, color:"#6b7280" }}>KPI: {u.kpi??0}</span>
-                            <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:mode==="assign"?"#d97706":"#4f46e5"}}>arrow_forward</span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
+                                        <KtvAssignPicker
+                      list={availableKTVs}
+                      mode={mode}
+                      quoting={order.status === "Chờ Báo Giá"}
+                      onAssign={(u) => {
+                        const now = new Date().toISOString();
+                        onUpdate(order.id, {
+                          assigned_to:           u.id,
+                          assigned_to_name:      u.name || u.full_name,
+                          assigned_at:           now,
+                          accept_stage:          0,
+                          stage1_at:             null,
+                          stage2_at:             null,
+                          kpi_manually_accepted: false,
+                          kpi_stage1_penalized:  false,
+                          kpi_stage2_penalized:  false,
+                          needs_reassign:        false,
+                          status:                "Chờ KTV",
+                        }, null);
+                        showToast(`✅ Đã giao đơn cho ${u.name || u.full_name}`);
+                      }}
+                    />
                   </div>
                 );
               })()
@@ -1239,7 +1215,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                       : "KTV đã kiểm xong — Báo giá cho khách"}
                   </div>
                   <div style={{ fontSize:12, color:"#78350f" }}>
-                    {order.quote_by_name ? `Báo giá bởi: ${order.quote_by_name}` : `KTV: ${order.assigned_to_name}`} · {order.qt2_note || "Không có ghi chú"}
+                    {order.quote_by_name ? `Báo giá bởi: ${order.quote_by_name}` : (order.assigned_to_name ? `KTV kiểm: ${order.assigned_to_name}` : "GĐV báo giá trực tiếp")}{order.qt2_note ? ` · ${order.qt2_note}` : ""}
                   </div>
                 </div>
                 <button onClick={() => setShowCustConfirm(true)}
@@ -1982,6 +1958,36 @@ export { OrderDrawer };
 
 
 // ══════════════════════════════════════════════
+
+// ══════════════════════════════════════════════
+//  Chọn KTV dạng dropdown (mặc định chưa chọn) + nút Giao
+// ══════════════════════════════════════════════
+function KtvAssignPicker({ list, mode, quoting, onAssign }) {
+  const [sel, setSel] = React.useState("");
+  const accent = mode === "assign" ? "#d97706" : "#4f46e5";
+  if (!list.length) return <div style={{ fontSize:13, color:"#9ca3af", fontStyle:"italic", padding:"6px 0" }}>Không có KTV khả dụng</div>;
+  const picked = list.find(u => u.id === sel);
+  return (
+    <div>
+      <select value={sel} onChange={e => setSel(e.target.value)}
+        style={{ width:"100%", height:46, borderRadius:12, border:`2px solid ${sel ? accent : "#e5e7eb"}`, padding:"0 12px", fontSize:15, fontWeight:600, color: sel ? "#1e1b4b" : "#6b7280", background:"#fff", outline:"none", cursor:"pointer", boxSizing:"border-box" }}>
+        <option value="">-- Chưa chọn KTV --</option>
+        {list.map(u => <option key={u.id} value={u.id}>🔧 {u.name || u.full_name} (KPI {u.kpi ?? 0})</option>)}
+      </select>
+      <button disabled={!picked}
+        onClick={() => {
+          if (!picked) return;
+          if (quoting && !window.confirm(`Chuyển đơn cho ${picked.name || picked.full_name} kiểm tra?\nĐơn sẽ sang "Chờ KTV" thay vì báo giá trực tiếp.`)) return;
+          onAssign(picked); setSel("");
+        }}
+        style={{ width:"100%", height:44, borderRadius:12, marginTop:8, border:"none", background: picked ? accent : "#e5e7eb", color: picked ? "#fff" : "#9ca3af", fontWeight:900, fontSize:14, cursor: picked ? "pointer" : "default" }}>
+        {picked ? `Giao cho ${picked.name || picked.full_name}` : "Chọn KTV rồi bấm Giao"}
+      </button>
+    </div>
+  );
+}
+
+
 //  SHARE ORDER MODAL
 // ══════════════════════════════════════════════
 const PUBLIC_URL = "https://hk-1-touch.vercel.app/OrderPublic";
