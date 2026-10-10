@@ -559,7 +559,7 @@ export function QT2Modal({ order, currentUser, onClose, onDone }) {
 // ══════════════════════════════════════════════
 //  CustomerConfirmModal — TT báo giá & xác nhận KH
 // ══════════════════════════════════════════════
-export function CustomerConfirmModal({ order, currentUser, onClose, onApprove, onReject, onSaveDraft }) {
+export function CustomerConfirmModal({ order, users = [], currentUser, onClose, onApprove, onReject, onSaveDraft }) {
   const [isPC, setIsPC] = useState(() => window.innerWidth >= 900);
   useEffect(() => {
     const fn = () => setIsPC(window.innerWidth >= 900);
@@ -567,6 +567,9 @@ export function CustomerConfirmModal({ order, currentUser, onClose, onApprove, o
     return () => window.removeEventListener("resize", fn);
   }, []);
   const [rejectReason, setRejectReason] = useState("");
+  const [selKtv, setSelKtv] = useState(order.assigned_to || "");
+  const needKtv  = !order.assigned_to;                       // đơn tạo bằng "Báo Giá Ngay" — chưa có KTV
+  const ktvList  = (users||[]).filter(u => u.role === "technician" && u.is_active !== false);
   const [mode, setMode]                 = useState(""); // "approve" | "reject"
   const [saving, setSaving]             = useState(false);
 
@@ -679,10 +682,17 @@ export function CustomerConfirmModal({ order, currentUser, onClose, onApprove, o
           alert(`"${l.name}" là hàng chờ nhập: nhập ngày dự kiến về và hạn đặt NCC!`); setSaving(false); return;
         }
       }
+      const hasWaitingLine = validLines.some(l => l.waiting && !l.is_service);
+      if (needKtv && !hasWaitingLine && !selKtv) {
+        alert("Chọn kỹ thuật viên phụ trách sửa máy trước khi xác nhận!");
+        setSaving(false); return;
+      }
       await onApprove({
         estimated_cost: finalTotal,
         quote_discount: giamGiaNum,
         deposit: 0,
+        assigned_to: needKtv ? (selKtv || "") : (order.assigned_to || ""),
+        assigned_to_name: needKtv ? ((ktvList.find(u=>u.id===selKtv)?.name) || (ktvList.find(u=>u.id===selKtv)?.full_name) || "") : (order.assigned_to_name || ""),
         quote_items: validLines.map(l => ({
           name: l.name.trim(), sku: l.sku, part_id: l.part_id, is_service: l.is_service,
           qty: Number(l.qty) || 1, price: Number(l.price) || 0,
@@ -946,6 +956,24 @@ export function CustomerConfirmModal({ order, currentUser, onClose, onApprove, o
               Khách trả tiền tại quầy thu ngân sau khi sửa xong (như bán hàng).
             </div>
           </div>
+
+          {/* Chọn KTV sửa máy — chỉ hiện khi đơn chưa có KTV (tạo bằng "Báo Giá Ngay") */}
+          {needKtv && !mode && (
+            <div style={{ background:"#f5f3ff", border:"2px solid #ddd6fe", borderRadius:14, padding:12, marginBottom:12 }}>
+              <div style={{ fontSize:13, fontWeight:900, color:"#4c1d95", marginBottom:8, display:"flex", alignItems:"center", gap:6 }}>
+                <MI name="engineering" style={{ fontSize:18, color:"#7c3aed" }} />
+                KTV phụ trách sửa máy
+              </div>
+              <select value={selKtv} onChange={e => setSelKtv(e.target.value)}
+                style={{ width:"100%", height:46, borderRadius:12, border:`2px solid ${selKtv ? "#7c3aed" : "#e5e7eb"}`, padding:"0 12px", fontSize:15, fontWeight:600, color: selKtv ? "#4c1d95" : "#6b7280", background:"#fff", outline:"none", cursor:"pointer", boxSizing:"border-box" }}>
+                <option value="">-- Chọn KTV --</option>
+                {ktvList.map(u => <option key={u.id} value={u.id}>🔧 {u.name || u.full_name}</option>)}
+              </select>
+              <div style={{ fontSize:11, color:"#7c3aed", marginTop:6, fontStyle:"italic" }}>
+                Chọn trước khi khách đồng ý. Đơn có hàng chờ nhập thì chọn KTV sau khi hàng về.
+              </div>
+            </div>
+          )}
 
           {/* Lưu tạm — để khách suy nghĩ, chỉnh lại sau */}
           {!mode && onSaveDraft && (

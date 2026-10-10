@@ -139,7 +139,7 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
       cName = parts[0].trim(); cPhone = (parts[1]||"").trim(); cId = "new_"+Date.now();
     }
     if (!cName) { alert("Vui lòng nhập tên hoặc SĐT khách hàng!"); return; }
-    if (!selectedKtv) { alert("Vui lòng chọn KTV phụ trách!"); return; }
+    if (mode !== "quote" && !selectedKtv) { alert("Vui lòng chọn KTV phụ trách!"); return; }
 
     setSubmitting(true);
     let imgUrls = [];
@@ -183,7 +183,9 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
 
   const ktvList = users.filter(u => u.role==="technician" && u.is_active!==false);
   const qt1CheckedCount = QT1_ITEMS_FORM.filter(i => qt1[i.key]?.checked).length;
-  const canSubmit = !!selectedKtv && form.device_model.trim() && (form.customer_name.trim() || custSearch.trim());
+  const baseOk = !!form.device_model.trim() && !!(form.customer_name.trim() || custSearch.trim());
+  const canSubmit = !!selectedKtv && baseOk;      // Tạo đơn & Chuyển KTV: bắt buộc chọn KTV
+  const canQuote  = baseOk;                        // Báo giá ngay: chưa cần KTV (chọn KTV sau khi khách đồng ý)
 
   return (
     <div style={{ position:"fixed", inset:0, zIndex:2000, background:"rgba(0,0,0,.55)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
@@ -367,7 +369,7 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
           <div style={{ background:"#f5f3ff", border:"2px solid #ddd6fe", borderRadius:16, padding:14, marginBottom:14 }}>
             <div style={{ fontWeight:900, fontSize:15, color:"#4c1d95", marginBottom:12, display:"flex", alignItems:"center", gap:8 }}>
               <MI name="engineering" style={{ fontSize:20, color:"#7c3aed" }} />
-              Chọn KTV Phụ Trách <span style={{ color:"#dc2626", fontSize:13 }}>*</span>
+              Chuyển KTV kiểm tra <span style={{ fontSize:11, fontWeight:600, color:"#7c3aed" }}>(chỉ khi chuyển KTV)</span>
             </div>
             <select value={selectedKtv} onChange={e => setSelectedKtv(e.target.value)}
               style={{ width:"100%", height:50, borderRadius:13, border:`2px solid ${selectedKtv ? "#7c3aed" : "#e5e7eb"}`, padding:"0 14px", fontSize:15, fontWeight:600, color: selectedKtv ? "#4c1d95" : "#6b7280", background: selectedKtv ? "#ede9fe" : "#fff", outline:"none", cursor:"pointer", boxSizing:"border-box" }}>
@@ -386,14 +388,14 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
           {/* ── Hủy + Báo Giá Ngay (cùng hàng) ── */}
           <div style={{ display:"flex", gap:8, marginBottom:10 }}>
             <button onClick={onClose} style={{ flex:1, height:52, borderRadius:14, background:"#f3f4f6", border:"none", fontWeight:700, fontSize:15, color:"#6b7280", cursor:"pointer" }}>Hủy</button>
-            <button onClick={()=>submit("quote")} disabled={submitting || !canSubmit}
-              style={{ flex:1.7, height:52, borderRadius:14, background: canSubmit ? "linear-gradient(135deg,#0891b2,#06b6d4)" : "#e5e7eb", border:"none", color: canSubmit ? "#fff" : "#9ca3af", fontWeight:900, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
-              <MI name="request_quote" style={{ fontSize:20, color: canSubmit ? "#fff" : "#9ca3af" }} />
+            <button onClick={()=>submit("quote")} disabled={submitting || !canQuote}
+              style={{ flex:1.7, height:52, borderRadius:14, background: canQuote ? "linear-gradient(135deg,#0891b2,#06b6d4)" : "#e5e7eb", border:"none", color: canQuote ? "#fff" : "#9ca3af", fontWeight:900, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+              <MI name="request_quote" style={{ fontSize:20, color: canQuote ? "#fff" : "#9ca3af" }} />
               Tạo Đơn & Báo Giá Ngay
             </button>
           </div>
           <div style={{ fontSize:11, color:"#94a3b8", textAlign:"center", marginBottom:24 }}>
-            "Báo Giá Ngay": bỏ qua bước KTV kiểm sâu — chọn LK/dịch vụ, báo giá và xác nhận khách luôn.
+            "Báo Giá Ngay": không cần chọn KTV lúc này — báo giá khách luôn, khách đồng ý rồi mới chọn KTV sửa.
           </div>
         </div>
 

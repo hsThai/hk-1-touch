@@ -1022,7 +1022,6 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 <div>
                   <div style={{ fontWeight:700, fontSize:13, color:"#166534" }}>
                     {order.status === "Cho Bao Gia" ? "Đang chờ Giao dịch viên báo giá khách" :
-                      order.status === "Cho Xac Nhan" ? "Đang chờ khách xác nhận" :
                       order.status === "Cho KTV Sua" ? "Khách đồng ý — Bấm Nhận Sửa bên trên" :
                       "Đang chờ bạn nhận kiểm — Bấm nút bên trên"}
                   </div>
@@ -1217,10 +1216,10 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 </button>
               </div>
             )}
-            {order.qt1_checklist && (
+            {order.qt1_checklist && ["Cho KTV"].includes(order.status) && !order.quote_by_name && (
               <div style={{ marginTop:8, background:"#e0f2fe", border:"1.5px solid #7dd3fc", borderRadius:12, padding:"10px 14px", fontSize:13, color:"#0c4a6e" }}>
                 <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,verticalAlign:"middle",marginRight:6}}>info</span>
-                Đã có kết quả QT1 — chờ chuyển KTV
+                Đã kiểm ngoại quan (QT1) — đang chờ KTV nhận kiểm
               </div>
             )}
 
@@ -1234,7 +1233,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 </button>
               </div>
             )}
-            {order.qt2_checklist && order.status !== "Cho KTV" && (
+            {order.qt2_checklist && order.status === "Cho Bao Gia" && !order.quote_by_name && (
               <div style={{ marginTop:8, background:"#f5f3ff", border:"1.5px solid #ddd6fe", borderRadius:12, padding:"10px 14px", fontSize:13, color:"#4c1d95" }}>
                 <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,verticalAlign:"middle",marginRight:6}}>check</span>
                 Đã có kết quả QT2 — chờ gửi về Giao dịch viên
@@ -1299,11 +1298,22 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                   {canArrive && (
                     <button
                       onClick={async () => {
+                        const ktvMissing = !order.assigned_to;
+                        let ktvPick = order.assigned_to;
+                        if (ktvMissing) {
+                          const ktvOpts = (users||[]).filter(u => u.role === "technician" && u.is_active !== false);
+                          const pick = window.prompt("Đơn chưa có KTV phụ trách.\nNhập SỐ THỨ TỰ KTV:\n" + ktvOpts.map((u,i)=>`${i+1}. ${u.name||u.full_name}`).join("\n"), "1");
+                          if (pick == null) return;
+                          const idx = parseInt(pick, 10) - 1;
+                          if (isNaN(idx) || idx < 0 || idx >= ktvOpts.length) { showToast("Số KTV không hợp lệ"); return; }
+                          ktvPick = ktvOpts[idx].id;
+                          await onUpdate(order.id, { assigned_to: ktvPick, assigned_to_name: ktvOpts[idx].name || ktvOpts[idx].full_name || "", assigned_at: new Date().toISOString() }, null);
+                        }
                         if (!window.confirm("Linh kiện đã nhập kho?\nĐơn sẽ chuyển sang Chờ KTV Sửa.")) return;
                         try {
                           await onUpdate(order.id, { status: "Cho KTV Sua" }, null);
                           logHistory({ order_id: order.id, order_code: order.order_code||order.id, action_type: "parts_arrived", action_label: "Linh kiện đã về — chuyển KTV sửa", changed_by_id: currentUser?.id||"", changed_by_name: currentUser?.name||"", changed_by_role: currentUser?.role||"", old_value: "Cho Linh Kien", new_value: "Cho KTV Sua" });
-                          const ktv = users.find(u => u.id === order.assigned_to);
+                          const ktv = users.find(u => u.id === ktvPick);
                           if (ktv) await Notification.create({ user_id: ktv.id, user_name: ktv.name||"", title: `📦 LK đã về — Đơn ${order.order_code||order.id} chờ bạn sửa`, message: `${order.device_model} · ${order.customer_name}. Linh kiện đã nhập kho, bắt đầu sửa.`, order_id: order.id, order_code: order.order_code, type: "parts_arrived", is_read: false }).catch(() => {});
                           if (order.quote_by) await Notification.create({ user_id: order.quote_by, user_name: order.quote_by_name||"", title: `📦 LK đơn ${order.order_code||order.id} đã về`, message: `${order.device_model} · Linh kiện đã nhập, KTV bắt đầu sửa.`, order_id: order.id, order_code: order.order_code, type: "parts_arrived", is_read: false }).catch(() => {});
                           showToast("✅ Đã chuyển sang Chờ KTV Sửa");
@@ -1320,17 +1330,6 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 </div>
               );
             })()}
-
-                        {/* ── Chờ Xác Nhận: hiển thị info ── */}
-            {order.status === "Chờ Xác Nhận" && (
-              <div style={{ marginTop:8, background:"#fdf2f8", border:"1.5px solid #fbcfe8", borderRadius:12, padding:"12px 14px" }}>
-                <div style={{ fontWeight:800, fontSize:14, color:"#9d174d", marginBottom:4 }}>
-                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,verticalAlign:"middle",marginRight:6}}>pending_actions</span>
-                  Chờ khách xác nhận
-                </div>
-                <div style={{ fontSize:12, color:"#831843" }}>Giao dịch viên đang trao đổi với khách hàng</div>
-              </div>
-            )}
           </div>
         )}
 
@@ -1777,6 +1776,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
         {showCustConfirm && (
           <CustomerConfirmModal
             order={order}
+            users={users}
             currentUser={currentUser}
             onClose={() => setShowCustConfirm(false)}
             onApprove={async (pricing = {}) => {
@@ -1799,6 +1799,11 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 quote_by: currentUser?.id || "",
                 quote_by_name: currentUser?.name || currentUser?.full_name || "",
               };
+              if (pricing.assigned_to) {
+                approvePatch.assigned_to = pricing.assigned_to;
+                approvePatch.assigned_to_name = pricing.assigned_to_name || "";
+                approvePatch.assigned_at = new Date().toISOString();
+              }
               if (Array.isArray(pricing.quote_items)) {
                 approvePatch.qt2_de_xuat = pricing.quote_items;
                 approvePatch.qt2_total = pricing.quote_total || 0;
@@ -1812,7 +1817,8 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 changed_by_id: currentUser?.id||"", changed_by_name: currentUser?.name||"", changed_by_role: currentUser?.role||"",
                 new_value: `Báo giá: ${(pricing.estimated_cost||0).toLocaleString("vi-VN")}đ${pricing.deposit ? ` · Cọc: ${pricing.deposit.toLocaleString("vi-VN")}đ` : ""}`,
               });
-              const notifyKtv = hasWaiting ? [] : users.filter(u => u.id === order.assigned_to);
+              const approvedKtvId = pricing.assigned_to || order.assigned_to;
+              const notifyKtv = hasWaiting ? [] : users.filter(u => u.id === approvedKtvId);
               const giaStr = pricing.estimated_cost ? ` · Báo giá: ${pricing.estimated_cost.toLocaleString("vi-VN")}đ` : "";
               if (hasWaiting) {
                 // Thông báo kho + quản lý: đơn chờ linh kiện nhập hàng từ NCC
