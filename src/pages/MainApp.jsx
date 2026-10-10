@@ -178,6 +178,18 @@ function mapPbOrder(o, STATUS_DISPLAY, PRIORITY_DISPLAY) {
     // ── QR ──
     qr_code:    o.order_code || "",
     product_qr: o.product_qr || "",
+    // ── Kiểm tra QT1/QT2 ──
+    qt1_checklist:    o.qt1_checklist || "",
+    qt1_note:         o.qt1_note || "",
+    qt2_checklist:    o.qt2_checklist || "",
+    qt2_note:         o.qt2_note || "",
+    // ── Báo giá (lưu tạm / chờ linh kiện) ──
+    qt2_de_xuat:      o.qt2_de_xuat || "",
+    qt2_total:        o.qt2_total || 0,
+    quote_discount:   o.quote_discount || 0,
+    quote_by:         o.quote_by || "",
+    quote_by_name:    o.quote_by_name || "",
+    waiting_reminded: o.waiting_reminded || "",
   };
 }
 

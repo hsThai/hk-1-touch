@@ -1817,6 +1817,24 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
               setShowCustConfirm(false);
               showToast(`✅ Đã lên đơn — Báo giá ${pricing.estimated_cost ? pricing.estimated_cost.toLocaleString("vi-VN")+"đ" : "chưa có"}`);
             }}
+            onSaveDraft={async (pricing = {}) => {
+              await onUpdate(order.id, {
+                qt2_de_xuat: pricing.quote_items || [],
+                qt2_total: pricing.quote_total || 0,
+                quote_discount: pricing.quote_discount || 0,
+                estimated_cost: pricing.estimated_cost || 0,
+                quote_by: currentUser?.id || "",
+                quote_by_name: currentUser?.name || currentUser?.full_name || "",
+              }, null);
+              logHistory({
+                order_id: order.id, order_code: order.order_code||order.id,
+                action_type: "quote_draft", action_label: "Lưu tạm báo giá — chờ khách suy nghĩ",
+                changed_by_id: currentUser?.id||"", changed_by_name: currentUser?.name||"", changed_by_role: currentUser?.role||"",
+                new_value: `Tạm tính: ${(pricing.estimated_cost||0).toLocaleString("vi-VN")}đ`,
+              });
+              setShowCustConfirm(false);
+              showToast("💾 Đã lưu tạm báo giá — mở lại để chỉnh sửa");
+            }}
             onReject={async (reason) => {
               await onUpdate(order.id, { status:"Hủy", technician_note:(order.technician_note||"") + `
 [Hủy] ${reason}` }, null);

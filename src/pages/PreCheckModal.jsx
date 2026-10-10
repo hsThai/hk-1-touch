@@ -559,7 +559,7 @@ export function QT2Modal({ order, currentUser, onClose, onDone }) {
 // ══════════════════════════════════════════════
 //  CustomerConfirmModal — TT báo giá & xác nhận KH
 // ══════════════════════════════════════════════
-export function CustomerConfirmModal({ order, currentUser, onClose, onApprove, onReject }) {
+export function CustomerConfirmModal({ order, currentUser, onClose, onApprove, onReject, onSaveDraft }) {
   const [isPC, setIsPC] = useState(() => window.innerWidth >= 900);
   useEffect(() => {
     const fn = () => setIsPC(window.innerWidth >= 900);
@@ -690,6 +690,24 @@ export function CustomerConfirmModal({ order, currentUser, onClose, onApprove, o
           expected_date: l.expected_date || "", po_due_date: l.po_due_date || "",
         })),
         quote_total: totalLines,
+      });
+    } catch(e) { alert(e.message); }
+    setSaving(false);
+  }
+  // Lưu tạm: giữ bảng báo giá để khách suy nghĩ, chỉnh lại sau — KHÔNG đổi trạng thái đơn
+  async function handleSaveDraft() {
+    setSaving(true);
+    try {
+      await onSaveDraft?.({
+        quote_items: validLines.map(l => ({
+          name: l.name.trim(), sku: l.sku, part_id: l.part_id, is_service: l.is_service,
+          qty: Number(l.qty) || 1, price: l.price === "" ? 0 : (Number(l.price) || 0),
+          waiting: !!l.waiting && !l.is_service,
+          expected_date: l.expected_date || "", po_due_date: l.po_due_date || "",
+        })),
+        quote_total: totalLines,
+        quote_discount: giamGiaNum,
+        estimated_cost: finalTotal,
       });
     } catch(e) { alert(e.message); }
     setSaving(false);
@@ -928,6 +946,18 @@ export function CustomerConfirmModal({ order, currentUser, onClose, onApprove, o
               Khách trả tiền tại quầy thu ngân sau khi sửa xong (như bán hàng).
             </div>
           </div>
+
+          {/* Lưu tạm — để khách suy nghĩ, chỉnh lại sau */}
+          {!mode && onSaveDraft && (
+            <div style={{ marginBottom:12 }}>
+              <button onClick={handleSaveDraft} disabled={saving}
+                style={{ width:"100%", height:48, borderRadius:14, background:"#fffbeb", border:"2px solid #f59e0b", color:"#b45309", fontWeight:900, fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                <MI name="bookmark" style={{ fontSize:22, color:"#d97706" }} />
+                {saving ? "Đang lưu..." : "Lưu Tạm — Khách Suy Nghĩ"}
+              </button>
+              <div style={{ fontSize:11, color:"#92400e", textAlign:"center", marginTop:5 }}>Đơn vẫn ở "Chờ Báo Giá", mở lại để chỉnh sửa tiếp.</div>
+            </div>
+          )}
 
           {/* Chọn đồng ý / hủy */}
           {!mode && (
