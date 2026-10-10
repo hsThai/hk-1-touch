@@ -937,9 +937,9 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 const bgColor     = noKTV ? "#fffbeb" : "#fef2f2";
                 const iconColor   = noKTV ? "#d97706" : "#dc2626";
                 const icon        = noKTV ? "person_add" : "assignment_late";
-                const title       = noKTV ? (order.status === "Chờ Báo Giá" ? "Nhờ KTV kiểm tra (không bắt buộc)" : "Chưa phân công KTV") : "⚠️ Cần Giao Việc Lại!";
+                const title       = noKTV ? (order.status === "Chờ Báo Giá" ? "Giao KTV sửa (không bắt buộc)" : "Chưa phân công KTV") : "⚠️ Cần Giao Việc Lại!";
                 const subtitle    = noKTV
-                  ? (order.status === "Chờ Báo Giá" ? "Đang báo giá trực tiếp. Chỉ chọn KTV nếu muốn nhờ KTV kiểm tra" : "Đơn này chưa có KTV xử lý — chọn KTV để giao việc")
+                  ? (order.status === "Chờ Báo Giá" ? "Đang báo giá trực tiếp. Chọn KTV khi muốn giao đơn đi sửa" : "Đơn này chưa có KTV xử lý — chọn KTV để giao việc")
                   : order.needs_reassign
                     ? `KTV ${order.assigned_to_name||"?"} quá hạn → -3 KPI & ngừng nhận việc`
                   : order.kpi_stage2_penalized
@@ -980,7 +980,8 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                           kpi_stage1_penalized:  false,
                           kpi_stage2_penalized:  false,
                           needs_reassign:        false,
-                          status:                "Chờ KTV",
+                          // Đơn GĐV báo giá trực tiếp: giao thẳng KTV sửa (không qua kiểm tra QT2)
+                          status:                order.status === "Chờ Báo Giá" ? "Chờ KTV Sửa" : "Chờ KTV",
                         }, null);
                         showToast(`✅ Đã giao đơn cho ${u.name || u.full_name}`);
                       }}
@@ -1188,7 +1189,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
             )}
 
             {/* ── QT2: KTV kiểm tra sâu ── */}
-            {order.status === "Chờ KTV" && (order.assigned_to === currentUser.id || ["manager","admin","owner","supervisor"].includes(currentUser.role)) && (
+            {order.status === "Chờ KTV" && !order.quote_by_name && (order.assigned_to === currentUser.id || ["manager","admin","owner","supervisor"].includes(currentUser.role)) && (
               <div style={{ marginTop:8 }}>
                 <button onClick={() => setShowQT2(true)}
                   style={{ width:"100%", height:56, borderRadius:16, background:"linear-gradient(135deg,#6d28d9,#7c3aed)", border:"none", color:"#fff", fontWeight:900, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10, boxShadow:"0 4px 16px rgba(109,40,217,.3)" }}>
@@ -1977,7 +1978,7 @@ function KtvAssignPicker({ list, mode, quoting, onAssign }) {
       <button disabled={!picked}
         onClick={() => {
           if (!picked) return;
-          if (quoting && !window.confirm(`Chuyển đơn cho ${picked.name || picked.full_name} kiểm tra?\nĐơn sẽ sang "Chờ KTV" thay vì báo giá trực tiếp.`)) return;
+          if (quoting && !window.confirm(`Giao đơn cho ${picked.name || picked.full_name} sửa?\nĐơn sẽ sang "Chờ KTV Sửa".`)) return;
           onAssign(picked); setSel("");
         }}
         style={{ width:"100%", height:44, borderRadius:12, marginTop:8, border:"none", background: picked ? accent : "#e5e7eb", color: picked ? "#fff" : "#9ca3af", fontWeight:900, fontSize:14, cursor: picked ? "pointer" : "default" }}>
