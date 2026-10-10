@@ -63,6 +63,13 @@ export const SPARE_SUGGESTIONS = [
   "Công kiểm tra", "Công vệ sinh", "Công hàn", "Công thay linh kiện",
 ];
 
+// Phí dịch vụ / công (KHÔNG gồm linh kiện — linh kiện chọn từ kho)
+export const SERVICE_FEES = [
+  "Công kiểm tra", "Công vệ sinh", "Công thay linh kiện", "Công hàn",
+  "Công ép kính", "Công sửa main", "Công cài đặt phần mềm", "Công thay màn hình",
+  "Công thay pin", "Phí khác",
+];
+
 const MI = ({ name, style = {} }) => (
   <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:20, verticalAlign:"middle", lineHeight:1, userSelect:"none", ...style }}>{name}</span>
 );
@@ -646,6 +653,10 @@ export function CustomerConfirmModal({ order, currentUser, onClose, onApprove, o
   const validLines = lines.filter(l => l.name && l.name.trim());
   const totalLines = validLines.reduce((s, l) => s + (Number(l.price) || 0) * (Number(l.qty) || 1), 0);
   const hasWaiting  = validLines.some(l => l.waiting && !l.is_service);
+  const [giaTouched, setGiaTouched] = useState(!!order.estimated_cost);
+  useEffect(() => {
+    if (!giaTouched && totalLines > 0) setGiaKhach(String(totalLines));
+  }, [totalLines, giaTouched]);
 
   const qt1Issues = Object.entries(qt1).filter(([,v]) => v?.checked).map(([k,v]) => {
     const item = [
@@ -765,16 +776,23 @@ export function CustomerConfirmModal({ order, currentUser, onClose, onApprove, o
             <div style={{ fontWeight:800, fontSize:13, color:"#4c1d95", marginBottom:10, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
               <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                 <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,color:"#7c3aed",verticalAlign:"middle"}}>build</span>
-                {order.quote_by_name ? `Báo giá: ${order.quote_by_name}` : (order.status === "Chờ Báo Giá" && !deXuat.length ? "Báo giá linh kiện / dịch vụ" : "Dự toán KTV")}
+                {order.quote_by_name ? `Báo giá: ${order.quote_by_name}` : (order.status === "Chờ Báo Giá" && !deXuat.length ? "Báo giá linh kiện & phí dịch vụ" : "Dự toán KTV")}
               </div>
               <span style={{ fontWeight:900, color:"#7c3aed", fontSize:14 }}>{totalLines.toLocaleString("vi-VN")}đ</span>
             </div>
 
             {/* Tìm linh kiện trong kho */}
-            <input value={partSearch} onChange={e => setPartSearch(e.target.value)}
-              placeholder="Tìm linh kiện trong kho (tên/SKU) để thêm..."
-              style={{ width:"100%", height:40, borderRadius:10, border:"1.5px solid #ddd6fe", paddingLeft:44, fontSize:13, outline:"none", boxSizing:"border-box", marginBottom:6, background:"#fff" }} />
+            <div style={{ fontSize:11, fontWeight:800, color:"#6d28d9", marginBottom:4 }}>1. LINH KIỆN (chọn từ kho, có giá bán + tồn)</div>
+            <div style={{ position:"relative", marginBottom:6 }}>
+              <span className="material-icons" style={{ fontFamily:"Material Icons", position:"absolute", left:12, top:10, fontSize:20, color:"#7c3aed", pointerEvents:"none" }}>search</span>
+              <input value={partSearch} onChange={e => setPartSearch(e.target.value)}
+                placeholder="Gõ tên / SKU linh kiện (vd: màn ip11, pin...)"
+                style={{ width:"100%", height:42, borderRadius:10, border:"2px solid #a78bfa", paddingLeft:44, paddingRight:10, fontSize:13, outline:"none", boxSizing:"border-box", background:"#fff" }} />
+            </div>
             {searching && <div style={{ fontSize:12, color:"#7c3aed", marginBottom:6 }}>Đang tìm...</div>}
+            {!searching && partSearch.trim() && partRes.length === 0 && (
+              <div style={{ fontSize:12, color:"#b45309", background:"#fffbeb", borderRadius:8, padding:"6px 10px", marginBottom:6 }}>Không thấy linh kiện "{partSearch.trim()}" trong kho — thử từ khóa khác.</div>
+            )}
             {partRes.length > 0 && (
               <div style={{ maxHeight:180, overflowY:"auto", background:"#fff", borderRadius:10, border:"1.5px solid #ddd6fe", marginBottom:8 }}>
                 {partRes.map(p => {
@@ -796,22 +814,23 @@ export function CustomerConfirmModal({ order, currentUser, onClose, onApprove, o
               </div>
             )}
 
-            {/* Nút thêm dịch vụ */}
+            {/* Phí dịch vụ */}
+            <div style={{ fontSize:11, fontWeight:800, color:"#6d28d9", margin:"4px 0" }}>2. PHÍ DỊCH VỤ / CÔNG</div>
             <button onClick={() => setShowSvc(v => !v)}
               style={{ width:"100%", height:36, borderRadius:10, background:"#7c3aed", border:"none", color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:4, marginBottom:8 }}>
-              <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:15,verticalAlign:"middle"}}>add</span> Thêm dịch vụ / công
+              <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:15,verticalAlign:"middle"}}>add</span> Thêm phí dịch vụ / công
             </button>
             {showSvc && (
               <div style={{ background:"#fff", border:"1.5px solid #a5f3fc", borderRadius:10, overflow:"hidden", marginBottom:8 }}>
                 <input value={svcFilter} onChange={e => setSvcFilter(e.target.value)} autoFocus
-                  placeholder="Tìm hoặc nhập dịch vụ mới..."
+                  placeholder="Tìm hoặc nhập phí dịch vụ..."
                   style={{ width:"100%", padding:"8px 10px", border:"none", borderBottom:"1px solid #e0f2fe", fontSize:12, outline:"none", boxSizing:"border-box" }} />
                 <div style={{ maxHeight:150, overflowY:"auto" }}>
-                  {SPARE_SUGGESTIONS.filter(x => !svcFilter || x.toLowerCase().includes(svcFilter.toLowerCase())).map(x => (
+                  {SERVICE_FEES.filter(x => !svcFilter || x.toLowerCase().includes(svcFilter.toLowerCase())).map(x => (
                     <button key={x} onClick={() => addSvc(x)}
                       style={{ width:"100%", padding:"7px 12px", background:"none", border:"none", borderBottom:"1px solid #f8fafc", textAlign:"left", fontSize:12, color:"#155e75", cursor:"pointer" }}>+ {x}</button>
                   ))}
-                  {svcFilter.trim() && !SPARE_SUGGESTIONS.some(x => x.toLowerCase() === svcFilter.trim().toLowerCase()) && (
+                  {svcFilter.trim() && !SERVICE_FEES.some(x => x.toLowerCase() === svcFilter.trim().toLowerCase()) && (
                     <button onClick={() => addSvc(svcFilter.trim())}
                       style={{ width:"100%", padding:"7px 12px", background:"#ecfeff", border:"none", textAlign:"left", fontSize:12, color:"#0891b2", cursor:"pointer", fontWeight:700 }}>+ Thêm "{svcFilter.trim()}"</button>
                   )}
@@ -822,7 +841,7 @@ export function CustomerConfirmModal({ order, currentUser, onClose, onApprove, o
             {/* Danh sách dòng báo giá */}
             {validLines.length === 0 ? (
               <div style={{ textAlign:"center", padding:"12px 8px", color:"#94a3b8", fontSize:12 }}>
-                Chưa có linh kiện / dịch vụ — thêm để báo giá chi tiết (không bắt buộc).
+                Chưa có dòng nào — tìm linh kiện trong kho ở ô trên, hoặc thêm phí dịch vụ / công.
               </div>
             ) : (
               <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
@@ -837,7 +856,7 @@ export function CustomerConfirmModal({ order, currentUser, onClose, onApprove, o
                             {l.is_service && <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:13,color:"#0891b2",verticalAlign:"middle"}}>handyman</span>} {l.name}
                           </div>
                           <div style={{ fontSize:10, color:"#64748b" }}>
-                            {l.sku ? `SKU: ${l.sku}` : (l.is_service ? "Dịch vụ" : "")}
+                            {l.sku ? `SKU: ${l.sku}` : (l.is_service ? "Phí dịch vụ" : "")}
                             {stock !== null && <span style={{ fontWeight:700, color: stock > 0 ? "#059669" : "#dc2626", marginLeft:6 }}>{stock > 0 ? `Tồn: ${stock}` : "Hết hàng"}</span>}
                           </div>
                         </div>
@@ -850,7 +869,7 @@ export function CustomerConfirmModal({ order, currentUser, onClose, onApprove, o
                         <input type="number" min="1" value={l.qty} onChange={e => updLine(l.key, "qty", e.target.value)}
                           placeholder="SL" style={{ width:"100%", height:32, borderRadius:8, border:"1.5px solid #e2e8f0", padding:"0 8px", fontSize:12, boxSizing:"border-box", outline:"none" }} />
                         <input type="number" min="0" value={l.price} onChange={e => updLine(l.key, "price", e.target.value)}
-                          placeholder="Giá bán (đ)" style={{ width:"100%", height:32, borderRadius:8, border:"1.5px solid #e2e8f0", padding:"0 8px", fontSize:12, boxSizing:"border-box", outline:"none" }} />
+                          placeholder={l.is_service ? "Phí dịch vụ (đ)" : "Giá bán (đ)"} style={{ width:"100%", height:32, borderRadius:8, border:"1.5px solid #e2e8f0", padding:"0 8px", fontSize:12, boxSizing:"border-box", outline:"none" }} />
                         {!l.is_service && (
                           <label style={{ display:"flex", alignItems:"center", gap:4, fontSize:11, fontWeight:700, color:l.waiting ? "#c2410c" : "#64748b", cursor:"pointer", whiteSpace:"nowrap" }}>
                             <input type="checkbox" checked={l.waiting} onChange={e => updLine(l.key, "waiting", e.target.checked)}
@@ -878,7 +897,7 @@ export function CustomerConfirmModal({ order, currentUser, onClose, onApprove, o
                 })}
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"6px 4px" }}>
                   <span style={{ fontSize:12, fontWeight:700, color:"#6d28d9" }}>Tổng dòng báo giá {hasWaiting && <span style={{ color:"#ea580c" }}>· có LK chờ nhập</span>}</span>
-                  <button onClick={() => setGiaKhach(String(totalLines))} disabled={!totalLines}
+                  <button onClick={() => { setGiaTouched(false); setGiaKhach(String(totalLines)); }} disabled={!totalLines}
                     style={{ background:"#ede9fe", color:"#5b21b6", border:"none", borderRadius:8, padding:"4px 10px", fontSize:11, fontWeight:800, cursor: totalLines ? "pointer" : "default" }}>
                     {totalLines ? `Dùng ${totalLines.toLocaleString("vi-VN")}đ làm giá báo khách` : "—"}
                   </button>
@@ -900,7 +919,7 @@ export function CustomerConfirmModal({ order, currentUser, onClose, onApprove, o
                 </div>
                 <input
                   value={giaKhach}
-                  onChange={e => setGiaKhach(e.target.value)}
+                  onChange={e => { setGiaTouched(true); setGiaKhach(e.target.value); }}
                   type="number" inputMode="numeric" min="0"
                   placeholder="Nhập giá..."
                   style={{ width:"100%", borderRadius:10, border: !giaKhach ? "2px solid #fca5a5" : "2px solid #fb923c", padding:"10px 12px", fontSize:15, fontWeight:700, boxSizing:"border-box", outline:"none", textAlign:"right", color:"#9a3412" }}
