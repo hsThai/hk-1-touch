@@ -78,7 +78,7 @@ export function clearAuth() {
 }
 
 // ── Base fetch helper ─────────────────────────────────────
-async function pbFetch(path, options = {}) {
+export async function pbFetch(path, options = {}) {
   const base = getPbUrl();
   const { token } = getAuth();
   const url = `${base}/api/${path}`;

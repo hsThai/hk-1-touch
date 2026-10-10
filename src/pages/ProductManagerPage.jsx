@@ -4,7 +4,7 @@
  * @version 2026-08-18-v2 — danh mục động (ProductCategory entity) + quản lý danh mục
  */
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { SparePart, ProductCategory, logAction, uploadFile, normalizePbUrl, ensureStockLedgerForPart } from "./pb.jsx";
+import { pbFetch, SparePart, ProductCategory, logAction, uploadFile, normalizePbUrl, ensureStockLedgerForPart } from "./pb.jsx";
 import { usePermission } from "./PermissionContext.jsx";
 import { refreshProductImages } from "./ProductThumb.jsx";
 import CategoryManagerModal from "./CategoryManagerModal.jsx";
@@ -368,55 +368,87 @@ export default function ProductManagerPage({ user }) {
     return c ? ((c.icon || "📦") + " " + c.name) : (code || "—");
   }
 
+  const PAGE_SIZE = 100;
+  const [totalFound, setTotalFound] = useState(0);
+  const [page, setPage] = useState(1);
+  const [allStats, setAllStats] = useState({ total:0, active:0, outOfStock:0, totalValue:0 });
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  // Debounce ô tìm kiếm → tìm TRÊN SERVER toàn bộ catalog (12k+ hàng)
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, category, showInactive, sortBy]);
+
+  function buildFilter() {
+    const parts = [];
+    if (!showInactive) parts.push("is_active!=false");
+    if (category !== "all") parts.push('category="' + String(category).replace(/\\/g,"\\\\").replace(/"/g,'\\"') + '"');
+    if (debouncedSearch) {
+      const q = debouncedSearch.replace(/\\/g,"\\\\").replace(/"/g,'\\"');
+      parts.push('(name~"' + q + '" || sku~"' + q + '" || serial_imei~"' + q + '" || note~"' + q + '")');
+    }
+    return parts.join(" && ");
+  }
+  const SORT_MAP = { name:"name", stock:"-stock_qty", price:"-price", category:"category,name" };
+
+  // Thống kê trên TOÀN BỘ catalog (chỉ tải 4 trường, không tải cả dòng)
+  const loadStats = useCallback(async () => {
+    try {
+      const all = await SparePart.listAll({ fields: "id,stock_qty,cost_price,price,is_active" });
+      let active = 0, out = 0, val = 0;
+      all.forEach(i => {
+        if (i.is_active !== false) active++;
+        const q = Number(i.stock_qty) || 0;
+        if (q <= 0) out++;
+        val += (Number(i.cost_price) || Number(i.price) || 0) * q;
+      });
+      setAllStats({ total: all.length, active, outOfStock: out, totalValue: val });
+    } catch {}
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [data, catData] = await Promise.all([
-        SparePart.list({ limit: 500, sort: "-id" }),
+      const params = new URLSearchParams({ perPage: PAGE_SIZE, page, sort: SORT_MAP[sortBy] || "name", skipTotal: "0" });
+      const f = buildFilter();
+      if (f) params.set("filter", f);
+      const [res, catData] = await Promise.all([
+        pbFetch("collections/product_catalog/records?" + params),
         ProductCategory.list({ limit: 200, sort: "sort_order,name" }),
       ]);
-      setItems(data || []);
+      setItems(res.items || []);
+      setTotalFound(res.totalItems || 0);
       setCategories((catData || []).filter(c => c.is_active !== false));
-    } catch { setItems([]); setCategories([]); }
+    } catch { setItems([]); setTotalFound(0); setCategories([]); }
     setLoading(false);
-  }, []);
+    // eslint-disable-next-line
+  }, [page, debouncedSearch, category, showInactive, sortBy]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadStats(); }, [loadStats]);
 
-  const displayed = useMemo(() => {
-    let filtered = items.filter(i => {
-      const matchSearch = !search ||
-        [i.name, i.sku, i.serial_imei, i.category, i.note]
-          .some(v => (v || "").toLowerCase().includes(search.toLowerCase()));
-      const matchCat = category === "all" || i.category === category;
-      const matchActive = showInactive || i.is_active !== false;
-      return matchSearch && matchCat && matchActive;
-    });
+  // Danh sách ĐẦY ĐỦ (12k+) chỉ tải khi mở Gộp hàng / Nhập-Xuất file
+  const [fullItems, setFullItems] = useState([]);
+  const [fullLoading, setFullLoading] = useState(false);
+  async function ensureFullItems() {
+    if (fullItems.length > 0 || fullLoading) return;
+    setFullLoading(true);
+    try { setFullItems(await SparePart.listAll({ sort: "name" })); } catch {}
+    setFullLoading(false);
+  }
 
-    filtered.sort((a, b) => {
-      if (sortBy === "name") return (a.name || "").localeCompare(b.name || "");
-      if (sortBy === "stock") return (Number(b.stock_qty) || 0) - (Number(a.stock_qty) || 0);
-      if (sortBy === "price") return (Number(b.price) || 0) - (Number(a.price) || 0);
-      if (sortBy === "category") return (a.category || "").localeCompare(b.category || "");
-      return 0;
-    });
-
-    return filtered;
-  }, [items, search, category, showInactive, sortBy]);
-
-  const stats = useMemo(() => ({
-    total: items.length,
-    active: items.filter(i => i.is_active !== false).length,
-    outOfStock: items.filter(i => !i.stock_qty || i.stock_qty === 0).length,
-    totalValue: items.reduce((s, i) => s + (Number(i.cost_price) || Number(i.price) || 0) * (Number(i.stock_qty) || 0), 0),
-  }), [items]);
+  const displayed = items;
+  const stats = allStats;
+  const totalPages = Math.max(1, Math.ceil(totalFound / PAGE_SIZE));
 
   async function handleDelete(item) {
     if (!window.confirm("Xóa \"" + item.name + "\"?\n\nTồn kho: " + (item.stock_qty || 0) + "\nThao tác này không thể hoàn tác!")) return;
     try {
       await SparePart.delete(item.id);
       logAction(user, "delete", "spare_part", item.id, "Xóa hàng hóa: " + item.name + " — SKU: " + (item.sku || "—"));
-      load();
+      load(); loadStats();
     } catch (e) { alert("Lỗi: " + e.message); }
   }
 
@@ -456,7 +488,7 @@ export default function ProductManagerPage({ user }) {
               🏷️ Quản lý danh mục
             </button>
             {can("product_mgr","export") && (
-            <button onClick={()=>setShowImportExport(true)} style={{
+            <button onClick={()=>{ ensureFullItems(); setShowImportExport(true); }} style={{
               height:44, padding:"0 16px", borderRadius:12, border:"1.5px solid #e5e7eb",
               background:"#fff", color:"#374151", fontWeight:700, fontSize:13, cursor:"pointer",
               display:"flex", alignItems:"center", gap:6,
@@ -599,7 +631,7 @@ export default function ProductManagerPage({ user }) {
                           <button onClick={()=>{ setEditing(item); setShowForm(true); }}
                             title="Sửa"
                             style={{ padding:"4px 8px", borderRadius:8, border:"1.5px solid #e0e7ff", background:"#ede9fe", color:"#6366f1", fontSize:11, fontWeight:700, cursor:"pointer" }}>✏️</button>
-                          <button onClick={()=>setMerging(item)}
+                          <button onClick={()=>{ ensureFullItems(); setMerging(item); }}
                             title="Gộp hàng trùng"
                             style={{ padding:"4px 8px", borderRadius:8, border:"1.5px solid #fef3c7", background:"#fffbeb", color:"#d97706", fontSize:11, fontWeight:700, cursor:"pointer" }}>🔀</button>
                           <button onClick={()=>toggleActive(item)}
@@ -621,21 +653,38 @@ export default function ProductManagerPage({ user }) {
         </div>
       )}
 
+      {!loading && totalFound > 0 && (
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, flexWrap:"wrap", margin:"14px 2px 4px" }}>
+          <span style={{ fontSize:13, color:"#6b7280", fontWeight:600 }}>
+            Hiển thị {(page-1)*PAGE_SIZE + 1}–{Math.min(page*PAGE_SIZE, totalFound)} / {totalFound.toLocaleString("vi-VN")} hàng hóa
+          </span>
+          {totalPages > 1 && (
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <button disabled={page<=1} onClick={()=>setPage(p=>Math.max(1,p-1))}
+                style={{ height:38, padding:"0 14px", borderRadius:10, border:"1.5px solid #e5e7eb", background:"#fff", fontWeight:700, fontSize:13, cursor:page<=1?"not-allowed":"pointer", opacity:page<=1?.45:1 }}>← Trước</button>
+              <span style={{ fontSize:13, fontWeight:700, color:"#374151" }}>{page} / {totalPages}</span>
+              <button disabled={page>=totalPages} onClick={()=>setPage(p=>Math.min(totalPages,p+1))}
+                style={{ height:38, padding:"0 14px", borderRadius:10, border:"1.5px solid #e5e7eb", background:"#fff", fontWeight:700, fontSize:13, cursor:page>=totalPages?"not-allowed":"pointer", opacity:page>=totalPages?.45:1 }}>Sau →</button>
+            </div>
+          )}
+        </div>
+      )}
+
       {showForm && (
         <ProductFormModal
           item={editing}
           categories={categories}
           user={user}
-          onSave={()=>load()}
+          onSave={()=>{ load(); loadStats(); }}
           onClose={()=>{ setShowForm(false); setEditing(null); }}
         />
       )}
       {merging && (
         <MergeModal
           source={merging}
-          items={items}
+          items={fullItems.length ? fullItems : items}
           user={user}
-          onMerge={()=>load()}
+          onMerge={()=>{ load(); loadStats(); setFullItems([]); }}
           onClose={()=>setMerging(null)}
         />
       )}
@@ -650,11 +699,11 @@ export default function ProductManagerPage({ user }) {
       {showImportExport && (
         <ProductImportExportModal
           user={user}
-          items={items}
+          items={fullItems.length ? fullItems : items}
           categories={categories}
           catMap={catMap}
           onClose={()=>setShowImportExport(false)}
-          onImported={()=>load()}
+          onImported={()=>{ load(); loadStats(); setFullItems([]); }}
         />
       )}
 

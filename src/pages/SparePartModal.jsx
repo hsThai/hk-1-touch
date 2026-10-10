@@ -483,6 +483,7 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
   const [loading, setLoading]     = useState(true);
   const [tab, setTab]             = useState("list");
   const [search, setSearch]       = useState("");
+  const [searchRes, setSearchRes] = useState(null); // null = chưa tìm → dùng danh sách mặc định
   const [toast, setToast]         = useState("");
   const [viewReq, setViewReq]     = useState(null);
   const [showForm, setShowForm]   = useState(false);
@@ -513,7 +514,7 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
       const [p, r, ledgers] = await Promise.all([
         SparePart.filter({is_active:true}),
         StockExportRequest.filter({order_id:order.order_code||order.id}),
-        StockLedger.list({limit:2000}).catch(()=>[]),
+        StockLedger.listAll().catch(()=>[]),
       ]);
       setParts(p.sort((a,b)=>(a.name||"").localeCompare(b.name)));
       setRequests(r.sort((a,b)=>(b.id||"").localeCompare(a.id||"")));
@@ -555,7 +556,7 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
 
       // Kiểm tra + lấy ledger cho từng item trong giỏ
       let allLedgers=[];
-      try { allLedgers=await StockLedger.list({limit:2000}); } catch{}
+      try { allLedgers=await StockLedger.listAll(); } catch{}
       const enrichedItems=[];
       for(const c of cartItems){
         const ledger=(allLedgers||[]).find(l=>l.warehouse_id===selectedWH && l.part_id===c.part_id);
@@ -606,7 +607,23 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
 
   if (!order || !currentStaff) return null;
 
-  const filteredParts=parts.filter(p=>!search||(p.name||"").toLowerCase().includes(search.toLowerCase())||(p.sku||"").toLowerCase().includes(search.toLowerCase()));
+  // Tìm TRÊN SERVER toàn bộ catalog (12k+ mặt hàng), không chỉ 200 cái đầu
+  useEffect(()=>{
+    const term=(search||"").trim();
+    if(!term){ setSearchRes(null); return; }
+    const t=setTimeout(async()=>{
+      try{
+        const q=term.replace(/\\/g,"\\\\").replace(/"/g,'\\"');
+        const found=await SparePart.list({
+          filter:`is_active=true && (name~"${q}" || sku~"${q}" || serial_imei~"${q}")`,
+          sort:"name", limit:60,
+        });
+        setSearchRes(found||[]);
+      }catch(e){ console.error(e); setSearchRes([]); }
+    },300);
+    return ()=>clearTimeout(t);
+  },[search]);
+  const filteredParts = searchRes!==null ? searchRes : parts;
   const pendingCount=requests.filter(r=>r.status==="pending").length;
 
   return (
