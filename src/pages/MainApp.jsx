@@ -1361,6 +1361,10 @@ function MainAppContent({ onUserChange }) {
         "quote_by","quote_by_name","quote_discount","waiting_reminded",
       ];
       directFields.forEach(f => { if (patch[f] !== undefined) pbPatch[f] = patch[f]; });
+      // qt2_de_xuat là cột text trong PB → mảng/object phải stringify, nếu không PB bỏ mất giá trị
+      if (pbPatch.qt2_de_xuat !== undefined && typeof pbPatch.qt2_de_xuat !== "string") {
+        pbPatch.qt2_de_xuat = JSON.stringify(pbPatch.qt2_de_xuat || []);
+      }
       // Fields cần map enum
       if (patch.status    !== undefined) pbPatch.status   = STATUS_PB[patch.status]   || patch.status;
       if (patch.priority  !== undefined) pbPatch.priority = PRIORITY_PB[patch.priority]|| patch.priority;

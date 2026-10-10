@@ -256,7 +256,14 @@ export async function previewReceiptForm(order, quotedParts = [], shopInfo = {})
       ).join("")
     : `<span style="font-size:12px;color:#6b7280;font-style:italic">Không phát hiện lỗi ngoại quan</span>`;
 
-  // Bảng báo giá linh kiện
+  // Bảng báo giá linh kiện: ưu tiên phiếu xuất kho; chưa có thì dùng dòng báo giá GĐV (kể cả lưu tạm)
+  if (!(quotedParts && quotedParts.length > 0)) {
+    const ql = getQuoteLines(order);
+    if (ql.length > 0) {
+      quotedParts = ql.map(l => ({ part_name: l.name + (l.is_service ? " (công/dịch vụ)" : ""), qty_used: l.qty, unit_price: l.price, total_price: l.total }));
+    }
+  }
+  const quotedDiscount = Number(order.quote_discount) || 0;
   const quotedTotal = (quotedParts||[]).reduce((s,p) => s + (p.total_price||p.unit_price||0), 0);
   const quotedHTML = (quotedParts && quotedParts.length > 0)
     ? quotedParts.map((p,i) => `
@@ -451,6 +458,24 @@ ${order.deposit>0?`
 }
 
 
+// Dòng báo giá lưu trong đơn (qt2_de_xuat): linh kiện + phí dịch vụ GĐV đã chốt/lưu tạm.
+// Dùng khi chưa có phiếu xuất kho (SparePartUsage) để hóa đơn vẫn hiện chi tiết.
+export function getQuoteLines(order) {
+  let arr = [];
+  try {
+    const raw = order && order.qt2_de_xuat;
+    if (typeof raw === "string" && raw) arr = JSON.parse(raw);
+    else if (Array.isArray(raw)) arr = raw;
+  } catch {}
+  return (Array.isArray(arr) ? arr : [])
+    .filter(l => l && l.name && String(l.name).trim())
+    .map(l => {
+      const qty = Number(l.qty) || 1, price = Number(l.price) || 0;
+      return { name: String(l.name).trim(), sku: l.sku || "", is_service: !!l.is_service, qty, price, total: qty * price };
+    });
+}
+function _vnd(n) { return Number(n || 0).toLocaleString("vi-VN"); }
+
 export async function previewBill(order, parts = [], shopInfo = {}) {
   if (!shopInfo || !shopInfo.shop_name) shopInfo = await loadShopInfo();
   const orderUrl = "https://hk-1-touch.vercel.app/OrderPublic?code=" + encodeURIComponent(order.order_code || order.id);
@@ -459,6 +484,31 @@ export async function previewBill(order, parts = [], shopInfo = {}) {
   const vietqrUrl = shopInfo.bank_account && shopInfo.bank_name
     ? `https://img.vietqr.io/image/${shopInfo.bank_name}-${shopInfo.bank_account}-compact2.png?amount=${remaining}&addInfo=${encodeURIComponent("HK " + (order.order_code || order.id))}&accountName=${encodeURIComponent(shopInfo.shop_name || "")}`
     : null;
+
+  // ── Dòng hóa đơn: phiếu xuất kho (đã dùng) > dòng báo giá GĐV > 1 dòng chung ──
+  const usedParts  = (parts || []).filter(p => p.qty_used > 0);
+  const quoteLines = getQuoteLines(order);
+  const discount   = Number(order.quote_discount) || 0;
+  let billRowsHtml = "", subTotal = 0;
+  if (usedParts.length > 0) {
+    subTotal = usedParts.reduce((a, p) => a + Number(p.total_price || 0), 0);
+    billRowsHtml = usedParts.map((p, k) =>
+      `<tr><td class="c">${k+1}</td><td>${p.part_name||""}</td><td class="c">${p.qty_used}</td><td class="r">${_vnd(p.unit_price)}</td><td class="r" style="font-weight:bold">${_vnd(p.total_price)}</td></tr>`).join("");
+  } else if (quoteLines.length > 0) {
+    subTotal = quoteLines.reduce((a, l) => a + l.total, 0);
+    billRowsHtml = quoteLines.map((l, k) =>
+      `<tr><td class="c">${k+1}</td><td>${l.name}${l.is_service ? ' <span style="font-size:10px;color:#666">(công/dịch vụ)</span>' : (l.sku ? ' <span style="font-size:10px;color:#888">'+l.sku+'</span>' : '')}</td><td class="c">${l.qty}</td><td class="r">${_vnd(l.price)}</td><td class="r" style="font-weight:bold">${_vnd(l.total)}</td></tr>`).join("");
+  } else {
+    const v = order.final_cost || order.estimated_cost || 0;
+    subTotal = v;
+    billRowsHtml = `<tr><td class="c">1</td><td>Dịch vụ sửa chữa</td><td class="c">1</td><td class="r">${_vnd(v)}</td><td class="r" style="font-weight:bold">${_vnd(v)}</td></tr>`;
+  }
+  // Có dòng chi tiết + giảm giá → hiện dòng Tạm tính / Giảm giá phía trên TỔNG
+  const showSub = (usedParts.length > 0 || quoteLines.length > 0) && discount > 0;
+  const billTotal = order.final_cost || order.estimated_cost || Math.max(0, subTotal - discount);
+  const discountRows = showSub
+    ? `<div class="total-row"><span>Tạm tính:</span><span>${_vnd(subTotal)} đ</span></div><div class="total-row"><span>Giảm giá:</span><span style="color:#dc2626">- ${_vnd(discount)} đ</span></div>`
+    : "";
 
   const partsHTML = (parts || []).filter(p => p.qty_used > 0).map(p =>
     `<tr><td>${p.part_name || ""}</td><td style="text-align:right">${p.qty_used}</td><td style="text-align:right">${Number(p.unit_price || 0).toLocaleString("vi-VN")}đ</td><td style="text-align:right">${Number(p.total_price || 0).toLocaleString("vi-VN")}đ</td></tr>`
@@ -544,29 +594,14 @@ export async function previewBill(order, parts = [], shopInfo = {}) {
       <th class="r" style="width:22%">T.Tiền</th>
     </tr></thead>
     <tbody>
-      ${(parts&&parts.length>0)
-        ? parts.filter(p=>p.qty_used>0).map((p,i)=>
-            `<tr>
-              <td class="c">${i+1}</td>
-              <td>${p.part_name||""}</td>
-              <td class="c">${p.qty_used}</td>
-              <td class="r">${Number(p.unit_price||0).toLocaleString("vi-VN")}</td>
-              <td class="r" style="font-weight:bold">${Number(p.total_price||0).toLocaleString("vi-VN")}</td>
-            </tr>`).join("")
-        : `<tr>
-            <td class="c">1</td>
-            <td>Dịch vụ sửa chữa</td>
-            <td class="c">1</td>
-            <td class="r">${Number(order.final_cost||order.estimated_cost||0).toLocaleString("vi-VN")}</td>
-            <td class="r" style="font-weight:bold">${Number(order.final_cost||order.estimated_cost||0).toLocaleString("vi-VN")}</td>
-          </tr>`
-      }
+      ${billRowsHtml}
     </tbody>
   </table>
   <hr class="sep-dash"/>
 
   <!-- TỔNG TIỀN -->
   ${order.deposit>0?`<div class="total-row"><span>Đặt cọc trước:</span><span style="color:#059669">- ${Number(order.deposit||0).toLocaleString("vi-VN")} đ</span></div>`:""}
+  ${discountRows}
   <div class="grand-row"><span>TỔNG THANH TOÁN:</span><span class="grand-val">${Number(order.final_cost||order.estimated_cost||0).toLocaleString("vi-VN")} đ</span></div>
   ${remaining>0?`<div class="remain-row"><span>CÒN LẠI:</span><span>${Number(remaining).toLocaleString("vi-VN")} đ</span></div>`:""}
 
