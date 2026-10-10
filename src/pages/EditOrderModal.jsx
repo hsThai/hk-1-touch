@@ -60,7 +60,7 @@ export default function EditOrderModal({ order, users, currentUser, onClose, onS
   const techs = (users||[]).filter(u => ["technician","manager","admin"].includes(u.role));
   const STATUS_OPTS = [
     {val:"Chờ KTV",label:"⏳ Chờ KTV"},{val:"KTV Đang Kiểm",label:"🔍 KTV Đang Kiểm"},
-    {val:"Chờ Báo Giá",label:"💰 Chờ Báo Giá"},{val:"Chờ Xác Nhận",label:"📋 Chờ Xác Nhận"},
+    {val:"Chờ Báo Giá",label:"💰 Chờ Báo Giá"},
     {val:"Chờ KTV Sửa",label:"🛠️ Chờ KTV Sửa"},{val:"Đang Sửa",label:"🔧 Đang Sửa"},
     {val:"Chờ Linh Kiện",label:"📦 Chờ Linh Kiện"},{val:"Hoàn Thành",label:"✅ Hoàn Thành"},
     {val:"Đã Giao",label:"🏠 Đã Giao"},{val:"Hủy",label:"❌ Hủy"},
