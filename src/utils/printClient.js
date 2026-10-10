@@ -485,12 +485,13 @@ export async function previewBill(order, parts = [], shopInfo = {}) {
   const orderUrl = "https://hk-1-touch.vercel.app/OrderPublic?code=" + encodeURIComponent(order.order_code || order.id);
   const orderQrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=" + encodeURIComponent(orderUrl);
   const remaining = Math.max(0, (order.final_cost || order.estimated_cost || 0) - (order.deposit || 0));
+  const isDraftBill = String(order.status || "") === "Cho Bao Gia";
   const vietqrUrl = shopInfo.bank_account && shopInfo.bank_name
     ? `https://img.vietqr.io/image/${shopInfo.bank_name}-${shopInfo.bank_account}-compact2.png?amount=${remaining}&addInfo=${encodeURIComponent("HK " + (order.order_code || order.id))}&accountName=${encodeURIComponent(shopInfo.shop_name || "")}`
     : null;
 
   // ── Dòng hóa đơn: phiếu xuất kho (đã dùng) > dòng báo giá GĐV > 1 dòng chung ──
-  const usedParts  = (parts || []).filter(p => p.qty_used > 0);
+  const usedParts  = (Array.isArray(parts) ? parts : []).filter(p => p.qty_used > 0);
   const quoteLines = getQuoteLines(order);
   const discount   = Number(order.quote_discount) || 0;
   let billRowsHtml = "", subTotal = 0;
@@ -554,8 +555,11 @@ export async function previewBill(order, parts = [], shopInfo = {}) {
   .footer{text-align:center;font-size:11px;color:#555;margin-top:7px;
           border-top:1px dashed #aaa;padding-top:5px}
   @media print{@page{size:A5 portrait;margin:6mm}body{padding:0}}
+  .draft-wm{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:999}
+  .draft-wm span{transform:rotate(-24deg);font-size:58px;font-weight:900;color:rgba(220,38,38,.14);letter-spacing:10px;border:5px solid rgba(220,38,38,.14);padding:6px 20px}
 </style>
 </head><body>
+  ${isDraftBill?`<div class="draft-wm"><span>IN NHÁP</span></div>`:""}
 
   <!-- HEADER -->
   <div class="title-shop">${shopInfo.shop_name||"HOÀNG KHÁNH MOBILE"}</div>
