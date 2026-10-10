@@ -376,22 +376,22 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
                 <option key={u.id} value={u.id}>🔧 {u.name||u.full_name}</option>
               ))}
             </select>
-          </div>
-
-          {/* ── Nút Tạo Đơn: 2 hướng ── */}
-          <div style={{ display:"flex", gap:8, marginBottom:8 }}>
-            <button onClick={onClose} style={{ flex:1, height:52, borderRadius:14, background:"#f3f4f6", border:"none", fontWeight:700, fontSize:15, color:"#6b7280", cursor:"pointer" }}>Hủy</button>
             <button onClick={()=>submit("ktv")} disabled={submitting || !canSubmit}
-              style={{ flex:1.7, height:52, borderRadius:14, background: canSubmit ? "linear-gradient(135deg,#0369a1,#0284c7)" : "#e5e7eb", border:"none", color: canSubmit ? "#fff" : "#9ca3af", fontWeight:900, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+              style={{ width:"100%", height:52, borderRadius:14, marginTop:12, background: canSubmit ? "linear-gradient(135deg,#0369a1,#0284c7)" : "#e5e7eb", border:"none", color: canSubmit ? "#fff" : "#9ca3af", fontWeight:900, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
               <MI name="engineering" style={{ fontSize:20, color: canSubmit ? "#fff" : "#9ca3af" }} />
               {submitting ? "Đang tạo..." : "Tạo Đơn & Chuyển KTV"}
             </button>
           </div>
-          <button onClick={()=>submit("quote")} disabled={submitting || !canSubmit}
-            style={{ width:"100%", height:52, borderRadius:14, background: canSubmit ? "linear-gradient(135deg,#0891b2,#06b6d4)" : "#e5e7eb", border:"none", color: canSubmit ? "#fff" : "#9ca3af", fontWeight:900, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6, marginBottom:10 }}>
-            <MI name="request_quote" style={{ fontSize:20, color: canSubmit ? "#fff" : "#9ca3af" }} />
-            Tạo Đơn & Báo Giá Ngay
-          </button>
+
+          {/* ── Hủy + Báo Giá Ngay (cùng hàng) ── */}
+          <div style={{ display:"flex", gap:8, marginBottom:10 }}>
+            <button onClick={onClose} style={{ flex:1, height:52, borderRadius:14, background:"#f3f4f6", border:"none", fontWeight:700, fontSize:15, color:"#6b7280", cursor:"pointer" }}>Hủy</button>
+            <button onClick={()=>submit("quote")} disabled={submitting || !canSubmit}
+              style={{ flex:1.7, height:52, borderRadius:14, background: canSubmit ? "linear-gradient(135deg,#0891b2,#06b6d4)" : "#e5e7eb", border:"none", color: canSubmit ? "#fff" : "#9ca3af", fontWeight:900, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+              <MI name="request_quote" style={{ fontSize:20, color: canSubmit ? "#fff" : "#9ca3af" }} />
+              Tạo Đơn & Báo Giá Ngay
+            </button>
+          </div>
           <div style={{ fontSize:11, color:"#94a3b8", textAlign:"center", marginBottom:24 }}>
             "Báo Giá Ngay": bỏ qua bước KTV kiểm sâu — chọn LK/dịch vụ, báo giá và xác nhận khách luôn.
           </div>
