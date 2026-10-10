@@ -129,7 +129,7 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
     if (result.type === "raw") { set("product_qr", result.code); setQrMsg({ type:"new", code:result.code }); }
   }
 
-  async function submit() {
+  async function submit(mode = "ktv") {
     if (!form.device_model.trim()) { alert("Vui lòng nhập tên thiết bị!"); return; }
     let cName = form.customer_name;
     let cPhone = form.customer_phone;
@@ -168,6 +168,8 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
       assigned_to_name: ktvUser?.name || ktvUser?.full_name || "",
       qt1_checklist: JSON.stringify(qt1),
       qt1_note: qt1Note,
+      status: mode === "quote" ? "Cho Bao Gia" : "Cho KTV",
+      quoteNow: mode === "quote",
     };
     onCreate(newOrder);
 
@@ -376,14 +378,22 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
             </select>
           </div>
 
-          {/* ── Nút Tạo Đơn ── */}
-          <div style={{ display:"flex", gap:10, marginBottom:24 }}>
+          {/* ── Nút Tạo Đơn: 2 hướng ── */}
+          <div style={{ display:"flex", gap:8, marginBottom:8 }}>
             <button onClick={onClose} style={{ flex:1, height:52, borderRadius:14, background:"#f3f4f6", border:"none", fontWeight:700, fontSize:15, color:"#6b7280", cursor:"pointer" }}>Hủy</button>
-            <button onClick={submit} disabled={submitting || !canSubmit}
-              style={{ flex:2, height:52, borderRadius:14, background: canSubmit ? "linear-gradient(135deg,#0369a1,#0284c7)" : "#e5e7eb", border:"none", color: canSubmit ? "#fff" : "#9ca3af", fontWeight:900, fontSize:16, cursor: canSubmit ? "pointer" : "not-allowed", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
-              <MI name="send" style={{ fontSize:22, color: canSubmit ? "#fff" : "#9ca3af" }} />
+            <button onClick={()=>submit("ktv")} disabled={submitting || !canSubmit}
+              style={{ flex:1.7, height:52, borderRadius:14, background: canSubmit ? "linear-gradient(135deg,#0369a1,#0284c7)" : "#e5e7eb", border:"none", color: canSubmit ? "#fff" : "#9ca3af", fontWeight:900, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+              <MI name="engineering" style={{ fontSize:20, color: canSubmit ? "#fff" : "#9ca3af" }} />
               {submitting ? "Đang tạo..." : "Tạo Đơn & Chuyển KTV"}
             </button>
+          </div>
+          <button onClick={()=>submit("quote")} disabled={submitting || !canSubmit}
+            style={{ width:"100%", height:52, borderRadius:14, background: canSubmit ? "linear-gradient(135deg,#0891b2,#06b6d4)" : "#e5e7eb", border:"none", color: canSubmit ? "#fff" : "#9ca3af", fontWeight:900, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6, marginBottom:10 }}>
+            <MI name="request_quote" style={{ fontSize:20, color: canSubmit ? "#fff" : "#9ca3af" }} />
+            Tạo Đơn & Báo Giá Ngay
+          </button>
+          <div style={{ fontSize:11, color:"#94a3b8", textAlign:"center", marginBottom:24 }}>
+            "Báo Giá Ngay": bỏ qua bước KTV kiểm sâu — chọn LK/dịch vụ, báo giá và xác nhận khách luôn.
           </div>
         </div>
 

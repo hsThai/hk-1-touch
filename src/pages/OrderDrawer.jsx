@@ -1236,9 +1236,13 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 <div style={{ background:"#fffbeb", border:"2px solid #fcd34d", borderRadius:14, padding:"12px 14px", marginBottom:10 }}>
                   <div style={{ fontWeight:800, fontSize:14, color:"#92400e", marginBottom:4 }}>
                     <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,verticalAlign:"middle",marginRight:6}}>request_quote</span>
-                    KTV đã kiểm xong — Báo giá cho khách
+                    {order.quote_by_name ? "Báo giá GĐV — Xác nhận với khách"
+                      : (!order.qt2_de_xuat && !order.qt2_checklist) ? "Báo giá cho khách (đơn vừa tiếp nhận)"
+                      : "KTV đã kiểm xong — Báo giá cho khách"}
                   </div>
-                  <div style={{ fontSize:12, color:"#78350f" }}>KTV: {order.assigned_to_name} · {order.qt2_note || "Không có ghi chú"}</div>
+                  <div style={{ fontSize:12, color:"#78350f" }}>
+                    {order.quote_by_name ? `Báo giá bởi: ${order.quote_by_name}` : `KTV: ${order.assigned_to_name}`} · {order.qt2_note || "Không có ghi chú"}
+                  </div>
                 </div>
                 <button onClick={() => setShowCustConfirm(true)}
                   style={{ width:"100%", height:56, borderRadius:16, background:"linear-gradient(135deg,#db2777,#ec4899)", border:"none", color:"#fff", fontWeight:900, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10, boxShadow:"0 4px 16px rgba(219,39,119,.3)" }}>
@@ -1254,7 +1258,59 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
               </div>
             )}
 
-            {/* ── Chờ Xác Nhận: hiển thị info ── */}
+            {/* ── Chờ Linh Kiện (đặt NCC): hàng chờ nhập + nút hàng đã về ── */}
+            {order.status === "Chờ Linh Kiện" && (() => {
+              let ql = [];
+              try { const raw = order.qt2_de_xuat; if (typeof raw === "string" && raw) ql = JSON.parse(raw); else if (Array.isArray(raw)) ql = raw; } catch {}
+              const wait = (ql || []).filter(l => l && l.waiting);
+              const canArrive = ["manager","admin","owner","warehouse","receptionist","supervisor","accountant"].includes(currentUser?.role);
+              const fmtD = d => d ? String(d).slice(0,10).split("-").reverse().join("/") : "—";
+              return (
+                <div style={{ marginTop:8, background:"#fff7ed", border:"2px solid #fdba74", borderRadius:14, padding:"12px 14px" }}>
+                  <div style={{ fontWeight:800, fontSize:14, color:"#9a3412", marginBottom:6, display:"flex", alignItems:"center", gap:6 }}>
+                    <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:17,verticalAlign:"middle"}}>inventory</span>
+                    Chờ linh kiện nhập hàng (đặt NCC)
+                  </div>
+                  {wait.length === 0 ? (
+                    <div style={{ fontSize:12, color:"#92400e" }}>Đơn chờ linh kiện từ kho.</div>
+                  ) : (
+                    <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:10 }}>
+                      {wait.map((l, i) => (
+                        <div key={i} style={{ background:"#fff", borderRadius:10, padding:"8px 10px", border:"1px solid #fed7aa", fontSize:12 }}>
+                          <div style={{ fontWeight:800, color:"#7c2d12" }}>{l.name} {l.qty > 1 ? `× ${l.qty}` : ""}</div>
+                          <div style={{ color:"#9a3412", marginTop:2 }}>
+                            📅 Hàng về dự kiến: <b>{fmtD(l.expected_date)}</b> · ⏰ Hạn đặt NCC: <b>{fmtD(l.po_due_date)}</b>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {canArrive && (
+                    <button
+                      onClick={async () => {
+                        if (!window.confirm("Linh kiện đã nhập kho?\nĐơn sẽ chuyển sang Chờ KTV Sửa.")) return;
+                        try {
+                          await onUpdate(order.id, { status: "Cho KTV Sua" }, null);
+                          logHistory({ order_id: order.id, order_code: order.order_code||order.id, action_type: "parts_arrived", action_label: "Linh kiện đã về — chuyển KTV sửa", changed_by_id: currentUser?.id||"", changed_by_name: currentUser?.name||"", changed_by_role: currentUser?.role||"", old_value: "Cho Linh Kien", new_value: "Cho KTV Sua" });
+                          const ktv = users.find(u => u.id === order.assigned_to);
+                          if (ktv) await Notification.create({ user_id: ktv.id, user_name: ktv.name||"", title: `📦 LK đã về — Đơn ${order.order_code||order.id} chờ bạn sửa`, message: `${order.device_model} · ${order.customer_name}. Linh kiện đã nhập kho, bắt đầu sửa.`, order_id: order.id, order_code: order.order_code, type: "parts_arrived", is_read: false }).catch(() => {});
+                          if (order.quote_by) await Notification.create({ user_id: order.quote_by, user_name: order.quote_by_name||"", title: `📦 LK đơn ${order.order_code||order.id} đã về`, message: `${order.device_model} · Linh kiện đã nhập, KTV bắt đầu sửa.`, order_id: order.id, order_code: order.order_code, type: "parts_arrived", is_read: false }).catch(() => {});
+                          showToast("✅ Đã chuyển sang Chờ KTV Sửa");
+                        } catch (e) { showToast("Lỗi: " + e.message); }
+                      }}
+                      style={{ width:"100%", height:52, borderRadius:14, background:"linear-gradient(135deg,#ea580c,#f97316)", border:"none", color:"#fff", fontWeight:900, fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                      <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle"}}>local_shipping</span>
+                      Linh Kiện Đã Về — Chuyển KTV Sửa
+                    </button>
+                  )}
+                  {!canArrive && (
+                    <div style={{ fontSize:12, color:"#92400e" }}>Kho/quản lý sẽ chuyển đơn sang KTV sửa khi hàng về.</div>
+                  )}
+                </div>
+              );
+            })()}
+
+                        {/* ── Chờ Xác Nhận: hiển thị info ── */}
             {order.status === "Chờ Xác Nhận" && (
               <div style={{ marginTop:8, background:"#fdf2f8", border:"1.5px solid #fbcfe8", borderRadius:12, padding:"12px 14px" }}>
                 <div style={{ fontWeight:800, fontSize:14, color:"#9d174d", marginBottom:4 }}>
@@ -1713,20 +1769,49 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
             currentUser={currentUser}
             onClose={() => setShowCustConfirm(false)}
             onApprove={async (pricing = {}) => {
-              await onUpdate(order.id, {
-                status: "Cho KTV Sua",
+              // Dòng báo giá GĐV vừa chỉnh trong modal (ưu tiên), fallback về bản đã lưu
+              let quoteLines = Array.isArray(pricing.quote_items) ? pricing.quote_items : [];
+              if (!quoteLines.length) {
+                try {
+                  const raw = order.qt2_de_xuat;
+                  if (typeof raw === "string" && raw) quoteLines = JSON.parse(raw);
+                  else if (Array.isArray(raw)) quoteLines = raw;
+                } catch {}
+              }
+              const hasWaiting = (quoteLines || []).some(l => l && l.waiting);
+              const nextStatus = hasWaiting ? "Cho Linh Kien" : "Cho KTV Sua";
+              const approvePatch = {
+                status: nextStatus,
                 accept_stage: 0,
                 estimated_cost: pricing.estimated_cost || order.estimated_cost || 0,
                 deposit: pricing.deposit ?? order.deposit ?? 0,
-              }, null);
+                quote_by: currentUser?.id || "",
+                quote_by_name: currentUser?.name || currentUser?.full_name || "",
+              };
+              if (Array.isArray(pricing.quote_items)) {
+                approvePatch.qt2_de_xuat = pricing.quote_items;
+                approvePatch.qt2_total = pricing.quote_total || 0;
+                approvePatch.waiting_reminded = { po_due: "", arrival: "" };
+              }
+              await onUpdate(order.id, approvePatch, null);
               logHistory({
                 order_id: order.id, order_code: order.order_code||order.id,
-                action_type: "approved", action_label: "Khách đồng ý — Lên đơn sửa",
+                action_type: "approved", action_label: hasWaiting ? "Khách đồng ý — Chờ linh kiện nhập hàng" : "Khách đồng ý — Lên đơn sửa",
                 changed_by_id: currentUser?.id||"", changed_by_name: currentUser?.name||"", changed_by_role: currentUser?.role||"",
                 new_value: `Báo giá: ${(pricing.estimated_cost||0).toLocaleString("vi-VN")}đ${pricing.deposit ? ` · Cọc: ${pricing.deposit.toLocaleString("vi-VN")}đ` : ""}`,
               });
-              const notifyKtv = users.filter(u => u.id === order.assigned_to);
+              const notifyKtv = hasWaiting ? [] : users.filter(u => u.id === order.assigned_to);
               const giaStr = pricing.estimated_cost ? ` · Báo giá: ${pricing.estimated_cost.toLocaleString("vi-VN")}đ` : "";
+              if (hasWaiting) {
+                // Thông báo kho + quản lý: đơn chờ linh kiện nhập hàng từ NCC
+                const staffList = await Staff.filter({ is_active: true }).catch(() => []);
+                const waitStr = quoteLines.filter(l => l.waiting).map(l => l.name + (l.expected_date ? ` (dự kiến ${String(l.expected_date).slice(0,10).split("-").reverse().join("/")})` : "")).join(", ").slice(0, 160);
+                const msg = `${order.device_model} · ${order.customer_name} · LK đặt NCC: ${waitStr}`;
+                for (const st of staffList.filter(s => ["manager","admin","owner","warehouse","accountant"].includes(s.role) || s.id === order.quote_by)) {
+                  await Notification.create({ user_id: st.id, user_name: st.full_name || st.name || "", title: `📦 Đơn ${order.order_code||order.id} chờ linh kiện nhập hàng`, message: msg, order_id: order.id, order_code: order.order_code, type: "parts_waiting", is_read: false }).catch(() => {});
+                }
+                showToast(`✅ Khách đã đồng ý — Đơn vào hàng chờ linh kiện (đặt NCC)`);
+              }
               notifyKtv.forEach(u => Notification.create({ user_id:u.id, user_name:u.name||"", title:`✅ Đơn ${order.order_code||order.id} đã được duyệt!`, message:`${order.device_model} · ${order.customer_name}${giaStr} — Bấm Nhận Đơn để bắt đầu`, order_id:order.id, order_code:order.order_code||order.id, type:"status_change", is_read:false }).catch(()=>{}));
               setShowCustConfirm(false);
               showToast(`✅ Đã lên đơn — Báo giá ${pricing.estimated_cost ? pricing.estimated_cost.toLocaleString("vi-VN")+"đ" : "chưa có"}`);

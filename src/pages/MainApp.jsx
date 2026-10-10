@@ -947,6 +947,108 @@ function MainAppContent({ onUserChange }) {
     const iv = setInterval(checkExportDeadlines, 5 * 60 * 1000);
     return () => { clearTimeout(firstRun); clearInterval(iv); };
   }, [user?.id, user?.role]);
+  // ── Nhắc nhở đơn chờ linh kiện nhập hàng (đặt NCC) ─────────
+  // Nhắc 2 mốc: (1) hạn đặt hàng NCC, (2) ngày dự kiến hàng về.
+  // Người nhận: Quản lý + NV kho + bộ phận mua hàng (kế toán) + GĐV tạo đơn.
+  useEffect(() => {
+    if (!user?.id) return;
+    if (!["manager","admin","owner","warehouse","accountant"].includes(role)) return;
+
+    async function checkWaitingParts() {
+      try {
+        const waitingOrders = await RepairOrder.filter({ status: "Cho Linh Kien" }).catch(() => []);
+        if (!waitingOrders.length) return;
+        const todayStr = new Date().toISOString().slice(0, 10);
+
+        // Nhóm người nhận: quản lý/kho/kế toán (mua hàng) + GĐV báo giá
+        const staffAll = await Staff.filter({ is_active: true }).catch(() => []);
+        const targets = staffAll.filter(s =>
+          ["manager","admin","owner","warehouse","accountant"].includes(s.role));
+        const seen = new Set();
+        const notifyTargets = targets.filter(s => !seen.has(s.id) && seen.add(s.id));
+
+        for (const ord of waitingOrders) {
+          let lines = [];
+          try {
+            const raw = ord.qt2_de_xuat;
+            if (typeof raw === "string" && raw) lines = JSON.parse(raw);
+            else if (Array.isArray(raw)) lines = raw;
+          } catch {}
+          const waitingLines = (lines || []).filter(l => l && l.waiting);
+          if (!waitingLines.length) continue;
+
+          let rem = {};
+          try {
+            const r = ord.waiting_reminded;
+            rem = (typeof r === "string" && r) ? JSON.parse(r) : (r || {});
+          } catch { rem = {}; }
+
+          const dueLines  = waitingLines.filter(l => l.po_due_date && l.po_due_date <= todayStr);
+          const hereLines = waitingLines.filter(l => l.expected_date && l.expected_date <= todayStr);
+          const partsStr  = waitingLines.map(l => l.name).join(", ").slice(0, 120);
+          let changed = false;
+
+          // Mốc 1: hạn đặt hàng NCC
+          if (dueLines.length && !rem.po_due) {
+            const msg = `LK: ${partsStr}. Đặt NCC ngay để đúng hạn.`;
+            for (const s of notifyTargets) {
+              await Notification.create({
+                user_id: s.id, user_name: s.full_name,
+                title: `⏰ Hạn đặt hàng NCC — ${ord.order_code}`,
+                message: msg,
+                order_id: ord.id, order_code: ord.order_code,
+                type: "po_due", is_read: false,
+              }).catch(() => {});
+            }
+            if (ord.quote_by && !notifyTargets.find(s => s.id === ord.quote_by)) {
+              await Notification.create({
+                user_id: ord.quote_by, user_name: ord.quote_by_name || "",
+                title: `⏰ Hạn đặt hàng NCC — ${ord.order_code}`,
+                message: msg,
+                order_id: ord.id, order_code: ord.order_code,
+                type: "po_due", is_read: false,
+              }).catch(() => {});
+            }
+            rem.po_due = todayStr; changed = true;
+          }
+
+          // Mốc 2: linh kiện dự kiến về
+          if (hereLines.length && !rem.arrival) {
+            const msg = `LK dự kiến về hôm nay: ${partsStr}. Nhập hàng & chuyển KTV sửa.`;
+            for (const s of notifyTargets) {
+              await Notification.create({
+                user_id: s.id, user_name: s.full_name,
+                title: `📦 LK đơn ${ord.order_code} dự kiến về hôm nay`,
+                message: msg,
+                order_id: ord.id, order_code: ord.order_code,
+                type: "parts_arrival", is_read: false,
+              }).catch(() => {});
+            }
+            if (ord.quote_by && !notifyTargets.find(s => s.id === ord.quote_by)) {
+              await Notification.create({
+                user_id: ord.quote_by, user_name: ord.quote_by_name || "",
+                title: `📦 LK đơn ${ord.order_code} dự kiến về hôm nay`,
+                message: msg,
+                order_id: ord.id, order_code: ord.order_code,
+                type: "parts_arrival", is_read: false,
+              }).catch(() => {});
+            }
+            rem.arrival = todayStr; changed = true;
+          }
+
+          if (changed) {
+            await RepairOrder.update(ord.id, { waiting_reminded: rem }).catch(() => {});
+          }
+        }
+      } catch (e) { console.warn("[waitingParts]", e?.message); }
+    }
+
+    const t = setTimeout(checkWaitingParts, 45000);
+    const iv = setInterval(checkWaitingParts, 5 * 60 * 1000);
+    return () => { clearTimeout(t); clearInterval(iv); };
+  }, [user?.id, user?.role]);
+
+
 
   // ── Auto KPI deduction per timeline diagram ──────────────
   useEffect(() => {
@@ -1243,6 +1345,8 @@ function MainAppContent({ onUserChange }) {
         "received_date","estimated_done_date","done_date","images","videos",
         "accept_stage","stage1_at","stage2_at","estimated_done","assigned_at",
         "checklist_done","kpi_stage1_penalized","kpi_stage2_penalized","needs_reassign","kpi_manually_accepted",
+        "qt1_checklist","qt1_note","qt2_checklist","qt2_note","qt2_de_xuat","qt2_total",
+        "quote_by","quote_by_name","waiting_reminded",
       ];
       directFields.forEach(f => { if (patch[f] !== undefined) pbPatch[f] = patch[f]; });
       // Fields cần map enum
@@ -1286,7 +1390,7 @@ function MainAppContent({ onUserChange }) {
       passcode:          data.passcode || "",
       product_qr:        data.product_qr || "",
       issue_description: data.notes || "",
-      status:            "Cho KTV",
+      status:            data.status || "Cho KTV",
       assigned_to:       data.assigned_to || null,
       assigned_to_name:  data.assigned_to_name || "",
       received_date:     new Date().toISOString(),
@@ -1343,12 +1447,19 @@ function MainAppContent({ onUserChange }) {
       }
     }
 
+    // Đồng bộ trạng thái hiển thị (PB -> display) cho đơn vừa tạo trong state
+    data.status = STATUS_DISPLAY[data.status] || data.status || "Chờ KTV";
     setOrders(p => [data, ...p]);
     // Gửi Notification vào DB để KTV + Manager + Receptionist nhận realtime
     const orderCode = data.id || data._id;
     const orderId   = data._id || data.id;
 
-    if (data.assigned_to) {
+    if (data.quoteNow && data._id) {
+      // Nhánh GĐV báo giá ngay: mở drawer đơn vừa tạo — bấm "Xác Nhận Khách Hàng" để báo giá
+      // (dùng lại đúng luồng sẵn có: Chờ Báo Giá -> CustomerConfirmModal)
+      setSelectedOrderSync(data);
+    }
+    if (data.assigned_to && !data.quoteNow) {
       const ktv = users.find(u => u.id === data.assigned_to);
       // Thông báo cho KTV được giao
       Notification.create({
@@ -2640,7 +2751,7 @@ function MainAppContent({ onUserChange }) {
       )}
 
       {/* Modals */}
-      {showNewOrder && <NewOrderModal onClose={() => { setShowNewOrder(false); setNewOrderProductQR(""); }} onCreate={createOrder} users={users} orders={orders} initialProductQR={newOrderProductQR} />}
+      {showNewOrder && <NewOrderModal onClose={() => { setShowNewOrder(false); setNewOrderProductQR(""); }} onCreate={createOrder} s={users} orders={orders} initialProductQR={newOrderProductQR} />}
 
       {/* Modal: Hàng trong kho - Chưa bán */}
       {warehouseStockModal && (

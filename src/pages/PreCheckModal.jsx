@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { SparePart, StockLedger } from "./pb.jsx";
 
 // ── Checklist QT1 — Ngoại quan (Tiếp tân) ──────────────────────────
 const QT1_ITEMS = [
@@ -580,6 +581,72 @@ export function CustomerConfirmModal({ order, currentUser, onClose, onApprove, o
   } catch {}
   const totalKTV = order.qt2_total || deXuat.reduce((s,it) => s + (Number(it.price)||0)*(Number(it.qty)||1), 0);
 
+  // ── Báo giá chi tiết: GĐV chỉnh trực tiếp trên dòng linh kiện/dịch vụ ──
+  const [lines, setLines] = useState(() => (deXuat || []).map((it, i) => ({
+    key: "l" + i + "_" + Math.random().toString(36).slice(2, 7),
+    name: it.name || "", sku: it.sku || "", part_id: it.part_id || "",
+    is_service: !!it.is_service, qty: Number(it.qty) || 1,
+    price: it.price !== undefined ? it.price : "",
+    waiting: !!it.waiting, expected_date: it.expected_date || "", po_due_date: it.po_due_date || "",
+  })));
+  const [partSearch, setPartSearch] = useState("");
+  const [partRes, setPartRes]     = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [showSvc, setShowSvc]     = useState(false);
+  const [svcFilter, setSvcFilter] = useState("");
+  const [stockByPart, setStockByPart] = useState({});
+
+  // Tồn kho tổng theo part_id — tải 1 lần khi mở
+  useEffect(() => {
+    let dead = false;
+    StockLedger.listAll({ fields: "id,part_id,qty_on_hand" }).then(ledgers => {
+      if (dead) return;
+      const map = {};
+      (ledgers || []).forEach(l => { if (l.part_id) map[l.part_id] = (map[l.part_id] || 0) + (Number(l.qty_on_hand) || 0); });
+      setStockByPart(map);
+    }).catch(() => {});
+    return () => { dead = true; };
+  }, []);
+
+  // Tìm linh kiện TRÊN SERVER toàn bộ catalog
+  useEffect(() => {
+    const term = partSearch.trim();
+    if (!term) { setPartRes([]); return; }
+    const t = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const q = term.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+        const found = await SparePart.list({ filter: `is_active=true && (name~"${q}" || sku~"${q}" || serial_imei~"${q}")`, sort: "name", limit: 30 });
+        setPartRes(found || []);
+      } catch { setPartRes([]); }
+      setSearching(false);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [partSearch]);
+
+  function addPart(p) {
+    const stock = stockByPart[p.id] ?? (Number(p.stock_qty) || 0);
+    setLines(prev => [...prev, {
+      key: "p" + p.id + "_" + Date.now(), name: p.name, sku: p.sku || "", part_id: p.id,
+      is_service: false, qty: 1, price: p.price !== undefined ? p.price : "",
+      waiting: stock <= 0, expected_date: "", po_due_date: "",
+    }]);
+    setPartSearch(""); setPartRes([]);
+  }
+  function addSvc(name) {
+    setLines(prev => [...prev, {
+      key: "s_" + Date.now() + Math.random().toString(36).slice(2, 5), name,
+      sku: "", part_id: "", is_service: true, qty: 1, price: "",
+      waiting: false, expected_date: "", po_due_date: "",
+    }]);
+    setShowSvc(false); setSvcFilter("");
+  }
+  function updLine(key, field, val) { setLines(prev => prev.map(l => l.key === key ? { ...l, [field]: val } : l)); }
+  function rmLine(key) { setLines(prev => prev.filter(l => l.key !== key)); }
+  const validLines = lines.filter(l => l.name && l.name.trim());
+  const totalLines = validLines.reduce((s, l) => s + (Number(l.price) || 0) * (Number(l.qty) || 1), 0);
+  const hasWaiting  = validLines.some(l => l.waiting && !l.is_service);
+
   const qt1Issues = Object.entries(qt1).filter(([,v]) => v?.checked).map(([k,v]) => {
     const item = [
       { key:"vien_cong_mop", label:"Viền cong/móp" }, { key:"can_mop_goc", label:"Cấn móp góc" },
@@ -598,9 +665,22 @@ export function CustomerConfirmModal({ order, currentUser, onClose, onApprove, o
     }
     setSaving(true);
     try {
+      for (const l of validLines) {
+        if (l.price === "" || Number(l.price) < 0) { alert(`Nhập giá cho "${l.name}"!`); setSaving(false); return; }
+        if (l.waiting && !l.is_service && (!l.expected_date || !l.po_due_date)) {
+          alert(`"${l.name}" là hàng chờ nhập: nhập ngày dự kiến về và hạn đặt NCC!`); setSaving(false); return;
+        }
+      }
       await onApprove({
         estimated_cost: Number(giaKhach),
         deposit: datCoc ? Number(datCoc) : 0,
+        quote_items: validLines.map(l => ({
+          name: l.name.trim(), sku: l.sku, part_id: l.part_id, is_service: l.is_service,
+          qty: Number(l.qty) || 1, price: Number(l.price) || 0,
+          waiting: !!l.waiting && !l.is_service,
+          expected_date: l.expected_date || "", po_due_date: l.po_due_date || "",
+        })),
+        quote_total: totalLines,
       });
     } catch(e) { alert(e.message); }
     setSaving(false);
@@ -680,36 +760,132 @@ export function CustomerConfirmModal({ order, currentUser, onClose, onApprove, o
             </div>
           )}
 
-          {/* ═══ Bảng dự toán từ KTV ═══ */}
-          {deXuat.length > 0 && (
-            <div style={{ background:"#faf5ff", border:"2px solid #c4b5fd", borderRadius:14, padding:"12px 14px", marginBottom:12 }}>
-              <div style={{ fontWeight:800, fontSize:13, color:"#4c1d95", marginBottom:10, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                  <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,color:"#7c3aed",verticalAlign:"middle"}}>build</span>
-                  Dự toán KTV
-                </div>
-                <span style={{ fontWeight:900, color:"#7c3aed", fontSize:14 }}>{totalKTV.toLocaleString("vi-VN")}đ</span>
+          {/* ═══ Báo giá chi tiết — GĐV chỉnh trực tiếp ═══ */}
+          <div style={{ background:"#faf5ff", border:"2px solid #c4b5fd", borderRadius:14, padding:"12px 14px", marginBottom:12 }}>
+            <div style={{ fontWeight:800, fontSize:13, color:"#4c1d95", marginBottom:10, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,color:"#7c3aed",verticalAlign:"middle"}}>build</span>
+                {order.quote_by_name ? `Báo giá: ${order.quote_by_name}` : (order.status === "Chờ Báo Giá" && !deXuat.length ? "Báo giá linh kiện / dịch vụ" : "Dự toán KTV")}
               </div>
-              <div style={{ border:"1px solid #ddd6fe", borderRadius:10, overflow:"hidden" }}>
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 40px 80px 80px", padding:"6px 10px", background:"#ede9fe", gap:6 }}>
-                  {["Hạng mục","SL","Đ.giá","T.tiền"].map((h,i)=>(
-                    <div key={i} style={{ fontSize:11, fontWeight:700, color:"#7c3aed", textAlign:i===0?"left":"right" }}>{h}</div>
-                  ))}
-                </div>
-                {deXuat.map((it, i) => {
-                  const sub = (Number(it.price)||0)*(Number(it.qty)||1);
+              <span style={{ fontWeight:900, color:"#7c3aed", fontSize:14 }}>{totalLines.toLocaleString("vi-VN")}đ</span>
+            </div>
+
+            {/* Tìm linh kiện trong kho */}
+            <input value={partSearch} onChange={e => setPartSearch(e.target.value)}
+              placeholder="Tìm linh kiện trong kho (tên/SKU) để thêm..."
+              style={{ width:"100%", height:40, borderRadius:10, border:"1.5px solid #ddd6fe", paddingLeft:44, fontSize:13, outline:"none", boxSizing:"border-box", marginBottom:6, background:"#fff" }} />
+            {searching && <div style={{ fontSize:12, color:"#7c3aed", marginBottom:6 }}>Đang tìm...</div>}
+            {partRes.length > 0 && (
+              <div style={{ maxHeight:180, overflowY:"auto", background:"#fff", borderRadius:10, border:"1.5px solid #ddd6fe", marginBottom:8 }}>
+                {partRes.map(p => {
+                  const stock = stockByPart[p.id] ?? (Number(p.stock_qty) || 0);
                   return (
-                    <div key={i} style={{ display:"grid", gridTemplateColumns:"1fr 40px 80px 80px", padding:"8px 10px", gap:6, borderTop:"1px solid #f3f4f6", alignItems:"center" }}>
-                      <span style={{ fontSize:12, color:"#374151", fontWeight:600 }}>{it.name}</span>
-                      <span style={{ fontSize:12, color:"#6b7280", textAlign:"right" }}>{it.qty}</span>
-                      <span style={{ fontSize:12, color:"#6b7280", textAlign:"right" }}>{(Number(it.price)||0).toLocaleString("vi-VN")}</span>
-                      <span style={{ fontSize:12, fontWeight:700, color:"#4c1d95", textAlign:"right" }}>{sub.toLocaleString("vi-VN")}</span>
-                    </div>
+                    <button key={p.id} onClick={() => addPart(p)}
+                      style={{ width:"100%", padding:"8px 12px", background:"none", border:"none", borderBottom:"1px solid #f5f3ff", textAlign:"left", cursor:"pointer", display:"flex", alignItems:"center", gap:8 }}>
+                      <div style={{ flex:1, minWidth:0, overflow:"hidden" }}>
+                        <div style={{ fontSize:12, fontWeight:700, color:"#0c4a6e", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name}</div>
+                        {p.sku && <div style={{ fontSize:10, color:"#64748b" }}>SKU: {p.sku}</div>}
+                      </div>
+                      <div style={{ textAlign:"right", flexShrink:0 }}>
+                        <div style={{ fontSize:11, fontWeight:800, color:"#0369a1" }}>{(p.price||0).toLocaleString("vi-VN")}đ</div>
+                        <div style={{ fontSize:10, fontWeight:700, color: stock > 0 ? "#059669" : "#dc2626" }}>{stock > 0 ? `Tồn: ${stock}` : "Hết hàng"}</div>
+                      </div>
+                    </button>
                   );
                 })}
               </div>
-            </div>
-          )}
+            )}
+
+            {/* Nút thêm dịch vụ */}
+            <button onClick={() => setShowSvc(v => !v)}
+              style={{ width:"100%", height:36, borderRadius:10, background:"#7c3aed", border:"none", color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:4, marginBottom:8 }}>
+              <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:15,verticalAlign:"middle"}}>add</span> Thêm dịch vụ / công
+            </button>
+            {showSvc && (
+              <div style={{ background:"#fff", border:"1.5px solid #a5f3fc", borderRadius:10, overflow:"hidden", marginBottom:8 }}>
+                <input value={svcFilter} onChange={e => setSvcFilter(e.target.value)} autoFocus
+                  placeholder="Tìm hoặc nhập dịch vụ mới..."
+                  style={{ width:"100%", padding:"8px 10px", border:"none", borderBottom:"1px solid #e0f2fe", fontSize:12, outline:"none", boxSizing:"border-box" }} />
+                <div style={{ maxHeight:150, overflowY:"auto" }}>
+                  {SPARE_SUGGESTIONS.filter(x => !svcFilter || x.toLowerCase().includes(svcFilter.toLowerCase())).map(x => (
+                    <button key={x} onClick={() => addSvc(x)}
+                      style={{ width:"100%", padding:"7px 12px", background:"none", border:"none", borderBottom:"1px solid #f8fafc", textAlign:"left", fontSize:12, color:"#155e75", cursor:"pointer" }}>+ {x}</button>
+                  ))}
+                  {svcFilter.trim() && !SPARE_SUGGESTIONS.some(x => x.toLowerCase() === svcFilter.trim().toLowerCase()) && (
+                    <button onClick={() => addSvc(svcFilter.trim())}
+                      style={{ width:"100%", padding:"7px 12px", background:"#ecfeff", border:"none", textAlign:"left", fontSize:12, color:"#0891b2", cursor:"pointer", fontWeight:700 }}>+ Thêm "{svcFilter.trim()}"</button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Danh sách dòng báo giá */}
+            {validLines.length === 0 ? (
+              <div style={{ textAlign:"center", padding:"12px 8px", color:"#94a3b8", fontSize:12 }}>
+                Chưa có linh kiện / dịch vụ — thêm để báo giá chi tiết (không bắt buộc).
+              </div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                {validLines.map(l => {
+                  const sub = (Number(l.price)||0) * (Number(l.qty)||1);
+                  const stock = l.part_id ? (stockByPart[l.part_id] ?? 0) : null;
+                  return (
+                    <div key={l.key} style={{ background:l.waiting ? "#fff7ed" : "#fff", border:`1.5px solid ${l.waiting ? "#fdba74" : "#e2e8f0"}`, borderRadius:10, padding:"8px 10px" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontSize:12, fontWeight:800, color:"#1e293b", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                            {l.is_service && <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:13,color:"#0891b2",verticalAlign:"middle"}}>handyman</span>} {l.name}
+                          </div>
+                          <div style={{ fontSize:10, color:"#64748b" }}>
+                            {l.sku ? `SKU: ${l.sku}` : (l.is_service ? "Dịch vụ" : "")}
+                            {stock !== null && <span style={{ fontWeight:700, color: stock > 0 ? "#059669" : "#dc2626", marginLeft:6 }}>{stock > 0 ? `Tồn: ${stock}` : "Hết hàng"}</span>}
+                          </div>
+                        </div>
+                        <span style={{ fontSize:12, fontWeight:800, color:"#4c1d95", flexShrink:0 }}>{sub.toLocaleString("vi-VN")}đ</span>
+                        <button onClick={() => rmLine(l.key)} style={{ width:26, height:26, borderRadius:8, border:"none", background:"#fee2e2", color:"#dc2626", cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:14,color:"#dc2626"}}>delete</span>
+                        </button>
+                      </div>
+                      <div style={{ display:"grid", gridTemplateColumns:isPC ? "58px 1fr auto" : "58px 1fr", gap:6, marginTop:6, alignItems:"center" }}>
+                        <input type="number" min="1" value={l.qty} onChange={e => updLine(l.key, "qty", e.target.value)}
+                          placeholder="SL" style={{ width:"100%", height:32, borderRadius:8, border:"1.5px solid #e2e8f0", padding:"0 8px", fontSize:12, boxSizing:"border-box", outline:"none" }} />
+                        <input type="number" min="0" value={l.price} onChange={e => updLine(l.key, "price", e.target.value)}
+                          placeholder="Giá bán (đ)" style={{ width:"100%", height:32, borderRadius:8, border:"1.5px solid #e2e8f0", padding:"0 8px", fontSize:12, boxSizing:"border-box", outline:"none" }} />
+                        {!l.is_service && (
+                          <label style={{ display:"flex", alignItems:"center", gap:4, fontSize:11, fontWeight:700, color:l.waiting ? "#c2410c" : "#64748b", cursor:"pointer", whiteSpace:"nowrap" }}>
+                            <input type="checkbox" checked={l.waiting} onChange={e => updLine(l.key, "waiting", e.target.checked)}
+                              style={{ width:15, height:15, accentColor:"#ea580c", cursor:"pointer" }} />
+                            Chờ nhập
+                          </label>
+                        )}
+                      </div>
+                      {l.waiting && !l.is_service && (
+                        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6, marginTop:6, background:"#ffedd5", borderRadius:8, padding:6 }}>
+                          <div>
+                            <div style={{ fontSize:10, fontWeight:800, color:"#9a3412", marginBottom:2 }}>Dự kiến hàng về</div>
+                            <input type="date" value={l.expected_date} onChange={e => updLine(l.key, "expected_date", e.target.value)}
+                              style={{ width:"100%", height:30, borderRadius:8, border:"1.5px solid #fed7aa", padding:"0 6px", fontSize:11, boxSizing:"border-box", outline:"none" }} />
+                          </div>
+                          <div>
+                            <div style={{ fontSize:10, fontWeight:800, color:"#9a3412", marginBottom:2 }}>Hạn đặt NCC</div>
+                            <input type="date" value={l.po_due_date} onChange={e => updLine(l.key, "po_due_date", e.target.value)}
+                              style={{ width:"100%", height:30, borderRadius:8, border:"1.5px solid #fed7aa", padding:"0 6px", fontSize:11, boxSizing:"border-box", outline:"none" }} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"6px 4px" }}>
+                  <span style={{ fontSize:12, fontWeight:700, color:"#6d28d9" }}>Tổng dòng báo giá {hasWaiting && <span style={{ color:"#ea580c" }}>· có LK chờ nhập</span>}</span>
+                  <button onClick={() => setGiaKhach(String(totalLines))} disabled={!totalLines}
+                    style={{ background:"#ede9fe", color:"#5b21b6", border:"none", borderRadius:8, padding:"4px 10px", fontSize:11, fontWeight:800, cursor: totalLines ? "pointer" : "default" }}>
+                    {totalLines ? `Dùng ${totalLines.toLocaleString("vi-VN")}đ làm giá báo khách` : "—"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* ═══ TT nhập giá báo khách ═══ */}
           <div style={{ background:"#fff7ed", border:"2px solid #fed7aa", borderRadius:14, padding:"14px", marginBottom:12 }}>
