@@ -399,10 +399,14 @@ ${order.qt1_note?`
   </tr></thead>
   <tbody>${quotedHTML}</tbody>
   ${quotedParts&&quotedParts.length>0?`
-  <tfoot><tr>
-    <td colspan="4" class="r">Chi phí dự kiến:</td>
-    <td class="r">${fmtMoney(order.estimated_cost||quotedTotal)}</td>
-  </tr></tfoot>`:""}
+  <tfoot>
+    ${quotedDiscount>0?`<tr><td colspan="4" class="r">Tạm tính:</td><td class="r">${fmtMoney(quotedTotal)}</td></tr>
+    <tr><td colspan="4" class="r">Giảm giá:</td><td class="r" style="color:#dc2626">- ${fmtMoney(quotedDiscount)}</td></tr>`:""}
+    <tr>
+      <td colspan="4" class="r">Chi phí dự kiến:</td>
+      <td class="r">${fmtMoney(order.estimated_cost||Math.max(0,quotedTotal-quotedDiscount))}</td>
+    </tr>
+  </tfoot>`:""}
 </table>
 ${order.deposit>0?`
 <div class="price-row" style="font-size:12px;margin-top:4px">
