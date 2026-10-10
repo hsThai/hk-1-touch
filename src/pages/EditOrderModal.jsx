@@ -189,9 +189,19 @@ export default function EditOrderModal({ order, users, currentUser, onClose, onS
               </div>
               <div style={{flex:1}}>
                 <label style={lbl}>Trạng thái</label>
-                <select value={form.status} onChange={e=>set("status",e.target.value)} style={inp}>
-                  {STATUS_OPTS.map(o=><option key={o.val} value={o.val}>{o.label}</option>)}
-                </select>
+                {(() => {
+                  const LOCKED = ["Mới Nhận","Chờ KTV","KTV Đang Kiểm","Chờ Báo Giá","Chờ Xác Nhận","Moi Nhan","Cho KTV","KTV Dang Kiem","Cho Bao Gia","Cho Xac Nhan"];
+                  const locked = LOCKED.includes(order.status);
+                  // Đang trong quy trình báo giá: chỉ giữ nguyên trạng thái hiện tại hoặc Hủy
+                  const opts = locked ? STATUS_OPTS.filter(o => o.val===order.status || o.val==="Hủy" || o.val==="Huy" || (STATUS_OPTS.find(x=>x.val===order.status)==null && o.val===form.status)) : STATUS_OPTS;
+                  const shown = (opts.some(o=>o.val===form.status) || !locked) ? opts : [{val:form.status,label:form.status},...opts];
+                  return (<>
+                    <select value={form.status} onChange={e=>set("status",e.target.value)} style={inp}>
+                      {shown.map(o=><option key={o.val} value={o.val}>{o.label}</option>)}
+                    </select>
+                    {locked && <div style={{fontSize:11,color:"#6b7280",marginTop:4}}>🔒 Đang trong quy trình báo giá — chỉ có thể giữ nguyên hoặc Hủy</div>}
+                  </>);
+                })()}
               </div>
             </div>
             <label style={lbl}>Ưu tiên</label>

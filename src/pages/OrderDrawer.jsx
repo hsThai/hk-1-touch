@@ -625,7 +625,12 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
     setShowChecklist(false);
     showToast("✅ Đã nhận sửa! Bắt đầu sửa chữa.");
   }
+  // Đơn chưa lên đơn xong + chưa duyệt giá → KHÔNG cho đổi trạng thái tùy tiện / bấm Sửa Xong
+  const PRICE_LOCKED = ["Mới Nhận","Chờ KTV","KTV Đang Kiểm","Chờ Báo Giá","Chờ Xác Nhận"];
+  const isPriceLocked = PRICE_LOCKED.includes(order.status) || ["Mới Nhận","Cho KTV","KTV Dang Kiem","Cho Bao Gia","Cho Xac Nhan"].includes(order.status);
+
   function handleMarkDone() {
+    if (isPriceLocked) { showToast("Đơn chưa duyệt giá xong — chưa thể hoàn thành"); return; }
     onUpdate(order.id, { status:"Hoàn Thành", accept_stage:3 }, { userId:order.assigned_to, delta:2, note:"Sửa xong +2 KPI" });
       logHistory({ order_id:order._id||order.id, order_code:order.order_code||order.id, action_type:"delivered", action_label:"Xác nhận hoàn thành", changed_by_id:currentUser?.id||"", changed_by_name:currentUser?.name||"", changed_by_role:currentUser?.role||"", old_value:order.status||"", new_value:"Hoàn Thành" });
     logAction(currentUser, "complete_order", "repair_order", order._id||order.id, order.order_code||order.id);
@@ -1037,13 +1042,19 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                   </div>
                 )}
                 {/* Toggle edit mode for KTV (chỉ khi đã nhận) */}
-                {isKTV && !editMode && (order.accept_stage||0) >= 1 && (
+                {isKTV && !isPriceLocked && !editMode && (order.accept_stage||0) >= 1 && (
                   <button onClick={() => setEditMode(true)}
                     style={{ width:"100%", height:52, borderRadius:14, border:"2px solid #4f46e5", background:"#eef2ff", color:"#4f46e5", fontWeight:800, fontSize:16, cursor:"pointer", marginBottom:8 }}>
                       Cập nhật trạng thái
                   </button>
                 )}
-                {(!isKTV || (editMode && (order.accept_stage||0) >= 1)) && (
+                {isPriceLocked && (
+                  <div style={{ padding:"14px 16px", background:"#f3f4f6", border:"2px dashed #d1d5db", borderRadius:14, textAlign:"center", marginBottom:8 }}>
+                    <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",marginRight:6,color:"#6b7280"}}>lock</span>
+                    <span style={{ fontWeight:700, color:"#4b5563", fontSize:13 }}>Đang trong quy trình báo giá — trạng thái đổi tự động theo từng bước, chưa thể chỉnh tay</span>
+                  </div>
+                )}
+                {!isPriceLocked && (!isKTV || (editMode && (order.accept_stage||0) >= 1)) && (
                   <>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                       <div style={{ fontSize:13, fontWeight:700, color:"#374151"}}>  Chọn trạng thái:</div>
