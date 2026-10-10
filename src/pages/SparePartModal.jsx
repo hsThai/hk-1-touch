@@ -115,7 +115,7 @@ function TabList({parts, cartItems, search, setSearch, addToCart, removeFromCart
 }
 
 // ─── TAB: Giỏ hàng ────────────────────────────────────────
-function TabCart({cartItems, updateCartQty, removeFromCart, order, showForm, setShowForm, exportType, setExportType, dueMinutes, setDueMinutes, returnDays, setReturnDays, reqNote, setReqNote, submitting, handleSubmitRequest}) {
+function TabCart({cartItems, updateCartQty, removeFromCart, order, showForm, setShowForm, exportType, setExportType, dueMinutes, setDueMinutes, returnDays, setReturnDays, reqNote, setReqNote, submitting, handleSubmitRequest, warehouses=[], selectedWH="", setSelectedWH=()=>{}}) {
   const cartTotal = cartItems.reduce((s,c)=>s+c.total_price,0);
   if (cartItems.length===0) {
     return (
@@ -160,6 +160,19 @@ function TabCart({cartItems, updateCartQty, removeFromCart, order, showForm, set
         </button>
       ) : (
         <div style={{background:"#fff",borderRadius:16,border:"1.5px solid #c7d2fe",padding:16}}>
+      {/* Chọn kho lấy LK — ngay trong giỏ để không bị lỗi "chọn kho" mà không thấy ô */}
+      <div style={{background:selectedWH?"#f0fdf4":"#fffbeb",border:"1.5px solid "+(selectedWH?"#6ee7b7":"#fcd34d"),borderRadius:14,padding:"10px 12px",marginBottom:10}}>
+        <div style={{fontSize:13,fontWeight:800,color:"#1e1b4b",marginBottom:6}}>🏭 Kho lấy linh kiện {!selectedWH && <span style={{color:"#dc2626"}}>*</span>}</div>
+        {warehouses.length===0 ? (
+          <div style={{fontSize:12,color:"#92400e",fontWeight:600}}>Chưa có kho nào đang hoạt động.</div>
+        ) : (
+          <select value={selectedWH} onChange={e=>setSelectedWH(e.target.value)}
+            style={{width:"100%",height:42,borderRadius:10,border:"1.5px solid #e5e7eb",padding:"0 10px",fontSize:14,fontWeight:600,boxSizing:"border-box",background:"#fff"}}>
+            <option value="">-- Chọn kho lấy LK --</option>
+            {warehouses.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}
+          </select>
+        )}
+      </div>
           <div style={{fontWeight:800,fontSize:15,color:"#1e1b4b",marginBottom:12}}>📋 Tùy chọn phiếu xuất</div>
 
           <div style={{marginBottom:12}}>
@@ -500,9 +513,10 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
 
   useEffect(() => {
     const whIds = currentStaff?.warehouse_ids || [];
-    if (whIds.length === 0) return;
     Warehouse.list({ limit:100 }).then(all => {
-      const allowed = (all||[]).filter(w => whIds.includes(w.id));
+      const active = (all||[]).filter(w => w.is_active !== false);
+      // Có gán kho riêng → chỉ các kho đó; chưa gán → được chọn tất cả kho đang hoạt động
+      const allowed = whIds.length > 0 ? active.filter(w => whIds.includes(w.id)) : active;
       setWarehouses(allowed);
       if (allowed.length === 1) setSelectedWH(allowed[0].id);
     }).catch(()=>{});
@@ -694,7 +708,7 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
               <TabList parts={filteredParts} cartItems={cartItems} search={search} setSearch={setSearch} addToCart={addToCart} removeFromCart={removeFromCart} totalStockByPart={totalStockByPart}/>
             </>
           ) : tab==="cart" ? (
-            <TabCart cartItems={cartItems} updateCartQty={updateCartQty} removeFromCart={removeFromCart} order={order} showForm={showForm} setShowForm={setShowForm} exportType={exportType} setExportType={setExportType} dueMinutes={dueMinutes} setDueMinutes={setDueMinutes} returnDays={returnDays} setReturnDays={setReturnDays} reqNote={reqNote} setReqNote={setReqNote} submitting={submitting} handleSubmitRequest={handleSubmitRequest}/>
+            <TabCart warehouses={warehouses} selectedWH={selectedWH} setSelectedWH={setSelectedWH} cartItems={cartItems} updateCartQty={updateCartQty} removeFromCart={removeFromCart} order={order} showForm={showForm} setShowForm={setShowForm} exportType={exportType} setExportType={setExportType} dueMinutes={dueMinutes} setDueMinutes={setDueMinutes} returnDays={returnDays} setReturnDays={setReturnDays} reqNote={reqNote} setReqNote={setReqNote} submitting={submitting} handleSubmitRequest={handleSubmitRequest}/>
           ) : (
             <TabRequests requests={requests} setViewReq={setViewReq}/>
           )}
