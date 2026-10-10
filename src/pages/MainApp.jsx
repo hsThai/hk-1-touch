@@ -2751,7 +2751,7 @@ function MainAppContent({ onUserChange }) {
       )}
 
       {/* Modals */}
-      {showNewOrder && <NewOrderModal onClose={() => { setShowNewOrder(false); setNewOrderProductQR(""); }} onCreate={createOrder} s={users} orders={orders} initialProductQR={newOrderProductQR} />}
+      {showNewOrder && <NewOrderModal onClose={() => { setShowNewOrder(false); setNewOrderProductQR(""); }} onCreate={createOrder} users={users} orders={orders} initialProductQR={newOrderProductQR} />}
 
       {/* Modal: Hàng trong kho - Chưa bán */}
       {warehouseStockModal && (
