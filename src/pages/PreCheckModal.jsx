@@ -836,7 +836,72 @@ export function CustomerConfirmModal({ order, currentUser, onClose, onApprove, o
               </div>
             )}
 
-            {/* ═══ Tổng chi phí (tự động) ═══ */}
+            {/* Danh sách dòng báo giá */}
+            {validLines.length === 0 ? (
+              <div style={{ textAlign:"center", padding:"12px 8px", color:"#94a3b8", fontSize:12 }}>
+                Chưa có dòng nào — tìm linh kiện trong kho ở ô trên, hoặc thêm phí dịch vụ / công.
+              </div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                {validLines.map(l => {
+                  const sub = (Number(l.price)||0) * (Number(l.qty)||1);
+                  const stock = l.part_id ? (stockByPart[l.part_id] ?? 0) : null;
+                  return (
+                    <div key={l.key} style={{ background:l.waiting ? "#fff7ed" : "#fff", border:`1.5px solid ${l.waiting ? "#fdba74" : "#e2e8f0"}`, borderRadius:10, padding:"8px 10px" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontSize:12, fontWeight:800, color:"#1e293b", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                            {l.is_service && <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:13,color:"#0891b2",verticalAlign:"middle"}}>handyman</span>} {l.name}
+                          </div>
+                          <div style={{ fontSize:10, color:"#64748b" }}>
+                            {l.sku ? `SKU: ${l.sku}` : (l.is_service ? "Phí dịch vụ" : "")}
+                            {stock !== null && <span style={{ fontWeight:700, color: stock > 0 ? "#059669" : "#dc2626", marginLeft:6 }}>{stock > 0 ? `Tồn: ${stock}` : "Hết hàng"}</span>}
+                          </div>
+                        </div>
+                        <span style={{ fontSize:12, fontWeight:800, color:"#4c1d95", flexShrink:0 }}>{sub.toLocaleString("vi-VN")}đ</span>
+                        <button onClick={() => rmLine(l.key)} style={{ width:26, height:26, borderRadius:8, border:"none", background:"#fee2e2", color:"#dc2626", cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:14,color:"#dc2626"}}>delete</span>
+                        </button>
+                      </div>
+                      <div style={{ display:"grid", gridTemplateColumns:isPC ? "58px 1fr auto" : "58px 1fr", gap:6, marginTop:6, alignItems:"center" }}>
+                        <input type="number" min="1" value={l.qty} onChange={e => updLine(l.key, "qty", e.target.value)}
+                          placeholder="SL" style={{ width:"100%", height:32, borderRadius:8, border:"1.5px solid #e2e8f0", padding:"0 8px", fontSize:12, boxSizing:"border-box", outline:"none" }} />
+                        <input type="number" min="0" value={l.price} onChange={e => updLine(l.key, "price", e.target.value)}
+                          placeholder={l.is_service ? "Phí dịch vụ (đ)" : "Giá bán (đ)"} style={{ width:"100%", height:32, borderRadius:8, border:"1.5px solid #e2e8f0", padding:"0 8px", fontSize:12, boxSizing:"border-box", outline:"none" }} />
+                        {!l.is_service && (
+                          <label style={{ display:"flex", alignItems:"center", gap:4, fontSize:11, fontWeight:700, color:l.waiting ? "#c2410c" : "#64748b", cursor:"pointer", whiteSpace:"nowrap" }}>
+                            <input type="checkbox" checked={l.waiting} onChange={e => updLine(l.key, "waiting", e.target.checked)}
+                              style={{ width:15, height:15, accentColor:"#ea580c", cursor:"pointer" }} />
+                            Chờ nhập
+                          </label>
+                        )}
+                      </div>
+                      {l.waiting && !l.is_service && (
+                        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6, marginTop:6, background:"#ffedd5", borderRadius:8, padding:6 }}>
+                          <div>
+                            <div style={{ fontSize:10, fontWeight:800, color:"#9a3412", marginBottom:2 }}>Dự kiến hàng về</div>
+                            <input type="date" value={l.expected_date} onChange={e => updLine(l.key, "expected_date", e.target.value)}
+                              style={{ width:"100%", height:30, borderRadius:8, border:"1.5px solid #fed7aa", padding:"0 6px", fontSize:11, boxSizing:"border-box", outline:"none" }} />
+                          </div>
+                          <div>
+                            <div style={{ fontSize:10, fontWeight:800, color:"#9a3412", marginBottom:2 }}>Hạn đặt NCC</div>
+                            <input type="date" value={l.po_due_date} onChange={e => updLine(l.key, "po_due_date", e.target.value)}
+                              style={{ width:"100%", height:30, borderRadius:8, border:"1.5px solid #fed7aa", padding:"0 6px", fontSize:11, boxSizing:"border-box", outline:"none" }} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                <div style={{ padding:"6px 4px", textAlign:"right" }}>
+                  <span style={{ fontSize:12, fontWeight:700, color:"#6d28d9" }}>Tổng dòng: {totalLines.toLocaleString("vi-VN")}đ</span>
+                  {hasWaiting && <span style={{ fontSize:12, fontWeight:700, color:"#ea580c" }}> · có LK chờ nhập</span>}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ═══ Tổng chi phí (tự động) ═══ */}
           <div style={{ background:"#fff7ed", border:"2px solid #fed7aa", borderRadius:14, padding:"14px", marginBottom:12 }}>
             <div style={{ fontWeight:800, fontSize:14, color:"#9a3412", marginBottom:12, display:"flex", alignItems:"center", gap:6 }}>
               <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:"#ea580c",verticalAlign:"middle"}}>receipt_long</span>
@@ -863,7 +928,6 @@ export function CustomerConfirmModal({ order, currentUser, onClose, onApprove, o
               Khách trả tiền tại quầy thu ngân sau khi sửa xong (như bán hàng).
             </div>
           </div>
-        </div>
 
           {/* Chọn đồng ý / hủy */}
           {!mode && (
