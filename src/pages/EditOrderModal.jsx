@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { RepairOrder, logHistory, logAction } from "./pb.jsx";
+import { STATUS_PB, STATUS_DISPLAY } from "./MediaViewer";
 
 export default function EditOrderModal({ order, users, currentUser, onClose, onSave }) {
   const ISSUES_LIST = ["Màn hình","Pin","Sạc","Camera","Loa","Mic","Nút bấm","Wifi","Bluetooth","IC","Bo mạch","Vỏ máy","Khác"];
@@ -10,7 +11,7 @@ export default function EditOrderModal({ order, users, currentUser, onClose, onS
     imei: order.imei||order.imei_serial||"", passcode: order.passcode||"",
     issues: parseIssues(order.issue_description), issue_description: order.issue_description||"",
     technician_note: order.technician_note||"", assigned_to: order.assigned_to||"",
-    assigned_to_name: order.assigned_to_name||"", status: order.status||"Cho KTV",
+    assigned_to_name: order.assigned_to_name||"", status: STATUS_DISPLAY[order.status] || order.status || "Chờ KTV",
     priority: order.priority||"Thuong",
     estimated_cost: order.estimated_cost!=null?String(order.estimated_cost):"",
     final_cost: order.final_cost!=null?String(order.final_cost):"",
@@ -74,7 +75,7 @@ export default function EditOrderModal({ order, users, currentUser, onClose, onS
         device_name:form.device_name, device_model:form.device_model,
         imei:form.imei, passcode:form.passcode, issue_description:form.issue_description,
         technician_note:form.technician_note, assigned_to:form.assigned_to,
-        assigned_to_name:form.assigned_to_name, status:form.status, priority:form.priority,
+        assigned_to_name:form.assigned_to_name, status:STATUS_PB[form.status] || form.status, priority:form.priority,
         estimated_cost:form.estimated_cost===""?null:Number(form.estimated_cost),
         final_cost:form.final_cost===""?null:Number(form.final_cost),
         deposit:form.deposit===""?null:Number(form.deposit),
@@ -86,12 +87,13 @@ export default function EditOrderModal({ order, users, currentUser, onClose, onS
       const updated = await RepairOrder.update(pbId, payload);
       const changes = [];
       if (form.assigned_to!==order.assigned_to) changes.push(`Reassign: ${order.assigned_to_name||"??"} → ${form.assigned_to_name||"??"}`);
-      if (form.status!==order.status) changes.push(`Trạng thái: ${order.status} → ${form.status}`);
+      const oldStDisp = STATUS_DISPLAY[order.status] || order.status;
+      if (form.status!==oldStDisp) changes.push(`Trạng thái: ${oldStDisp} → ${form.status}`);
       logHistory({ order_id:pbId, order_code:order.order_code||order.id,
-        action_type:form.assigned_to!==order.assigned_to?"reassigned":form.status!==order.status?"status_changed":"other",
+        action_type:form.assigned_to!==order.assigned_to?"reassigned":form.status!==(STATUS_DISPLAY[order.status]||order.status)?"status_changed":"other",
         action_label:"Cập nhật đơn", changed_by_id:currentUser?.id||"",
         changed_by_name:currentUser?.name||"", changed_by_role:currentUser?.role||"",
-        old_value:order.status||"", new_value:form.status||"", note:changes.join("; "),
+        old_value:STATUS_DISPLAY[order.status]||order.status||"", new_value:form.status||"", note:changes.join("; "),
       });
       logAction(currentUser, "update_order", "repair_order", pbId, "Sua don " + (order.order_code||order.id) + ": " + changes.join("; "));
       onSave(updated);
@@ -191,9 +193,10 @@ export default function EditOrderModal({ order, users, currentUser, onClose, onS
                 <label style={lbl}>Trạng thái</label>
                 {(() => {
                   const LOCKED = ["Mới Nhận","Chờ KTV","KTV Đang Kiểm","Chờ Báo Giá","Chờ Xác Nhận","Moi Nhan","Cho KTV","KTV Dang Kiem","Cho Bao Gia","Cho Xac Nhan"];
-                  const locked = LOCKED.includes(order.status);
+                  const curDisp = STATUS_DISPLAY[order.status] || order.status;
+                  const locked = LOCKED.includes(curDisp);
                   // Đang trong quy trình báo giá: chỉ giữ nguyên trạng thái hiện tại hoặc Hủy
-                  const opts = locked ? STATUS_OPTS.filter(o => o.val===order.status || o.val==="Hủy" || o.val==="Huy" || (STATUS_OPTS.find(x=>x.val===order.status)==null && o.val===form.status)) : STATUS_OPTS;
+                  const opts = locked ? STATUS_OPTS.filter(o => o.val===curDisp || o.val==="Hủy" || o.val==="Huy" || (STATUS_OPTS.find(x=>x.val===curDisp)==null && o.val===form.status)) : STATUS_OPTS;
                   const shown = (opts.some(o=>o.val===form.status) || !locked) ? opts : [{val:form.status,label:form.status},...opts];
                   return (<>
                     <select value={form.status} onChange={e=>set("status",e.target.value)} style={inp}>
