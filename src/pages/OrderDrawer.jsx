@@ -1791,6 +1791,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
               if (Array.isArray(pricing.quote_items)) {
                 approvePatch.qt2_de_xuat = pricing.quote_items;
                 approvePatch.qt2_total = pricing.quote_total || 0;
+                approvePatch.quote_discount = pricing.quote_discount || 0;
                 approvePatch.waiting_reminded = { po_due: "", arrival: "" };
               }
               await onUpdate(order.id, approvePatch, null);

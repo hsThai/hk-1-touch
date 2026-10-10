@@ -1346,7 +1346,7 @@ function MainAppContent({ onUserChange }) {
         "accept_stage","stage1_at","stage2_at","estimated_done","assigned_at",
         "checklist_done","kpi_stage1_penalized","kpi_stage2_penalized","needs_reassign","kpi_manually_accepted",
         "qt1_checklist","qt1_note","qt2_checklist","qt2_note","qt2_de_xuat","qt2_total",
-        "quote_by","quote_by_name","waiting_reminded",
+        "quote_by","quote_by_name","quote_discount","waiting_reminded",
       ];
       directFields.forEach(f => { if (patch[f] !== undefined) pbPatch[f] = patch[f]; });
       // Fields cần map enum
