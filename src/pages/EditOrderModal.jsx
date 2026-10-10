@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { RepairOrder, logHistory, logAction } from "./pb.jsx";
-import { STATUS_PB, STATUS_DISPLAY } from "./MediaViewer";
+import { STATUS_PB, STATUS_DISPLAY, PRIORITY_PB } from "./MediaViewer";
 
 export default function EditOrderModal({ order, users, currentUser, onClose, onSave }) {
   const ISSUES_LIST = ["Màn hình","Pin","Sạc","Camera","Loa","Mic","Nút bấm","Wifi","Bluetooth","IC","Bo mạch","Vỏ máy","Khác"];
@@ -12,7 +12,7 @@ export default function EditOrderModal({ order, users, currentUser, onClose, onS
     issues: parseIssues(order.issue_description), issue_description: order.issue_description||"",
     technician_note: order.technician_note||"", assigned_to: order.assigned_to||"",
     assigned_to_name: order.assigned_to_name||"", status: STATUS_DISPLAY[order.status] || order.status || "Chờ KTV",
-    priority: order.priority||"Thuong",
+    priority: PRIORITY_PB[order.priority] || order.priority || "Thuong",
     estimated_cost: order.estimated_cost!=null?String(order.estimated_cost):"",
     final_cost: order.final_cost!=null?String(order.final_cost):"",
     deposit: order.deposit!=null?String(order.deposit):"",
@@ -75,7 +75,7 @@ export default function EditOrderModal({ order, users, currentUser, onClose, onS
         device_name:form.device_name, device_model:form.device_model,
         imei:form.imei, passcode:form.passcode, issue_description:form.issue_description,
         technician_note:form.technician_note, assigned_to:form.assigned_to,
-        assigned_to_name:form.assigned_to_name, status:STATUS_PB[form.status] || form.status, priority:form.priority,
+        assigned_to_name:form.assigned_to_name, status:STATUS_PB[form.status] || form.status, priority:PRIORITY_PB[form.priority] || form.priority || "Thuong",
         estimated_cost:form.estimated_cost===""?null:Number(form.estimated_cost),
         final_cost:form.final_cost===""?null:Number(form.final_cost),
         deposit:form.deposit===""?null:Number(form.deposit),
