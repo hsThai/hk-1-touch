@@ -197,7 +197,8 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
   const [toast, setToast] = useState(null);
   const [showChecklist, setShowChecklist] = useState(false);
   const [checklistTarget, setChecklistTarget] = useState(null); // {ord, stage}
-  const [editMode, setEditMode] = useState(false); // KTV phải bấm "Sửa" mới đổi trạng thái
+  const [editMode, setEditMode] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState(null); // modal xác nhận đổi trạng thái thủ công // KTV phải bấm "Sửa" mới đổi trạng thái
   const [showSparePart, setShowSparePart] = useState(false);
   const [mediaViewer, setMediaViewer] = useState(null); // {items, startIndex}
   const [showEditOrder, setShowEditOrder] = useState(false);
@@ -629,6 +630,42 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
   const PRICE_LOCKED = ["Mới Nhận","Chờ KTV","KTV Đang Kiểm","Chờ Báo Giá","Chờ Xác Nhận"];
   const isPriceLocked = PRICE_LOCKED.includes(order.status) || ["Mới Nhận","Cho KTV","KTV Dang Kiem","Cho Bao Gia","Cho Xac Nhan"].includes(order.status);
 
+  // Gửi thông báo khi đổi trạng thái thủ công → trả về danh sách người sẽ nhận
+  const STATUS_NOTIFY_ROLES = ["manager","admin","owner","supervisor","receptionist"];
+  const ROLE_LABEL = { manager:"Quản lý", admin:"Quản trị", owner:"Chủ shop", supervisor:"Giám sát", receptionist:"Lễ tân", technician:"KTV", accountant:"Kế toán", cashier:"Thu ngân", warehouse:"Kho" };
+  function getNotifyListFor(statusKey) {
+    return users.filter(u => u.is_active !== false && STATUS_NOTIFY_ROLES.includes(u.role))
+      .map(u => ({ id:u.id, name:u.name || u.full_name || "?", role:u.role }));
+  }
+  function applyStatusChange(c, notifyList) {
+    onUpdate(order.id,{status:c.key},null);
+    logHistory({
+      order_id:        order._id || order.id,
+      order_code:      order.order_code || order.id,
+      action_type:     "status_changed",
+      action_label:    "Đổi trạng thái",
+      changed_by_id:   currentUser?.id || "",
+      changed_by_name: currentUser?.name || "",
+      changed_by_role: currentUser?.role || "",
+      old_value:       order.status || "",
+      new_value:       c.key,
+    });
+    setEditMode(false);
+    notifyList.forEach(u => {
+      Notification.create({
+        user_id: u.id,
+        user_name: u.name,
+        title: `🔧 ${currentUser.name} cập nhật ${order.id}`,
+        message: `Trạng thái: ${c.key}`,
+        order_id: order._id || order.id,
+        order_code: order.id,
+        type:"status_change",
+        is_read: false,
+        created_at: new Date().toISOString(),
+      }).catch(()=>{});
+    });
+  }
+
   function handleMarkDone() {
     if (isPriceLocked) { showToast("Đơn chưa duyệt giá xong — chưa thể hoàn thành"); return; }
     onUpdate(order.id, { status:"Hoàn Thành", accept_stage:3 }, { userId:order.assigned_to, delta:2, note:"Sửa xong +2 KPI" });
@@ -1032,48 +1069,14 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                     </div>
                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:10 }}>
                       {STATUS_COLS.filter(c => !["Đã Giao","Chờ KTV","Chờ KTV Sửa"].includes(c.key)).map(c => (
-                        <button key={c.key} onClick={() => {
-  if(c.key==="Hoàn Thành") { handleMarkDone(); }
-  else {
-    onUpdate(order.id,{status:c.key},null);
-    // Log lịch sử đổi trạng thái
-    logHistory({
-      order_id:        order._id || order.id,
-      order_code:      order.order_code || order.id,
-      action_type:     "status_changed",
-      action_label:    "Đổi trạng thái",
-      changed_by_id:   currentUser?.id || "",
-      changed_by_name: currentUser?.name || "",
-      changed_by_role: currentUser?.role || "",
-      old_value:       order.status || "",
-      new_value:       c.key,
-    });
-    setEditMode(false);
-    // Notify manager/admin + receptionist khi KTV đổi trạng thái
-    const notifyUsers = users.filter(u => ["manager","admin","owner","supervisor","receptionist"].includes(u.role));
-    notifyUsers.forEach(u => {
-      Notification.create({
-        user_id: u.id,
-        user_name: u.name || "",
-        title: `🔧 ${currentUser.name} cập nhật ${order.id}`,
-        message: `Trạng thái: ${c.key}`,
-        order_id: order._id || order.id,
-        order_code: order.id,
-        type:"status_change",
-        is_read: false,
-        created_at: new Date().toISOString(),
-      }).catch(()=>{});
-    });
-    // Sound phát ở người NHẬN notification
-  }
-}}
+                        <button key={c.key} onClick={() => setPendingStatus({ c, isDone: c.key==="Hoàn Thành" })}
                           style={{ padding:"12px 8px", borderRadius:12, border:`2px solid ${order.status===c.key?c.color:"#e5e7eb"}`, background:order.status===c.key?c.bg:"#fff", color:order.status===c.key?c.color:"#374151", fontWeight:700, fontSize:13, cursor:"pointer", textAlign:"center" }}>
                           <div style={{ fontSize:18 }}>{c.icon}</div>
                           <div style={{ fontSize:12, marginTop:2 }}>{c.key}</div>
                         </button>
                       ))}
                     </div>
-                    <button onClick={handleMarkDone}
+                    <button onClick={() => setPendingStatus({ c:{ key:"Hoàn Thành", color:"#16a34a", icon:"✅" }, isDone:true })}
                       style={{ width:"100%", height:54, borderRadius:14, background:"#059669", color:"#fff", border:"none", fontWeight:800, fontSize:17, cursor:"pointer"}}>
                         Sửa Xong! (+2 KPI)
                     </button>
@@ -1910,6 +1913,48 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
         }}
       />
     )}
+    {/* ── Modal xác nhận đổi trạng thái thủ công ── */}
+    {pendingStatus && (() => {
+      const { c, isDone } = pendingStatus;
+      const notifyList = getNotifyListFor(c.key);
+      return (
+        <div style={{ position:"fixed", inset:0, zIndex:3200, background:"rgba(0,0,0,.55)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div style={{ background:"#fff", borderRadius:20, width:"100%", maxWidth:420, padding:"20px", boxShadow:"0 24px 64px rgba(0,0,0,.3)" }}>
+            <div style={{ fontWeight:900, fontSize:17, color:"#111827", marginBottom:4 }}>Đổi trạng thái đơn?</div>
+            <div style={{ fontSize:12, color:"#6b7280", marginBottom:14 }}>{order.order_code || order.id}</div>
+            <div style={{ display:"flex", alignItems:"center", gap:10, background:"#f9fafb", borderRadius:12, padding:"12px 14px", marginBottom:14 }}>
+              <span style={{ fontSize:15, fontWeight:700, color:"#6b7280" }}>{order.status}</span>
+              <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,color:"#9ca3af"}}>arrow_forward</span>
+              <span style={{ fontSize:15, fontWeight:900, color:c.color || "#4f46e5" }}>{c.icon} {c.key}</span>
+            </div>
+            {isDone ? (
+              <div style={{ fontSize:13, color:"#374151", background:"#f0fdf4", border:"1px solid #86efac", borderRadius:12, padding:"10px 12px", marginBottom:14 }}>
+                ✅ Đơn hoàn thành · <b>+2 KPI</b> cho KTV {order.assigned_to_name || "(không có)"}
+              </div>
+            ) : (
+              <div style={{ fontSize:13, color:"#374151", background:"#eff6ff", border:"1px solid #bfdbfe", borderRadius:12, padding:"10px 12px", marginBottom:14 }}>
+                <div style={{ fontWeight:800, marginBottom:6 }}>Thông báo sẽ được gửi đến {notifyList.length} người:</div>
+                {notifyList.length === 0
+                  ? <div style={{ color:"#9ca3af", fontStyle:"italic" }}>Không có ai (chưa cấu hình vai trò)</div>
+                  : <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                      {notifyList.map(u => (
+                        <span key={u.id} style={{ background:"#fff", border:"1px solid #e5e7eb", borderRadius:999, padding:"3px 10px", fontSize:12, fontWeight:700 }}>
+                          {u.name} <span style={{ color:"#9ca3af", fontWeight:500 }}>· {ROLE_LABEL[u.role] || u.role}</span>
+                        </span>
+                      ))}
+                    </div>}
+              </div>
+            )}
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={() => setPendingStatus(null)}
+                style={{ flex:1, height:46, borderRadius:12, border:"2px solid #e5e7eb", background:"#fff", color:"#374151", fontWeight:800, fontSize:14, cursor:"pointer" }}>Hủy</button>
+              <button onClick={() => { const ps = pendingStatus; setPendingStatus(null); if (ps.isDone) handleMarkDone(); else applyStatusChange(ps.c, getNotifyListFor(ps.c.key)); }}
+                style={{ flex:1.4, height:46, borderRadius:12, border:"none", background:"#4f46e5", color:"#fff", fontWeight:900, fontSize:14, cursor:"pointer" }}>Xác nhận đổi</button>
+            </div>
+          </div>
+        </div>
+      );
+    })()}
     {showEditOrder && (
       <EditOrderModal
         order={order}
