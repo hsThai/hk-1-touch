@@ -1084,7 +1084,7 @@ function MainAppContent({ onUserChange }) {
       const snapshot = ordersRef.current;
       const hasActive = snapshot.some(o =>
         o.assigned_to && o.assigned_at && (o.accept_stage||0) < 2 &&
-        !["Hoàn Thành","Đã Giao","Hủy","Hoan Thanh","Da Giao","Huy"].includes(o.status)
+        !["Hoàn Thành","Đã Giao","Hủy","Hoan Thanh","Da Giao","Huy","Chờ Linh Kiện","Cho Linh Kien","Chờ Báo Giá","Cho Bao Gia"].includes(o.status)
       );
       if (!hasActive) return;
 
@@ -1097,7 +1097,7 @@ function MainAppContent({ onUserChange }) {
         const next = prev.map(o => {
           if (!o.assigned_to || !o.assigned_at) return o;
           if ((o.accept_stage||0) >= 2) return o;
-          if (["Hoàn Thành","Đã Giao","Hủy","Hoan Thanh","Da Giao","Huy"].includes(o.status)) return o;
+          if (["Hoàn Thành","Đã Giao","Hủy","Hoan Thanh","Da Giao","Huy","Chờ Linh Kiện","Cho Linh Kien","Chờ Báo Giá","Cho Bao Gia"].includes(o.status)) return o;
 
           const assignedAt  = new Date(o.assigned_at).getTime();
           const stage1At    = o.stage1_at ? new Date(o.stage1_at).getTime() : null;
@@ -1334,7 +1334,9 @@ function MainAppContent({ onUserChange }) {
     // Auto-set assigned_at khi assign/reassign KTV (nếu patch chưa có)
     if (patch?.assigned_to && !patch.assigned_at) {
       const curOrder = ordersRef.current.find(o => o.id===id) || orders.find(o => o.id===id);
-      if (!curOrder?.assigned_at || curOrder.assigned_to !== patch.assigned_to) {
+      const nextSt = patch.status || curOrder?.status;
+      const waitingParts = ["Chờ Linh Kiện","Cho Linh Kien"].includes(nextSt);
+      if (!waitingParts && (!curOrder?.assigned_at || curOrder.assigned_to !== patch.assigned_to)) {
         patch = { ...patch, assigned_at: new Date().toISOString() };
       }
     }

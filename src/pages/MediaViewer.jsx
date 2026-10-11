@@ -35,6 +35,8 @@ function getKpiTimerInfo(order) {
   if (!order.assigned_to || !order.assigned_at) return null;
   if ((order.accept_stage||0) >= 2) return null;
   if (["Hoàn Thành","Đã Giao","Hủy","Hoan Thanh","Da Giao","Huy"].includes(order.status)) return null;
+  // Đang chờ linh kiện nhập hàng / chờ báo giá → KTV chỉ được ghi nhận, chưa tính giờ KPI
+  if (["Chờ Linh Kiện","Cho Linh Kien","Chờ Báo Giá","Cho Bao Gia"].includes(order.status)) return null;
 
   const assignedAt = new Date(order.assigned_at).getTime();
   const stage = order.accept_stage || 0;
@@ -565,6 +567,19 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
   if (!isMyOrder && !isManager) return null;
 
   const stage = order.accept_stage || 0;
+
+  // Chờ linh kiện nhập hàng: KTV đã được ghi nhận nhưng CHƯA tính giờ KPI
+  if (["Chờ Linh Kiện","Cho Linh Kien"].includes(order.status)) {
+    return (
+      <div style={{ display:"flex", alignItems:"center", gap:10, background:"#fff7ed", border:"2px solid #fdba74", borderRadius:12, padding:"10px 14px", marginBottom:14 }}>
+        <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,color:"#ea580c"}}>hourglass_top</span>
+        <div>
+          <div style={{ fontWeight:800, fontSize:13, color:"#9a3412" }}>Chờ linh kiện về kho</div>
+          <div style={{ fontSize:12, color:"#c2410c" }}>KTV {order.assigned_to_name || ""} đã được ghi nhận. Chưa tính giờ KPI, hàng về sẽ báo KTV.</div>
+        </div>
+      </div>
+    );
+  }
 
   // Stage >= 2 hoặc đơn xong → badge xanh gọn
   if (stage >= 2 || ["Hoàn Thành","Đã Giao","Hủy","Hoan Thanh","Da Giao","Huy"].includes(order.status)) {

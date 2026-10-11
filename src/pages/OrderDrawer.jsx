@@ -630,6 +630,14 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
   const PRICE_LOCKED = ["Mới Nhận","Chờ KTV","KTV Đang Kiểm","Chờ Báo Giá","Chờ Xác Nhận"];
   const isPriceLocked = PRICE_LOCKED.includes(order.status) || ["Mới Nhận","Cho KTV","KTV Dang Kiem","Cho Bao Gia","Cho Xac Nhan"].includes(order.status);
 
+  // Đơn có dòng linh kiện "chờ nhập" (đặt NCC) chưa về?
+  function orderHasWaitingParts() {
+    try {
+      const raw = order.qt2_de_xuat;
+      const arr = typeof raw === "string" && raw ? JSON.parse(raw) : (Array.isArray(raw) ? raw : []);
+      return (arr || []).some(l => l && l.waiting);
+    } catch { return false; }
+  }
   // Gửi thông báo khi đổi trạng thái thủ công → trả về danh sách người sẽ nhận
   const STATUS_NOTIFY_ROLES = ["manager","admin","owner","supervisor","receptionist"];
   const ROLE_LABEL = { manager:"Quản lý", admin:"Quản trị", owner:"Chủ shop", supervisor:"Giám sát", receptionist:"Lễ tân", technician:"KTV", accountant:"Kế toán", cashier:"Thu ngân", warehouse:"Kho" };
@@ -1004,6 +1012,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                       list={availableKTVs}
                       mode={mode}
                       quoting={order.status === "Chờ Báo Giá"}
+                      waitingParts={orderHasWaitingParts()}
                       onAssign={(u) => {
                         const now = new Date().toISOString();
                         onUpdate(order.id, {
@@ -1018,9 +1027,13 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                           kpi_stage2_penalized:  false,
                           needs_reassign:        false,
                           // Đơn GĐV báo giá trực tiếp: giao thẳng KTV sửa (không qua kiểm tra QT2)
-                          status:                order.status === "Chờ Báo Giá" ? "Chờ KTV Sửa" : "Chờ KTV",
+                          // Có LK chờ nhập → chỉ ghi nhận KTV, vào Chờ Linh Kiện (chưa thông báo, chưa tính KPI)
+                          status:                orderHasWaitingParts() ? "Chờ Linh Kiện" : (order.status === "Chờ Báo Giá" ? "Chờ KTV Sửa" : "Chờ KTV"),
+                          ...(orderHasWaitingParts() ? { assigned_at: null } : {}),
                         }, null);
-                        showToast(`✅ Đã giao đơn cho ${u.name || u.full_name}`);
+                        showToast(orderHasWaitingParts()
+                          ? `📝 Đã ghi nhận KTV ${u.name || u.full_name}. Hàng về sẽ báo KTV`
+                          : `✅ Đã giao đơn cho ${u.name || u.full_name}`);
                       }}
                     />
                   </div>
@@ -1279,7 +1292,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                         }
                         if (!window.confirm("Linh kiện đã nhập kho?\nĐơn sẽ chuyển sang Chờ KTV Sửa.")) return;
                         try {
-                          await onUpdate(order.id, { status: "Cho KTV Sua" }, null);
+                          await onUpdate(order.id, { status: "Cho KTV Sua", accept_stage: 0, assigned_at: new Date().toISOString(), stage1_at: null, stage2_at: null, kpi_stage1_penalized: false, kpi_stage2_penalized: false, needs_reassign: false, kpi_manually_accepted: false }, null);
                           logHistory({ order_id: order.id, order_code: order.order_code||order.id, action_type: "parts_arrived", action_label: "Linh kiện đã về — chuyển KTV sửa", changed_by_id: currentUser?.id||"", changed_by_name: currentUser?.name||"", changed_by_role: currentUser?.role||"", old_value: "Cho Linh Kien", new_value: "Cho KTV Sua" });
                           const ktv = users.find(u => u.id === ktvPick);
                           if (ktv) await Notification.create({ user_id: ktv.id, user_name: ktv.name||"", title: `📦 LK đã về — Đơn ${order.order_code||order.id} chờ bạn sửa`, message: `${order.device_model} · ${order.customer_name}. Linh kiện đã nhập kho, bắt đầu sửa.`, order_id: order.id, order_code: order.order_code, type: "parts_arrived", is_read: false }).catch(() => {});
@@ -1770,7 +1783,8 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
               if (pricing.assigned_to) {
                 approvePatch.assigned_to = pricing.assigned_to;
                 approvePatch.assigned_to_name = pricing.assigned_to_name || "";
-                approvePatch.assigned_at = new Date().toISOString();
+                // Có LK chờ nhập → chỉ ghi nhận KTV, chưa tính giờ KPI (hàng về mới bắt đầu)
+                approvePatch.assigned_at = hasWaiting ? null : new Date().toISOString();
               }
               if (Array.isArray(pricing.quote_items)) {
                 approvePatch.qt2_de_xuat = pricing.quote_items;
@@ -2008,7 +2022,7 @@ export { OrderDrawer };
 // ══════════════════════════════════════════════
 //  Chọn KTV dạng dropdown (mặc định chưa chọn) + nút Giao
 // ══════════════════════════════════════════════
-function KtvAssignPicker({ list, mode, quoting, onAssign }) {
+function KtvAssignPicker({ list, mode, quoting, waitingParts, onAssign }) {
   const [sel, setSel] = React.useState("");
   const accent = mode === "assign" ? "#d97706" : "#4f46e5";
   if (!list.length) return <div style={{ fontSize:13, color:"#9ca3af", fontStyle:"italic", padding:"6px 0" }}>Không có KTV khả dụng</div>;
@@ -2023,11 +2037,13 @@ function KtvAssignPicker({ list, mode, quoting, onAssign }) {
       <button disabled={!picked}
         onClick={() => {
           if (!picked) return;
-          if (quoting && !window.confirm(`Giao đơn cho ${picked.name || picked.full_name} sửa?\nĐơn sẽ sang "Chờ KTV Sửa".`)) return;
+          if (quoting && !window.confirm(waitingParts
+            ? `Ghi nhận ${picked.name || picked.full_name} phụ trách sửa?\nĐơn có linh kiện chờ nhập nên CHƯA báo KTV và CHƯA tính giờ KPI. Khi hàng về kho mới báo KTV.`
+            : `Giao đơn cho ${picked.name || picked.full_name} sửa?\nĐơn sẽ sang "Chờ KTV Sửa".`)) return;
           onAssign(picked); setSel("");
         }}
         style={{ width:"100%", height:44, borderRadius:12, marginTop:8, border:"none", background: picked ? accent : "#e5e7eb", color: picked ? "#fff" : "#9ca3af", fontWeight:900, fontSize:14, cursor: picked ? "pointer" : "default" }}>
-        {picked ? `Giao cho ${picked.name || picked.full_name}` : "Chọn KTV rồi bấm Giao"}
+        {picked ? (waitingParts ? `Ghi nhận ${picked.name || picked.full_name} (chờ hàng về)` : `Giao cho ${picked.name || picked.full_name}`) : "Chọn KTV rồi bấm Giao"}
       </button>
     </div>
   );
