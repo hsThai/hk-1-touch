@@ -715,9 +715,23 @@ function StepPhotoModal({ order, user, title, subtitle, noteLabel, notePlacehold
 }
 
 /* ─────────────── Card đơn ─────────────── */
+// Phân loại hình thức nhận hàng: pickup (tại quầy) | staff (NV giao) | carrier (ĐVVC — mặc định, gồm đơn cũ "delivery"/rỗng)
+function deliveryKind(o) {
+  const t = (o && o.delivery_type) || "";
+  if (t === "pickup") return "pickup";
+  if (t === "staff") return "staff";
+  return "carrier";
+}
+const DELIVERY_TAG = {
+  pickup:  { label: "TẠI QUẦY", icon: "storefront",     bg: "#059669" },
+  carrier: { label: "ĐVVC",     icon: "local_shipping", bg: "#0369a1" },
+  staff:   { label: "NV GIAO",  icon: "two_wheeler",    bg: "#d97706" },
+};
+
 function PkCard({ order, meta, children, onExpand, expanded, timeline }) {
   let st = PK_STATUS[meta] || PK_STATUS[""];
-  if (meta === "packed" && order.delivery_type === "pickup") st = { ...st, label: "Chờ khách nhận", icon: "storefront" };
+  if (meta === "packed" && deliveryKind(order) === "pickup") st = { ...st, label: "Chờ khách nhận", icon: "storefront" };
+  if (meta === "packed" && deliveryKind(order) === "staff") st = { ...st, label: "Chờ NV giao", icon: "two_wheeler" };
   return (
     <div id={"pkcard_" + order.id} style={{ background: "#fff", border: expanded ? "2px solid #4f46e5" : "1px solid #e5e7eb", borderRadius: 14, marginBottom: 10, overflow: "hidden" }}>
       <div onClick={onExpand} style={{ padding: "12px 14px", cursor: "pointer" }}>
@@ -727,11 +741,11 @@ function PkCard({ order, meta, children, onExpand, expanded, timeline }) {
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontWeight: 900, fontSize: 14, color: "#1f2937" }}>{order.order_code}</span>
               <span style={{ background: st.bg, color: st.color, fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 99, flexShrink: 0 }}>{st.label}</span>
-              {order.delivery_type === "pickup" && (
-                <span style={{ background: "#059669", color: "#fff", fontSize: 10, fontWeight: 900, padding: "2px 8px", borderRadius: 99, flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 3 }}>
-                  <span className="material-icons" style={{ fontFamily: "Material Icons", fontSize: 12 }}>storefront</span>TẠI QUẦY
+              {(() => { const dk = DELIVERY_TAG[deliveryKind(order)]; return (
+                <span style={{ background: dk.bg, color: "#fff", fontSize: 10, fontWeight: 900, padding: "2px 8px", borderRadius: 99, flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                  <span className="material-icons" style={{ fontFamily: "Material Icons", fontSize: 12 }}>{dk.icon}</span>{dk.label}
                 </span>
-              )}
+              ); })()}
             </div>
             <div style={{ fontSize: 12, color: "#6b7280", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {order.customer_name || "Khách lẻ"}{order.customer_phone ? " · " + order.customer_phone : ""} · {fmtVnd(order.total)}
@@ -855,30 +869,46 @@ export default function PackingPage({ user, onBack, focusOrderCode, onFocusConsu
 
   // ── Actions ──
 
-  // Đánh dấu bán tại quầy (không cần soạn/giao)
-  async function markCounter(order) {
-    if (!window.confirm(`Đơn ${order.order_code} bàn giao trực tiếp tại quầy (không cần soạn hàng)?`)) return;
+
+  // ĐVVC đã nhận
+  // NV giao: nhân viên cửa hàng cầm hàng đi giao (không qua ĐVVC, không cần mã vận đơn)
+  async function staffGo(order, { photos, note, setSubmitting }) {
+    if (!photos.length) { showToast("⚠️ Phải chụp ảnh hàng khi NV nhận đi giao", "err"); return; }
+    setSubmitting(true);
     try {
+      const media = parsePackMedia(order);
+      media.handover = photos;
+      const who = user.full_name || user.name || "";
       const updates = {
-        pack_status: "counter",
-        delivered_at: new Date().toISOString(),
-        packed_by_name: user.full_name || user.name || "",
-        pack_note: "Bán trực tiếp tại quầy",
+        pack_status: "shipped",
+        ship_status: "shipped",
+        shipping_unit: "NV giao",
+        tracking_code: "",
+        shipping_note: note || "",
+        handover_by_name: who,
+        handover_at: new Date().toISOString(),
+        pack_media: JSON.stringify(media),
       };
       await SaleOrder.update(order.id, updates);
       await logHistory({
         order_id: order.id, order_code: order.order_code,
-        action_type: "pack", action_label: "🏪 Bàn giao tại quầy",
-        changed_by_id: user.id, changed_by_name: user.full_name || user.name || "", changed_by_role: user.role || "",
-        old_value: order.pack_status || "", new_value: "counter", note: "",
+        action_type: "ship", action_label: "🛵 NV đi giao",
+        changed_by_id: user.id, changed_by_name: who, changed_by_role: user.role || "",
+        old_value: "packed", new_value: "shipped",
+        note: `NV giao: ${who} — ${photos.length} ảnh${note ? " — " + note : ""}`,
       });
-      logAction(user, "pack_order", "sale_order", order.id, `Đánh dấu bán tại quầy ${order.order_code}`);
-      showToast("✅ Đã đánh dấu tại quầy", "ok");
+      logAction(user, "ship_order", "sale_order", order.id, `NV ${who} đi giao đơn ${order.order_code}`);
+      await notifyUser(order.seller_id, order.seller_name, {
+        title: `🛵 Đơn ${order.order_code} đang được NV giao`,
+        message: `${who} đang đi giao cho khách`,
+        order: { id: order.id, order_code: order.order_code },
+      });
+      showToast("🛵 Đã ghi nhận NV đi giao", "ok");
+      setModal(null);
       applyUpdate(order.id, updates);
-    } catch (e) { showToast("Lỗi: " + e.message, "err"); }
+    } catch (e) { showToast("Lỗi: " + e.message, "err"); setSubmitting(false); }
   }
 
-  // ĐVVC đã nhận
   async function carrierReceived(order, { photos, note, setSubmitting }) {
     setSubmitting(true);
     try {
@@ -1073,7 +1103,7 @@ export default function PackingPage({ user, onBack, focusOrderCode, onFocusConsu
 
     const st = found.pack_status || "";
     const isPick = st === "" || st === "to_pick" || st === "picking";
-    const isPickup = (found.delivery_type || "") === "pickup";
+    const isPickup = deliveryKind(found) === "pickup";
 
     // Chuyen sang dung tab + mo the cua don de nguoi dung thay ngay
     const targetTab = isPick ? "pick" : st === "packed" ? "handover"
@@ -1088,7 +1118,7 @@ export default function PackingPage({ user, onBack, focusOrderCode, onFocusConsu
     if (isPick && found.status !== "completed") { showToast(`ℹ️ Đơn ${found.order_code} chưa thu tiền — chưa soạn được`, "info"); return; }
     // Quy trinh 2026-10-09: đơn tại quầy vẫn phải soạn hàng trước khi bàn giao cho khách
     if (canEditPack && isPick) setModal({ type: "picking", order: found });
-    else if (canEditShip && st === "packed") setModal({ type: isPickup ? "pickup_confirm" : "handover", order: found });
+    else if (canEditShip && st === "packed") setModal({ type: isPickup ? "pickup_confirm" : deliveryKind(found) === "staff" ? "staff_go" : "handover", order: found });
     else if (isPick || st === "packed") showToast(`ℹ️ Bạn không có quyền ${isPick ? "soạn" : "bàn giao"} đơn ${found.order_code}`, "info");
   }
 
@@ -1163,15 +1193,17 @@ export default function PackingPage({ user, onBack, focusOrderCode, onFocusConsu
         {canEditPack && (st === "" || st === "to_pick" || st === "picking") && (
           <>
             {btn(st === "picking" ? "▶ TIẾP TỤC SOẠN" : "🧺 SOẠN HÀNG", "#fff", "#4f46e5", () => setModal({ type: "picking", order: o }))}
-            {btn("🏪 TẠI QUẦY", "#475569", "#f1f5f9", () => markCounter(o))}
           </>
         )}
         {/* Bàn giao — cần quyền edit ship_order. Rẽ nhánh theo hình thức nhận hàng do NV bán chọn */}
-        {canEditShip && st === "packed" && o.delivery_type === "pickup" && (
+        {canEditShip && st === "packed" && deliveryKind(o) === "pickup" && (
           btn("✅ KHÁCH ĐÃ NHẬN", "#fff", "#059669", () => setModal({ type: "pickup_confirm", order: o }))
         )}
-        {canEditShip && st === "packed" && o.delivery_type !== "pickup" && (
+        {canEditShip && st === "packed" && deliveryKind(o) === "carrier" && (
           btn("🚚 BÀN GIAO ĐVVC", "#fff", "#0369a1", () => setModal({ type: "handover", order: o }))
+        )}
+        {canEditShip && st === "packed" && deliveryKind(o) === "staff" && (
+          btn("🛵 NV ĐI GIAO", "#fff", "#d97706", () => setModal({ type: "staff_go", order: o }))
         )}
         {canEditShip && (st === "shipped" || st === "carrier_received") && (
           <>
@@ -1269,8 +1301,9 @@ export default function PackingPage({ user, onBack, focusOrderCode, onFocusConsu
             </PkCard>
           );
           if (tab !== "handover") return items.map(card);
-          const pickupItems  = items.filter(o => (o.delivery_type || "") === "pickup");
-          const carrierItems = items.filter(o => (o.delivery_type || "") !== "pickup");
+          const pickupItems  = items.filter(o => deliveryKind(o) === "pickup");
+          const staffItems   = items.filter(o => deliveryKind(o) === "staff");
+          const carrierItems = items.filter(o => deliveryKind(o) === "carrier");
           const header = (icon, text, n, color) => (
             <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "6px 2px 8px", fontWeight: 800, fontSize: 13, color }}>
               <span className="material-icons" style={{ fontFamily: "Material Icons", fontSize: 17 }}>{icon}</span>
@@ -1281,6 +1314,8 @@ export default function PackingPage({ user, onBack, focusOrderCode, onFocusConsu
             <>
               {pickupItems.length > 0 && header("storefront", "Tại quầy — chờ khách nhận", pickupItems.length, "#059669")}
               {pickupItems.map(card)}
+              {staffItems.length > 0 && header("two_wheeler", "NV giao — chờ đi giao", staffItems.length, "#d97706")}
+              {staffItems.map(card)}
               {carrierItems.length > 0 && header("local_shipping", "Chờ bàn giao ĐVVC", carrierItems.length, "#0369a1")}
               {carrierItems.map(card)}
             </>
@@ -1305,6 +1340,14 @@ export default function PackingPage({ user, onBack, focusOrderCode, onFocusConsu
           subtitle={`Đơn ${modal.order.order_code} — ${modal.order.shipping_unit || ""} ${modal.order.tracking_code || ""}`}
           noteLabel="Ghi chú (tùy chọn)" notePlaceholder="VD: ĐVVC xác nhận lấy hàng..."
           onDone={(data) => carrierReceived(modal.order, data)}
+          onClose={() => setModal(null)} />
+      )}
+      {modal?.type === "staff_go" && (
+        <StepPhotoModal order={modal.order} user={user} showToast={showToast}
+          title="🛵 NV nhận hàng đi giao"
+          subtitle={`Đơn ${modal.order.order_code} — ${modal.order.customer_name || ""} · chụp ảnh hàng trước khi đi`}
+          noteLabel="Ghi chú (tùy chọn)" notePlaceholder="VD: Giao trong buổi chiều, thu hộ 0đ..."
+          onDone={(data) => staffGo(modal.order, data)}
           onClose={() => setModal(null)} />
       )}
       {modal?.type === "pickup_confirm" && (

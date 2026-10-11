@@ -88,8 +88,8 @@ export default function CashierConfirmPage({ user }) {
       // Quy trình 2026-10-09: mọi đơn đã thu tiền đều phải soạn/xuất kho (kể cả lấy tại quầy)
       {
         notifyRoles(["packer", "delivery"], {
-          title: `${(confirming.delivery_type || "") === "pickup" ? "Đơn tại quầy cần soạn" : "Đơn cần soạn"}: ${confirming.order_code}`,
-          message: `${(confirming.delivery_type || "") === "pickup" ? " . Khách lấy tại quầy" : ""}${confirming.customer_name || "Khách lẻ"} · ${(confirming.total||0).toLocaleString("vi-VN")}đ${confirming.delivery_address ? " · " + confirming.delivery_address : ""}`,
+          title: `${({ pickup:"Đơn tại quầy cần soạn", staff:"Đơn NV giao cần soạn" })[confirming.delivery_type || ""] || "Đơn ĐVVC cần soạn"}: ${confirming.order_code}`,
+          message: `${({ pickup:"Khách lấy tại quầy · ", staff:"NV giao tận nơi · " })[confirming.delivery_type || ""] || "Gửi ĐVVC · "}${confirming.customer_name || "Khách lẻ"} · ${(confirming.total||0).toLocaleString("vi-VN")}đ${confirming.delivery_address ? " · " + confirming.delivery_address : ""}`,
           order: confirming, type: "pack_ship", excludeId: user?.id || "",
         });
       }

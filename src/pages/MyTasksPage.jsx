@@ -553,7 +553,8 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
     const activeSo = so.filter(o => o.status === "completed");
     const st = o => o.pack_status || "";
     const chờSoạn     = activeSo.filter(o => ["", "to_pick", "picking"].includes(st(o))); // kể cả đơn tại quầy (quy trình 2026-10-09)
-    const chờBànGiao  = activeSo.filter(o => st(o) === "packed" && (o.delivery_type || "") !== "pickup");
+    const chờBànGiao  = activeSo.filter(o => st(o) === "packed" && !["pickup","staff"].includes(o.delivery_type || ""));
+    const chờNVGiao   = activeSo.filter(o => st(o) === "packed" && (o.delivery_type || "") === "staff");
     const chờKháchNhận = activeSo.filter(o => st(o) === "packed" && (o.delivery_type || "") === "pickup");
     const đangGiao    = activeSo.filter(o => ["shipped", "carrier_received"].includes(st(o)));
     const giaoLỗi     = activeSo.filter(o => st(o) === "failed");
@@ -567,6 +568,12 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
       icon: "storefront", title: `${chờKháchNhận.length} đơn tại quầy chờ khách nhận`,
       subtitle: "Đã đóng gói — khách sẽ đến nhận tại quầy",
       badge: String(chờKháchNhận.length), badgeColor: "#059669", urgency: "urgent",
+      onClick: () => onOpenPackShip ? onOpenPackShip("handover") : setPage("pack_ship"),
+    });
+    if (canViewShip && chờNVGiao.length > 0) result.urgent.push({
+      icon: "two_wheeler", title: `${chờNVGiao.length} đơn chờ NV đi giao`,
+      subtitle: "Đã đóng gói — nhân viên cầm hàng giao cho khách",
+      badge: String(chờNVGiao.length), badgeColor: "#d97706", urgency: "urgent",
       onClick: () => onOpenPackShip ? onOpenPackShip("handover") : setPage("pack_ship"),
     });
     if (canViewShip && chờBànGiao.length > 0) result.urgent.push({
