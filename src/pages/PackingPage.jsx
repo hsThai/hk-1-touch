@@ -727,6 +727,11 @@ function PkCard({ order, meta, children, onExpand, expanded, timeline }) {
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontWeight: 900, fontSize: 14, color: "#1f2937" }}>{order.order_code}</span>
               <span style={{ background: st.bg, color: st.color, fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 99, flexShrink: 0 }}>{st.label}</span>
+              {order.delivery_type === "pickup" && (
+                <span style={{ background: "#059669", color: "#fff", fontSize: 10, fontWeight: 900, padding: "2px 8px", borderRadius: 99, flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                  <span className="material-icons" style={{ fontFamily: "Material Icons", fontSize: 12 }}>storefront</span>TẠI QUẦY
+                </span>
+              )}
             </div>
             <div style={{ fontSize: 12, color: "#6b7280", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {order.customer_name || "Khách lẻ"}{order.customer_phone ? " · " + order.customer_phone : ""} · {fmtVnd(order.total)}
@@ -1255,13 +1260,32 @@ export default function PackingPage({ user, onBack, focusOrderCode, onFocusConsu
           {tab === "done" ? "Chưa có đơn hoàn tất" : tab === "pick" ? "Không có đơn chờ soạn — Thật tuyệt!" : "Không có đơn nào ở trạng thái này"}
         </div>
       ) : (
-        items.map(o => (
-          <PkCard key={o.id} order={o} meta={o.pack_status || ""}
-            onExpand={() => setExpanded(expanded === o.id ? null : o.id)}
-            expanded={expanded === o.id} timeline={renderTimeline(o)}>
-            {renderActions(o)}
-          </PkCard>
-        ))
+        (() => {
+          const card = (o) => (
+            <PkCard key={o.id} order={o} meta={o.pack_status || ""}
+              onExpand={() => setExpanded(expanded === o.id ? null : o.id)}
+              expanded={expanded === o.id} timeline={renderTimeline(o)}>
+              {renderActions(o)}
+            </PkCard>
+          );
+          if (tab !== "handover") return items.map(card);
+          const pickupItems  = items.filter(o => (o.delivery_type || "") === "pickup");
+          const carrierItems = items.filter(o => (o.delivery_type || "") !== "pickup");
+          const header = (icon, text, n, color) => (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "6px 2px 8px", fontWeight: 800, fontSize: 13, color }}>
+              <span className="material-icons" style={{ fontFamily: "Material Icons", fontSize: 17 }}>{icon}</span>
+              {text} <span style={{ background: color, color: "#fff", borderRadius: 99, padding: "1px 8px", fontSize: 11 }}>{n}</span>
+            </div>
+          );
+          return (
+            <>
+              {pickupItems.length > 0 && header("storefront", "Tại quầy — chờ khách nhận", pickupItems.length, "#059669")}
+              {pickupItems.map(card)}
+              {carrierItems.length > 0 && header("local_shipping", "Chờ bàn giao ĐVVC", carrierItems.length, "#0369a1")}
+              {carrierItems.map(card)}
+            </>
+          );
+        })()
       )}
 
       {/* Modals */}
