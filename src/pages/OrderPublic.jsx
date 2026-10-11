@@ -300,6 +300,12 @@ export default function OrderPublic() {
                   <span style={{ fontWeight:700 }}>-{Number(order.discount).toLocaleString("vi-VN")}đ</span>
                 </div>
               )}
+              {Number(order.shipping_fee) > 0 && (
+                <div style={{ display:"flex", justifyContent:"space-between", marginTop:12, fontSize:13 }}>
+                  <span style={{ color:"#6b7280" }}>Phí vận chuyển</span>
+                  <span style={{ fontWeight:700, color:"#b45309" }}>+{Number(order.shipping_fee).toLocaleString("vi-VN")}đ</span>
+                </div>
+              )}
               <div style={{ display:"flex", justifyContent:"space-between", marginTop:12, paddingTop:12, borderTop:"2px dashed #e5e7eb" }}>
                 <span style={{ fontWeight:800, fontSize:15 }}>TỔNG CỘNG</span>
                 <span style={{ fontWeight:900, fontSize:18, color:"#059669" }}>{Number(order.total||0).toLocaleString("vi-VN")}đ</span>

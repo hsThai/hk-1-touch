@@ -51,6 +51,7 @@ export default function SaleOrderPage({ user }) {
   const [newCustPhone,   setNewCustPhone]   = useState("");
   const [savingNewCust,  setSavingNewCust]  = useState(false);
   const [discount,    setDiscount]    = useState(0);
+  const [shippingFee, setShippingFee] = useState(0); // phí vận chuyển (ĐVVC / NV giao) — khách trả, cộng vào tổng
   const [payMethod,   setPayMethod]   = useState("");
   const [cashAmt,     setCashAmt]     = useState(0);
   const [transferAmt, setTransferAmt] = useState(0);
@@ -184,7 +185,8 @@ export default function SaleOrderPage({ user }) {
   function removeItem(idx) { setCart(prev => prev.filter((_,i)=>i!==idx)); }
 
   const subtotal = cart.reduce((s,i) => s + i.qty*i.unit_price, 0);
-  const total    = Math.max(0, subtotal - (discount||0));
+  const shipFee  = deliveryType !== "pickup" ? (Number(shippingFee) || 0) : 0;
+  const total    = Math.max(0, subtotal - (discount||0)) + shipFee;
 
   async function handleSubmit() {
     if (!canCreate) { showToast("⛔ Bạn không có quyền tạo đơn bán", "err"); return; }
@@ -211,6 +213,7 @@ export default function SaleOrderPage({ user }) {
           customer_phone: custPhone || "",
           subtotal,
           discount:       discount || 0,
+          shipping_fee:   shipFee,
           total,
           payment_method: payMethod,
           seller_id:      user.id || "",
@@ -300,9 +303,9 @@ export default function SaleOrderPage({ user }) {
       // Kế toán sẽ được ghi khi Thu ngân bấm "Xác nhận Thu"
 
       // Reset form
-      setLastOrder({ ...so, order_code: orderCode, items: itemsPayload, subtotal, discount: discount||0, total,
+      setLastOrder({ ...so, order_code: orderCode, items: itemsPayload, subtotal, discount: discount||0, shipping_fee: shipFee, total,
         payment_method: payMethod, customer_name: custName, customer_phone: custPhone });
-      setCart([]); setCustName(""); setCustPhone(""); setDiscount(0); setPayMethod(""); setCashAmt(0); setTransferAmt(0);
+      setCart([]); setCustName(""); setCustPhone(""); setDiscount(0); setShippingFee(0); setDeliveryAddress(""); setDeliveryType("pickup"); setPayMethod(""); setCashAmt(0); setTransferAmt(0);
       showToast("✅ Bán hàng thành công!");
       loadTodayOrders();
     } catch(e) {
@@ -320,7 +323,8 @@ export default function SaleOrderPage({ user }) {
       const code   = "BH-" + Date.now().toString().slice(-6);
       const sub    = cart.reduce((s,i) => s + i.unit_price * i.qty, 0);
       const disc   = Number(discount) || 0;
-      const total  = Math.max(0, sub - disc);
+      const sFee   = deliveryType !== "pickup" ? (Number(shippingFee) || 0) : 0;
+      const total  = Math.max(0, sub - disc) + sFee;
       const itemsPayload = cart.map(i => ({
         part_id: i.part_id||"", part_name: i.part_name, sku: i.sku||"",
         qty: i.qty, unit_price: i.unit_price, total_price: i.unit_price*i.qty,
@@ -332,6 +336,7 @@ export default function SaleOrderPage({ user }) {
         items:          JSON.stringify(itemsPayload),
         subtotal:       sub,
         discount:       disc,
+        shipping_fee:   sFee,
         total:          total,
         payment_method: payMethod || "",
         seller_id:      user.id   || "",
@@ -344,9 +349,9 @@ export default function SaleOrderPage({ user }) {
         delivery_address: deliveryType !== "pickup" ? deliveryAddress.trim() : "",
       });
       setLastDraft({ ...draft, order_code: code, items: itemsPayload,
-        subtotal: sub, discount: disc, total,
+        subtotal: sub, discount: disc, shipping_fee: sFee, total,
         customer_name: custName.trim(), payment_method: payMethod||"" });
-      setCart([]); setCustName(""); setCustPhone(""); setDiscount(0);
+      setCart([]); setCustName(""); setCustPhone(""); setDiscount(0); setShippingFee(0); setDeliveryAddress(""); setDeliveryType("pickup");
       setPayMethod(""); setCashAmt(0); setTransferAmt(0);
       logAction(user, "create", "sale_order", draft.id, `Lưu đơn tạm: ${code} — ${custName.trim()} — ${total.toLocaleString("vi-VN")}đ`);
       showToast("💾 Đã lưu đơn tạm!");
@@ -452,6 +457,7 @@ export default function SaleOrderPage({ user }) {
           </table>
           <div style={{ borderTop:"1px dashed #000", margin:"8px 0" }} />
           {lastOrder.discount>0 && <div>Giảm giá: -{fmtMoney(lastOrder.discount)}</div>}
+          {lastOrder.shipping_fee>0 && <div>Phí vận chuyển: +{fmtMoney(lastOrder.shipping_fee)}</div>}
           <div><b>Tổng thanh toán: {fmtMoney(lastOrder.total)}</b></div>
           <div>HTTT: {PM_LABELS[lastOrder.payment_method]||lastOrder.payment_method}</div>
           <div style={{ textAlign:"center", marginTop:8, borderTop:"1px dashed #000", paddingTop:8 }}>Cảm ơn quý khách!</div>
@@ -698,6 +704,16 @@ export default function SaleOrderPage({ user }) {
               padding:"10px 14px", fontSize:14, outline:"none", boxSizing:"border-box", resize:"vertical",
               fontFamily:"inherit" }} />
         )}
+        {deliveryType !== "pickup" && (
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:10, background:"#fff", border:"1.5px solid #fde68a", borderRadius:12, padding:"8px 12px" }}>
+            <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:20, color:"#d97706" }}>local_shipping</span>
+            <label style={{ fontSize:13, fontWeight:700, color:"#374151", flexShrink:0 }}>Phí vận chuyển</label>
+            <input type="number" inputMode="numeric" min={0} value={shippingFee || ""} placeholder="0"
+              onChange={e => setShippingFee(Math.max(0, Number(e.target.value) || 0))}
+              style={{ flex:1, minWidth:0, height:40, border:"none", outline:"none", textAlign:"right", fontSize:16, fontWeight:800, color:"#b45309", background:"transparent" }} />
+            <span style={{ fontSize:13, fontWeight:700, color:"#6b7280" }}>đ</span>
+          </div>
+        )}
       </div>
 
       {/* ─── 3. Giảm giá — luôn hiển thị ─── */}
@@ -769,6 +785,12 @@ export default function SaleOrderPage({ user }) {
           <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
             <span style={{ color:"#6b7280", fontSize:13 }}>Giảm giá</span>
             <span style={{ fontWeight:700, color:"#dc2626" }}>-{fmtMoney(discount)}</span>
+          </div>
+        )}
+        {shipFee > 0 && (
+          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+            <span style={{ color:"#6b7280", fontSize:13 }}>Phí vận chuyển</span>
+            <span style={{ fontWeight:700, color:"#b45309" }}>+{fmtMoney(shipFee)}</span>
           </div>
         )}
         <div style={{ display:"flex", justifyContent:"space-between", paddingTop:8, borderTop:"1.5px solid #86efac" }}>

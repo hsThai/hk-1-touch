@@ -235,6 +235,12 @@ function DetailContent({ detail, detailItems, onClose, user }) {
             <span style={{ fontWeight:700 }}>-{fmtMoney(detail.discount)}</span>
           </div>
         )}
+        {(detail.shipping_fee||0) > 0 && (
+          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6, color:"#b45309" }}>
+            <span>Phí vận chuyển</span>
+            <span style={{ fontWeight:700 }}>+{fmtMoney(detail.shipping_fee)}</span>
+          </div>
+        )}
         <div style={{ borderTop:"1.5px solid #86efac", paddingTop:10, display:"flex", justifyContent:"space-between" }}>
           <span style={{ fontWeight:900, fontSize:15 }}>Tổng thanh toán</span>
           <span style={{ fontWeight:900, fontSize:18, color:"#059669" }}>{fmtMoney(detail.total)}</span>

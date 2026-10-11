@@ -651,6 +651,7 @@ export async function printSaleReceiptA5(saleOrder, shopInfo = null) {
         payment_method: saleOrder.payment_method || "cash",
         subtotal:       saleOrder.subtotal || 0,
         discount:       saleOrder.discount || 0,
+        shipping_fee:   saleOrder.shipping_fee || 0,
         total:          saleOrder.total || 0,
         items:          saleOrder.items || [],
       },
@@ -764,6 +765,8 @@ export async function previewSaleReceipt(saleOrder, shopInfo = {}) {
     ? `<div class="total-row"><span>Tạm tính:</span><span>${fmtMoney(saleOrder.subtotal)}</span></div>` : ""}
   ${(saleOrder.discount > 0)
     ? `<div class="discount-row"><span>Giảm giá:</span><span>- ${fmtMoney(saleOrder.discount)}</span></div>` : ""}
+  ${(saleOrder.shipping_fee > 0)
+    ? `<div class="total-row"><span>Phí vận chuyển:</span><span>+ ${fmtMoney(saleOrder.shipping_fee)}</span></div>` : ""}
   <div class="grand-total"><span>TỔNG:</span><span class="grand-val">${fmtMoney(saleOrder.total)}</span></div>
   ${saleOrder.amount_paid > 0 && saleOrder.amount_paid !== saleOrder.total
     ? `<div class="total-row"><span>Tiền khách đưa:</span><span>${fmtMoney(saleOrder.amount_paid)}</span></div>
