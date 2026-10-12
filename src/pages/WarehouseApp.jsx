@@ -800,6 +800,17 @@ function WarehouseImport({ user }) {
     try {
       const data = await StockImport.list({ sort:"-id", limit:50 });
       setImports(data);
+      // Điều hướng từ "Việc của tôi": mở thẳng chi tiết phiếu nhập theo mã
+      const nav = window.__hkNavFocus;
+      if (nav && nav.type === "stock_import" && nav.code) {
+        window.__hkNavFocus = null;
+        let target = (data || []).find(i => i.import_code === nav.code);
+        if (!target) { // phiếu cũ ngoài 50 phiếu gần nhất
+          const r = await StockImport.list({ filter:`import_code="${nav.code}"`, limit:1 }).catch(() => []);
+          target = r && r[0];
+        }
+        if (target) openDetail(target);
+      }
     } catch(e){ console.error(e); }
     setLoading(false);
   }

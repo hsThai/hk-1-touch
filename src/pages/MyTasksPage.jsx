@@ -84,6 +84,12 @@ function SectionHeader({ icon, title, count, color }) {
   );
 }
 
+// Điều hướng kèm "tiêu điểm": trang đích đọc window.__hkNavFocus để mở/lọc đúng bản ghi
+function goFocus(setPage, page, type, code) {
+  window.__hkNavFocus = { type, code, at: Date.now() };
+  setPage(page);
+}
+
 // ─── Main component ───────────────────────────────────────
 export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, onOpenCashier, onOpenPackShip, onOrderUpdated }) {
   const role = user?.role || "viewer";
@@ -435,17 +441,17 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
         icon: "inventory_2", title: `Phiếu nhập ${i.import_code || ""} chưa có công nợ NCC`,
         subtitle: `${i.supplier_name || "NCC"} · ${money(i.total_value)} · kiểm tra đã thanh toán hay ghi nợ chưa`,
         badge: "Đối chiếu", badgeColor: "#dc2626", urgency: "urgent",
-        onClick: () => setPage("debts"),
+        onClick: () => goFocus(setPage, "wh_import_ncc", "stock_import", i.import_code),
       }));
 
       // 4) Đổi trả chờ hoàn tiền
       const pendingReturns = (extraData.returns || []).filter(r => r.status === "pending");
-      if (pendingReturns.length > 0) result.urgent.push({
-        icon: "swap_horiz", title: `${pendingReturns.length} phiếu đổi trả chờ xử lý`,
-        subtitle: `Hoàn tiền dự kiến ${money(pendingReturns.reduce((t, r) => t + (r.refund_amount || 0), 0))}`,
-        badge: String(pendingReturns.length), badgeColor: "#dc2626", urgency: "urgent",
-        onClick: () => setPage("return_order"),
-      });
+      pendingReturns.forEach(r => result.urgent.push({
+        icon: "swap_horiz", title: `Phiếu đổi trả ${r.code || ""} chờ xử lý`,
+        subtitle: `${r.customer_name || "Khách"} · ${r.return_type === "refund" ? "Hoàn tiền " + money(r.refund_amount) : "Đổi hàng"}${r.ref_code ? " · đơn " + r.ref_code : ""}`,
+        badge: "Xử lý", badgeColor: "#dc2626", urgency: "urgent",
+        onClick: () => goFocus(setPage, "return_order", "return_order", r.code),
+      }));
 
       // 5) Hôm nay: chốt sổ quỹ ngày
       const todayStr = new Date().toISOString().slice(0, 10);

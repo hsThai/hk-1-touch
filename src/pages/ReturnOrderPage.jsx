@@ -356,7 +356,12 @@ export default function ReturnOrderPage({ user }) {
   const [list,    setList]    = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal,   setModal]   = useState(false);
-  const [search,  setSearch]  = useState("");
+  const [search,  setSearch]  = useState(() => {
+    // Từ "Việc của tôi": lọc sẵn đúng phiếu đổi trả cần xử lý
+    const nav = window.__hkNavFocus;
+    if (nav && nav.type === "return_order" && nav.code) { window.__hkNavFocus = null; return nav.code; }
+    return "";
+  });
   const [filter,  setFilter]  = useState("all");
 
   const { can } = usePermission();
@@ -368,7 +373,7 @@ export default function ReturnOrderPage({ user }) {
     try {
       const { token } = getAuth();
       const res = await fetch(
-        `${getPbUrl()}/api/collections/return_orders/records?sort=-created&perPage=200`,
+        `${getPbUrl()}/api/collections/return_orders/records?sort=-id&perPage=200`,
         { headers: token ? { Authorization: token } : {} }
       );
       if (res.ok) {
