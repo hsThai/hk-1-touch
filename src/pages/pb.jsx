@@ -313,6 +313,7 @@ export const Department         = makeCollection("departments");
 export const DebtVoucher        = makeCollection("debt_vouchers");
 export const DebtPayment        = makeCollection("debt_payments");
 export const CashJournal        = makeCollection("cash_journal");
+export const ReturnOrder        = makeCollection("return_orders");
 export const Supplier           = makeCollection("suppliers");
 export const ShiftReconcile    = makeCollection("shift_reconciles");
 export const KpiRecord          = makeCollection("kpi_records");

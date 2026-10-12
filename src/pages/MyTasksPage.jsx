@@ -4,7 +4,7 @@
  * Replaces individual home pages (ktv_home, rec_home, role_home, dashboard).
  */
 import React, { useState, useEffect, useMemo } from "react";
-import { StockExportRequest, SparePart, StockImport, StockLedger, SaleOrder, DebtVoucher, CashJournal, RepairOrder, Staff, Notification, logHistory, logAction } from "./pb.jsx";
+import { StockExportRequest, SparePart, StockImport, StockLedger, SaleOrder, DebtVoucher, CashJournal, ReturnOrder, RepairOrder, Staff, Notification, logHistory, logAction } from "./pb.jsx";
 import { usePermission } from "./PermissionContext.jsx";
 
 const fmtTime = (d) => {
@@ -88,8 +88,9 @@ function SectionHeader({ icon, title, count, color }) {
 export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, onOpenCashier, onOpenPackShip, onOrderUpdated }) {
   const role = user?.role || "viewer";
   const { can } = usePermission();
-  const canViewPack = can("pack_order", "view");
-  const canViewShip = can("ship_order", "view");
+  // Thẻ việc soạn/giao là việc LÀM → theo quyền SỬA (kế toán/lễ tân/sales chỉ được xem để tra cứu, không bị giao việc)
+  const canViewPack = can("pack_order", "edit");
+  const canViewShip = can("ship_order", "edit");
   const canViewRepair = can("repair_order", "view");
   const [extraData, setExtraData] = useState({});
   const [loading, setLoading] = useState(true);
@@ -279,6 +280,9 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
           data.debts = await DebtVoucher.list({ limit: 200, sort: "-id" }).catch(() => []);
           // Sổ quỹ của đơn bán: dùng để biết đơn nào thực sự CHƯA có bút toán (thu tiền đã tự ghi sổ)
           data.saleJournal = await CashJournal.list({ limit: 500, sort: "-id", filter: 'ref_type="sale_order"' }).catch(() => []);
+          data.journalAll = await CashJournal.list({ limit: 500, sort: "-id" }).catch(() => []);
+          data.acctImports = await StockImport.list({ limit: 200, sort: "-id" }).catch(() => []);
+          data.returns = await ReturnOrder.list({ limit: 100, sort: "-id" }).catch(() => []);
         }
         if (!cancelled) { setExtraData(data); setLoading(false); }
       } catch (e) {
@@ -394,51 +398,89 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
     }
 
     // ═══ ACCOUNTANT ═══
+    // Việc của kế toán = SỔ SÁCH & TIỀN: sổ quỹ, công nợ phải thu/phải trả, đối chiếu nhập hàng ↔ công nợ NCC, hoàn tiền đổi trả.
+    // KHÔNG gồm soạn hàng / bàn giao / giao nhận (việc của kho & giao hàng).
     if (role === "accountant") {
       const so = extraData.saleOrders || [];
       const debts = extraData.debts || [];
-      // Thu tiền xong hệ thống TỰ ghi sổ quỹ (tiền mặt/CK) hoặc tạo công nợ (bán chịu).
-      // Chỉ báo "chưa ghi sổ" khi đơn đã thu mà KHÔNG có dòng sổ quỹ/công nợ nào tham chiếu tới nó.
+      const money = (n) => (n || 0).toLocaleString("vi-VN") + "đ";
+      const sumRem = (arr) => arr.reduce((t, d) => t + (d.remaining || 0), 0);
+
+      // 1) Đơn đã thu tiền nhưng thiếu bút toán (thu tiền tự ghi sổ → bình thường = 0)
       const bookedIds = new Set([
         ...(extraData.saleJournal || []).map(j => j.ref_id),
         ...debts.filter(d => d.origin_type === "sale_order").map(d => d.origin_id),
       ]);
-      const unpaidSales = so.filter(o => o.status === "completed" && !o.journal_entry_id && !bookedIds.has(o.id));
-      const overdueDebts = debts.filter(d => d.status === "open" && d.remaining > 0 && d.due_date && new Date(d.due_date) < Date.now());
-
-      unpaidSales.forEach(o => result.urgent.push({
+      const unbooked = so.filter(o => o.status === "completed" && !o.journal_entry_id && !bookedIds.has(o.id));
+      unbooked.forEach(o => result.urgent.push({
         icon: "receipt_long", title: `Đơn ${o.order_code || ""} chưa có bút toán`,
-        subtitle: `${o.customer_name || "Khách lẻ"} · ${(o.total || 0).toLocaleString("vi-VN")}đ · đã thu nhưng thiếu dòng sổ quỹ`,
+        subtitle: `${o.customer_name || "Khách lẻ"} · ${money(o.total)} · đã thu nhưng thiếu dòng sổ quỹ`,
         badge: "Ghi sổ", badgeColor: "#dc2626", urgency: "urgent",
         onClick: () => setPage("cash_journal"),
       }));
+
+      // 2) Công nợ quá hạn
+      const overdueDebts = debts.filter(d => d.status === "open" && d.remaining > 0 && d.due_date && new Date(d.due_date) < Date.now());
       overdueDebts.forEach(d => result.urgent.push({
         icon: "account_balance_wallet", title: `Công nợ ${d.party_name || ""} quá hạn`,
-        subtitle: `Còn nợ ${(d.remaining || 0).toLocaleString("vi-VN")}đ · Đến hạn ${d.due_date ? new Date(d.due_date).toLocaleDateString("vi-VN") : ""}`,
+        subtitle: `Còn nợ ${money(d.remaining)} · Đến hạn ${d.due_date ? new Date(d.due_date).toLocaleDateString("vi-VN") : ""}`,
         badge: "Quá hạn", badgeColor: "#dc2626", urgency: "urgent",
         onClick: () => setPage("debts"),
       }));
-      // Công nợ còn mở (chưa quá hạn) — nhắc theo dõi thu/chi
+
+      // 3) Phiếu nhập hàng đã xác nhận có giá trị nhưng chưa có công nợ NCC đang hiệu lực (open/paid)
+      const impDebtCodes = new Set(debts.filter(d => d.origin_type === "stock_import" && d.status !== "cancelled").map(d => d.origin_code));
+      const impNoDebt = (extraData.acctImports || []).filter(i => i.status === "confirmed" && (i.total_value || 0) > 0 && !impDebtCodes.has(i.import_code));
+      impNoDebt.forEach(i => result.urgent.push({
+        icon: "inventory_2", title: `Phiếu nhập ${i.import_code || ""} chưa có công nợ NCC`,
+        subtitle: `${i.supplier_name || "NCC"} · ${money(i.total_value)} · kiểm tra đã thanh toán hay ghi nợ chưa`,
+        badge: "Đối chiếu", badgeColor: "#dc2626", urgency: "urgent",
+        onClick: () => setPage("debts"),
+      }));
+
+      // 4) Đổi trả chờ hoàn tiền
+      const pendingReturns = (extraData.returns || []).filter(r => r.status === "pending");
+      if (pendingReturns.length > 0) result.urgent.push({
+        icon: "swap_horiz", title: `${pendingReturns.length} phiếu đổi trả chờ xử lý`,
+        subtitle: `Hoàn tiền dự kiến ${money(pendingReturns.reduce((t, r) => t + (r.refund_amount || 0), 0))}`,
+        badge: String(pendingReturns.length), badgeColor: "#dc2626", urgency: "urgent",
+        onClick: () => setPage("return_order"),
+      });
+
+      // 5) Hôm nay: chốt sổ quỹ ngày
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const todayJ = (extraData.journalAll || []).filter(j => String(j.journal_date || "").slice(0, 10) === todayStr);
+      const thu = todayJ.filter(j => j.entry_type === "receipt").reduce((t, j) => t + (j.amount || 0), 0);
+      const chi = todayJ.filter(j => j.entry_type !== "receipt").reduce((t, j) => t + (j.amount || 0), 0);
+      result.today.push({
+        icon: "menu_book", title: "Chốt sổ quỹ hôm nay",
+        subtitle: todayJ.length > 0
+          ? `Thu ${money(thu)} · Chi ${money(chi)} · ${todayJ.length} dòng — đối chiếu tiền mặt cuối ngày`
+          : "Chưa có phát sinh — đối chiếu tiền mặt cuối ngày",
+        onClick: () => setPage("cash_journal"),
+      });
+
+      // 6) Hôm nay: theo dõi công nợ còn mở (chưa quá hạn)
       const openDebts = debts.filter(d => d.status === "open" && (d.remaining || 0) > 0 && !overdueDebts.includes(d));
       const recv = openDebts.filter(d => d.voucher_type === "receivable");
       const pay  = openDebts.filter(d => d.voucher_type === "payable");
-      const sumRem = (arr) => arr.reduce((t, d) => t + (d.remaining || 0), 0);
       if (recv.length > 0) result.today.push({
         icon: "call_received", title: `${recv.length} khoản khách còn nợ`,
-        subtitle: `Phải thu ${sumRem(recv).toLocaleString("vi-VN")}đ — theo dõi và thu nợ`,
+        subtitle: `Phải thu ${money(sumRem(recv))} — theo dõi và thu nợ`,
         badge: String(recv.length), badgeColor: "#d97706", urgency: "today",
         onClick: () => setPage("debts"),
       });
       if (pay.length > 0) result.today.push({
         icon: "call_made", title: `${pay.length} khoản nợ nhà cung cấp`,
-        subtitle: `Phải trả ${sumRem(pay).toLocaleString("vi-VN")}đ`,
+        subtitle: `Phải trả ${money(sumRem(pay))}`,
         badge: String(pay.length), badgeColor: "#d97706", urgency: "today",
         onClick: () => setPage("debts"),
       });
-      if (unpaidSales.length === 0 && overdueDebts.length === 0) {
+
+      if (result.urgent.length === 0) {
         result.waiting.push({
-          icon: "check_circle", title: "Sổ quỹ đã cập nhật",
-          subtitle: "Mọi đơn đã thu đều có bút toán · không có khoản nào quá hạn", urgency: "done",
+          icon: "check_circle", title: "Sổ sách đã khớp",
+          subtitle: "Không có đơn thiếu bút toán, công nợ quá hạn hay phiếu cần đối chiếu", urgency: "done",
           onClick: () => setPage("cash_journal"),
         });
       }
@@ -623,7 +665,7 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
     // ═══ OTHER ROLES (hr, marketing, qa, support, delivery, it, viewer) ═══
     // Chỉ hiện thẻ "đơn sửa chữa" nếu có quyền xem repair_order — tránh dẫn
     // user không có quyền (VD: NV soạn đóng hàng) vào trang bị chặn truy cập.
-    if (canViewRepair) {
+    if (canViewRepair && role !== "accountant") {
       const active = orders.filter(o => !["Đã Giao", "Hủy"].includes(o.status));
       if (active.length > 0) result.today.push({
         icon: "list_alt", title: `${active.length} đơn đang xử lý`,
