@@ -1911,6 +1911,8 @@ function ShippingTab({ user }) {
 // StockReportTab — Báo cáo tồn kho tổng hợp
 // ─────────────────────────────────────────────────────────────────────────────
 function StockReportTab({ warehouses }) {
+  const { can } = usePermission();
+  const canExport = can("stock_report", "export");
   const [ledgers,   setLedgers]   = useState(null);
   const [movements, setMovements] = useState([]);
   const [loading,   setLoading]   = useState(true);
@@ -1922,9 +1924,12 @@ function StockReportTab({ warehouses }) {
     setLoading(true);
     try {
       const filterStr = wh ? `warehouse_id='${wh}'` : "";
+      // Phải nạp TOÀN BỘ sổ kho (phân trang) — trước đây chỉ lấy 1.000/4.693 dòng nên thiếu hàng & thiếu cảnh báo
+      const cutoff30 = new Date(); cutoff30.setDate(cutoff30.getDate()-30);
+      const mvFilter = [filterStr, `created_date>='${cutoff30.toISOString().slice(0,10)}'`].filter(Boolean).join(" && ");
       const [l, m] = await Promise.allSettled([
-        filterStr ? Ledger.filter(filterStr, { limit:1000 }) : Ledger.list({ limit:1000 }),
-        filterStr ? Move.filter(filterStr, { limit:500 }) : Move.list({ limit:500 }),
+        Ledger.all(filterStr),
+        Move.all(mvFilter, { sort:"-id" }),
       ]);
       setLedgers(l.status==="fulfilled" ? (l.value||[]) : null);
       setMovements(m.status==="fulfilled" ? (m.value||[]) : []);
@@ -1946,6 +1951,7 @@ function StockReportTab({ warehouses }) {
   const topList      = Object.values(topParts).sort((a,b)=>b.qty-a.qty).slice(0,10);
 
   function exportReport() {
+    if (!canExport) { alert("⛔ Bạn không có quyền xuất file báo cáo kho"); return; }
     const BOM = "﻿";
     // Wrap mỗi field trong double-quote để tránh comma trong tên LK làm hỏng CSV
     const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
@@ -1975,10 +1981,12 @@ function StockReportTab({ warehouses }) {
     <div style={{ padding:"16px 14px 100px" }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
         <div style={{ fontWeight:800, fontSize:17 }}>📊 Báo cáo tồn kho</div>
-        <button onClick={exportReport}
-          style={{ background:"#4f46e5", color:"#fff", border:"none", borderRadius:8, padding:"7px 12px", fontSize:13, cursor:"pointer" }}>
-          ⬇️ Xuất CSV
-        </button>
+        {canExport && (
+          <button onClick={exportReport}
+            style={{ background:"#4f46e5", color:"#fff", border:"none", borderRadius:8, padding:"7px 12px", fontSize:13, cursor:"pointer" }}>
+            ⬇️ Xuất CSV
+          </button>
+        )}
       </div>
       <select value={wh} onChange={e=>setWh(e.target.value)}
         style={{ width:"100%", border:"1.5px solid #e5e7eb", borderRadius:8, padding:"8px 10px", fontSize:13, marginBottom:12 }}>

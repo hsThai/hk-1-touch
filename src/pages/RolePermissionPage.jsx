@@ -36,7 +36,7 @@ const RESOURCE_META = {
   stock_count:        { label:"Menu Kiểm kê kho",                module:"Kho & Vật tư", icon:"fact_check", actions:["can_view","can_create","can_edit","can_approve"] },
   wh_defect:          { label:"Menu LK lỗi / RMA",               module:"Kho & Vật tư", icon:"warning", actions:["can_view","can_create"] },
   wh_shipping:        { label:"Menu Vận đơn",                    module:"Kho & Vật tư", icon:"local_shipping", actions:["can_view"] },
-  stock_report:       { label:"Menu Báo cáo kho",                module:"Kho & Vật tư", icon:"bar_chart", actions:["can_view"] },
+  stock_report:       { label:"Menu Báo cáo kho",                module:"Kho & Vật tư", icon:"bar_chart", actions:["can_view","can_export"] },
   spare_part:         { label:"Linh kiện (dữ liệu dùng trong đơn sửa)", module:"Kho & Vật tư", icon:"memory", actions:["can_view","can_approve"] },
   stock_transfer:     { label:"Chuyển kho (trong Thiết lập kho)", module:"Kho & Vật tư", icon:"swap_horiz", actions:["can_view","can_create","can_approve"] },
   // ── Mua hàng (NCC)
