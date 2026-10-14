@@ -283,12 +283,19 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
           data.lowStock = (ledgers || []).filter(l => (l.qty_on_hand || 0) <= (l.min_qty || 3)).length;
         }
         if (["accountant", "manager", "admin", "owner"].includes(role)) {
-          data.debts = await DebtVoucher.list({ limit: 200, sort: "-id" }).catch(() => []);
-          // Sổ quỹ của đơn bán: dùng để biết đơn nào thực sự CHƯA có bút toán (thu tiền đã tự ghi sổ)
-          data.saleJournal = await CashJournal.list({ limit: 500, sort: "-id", filter: 'ref_type="sale_order"' }).catch(() => []);
-          data.journalAll = await CashJournal.list({ limit: 500, sort: "-id" }).catch(() => []);
-          data.acctImports = await StockImport.list({ limit: 200, sort: "-id" }).catch(() => []);
-          data.returns = await ReturnOrder.list({ limit: 100, sort: "-id" }).catch(() => []);
+          // Chạy SONG SONG (Promise.all) — trước đây await tuần tự 5 lần × ~500ms latency mỗi request
+          const [debts, saleJournal, journalAll, acctImports, returns] = await Promise.all([
+            DebtVoucher.list({ limit: 200, sort: "-id" }).catch(() => []),
+            CashJournal.list({ limit: 500, sort: "-id", filter: 'ref_type="sale_order"' }).catch(() => []),
+            CashJournal.list({ limit: 500, sort: "-id" }).catch(() => []),
+            StockImport.list({ limit: 200, sort: "-id" }).catch(() => []),
+            ReturnOrder.list({ limit: 100, sort: "-id" }).catch(() => []),
+          ]);
+          data.debts = debts;
+          data.saleJournal = saleJournal;
+          data.journalAll = journalAll;
+          data.acctImports = acctImports;
+          data.returns = returns;
         }
         if (!cancelled) { setExtraData(data); setLoading(false); }
       } catch (e) {

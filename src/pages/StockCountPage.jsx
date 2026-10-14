@@ -244,12 +244,12 @@ function CreateCountModal({ user, onClose, onCreated }) {
       const code = genCode();
 
       // Lấy danh sách từ stock_ledgers theo kho + scope
-      let rawLedgers = [];
+      let ledgers = [];
       try {
-        rawLedgers = await StockLedger.list({ limit:1000 });
+        let f = `warehouse_id="${form.warehouse_id}"`;
+        if (form.scope==="category") f += ` && category="${form.category}"`;
+        ledgers = await StockLedger.listAll({ filter:f }) || [];
       } catch {}
-      let ledgers = (rawLedgers||[]).filter(l => l.warehouse_id === form.warehouse_id);
-      if (form.scope==="category") ledgers = ledgers.filter(l => l.category === form.category);
       // zone: lọc theo zone_id nếu có location_code mapping
       // (zone filter giữ tất cả, UI đã chọn warehouse rồi)
 
@@ -409,9 +409,9 @@ function CountingScreen({ count: initCount, user, onBack, onRefresh }) {
   const loadItems = useCallback(async () => {
     setLoading(true);
     try {
-      const list = await StockCountItem.list({ limit:1000, sort:"part_name" });
-      const mine = (list||[]).filter(i=>i.count_id===count.id);
-      setItems(mine);
+      // Filter server-side theo count_id (đã có index) + nạp đủ mọi item
+      const mine = await StockCountItem.listAll({ filter:`count_id="${count.id}"`, sort:"part_name" }).catch(()=>[]);
+      setItems(mine||[]);
       // Init inputs từ qty_actual đã lưu
       const inputs = {};
       mine.forEach(i => { inputs[i.id] = i.status==="counted" ? String(i.qty_actual) : ""; });
@@ -674,7 +674,7 @@ function ReviewScreen({ count, user, onBack, onRefresh }) {
   const toast = useToast();
 
   useEffect(() => {
-    StockCountItem.list({ limit:1000, sort:"part_name" }).then(list => {
+    StockCountItem.listAll({ filter:`count_id="${count.id}"`, sort:"part_name" }).then(list => {
       setItems((list||[]).filter(i=>i.count_id===count.id));
       setLoading(false);
     }).catch(()=>setLoading(false));
@@ -688,58 +688,65 @@ function ReviewScreen({ count, user, onBack, onRefresh }) {
     if (!window.confirm("Duyệt và điều chỉnh tồn kho theo kết quả kiểm?")) return;
     setApproving(true);
     try {
-      // Điều chỉnh từng item lệch
+      // Điều chỉnh từng item lệch — TỐI ƯU: nạp sổ kho 1 lần, chạy theo lô song song
+      // (trước đây mỗi item tải lại 500 dòng ledger → duyệt chậm, nghẽn cả server)
       const onlyDiff = items.filter(i=>i.qty_diff!==0);
-      for (const item of onlyDiff) {
-        // 1. Update stock_ledger — dùng ledger_id nếu có, fallback tìm theo part_id+warehouse
-        try {
-          let ledgerId = item.ledger_id || "";
-          let ledgerReserved = 0;
-          if (item.ledger_id) {
-            // Lấy reserved thực tế từ ledger
-            const curLedger = await StockLedger.get(item.ledger_id).catch(()=>null);
-            if (curLedger) ledgerReserved = Number(curLedger.qty_reserved)||0;
-            await StockLedger.update(item.ledger_id, {
-              qty_on_hand:   Math.max(0, item.qty_actual),
-              qty_available: Math.max(0, item.qty_actual - ledgerReserved),
-              last_movement_at: new Date().toISOString(),
-            });
-          } else {
-            const allLedgers = await StockLedger.list({ limit:500 });
-            const ledger = (allLedgers||[]).find(l=>l.part_id===item.part_id && l.warehouse_id===count.warehouse_id);
+      const ledgerMap = {};
+      for (const it of onlyDiff) {
+        if (it.ledger_id) ledgerMap[it.ledger_id] = null;
+      }
+      const ledgerIds = Object.keys(ledgerMap);
+      const missingIds = onlyDiff.filter(it => !it.ledger_id).map(it => it.part_id);
+      if (ledgerIds.length || missingIds.length) {
+        const whLedgers = await StockLedger.list({ filter:`warehouse_id="${count.warehouse_id}"`, limit:2000 }).catch(()=>[]);
+        (whLedgers||[]).forEach(l => { ledgerMap[l.id] = l; });
+      }
+      const findLedger = (it) => it.ledger_id
+        ? ledgerMap[it.ledger_id]
+        : Object.values(ledgerMap).find(l => l && l.part_id === it.part_id);
+
+      let done = 0;
+      const BATCH = 10;
+      for (let i=0; i<onlyDiff.length; i+=BATCH) {
+        await Promise.all(onlyDiff.slice(i,i+BATCH).map(async (item) => {
+          // 1. Update stock_ledger
+          try {
+            const ledger = findLedger(item);
             if (ledger) {
-              ledgerReserved = Number(ledger.qty_reserved)||0;
+              const ledgerReserved = Number(ledger.qty_reserved)||0;
               await StockLedger.update(ledger.id, {
                 qty_on_hand:   Math.max(0, item.qty_actual),
                 qty_available: Math.max(0, item.qty_actual - ledgerReserved),
                 last_movement_at: new Date().toISOString(),
               });
             }
-          }
-        } catch {}
-        // 2. Tạo stock_movement
-        try {
-          await StockMovement.create({
-            movement_code:  "KC-" + Date.now() + "-" + Math.floor(Math.random()*900+100),
-            movement_type:  "count_adjust",
-            warehouse_id:   count.warehouse_id,
-            warehouse_name: count.warehouse_name,
-            part_id:        item.part_id,
-            part_name:      item.part_name,
-            sku:            item.sku||"",
-            qty_before:     item.qty_system,
-            qty_change:     item.qty_diff,
-            qty_after:      item.qty_actual,
-            unit_price:     item.unit_price||0,
-            ref_type:       "stock_count",
-            ref_id:         count.id,
-            ref_code:       count.count_code,
-            note:           "Điều chỉnh kiểm kho " + count.count_code,
-            created_by_id:  user.id||"",
-            created_by_name:user.full_name||user.name||"",
-            created_date:   new Date().toISOString().replace("T"," ").split(".")[0],
-          });
-        } catch {}
+          } catch {}
+          // 2. Tạo stock_movement
+          try {
+            await StockMovement.create({
+              movement_code:  "KC-" + Date.now() + "-" + Math.floor(Math.random()*900+100),
+              movement_type:  "count_adjust",
+              warehouse_id:   count.warehouse_id,
+              warehouse_name: count.warehouse_name,
+              part_id:        item.part_id,
+              part_name:      item.part_name,
+              sku:            item.sku||"",
+              qty_before:     item.qty_system,
+              qty_change:     item.qty_diff,
+              qty_after:      item.qty_actual,
+              unit_price:     item.unit_price||0,
+              ref_type:       "stock_count",
+              ref_id:         count.id,
+              ref_code:       count.count_code,
+              note:           "Điều chỉnh kiểm kho " + count.count_code,
+              created_by_id:  user.id||"",
+              created_by_name:user.full_name||user.name||"",
+              created_date:   new Date().toISOString().replace("T"," ").split(".")[0],
+            });
+          } catch {}
+        }));
+        done += BATCH;
+        if (onlyDiff.length > 50) toast.show(`⏳ Đang điều chỉnh ${Math.min(done, onlyDiff.length)}/${onlyDiff.length}...`);
       }
       // 4. Update phiếu kiểm
       logAction(user, "count_stock", "stock_count", count.id, `Duyệt kiểm kho ${count.count_code||count.id}`);

@@ -243,9 +243,15 @@ function WarehouseHome({ user, setPage }) {
 
   React.useEffect(() => {
     loadStats();
-    // Polling 10s để cập nhật stats tự động
-    const timer = setInterval(() => loadStats(true), 10000);
-    return () => clearInterval(timer);
+    // Polling 60s (trước 10s — mỗi lần tải ~3.200 bản ghi gây nặng server);
+    // dừng hẳn khi tab bị ẩn (document.hidden)
+    const timer = setInterval(() => {
+      if (document.hidden) return;
+      loadStats(true);
+    }, 60000);
+    const onVisible = () => { if (!document.hidden) loadStats(true); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); };
   }, []);
 
   async function loadStats(silent = false) {
