@@ -9,8 +9,8 @@ import { Staff, RepairOrder, SparePart, SaleOrder, Expense,
 
 // ── Constants ──────────────────────────────────────────────
 const ALLOWED = ["manager","admin","owner"];
-const DONE_ST = ["Hoàn Thành","Đã Giao","Đã Thanh Toán","Hoan Thanh","Da Giao","Da Thanh Toan"];
-const SKIP_ST = ["Hoàn Thành","Đã Giao","Huỷ","Đã Thanh Toán","Hoan Thanh","Da Giao","Huy","Da Thanh Toan"];
+const DONE_ST = ["Hoàn Thành","Đã Giao","Đã Thanh Toán","Hoàn Thành","Đã Giao","Đã Thanh Toán"];
+const SKIP_ST = ["Hoàn Thành","Đã Giao","Huỷ","Đã Thanh Toán","Hoàn Thành","Đã Giao","Hủy","Đã Thanh Toán"];
 
 const STATUS_COLORS = {
   "Mới Nhận":"#2563eb","Chờ KTV":"#7c3aed","KTV Đang Kiểm":"#0891b2",
@@ -1161,7 +1161,7 @@ function CashflowSubTab({ repairOrders, expenses, saleOrders }) {
     const dt = new Date(d);
     return dt.getMonth()===now.getMonth() && dt.getFullYear()===now.getFullYear();
   };
-  const DONE_ST = ["Hoàn Thành","Đã Giao","Đã Thanh Toán","Hoan Thanh","Da Giao","Da Thanh Toan"];
+  const DONE_ST = ["Hoàn Thành","Đã Giao","Đã Thanh Toán","Hoàn Thành","Đã Giao","Đã Thanh Toán"];
   const repairRevenue = repairOrders
     .filter(o => DONE_ST.includes(o.status) && thisMonth(o.done_date||o.updated))
     .reduce((s,o) => s+(o.final_cost||0), 0);

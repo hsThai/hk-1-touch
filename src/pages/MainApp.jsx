@@ -149,7 +149,7 @@ function mapPbOrder(o, STATUS_DISPLAY, PRIORITY_DISPLAY) {
     // Nếu PB chưa có accept_stage field, suy ra từ status
     accept_stage: o.accept_stage != null
       ? (o.accept_stage ?? 0)
-      : (["Cho KTV","Cho KTV Sua"].includes(o.status||"") ? 0 : ["KTV Dang Kiem","Cho Bao Gia","Cho Xac Nhan"].includes(o.status||"") ? 1 : ["Dang Sua","Cho Linh Kien"].includes(o.status||"") ? 2 : ["Hoan Thanh","Da Giao"].includes(o.status||"") ? 3 : 0),
+      : (["Chờ KTV Sửa","Chờ KTV Sửa"].includes(o.status||"") ? 0 : ["KTV Đang Kiểm","Chờ Báo Giá","Chờ Xác Nhận"].includes(o.status||"") ? 1 : ["Đang Sửa","Chờ Linh Kiện"].includes(o.status||"") ? 2 : ["Hoàn Thành","Đã Giao"].includes(o.status||"") ? 3 : 0),
     stage1_at:        o.stage1_at || null,
     stage2_at:        o.stage2_at || null,
     checklist_done:   o.checklist_done || null,
@@ -968,7 +968,7 @@ function MainAppContent({ onUserChange }) {
 
     async function checkWaitingParts() {
       try {
-        const waitingOrders = await RepairOrder.filter({ status: "Cho Linh Kien" }).catch(() => []);
+        const waitingOrders = await RepairOrder.filter({ status: "Chờ Linh Kiện" }).catch(() => []);
         if (!waitingOrders.length) return;
         const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -1084,7 +1084,7 @@ function MainAppContent({ onUserChange }) {
       const snapshot = ordersRef.current;
       const hasActive = snapshot.some(o =>
         o.assigned_to && o.assigned_at && (o.accept_stage||0) < 2 &&
-        !["Hoàn Thành","Đã Giao","Hủy","Hoan Thanh","Da Giao","Huy","Chờ Linh Kiện","Cho Linh Kien","Chờ Báo Giá","Cho Bao Gia"].includes(o.status)
+        !["Hoàn Thành","Đã Giao","Hủy","Hoàn Thành","Đã Giao","Hủy","Chờ Linh Kiện","Chờ Linh Kiện","Chờ Báo Giá","Chờ Báo Giá"].includes(o.status)
       );
       if (!hasActive) return;
 
@@ -1097,7 +1097,7 @@ function MainAppContent({ onUserChange }) {
         const next = prev.map(o => {
           if (!o.assigned_to || !o.assigned_at) return o;
           if ((o.accept_stage||0) >= 2) return o;
-          if (["Hoàn Thành","Đã Giao","Hủy","Hoan Thanh","Da Giao","Huy","Chờ Linh Kiện","Cho Linh Kien","Chờ Báo Giá","Cho Bao Gia"].includes(o.status)) return o;
+          if (["Hoàn Thành","Đã Giao","Hủy","Hoàn Thành","Đã Giao","Hủy","Chờ Linh Kiện","Chờ Linh Kiện","Chờ Báo Giá","Chờ Báo Giá"].includes(o.status)) return o;
 
           const assignedAt  = new Date(o.assigned_at).getTime();
           const stage1At    = o.stage1_at ? new Date(o.stage1_at).getTime() : null;
@@ -1335,7 +1335,7 @@ function MainAppContent({ onUserChange }) {
     if (patch?.assigned_to && !patch.assigned_at) {
       const curOrder = ordersRef.current.find(o => o.id===id) || orders.find(o => o.id===id);
       const nextSt = patch.status || curOrder?.status;
-      const waitingParts = ["Chờ Linh Kiện","Cho Linh Kien"].includes(nextSt);
+      const waitingParts = ["Chờ Linh Kiện","Chờ Linh Kiện"].includes(nextSt);
       if (!waitingParts && (!curOrder?.assigned_at || curOrder.assigned_to !== patch.assigned_to)) {
         patch = { ...patch, assigned_at: new Date().toISOString() };
       }
@@ -1408,7 +1408,7 @@ function MainAppContent({ onUserChange }) {
       passcode:          data.passcode || "",
       product_qr:        data.product_qr || "",
       issue_description: data.notes || "",
-      status:            data.status || "Cho KTV",
+      status:            data.status || "Chờ KTV Sửa",
       assigned_to:       data.assigned_to || null,
       assigned_to_name:  data.assigned_to_name || "",
       received_date:     new Date().toISOString(),
@@ -1439,7 +1439,7 @@ function MainAppContent({ onUserChange }) {
       console.error("[createOrder] pbData gửi lên:", JSON.stringify(pbData));
       // Thử lại bỏ các field có thể gây lỗi
       try {
-        const pbData2 = { ...pbData, status: "Cho KTV", priority: "Thuong", warranty_days: 0 };
+        const pbData2 = { ...pbData, status: "Chờ KTV Sửa", priority: "Thuong", warranty_days: 0 };
         delete pbData2.assigned_at;
         delete pbData2.accept_stage;
         const saved2 = await RepairOrder.create(pbData2);

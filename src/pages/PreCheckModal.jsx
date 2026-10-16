@@ -121,7 +121,7 @@ export default function PreCheckModal({ order, currentUser, users, onClose, onDo
         qt1_images: images,
         assigned_to: ktv,
         assigned_to_name: selectedKtv?.name || selectedKtv?.full_name || "",
-        status: "Cho KTV",
+        status: "Chờ KTV Sửa",
       });
     } catch(e) { setError(e.message); }
     setSaving(false);
@@ -337,7 +337,7 @@ export function QT2Modal({ order, currentUser, onClose, onDone }) {
         qt2_images: images.map(i => i.file),
         qt2_de_xuat: deXuat,          // mảng linh kiện + công đề xuất
         qt2_total: totalDeXuat,       // tổng dự toán KTV
-        status: "Cho Bao Gia",
+        status: "Chờ Báo Giá",
       });
     } catch(e) { alert(e.message); }
     setSaving(false);

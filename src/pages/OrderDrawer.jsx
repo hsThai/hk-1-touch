@@ -580,7 +580,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
       estDate = new Date(Date.now() + (estMins||0) * 60000).toISOString();
     }
 
-    const newStatus = "Dang Sua"; // lần 2: khách đồng ý → bắt đầu sửa
+    const newStatus = "Đang Sửa"; // lần 2: khách đồng ý → bắt đầu sửa
     const now = new Date().toISOString();
     // assigned_at = thời điểm phân công (đã có) hoặc set ngay nếu chưa có
     const assignedAt = ord.assigned_at || now;
@@ -615,7 +615,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
       accept_stage: 2,
       stage2_at: now,
       assigned_at: assignedAt,
-      status: "Dang Sua",
+      status: "Đang Sửa",
       estimated_done: estDate,
       estimated_done_date: estDate,
       technician_note: techNote || ord.technician_note || "",
@@ -628,7 +628,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
   }
   // Đơn chưa lên đơn xong + chưa duyệt giá → KHÔNG cho đổi trạng thái tùy tiện / bấm Sửa Xong
   const PRICE_LOCKED = ["Mới Nhận","Chờ KTV","KTV Đang Kiểm","Chờ Báo Giá","Chờ Xác Nhận"];
-  const isPriceLocked = PRICE_LOCKED.includes(order.status) || ["Mới Nhận","Cho KTV","KTV Dang Kiem","Cho Bao Gia","Cho Xac Nhan"].includes(order.status);
+  const isPriceLocked = PRICE_LOCKED.includes(order.status) || ["Mới Nhận","Chờ KTV Sửa","KTV Đang Kiểm","Chờ Báo Giá","Chờ Xác Nhận"].includes(order.status);
 
   // Đơn có dòng linh kiện "chờ nhập" (đặt NCC) chưa về?
   function orderHasWaitingParts() {
@@ -1043,22 +1043,22 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
 
             {/* Status + Actions — KTV cần bấm "Chỉnh" để edit */}
             {/* Ẩn với KTV khi đang ở trạng thái chờ action từ TT/KH */}
-            {["Cho KTV","Cho Bao Gia","Cho Xac Nhan","Cho KTV Sua"].includes(order.status) && isKTV && (
+            {["Chờ KTV Sửa","Chờ Báo Giá","Chờ Xác Nhận","Chờ KTV Sửa"].includes(order.status) && isKTV && (
               <div style={{ background:"#f0fdf4", border:"1.5px solid #86efac", borderRadius:12, padding:"12px 14px", marginBottom:14, display:"flex", alignItems:"center", gap:10 }}>
                 <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,color:"#16a34a",verticalAlign:"middle"}}>hourglass_empty</span>
                 <div>
                   <div style={{ fontWeight:700, fontSize:13, color:"#166534" }}>
-                    {order.status === "Cho Bao Gia" ? "Đang chờ Giao dịch viên báo giá khách" :
-                      order.status === "Cho KTV Sua" ? "Khách đồng ý — Bấm Nhận Sửa bên trên" :
+                    {order.status === "Chờ Báo Giá" ? "Đang chờ Giao dịch viên báo giá khách" :
+                      order.status === "Chờ KTV Sửa" ? "Khách đồng ý — Bấm Nhận Sửa bên trên" :
                       "Đang chờ bạn nhận kiểm — Bấm nút bên trên"}
                   </div>
                   <div style={{ fontSize:11, color:"#4ade80", marginTop:2 }}>Bước tiếp theo sẽ tự cập nhật</div>
                 </div>
               </div>
             )}
-            {!["Hoàn Thành","Đã Giao","Hủy",..."Cho KTV","Cho Bao Gia","Cho Xac Nhan","Cho KTV Sua"].some(s => s===order.status) || ["manager","admin","owner","supervisor"].includes(currentUser.role) ? (
+            {!["Hoàn Thành","Đã Giao","Hủy",..."Chờ KTV Sửa","Chờ Báo Giá","Chờ Xác Nhận","Chờ KTV Sửa"].some(s => s===order.status) || ["manager","admin","owner","supervisor"].includes(currentUser.role) ? (
             <span style={{display:"none"}} />) : null}
-            {!["Hoàn Thành","Đã Giao","Hủy"].includes(order.status) && !(["Cho KTV","Cho Bao Gia","Cho Xac Nhan","Cho KTV Sua"].includes(order.status) && isKTV) && (["manager","admin","owner","supervisor"].includes(currentUser.role) || isMyOrder) && (
+            {!["Hoàn Thành","Đã Giao","Hủy"].includes(order.status) && !(["Chờ KTV Sửa","Chờ Báo Giá","Chờ Xác Nhận","Chờ KTV Sửa"].includes(order.status) && isKTV) && (["manager","admin","owner","supervisor"].includes(currentUser.role) || isMyOrder) && (
               <div style={{ marginBottom:14 }}>
                 {/* KTV chưa nhận đơn → disable toàn bộ status picker */}
                 {isKTV && isMyOrder && (order.accept_stage||0) < 1 && !["Chờ KTV","Chờ KTV Sửa"].includes(order.status) && (
@@ -1194,7 +1194,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
             )}
 
             {/* ── QT1: Giao dịch viên kiểm ngoại quan ── */}
-            {order.status === "Cho KTV" && !order.qt1_checklist && (isReception || ["manager","admin","owner","supervisor"].includes(currentUser.role)) && (
+            {order.status === "Chờ KTV Sửa" && !order.qt1_checklist && (isReception || ["manager","admin","owner","supervisor"].includes(currentUser.role)) && (
               <div style={{ marginTop:8 }}>
                 <button onClick={() => setShowPreCheck(true)}
                   style={{ width:"100%", height:56, borderRadius:16, background:"linear-gradient(135deg,#0369a1,#0284c7)", border:"none", color:"#fff", fontWeight:900, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10, boxShadow:"0 4px 16px rgba(3,105,161,.3)" }}>
@@ -1214,7 +1214,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 </button>
               </div>
             )}
-            {order.qt2_checklist && order.status === "Cho Bao Gia" && !order.quote_by_name && (
+            {order.qt2_checklist && order.status === "Chờ Báo Giá" && !order.quote_by_name && (
               <div style={{ marginTop:8, background:"#f5f3ff", border:"1.5px solid #ddd6fe", borderRadius:12, padding:"10px 14px", fontSize:13, color:"#4c1d95" }}>
                 <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16,verticalAlign:"middle",marginRight:6}}>check</span>
                 Đã có kết quả QT2 — chờ gửi về Giao dịch viên
@@ -1292,8 +1292,8 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                         }
                         if (!window.confirm("Linh kiện đã nhập kho?\nĐơn sẽ chuyển sang Chờ KTV Sửa.")) return;
                         try {
-                          await onUpdate(order.id, { status: "Cho KTV Sua", accept_stage: 0, assigned_at: new Date().toISOString(), stage1_at: null, stage2_at: null, kpi_stage1_penalized: false, kpi_stage2_penalized: false, needs_reassign: false, kpi_manually_accepted: false }, null);
-                          logHistory({ order_id: order.id, order_code: order.order_code||order.id, action_type: "parts_arrived", action_label: "Linh kiện đã về — chuyển KTV sửa", changed_by_id: currentUser?.id||"", changed_by_name: currentUser?.name||"", changed_by_role: currentUser?.role||"", old_value: "Cho Linh Kien", new_value: "Cho KTV Sua" });
+                          await onUpdate(order.id, { status: "Chờ KTV Sửa", accept_stage: 0, assigned_at: new Date().toISOString(), stage1_at: null, stage2_at: null, kpi_stage1_penalized: false, kpi_stage2_penalized: false, needs_reassign: false, kpi_manually_accepted: false }, null);
+                          logHistory({ order_id: order.id, order_code: order.order_code||order.id, action_type: "parts_arrived", action_label: "Linh kiện đã về — chuyển KTV sửa", changed_by_id: currentUser?.id||"", changed_by_name: currentUser?.name||"", changed_by_role: currentUser?.role||"", old_value: "Chờ Linh Kiện", new_value: "Chờ KTV Sửa" });
                           const ktv = users.find(u => u.id === ktvPick);
                           if (ktv) await Notification.create({ user_id: ktv.id, user_name: ktv.name||"", title: `📦 LK đã về — Đơn ${order.order_code||order.id} chờ bạn sửa`, message: `${order.device_model} · ${order.customer_name}. Linh kiện đã nhập kho, bắt đầu sửa.`, order_id: order.id, order_code: order.order_code, type: "parts_arrived", is_read: false }).catch(() => {});
                           if (order.quote_by) await Notification.create({ user_id: order.quote_by, user_name: order.quote_by_name||"", title: `📦 LK đơn ${order.order_code||order.id} đã về`, message: `${order.device_model} · Linh kiện đã nhập, KTV bắt đầu sửa.`, order_id: order.id, order_code: order.order_code, type: "parts_arrived", is_read: false }).catch(() => {});
@@ -1700,7 +1700,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
             onClose={() => setShowPreCheck(false)}
             onDone={async (data) => {
               await onUpdate(order.id, {
-                status: "Cho KTV",
+                status: "Chờ KTV Sửa",
                 qt1_checklist: data.qt1_checklist,
                 qt1_note: data.qt1_note,
                 assigned_to: data.assigned_to,
@@ -1737,7 +1737,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 } catch(e) { console.warn("Upload QT2 media thất bại:", e); }
               }
               await onUpdate(order.id, {
-                status: "Cho Bao Gia",
+                status: "Chờ Báo Giá",
                 qt2_checklist: data.qt2_checklist,
                 qt2_note: data.qt2_note,
                 qt2_de_xuat: JSON.stringify(data.qt2_de_xuat || []),
@@ -1771,7 +1771,7 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
                 } catch {}
               }
               const hasWaiting = (quoteLines || []).some(l => l && l.waiting);
-              const nextStatus = hasWaiting ? "Cho Linh Kien" : "Cho KTV Sua";
+              const nextStatus = hasWaiting ? "Chờ Linh Kiện" : "Chờ KTV Sửa";
               const approvePatch = {
                 status: nextStatus,
                 accept_stage: 0,

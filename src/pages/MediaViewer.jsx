@@ -34,9 +34,9 @@ function genOrderId() { return "SC24"+String(Math.floor(Math.random()*9000)+1000
 function getKpiTimerInfo(order) {
   if (!order.assigned_to || !order.assigned_at) return null;
   if ((order.accept_stage||0) >= 2) return null;
-  if (["Hoàn Thành","Đã Giao","Hủy","Hoan Thanh","Da Giao","Huy"].includes(order.status)) return null;
+  if (["Hoàn Thành","Đã Giao","Hủy","Hoàn Thành","Đã Giao","Hủy"].includes(order.status)) return null;
   // Đang chờ linh kiện nhập hàng / chờ báo giá → KTV chỉ được ghi nhận, chưa tính giờ KPI
-  if (["Chờ Linh Kiện","Cho Linh Kien","Chờ Báo Giá","Cho Bao Gia"].includes(order.status)) return null;
+  if (["Chờ Linh Kiện","Chờ Linh Kiện","Chờ Báo Giá","Chờ Báo Giá"].includes(order.status)) return null;
 
   const assignedAt = new Date(order.assigned_at).getTime();
   const stage = order.accept_stage || 0;
@@ -569,7 +569,7 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
   const stage = order.accept_stage || 0;
 
   // Chờ linh kiện nhập hàng: KTV đã được ghi nhận nhưng CHƯA tính giờ KPI
-  if (["Chờ Linh Kiện","Cho Linh Kien"].includes(order.status)) {
+  if (["Chờ Linh Kiện","Chờ Linh Kiện"].includes(order.status)) {
     return (
       <div style={{ display:"flex", alignItems:"center", gap:10, background:"#fff7ed", border:"2px solid #fdba74", borderRadius:12, padding:"10px 14px", marginBottom:14 }}>
         <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,color:"#ea580c"}}>hourglass_top</span>
@@ -582,7 +582,7 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
   }
 
   // Stage >= 2 hoặc đơn xong → badge xanh gọn
-  if (stage >= 2 || ["Hoàn Thành","Đã Giao","Hủy","Hoan Thanh","Da Giao","Huy"].includes(order.status)) {
+  if (stage >= 2 || ["Hoàn Thành","Đã Giao","Hủy","Hoàn Thành","Đã Giao","Hủy"].includes(order.status)) {
     return (
       <div style={{ display:"flex", alignItems:"center", gap:8, background:"#dcfce7", border:"2px solid #6ee7b7", borderRadius:12, padding:"10px 14px", marginBottom:14 }}>
         <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,color:"#059669"}}>verified</span>
@@ -668,7 +668,7 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
         accept_stage: 1,
         stage1_at: order.stage1_at || ts,  // giữ stage1_at nếu đã có (phase 1)
         kpi_manually_accepted: true,
-        status: "KTV Dang Kiem",
+        status: "KTV Đang Kiểm",
       }, null);
     } else {
       // KTV bắt đầu sửa → stage 1→2
@@ -790,16 +790,16 @@ function AcceptTimer({ order, currentUser, onUpdate }) {
 //  STATUS / PRIORITY MAPPING (PocketBase ↔ Display)
 // ══════════════════════════════════════════════
 const STATUS_PB = {
-  "Chờ KTV":        "Cho KTV",
-  "KTV Đang Kiểm":  "KTV Dang Kiem",
-  "Chờ Báo Giá":    "Cho Bao Gia",
-  "Chờ Xác Nhận":   "Cho Xac Nhan",
-  "Chờ KTV Sửa":    "Cho KTV Sua",
-  "Đang Sửa":       "Dang Sua",
-  "Chờ Linh Kiện":  "Cho Linh Kien",
-  "Hoàn Thành":     "Hoan Thanh",
-  "Đã Giao":        "Da Giao",
-  "Hủy":            "Huy",
+  "Chờ KTV":        "Chờ KTV Sửa",
+  "KTV Đang Kiểm":  "KTV Đang Kiểm",
+  "Chờ Báo Giá":    "Chờ Báo Giá",
+  "Chờ Xác Nhận":   "Chờ Xác Nhận",
+  "Chờ KTV Sửa":    "Chờ KTV Sửa",
+  "Đang Sửa":       "Đang Sửa",
+  "Chờ Linh Kiện":  "Chờ Linh Kiện",
+  "Hoàn Thành":     "Hoàn Thành",
+  "Đã Giao":        "Đã Giao",
+  "Hủy":            "Hủy",
 };
 const STATUS_DISPLAY = Object.fromEntries(
   Object.entries(STATUS_PB).map(([display, pb]) => [pb, display])
@@ -813,15 +813,15 @@ const PRIORITY_DISPLAY = Object.fromEntries(
   Object.entries(PRIORITY_PB).map(([display, pb]) => [pb, display])
 );
 const STATUS_COLS = [
-  { key:"Chờ KTV",       pb:"Cho KTV",       color:"#dc2626", bg:"#fef2f2",  emoji:"schedule_send" },
-  { key:"KTV Đang Kiểm", pb:"KTV Dang Kiem", color:"#0369a1", bg:"#e0f2fe",  emoji:"manage_search" },
-  { key:"Chờ Báo Giá",   pb:"Cho Bao Gia",   color:"#d97706", bg:"#fffbeb",  emoji:"request_quote" },
-  { key:"Chờ Xác Nhận",  pb:"Cho Xac Nhan",  color:"#db2777", bg:"#fdf2f8",  emoji:"pending_actions" },
-  { key:"Chờ KTV Sửa",   pb:"Cho KTV Sua",   color:"#7c3aed", bg:"#f5f3ff",  emoji:"engineering" },
-  { key:"Đang Sửa",      pb:"Dang Sua",      color:"#6d28d9", bg:"#ede9fe",  emoji:"build" },
-  { key:"Chờ Linh Kiện", pb:"Cho Linh Kien", color:"#ea580c", bg:"#fff7ed",  emoji:"inventory" },
-  { key:"Hoàn Thành",    pb:"Hoan Thanh",    color:"#059669", bg:"#dcfce7",  emoji:"check_circle" },
-  { key:"Đã Giao",       pb:"Da Giao",       color:"#64748b", bg:"#f1f5f9",  emoji:"inventory_2" },
+  { key:"Chờ KTV",       pb:"Chờ KTV Sửa",       color:"#dc2626", bg:"#fef2f2",  emoji:"schedule_send" },
+  { key:"KTV Đang Kiểm", pb:"KTV Đang Kiểm", color:"#0369a1", bg:"#e0f2fe",  emoji:"manage_search" },
+  { key:"Chờ Báo Giá",   pb:"Chờ Báo Giá",   color:"#d97706", bg:"#fffbeb",  emoji:"request_quote" },
+  { key:"Chờ Xác Nhận",  pb:"Chờ Xác Nhận",  color:"#db2777", bg:"#fdf2f8",  emoji:"pending_actions" },
+  { key:"Chờ KTV Sửa",   pb:"Chờ KTV Sửa",   color:"#7c3aed", bg:"#f5f3ff",  emoji:"engineering" },
+  { key:"Đang Sửa",      pb:"Đang Sửa",      color:"#6d28d9", bg:"#ede9fe",  emoji:"build" },
+  { key:"Chờ Linh Kiện", pb:"Chờ Linh Kiện", color:"#ea580c", bg:"#fff7ed",  emoji:"inventory" },
+  { key:"Hoàn Thành",    pb:"Hoàn Thành",    color:"#059669", bg:"#dcfce7",  emoji:"check_circle" },
+  { key:"Đã Giao",       pb:"Đã Giao",       color:"#64748b", bg:"#f1f5f9",  emoji:"inventory_2" },
 ];
 
 export { timeAgo, genOrderId, getKpiTimerInfo, MediaViewer, AcceptChecklistModal, AcceptTimer, STATUS_PB, STATUS_DISPLAY, STATUS_COLS, PRIORITY_PB, PRIORITY_DISPLAY };

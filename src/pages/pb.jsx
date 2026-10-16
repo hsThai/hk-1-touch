@@ -246,7 +246,41 @@ function makeCollection(collectionName) {
 
 // ── Collections ───────────────────────────────────────────
 export const Staff         = makeCollection("staff");
-export const RepairOrder   = makeCollection("repair_orders");
+// ── Chuẩn hóa trạng thái đơn sửa (fix vướng có dấu / không dấu) ──────────────
+// DB từng ghi lẫn "Hoàn Thành" lẫn "Hoàn Thành". Từ nay MỘT chuẩn duy nhất: dạng có dấu.
+// Mọi bản ghi đọc qua RepairOrder đều được quy về chuẩn; mọi lệnh ghi cũng quy trước khi lưu.
+const _stripVi = s => (s || "").toString().trim().toLowerCase()
+  .replace(/[àáạảãâầấậẩẫăằắặẳẵ]/g, "a").replace(/[èéẹẻẽêềếệểễ]/g, "e")
+  .replace(/[ìíịỉĩ]/g, "i").replace(/[òóọỏõôồốộổỗơờớợởỡ]/g, "o")
+  .replace(/[ùúụủũưừứựửữ]/g, "u").replace(/[ỳýỵỷỹ]/g, "y").replace(/đ/g, "d")
+  .replace(/\s+/g, " ");
+const STATUS_ALIASES = {
+  "cho ktv sua": "Chờ KTV Sửa", "cho ktv": "Chờ KTV Sửa",
+  "ktv dang kiem": "KTV Đang Kiểm",
+  "dang sua": "Đang Sửa",
+  "cho linh kien": "Chờ Linh Kiện",
+  "cho bao gia": "Chờ Báo Giá",
+  "cho xac nhan": "Chờ Xác Nhận",
+  "hoan thanh": "Hoàn Thành",
+  "da giao": "Đã Giao",
+  "da thanh toan": "Đã Thanh Toán",
+  "huy": "Hủy", "huy?": "Hủy",
+};
+export function normalizeStatus(s) {
+  if (!s) return s;
+  return STATUS_ALIASES[_stripVi(s)] || s;
+}
+const _normRec = r => (r && r.status !== undefined) ? { ...r, status: normalizeStatus(r.status) } : r;
+const _normIn  = d => (d && d.status !== undefined) ? { ...d, status: normalizeStatus(d.status) } : d;
+const _RepairOrderBase = makeCollection("repair_orders");
+export const RepairOrder = {
+  ..._RepairOrderBase,
+  list:   (o = {})   => _RepairOrderBase.list(o).then(a => (a || []).map(_normRec)),
+  filter: (q = {}, o = {}) => _RepairOrderBase.filter(q, o).then(a => (a || []).map(_normRec)),
+  get:    id         => _RepairOrderBase.get(id).then(_normRec),
+  create: d          => _RepairOrderBase.create(_normIn(d)),
+  update: (id, d)    => _RepairOrderBase.update(id, _normIn(d)),
+};
 export const RepairChat    = makeCollection("repair_chats");
 const _NotifBase = makeCollection("notifications");
 // Luôn gắn created_at (trước đây 327/676 thông báo thiếu mốc thời gian -> bộ nhận bỏ sót / hiển thị sai giờ)

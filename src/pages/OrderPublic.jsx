@@ -20,8 +20,8 @@ async function fetchPublicOrder(code) {
 // ── Status config ────────────────────────────────────────
 const STATUS_MAP = {
   // Chuẩn
-  "Cho KTV":       { bg:"#fef2f2", text:"#dc2626", icon:"schedule_send" },
-  "KTV Dang Kiem": { bg:"#e0f2fe", text:"#0369a1", icon:"manage_search" },
+  "Chờ KTV Sửa":       { bg:"#fef2f2", text:"#dc2626", icon:"schedule_send" },
+  "KTV Đang Kiểm": { bg:"#e0f2fe", text:"#0369a1", icon:"manage_search" },
   "Đang Kiểm Tra": { bg:"#fef9c3", text:"#854d0e", icon:"manage_search" },
   "Đang Sửa":      { bg:"#fce7f3", text:"#be185d", icon:"build" },
   "Chờ Linh Kiện": { bg:"#ffedd5", text:"#c2410c", icon:"inventory_2" },
@@ -29,30 +29,30 @@ const STATUS_MAP = {
   "Đã Giao":       { bg:"#d1fae5", text:"#065f46", icon:"handshake" },
   "Hủy":           { bg:"#fee2e2", text:"#dc2626", icon:"cancel" },
   // Không dấu fallback
-  "Hoan Thanh":    { bg:"#dcfce7", text:"#15803d", icon:"check_circle" },
-  "Da Giao":       { bg:"#d1fae5", text:"#065f46", icon:"handshake" },
-  "Huy":           { bg:"#fee2e2", text:"#dc2626", icon:"cancel" },
-  "Cho Linh Kien": { bg:"#ffedd5", text:"#c2410c", icon:"inventory_2" },
-  "Dang Sua":      { bg:"#fce7f3", text:"#be185d", icon:"build" },
-  "Cho KTV":       { bg:"#fef2f2", text:"#dc2626", icon:"schedule_send" },
-  "KTV Dang Kiem": { bg:"#e0f2fe", text:"#0369a1", icon:"manage_search" },
-  "Cho Bao Gia":   { bg:"#fffbeb", text:"#d97706", icon:"request_quote" },
-  "Cho Xac Nhan":  { bg:"#fdf2f8", text:"#db2777", icon:"pending_actions" },
-  "Cho KTV Sua":   { bg:"#f5f3ff", text:"#7c3aed", icon:"engineering" },
+  "Hoàn Thành":    { bg:"#dcfce7", text:"#15803d", icon:"check_circle" },
+  "Đã Giao":       { bg:"#d1fae5", text:"#065f46", icon:"handshake" },
+  "Hủy":           { bg:"#fee2e2", text:"#dc2626", icon:"cancel" },
+  "Chờ Linh Kiện": { bg:"#ffedd5", text:"#c2410c", icon:"inventory_2" },
+  "Đang Sửa":      { bg:"#fce7f3", text:"#be185d", icon:"build" },
+  "Chờ KTV Sửa":       { bg:"#fef2f2", text:"#dc2626", icon:"schedule_send" },
+  "KTV Đang Kiểm": { bg:"#e0f2fe", text:"#0369a1", icon:"manage_search" },
+  "Chờ Báo Giá":   { bg:"#fffbeb", text:"#d97706", icon:"request_quote" },
+  "Chờ Xác Nhận":  { bg:"#fdf2f8", text:"#db2777", icon:"pending_actions" },
+  "Chờ KTV Sửa":   { bg:"#f5f3ff", text:"#7c3aed", icon:"engineering" },
   "Thuong":        { bg:"#f3f4f6", text:"#6b7280", icon:"info" },
 };
 
 const STATUS_DISPLAY = {
-  "Hoan Thanh": "Hoàn Thành",
-  "Da Giao": "Đã Giao",
-  "Huy": "Hủy",
-  "Cho Linh Kien": "Chờ Linh Kiện",
-  "Dang Sua": "Đang Sửa",
-  "Cho KTV": "Chờ KTV",
-  "KTV Dang Kiem": "KTV Đang Kiểm",
-  "Cho Bao Gia": "Chờ Báo Giá",
-  "Cho Xac Nhan": "Chờ Xác Nhận",
-  "Cho KTV Sua": "Chờ KTV Sửa",
+  "Hoàn Thành": "Hoàn Thành",
+  "Đã Giao": "Đã Giao",
+  "Hủy": "Hủy",
+  "Chờ Linh Kiện": "Chờ Linh Kiện",
+  "Đang Sửa": "Đang Sửa",
+  "Chờ KTV Sửa": "Chờ KTV",
+  "KTV Đang Kiểm": "KTV Đang Kiểm",
+  "Chờ Báo Giá": "Chờ Báo Giá",
+  "Chờ Xác Nhận": "Chờ Xác Nhận",
+  "Chờ KTV Sửa": "Chờ KTV Sửa",
 };
 
 function getStatus(raw) {
@@ -92,19 +92,19 @@ function fmtDateFull(iso) {
 
 // ── Progress steps ───────────────────────────────────────
 const STEPS = [
-  { key:"Chờ KTV",       altKey:"Cho KTV",       icon:"schedule_send" },
-  { key:"KTV Đang Kiểm", altKey:"KTV Dang Kiem", icon:"manage_search" },
-  { key:"Chờ Báo Giá",   altKey:"Cho Bao Gia",   icon:"request_quote" },
-  { key:"Chờ KTV Sửa",   altKey:"Cho KTV Sua",   icon:"engineering" },
-  { key:"Đang Sửa",      altKey:"Dang Sua",      icon:"build" },
-  { key:"Hoàn Thành",    altKey:"Hoan Thanh",    icon:"check_circle" },
-  { key:"Đã Giao",       altKey:"Da Giao",       icon:"handshake" },
+  { key:"Chờ KTV",       altKey:"Chờ KTV Sửa",       icon:"schedule_send" },
+  { key:"KTV Đang Kiểm", altKey:"KTV Đang Kiểm", icon:"manage_search" },
+  { key:"Chờ Báo Giá",   altKey:"Chờ Báo Giá",   icon:"request_quote" },
+  { key:"Chờ KTV Sửa",   altKey:"Chờ KTV Sửa",   icon:"engineering" },
+  { key:"Đang Sửa",      altKey:"Đang Sửa",      icon:"build" },
+  { key:"Hoàn Thành",    altKey:"Hoàn Thành",    icon:"check_circle" },
+  { key:"Đã Giao",       altKey:"Đã Giao",       icon:"handshake" },
 ];
 
 function ProgressBar({ rawStatus }) {
   const normalized = STATUS_DISPLAY[rawStatus] || rawStatus;
   const idx = STEPS.findIndex(s => s.key === normalized || s.altKey === rawStatus);
-  const cur = idx < 0 ? (["Chờ Linh Kiện","Cho Linh Kien"].includes(rawStatus) ? 2 : 0) : idx;
+  const cur = idx < 0 ? (["Chờ Linh Kiện","Chờ Linh Kiện"].includes(rawStatus) ? 2 : 0) : idx;
 
   return (
     <div style={{ display:"flex", alignItems:"center", padding:"4px 0" }}>
@@ -186,8 +186,8 @@ export default function OrderPublic() {
   const shopName = shopInfo.shop_name || "HK One Touch";
   const shopPhone = shopInfo.shop_phone || "";
   const shopAddress = shopInfo.shop_address || "";
-  const isCancelled = ["Hủy","Huy"].includes(order?.status);
-  const isWaiting = ["Chờ Linh Kiện","Cho Linh Kien"].includes(order?.status);
+  const isCancelled = ["Hủy","Hủy"].includes(order?.status);
+  const isWaiting = ["Chờ Linh Kiện","Chờ Linh Kiện"].includes(order?.status);
 
   return (
     <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#1e1b4b 0%,#312e81 55%,#4338ca 100%)", display:"flex", flexDirection:"column", alignItems:"center", padding:"20px 16px 48px" }}>
@@ -356,7 +356,7 @@ export default function OrderPublic() {
           )}
 
           {/* Progress */}
-          {!isCancelled && !["Hủy","Huy"].includes(order.status) && (
+          {!isCancelled && !["Hủy","Hủy"].includes(order.status) && (
             <div style={{ background:"rgba(255,255,255,.97)", borderRadius:20, padding:"16px 16px 20px", marginBottom:14, boxShadow:"0 4px 24px rgba(0,0,0,.15)" }}>
               <ProgressBar rawStatus={order.status} />
             </div>

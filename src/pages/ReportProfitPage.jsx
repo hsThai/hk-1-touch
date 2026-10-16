@@ -59,7 +59,7 @@ export default function ReportProfitPage({ user }) {
       const toDT   = to   + " 23:59:59";
 
       // Doanh thu sửa chữa (done) — status thực tế lưu dạng tiếng Việt (có/không dấu)
-      const DONE_STATUSES = ["Hoàn Thành","Đã Giao","Hoan Thanh","Da Giao"];
+      const DONE_STATUSES = ["Hoàn Thành","Đã Giao","Hoàn Thành","Đã Giao"];
       const statusFilter = DONE_STATUSES.map(s => `status="${s}"`).join(" || ");
       const repairs = await RepairOrder.list({
         filter: `(${statusFilter}) && done_date>="${fromDT}" && done_date<="${toDT}"`,

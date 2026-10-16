@@ -10,7 +10,7 @@ function fmtDate(dateStr) {
   return String(d.getDate()).padStart(2,"0") + "/" + String(d.getMonth()+1).padStart(2,"0") + "/" + d.getFullYear();
 }
 
-const DONE_STATUS = ["Hoàn Thành","Đã Giao","Đã Thanh Toán","Hoan Thanh","Da Giao","Da Thanh Toan"];
+const DONE_STATUS = ["Hoàn Thành","Đã Giao","Đã Thanh Toán","Hoàn Thành","Đã Giao","Đã Thanh Toán"];
 const PERIOD_TABS = [
   { key:"today",     label:"Hôm nay" },
   { key:"7days",     label:"7 ngày" },
@@ -113,7 +113,7 @@ function TabServices({ orders, period, inPeriod, DONE_STATUS, customFrom, custom
 }
 
 function TabDebt({ orders }) {
-  const debtOrders = orders.filter(o=>!["Đã Thanh Toán","Hoàn Thành","Đã Giao","Hủy","Da Thanh Toan","Hoan Thanh","Da Giao","Huy"].includes(o.status)&&o.estimated_cost>0);
+  const debtOrders = orders.filter(o=>!["Đã Thanh Toán","Hoàn Thành","Đã Giao","Hủy","Đã Thanh Toán","Hoàn Thành","Đã Giao","Hủy"].includes(o.status)&&o.estimated_cost>0);
   const byCustomer = {};
   debtOrders.forEach(o=>{
     const key = o.customer_phone||o.customer_name||o.id;
@@ -350,7 +350,7 @@ function ProfitLossTab({ repairOrders, saleOrders, expenses }) {
     return true;
   }
 
-  const DONE_ST = ["Đã Thanh Toán","Hoàn Thành","Đã Giao","Da Thanh Toan","Hoan Thanh","Da Giao"];
+  const DONE_ST = ["Đã Thanh Toán","Hoàn Thành","Đã Giao","Đã Thanh Toán","Hoàn Thành","Đã Giao"];
   const repairRev = repairOrders.filter(o=>DONE_ST.includes(o.status)&&inP(o.paid_at||o.done_date)).reduce((s,o)=>s+(o.final_cost||o.estimated_cost||0),0);
   const saleRev   = saleOrders.filter(o=>o.status==="completed"&&inP(o.created_date||o.created)).reduce((s,o)=>s+(o.total||0),0);
   const totalRev  = repairRev + saleRev;

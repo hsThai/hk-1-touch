@@ -197,11 +197,11 @@ export default function EditOrderModal({ order, users, currentUser, onClose, onS
               <div style={{flex:1}}>
                 <label style={lbl}>Trạng thái</label>
                 {(() => {
-                  const LOCKED = ["Mới Nhận","Chờ KTV","KTV Đang Kiểm","Chờ Báo Giá","Chờ Xác Nhận","Moi Nhan","Cho KTV","KTV Dang Kiem","Cho Bao Gia","Cho Xac Nhan"];
+                  const LOCKED = ["Mới Nhận","Chờ KTV","KTV Đang Kiểm","Chờ Báo Giá","Chờ Xác Nhận","Moi Nhan","Chờ KTV Sửa","KTV Đang Kiểm","Chờ Báo Giá","Chờ Xác Nhận"];
                   const curDisp = STATUS_DISPLAY[order.status] || order.status;
                   const locked = LOCKED.includes(curDisp);
                   // Đang trong quy trình báo giá: chỉ giữ nguyên trạng thái hiện tại hoặc Hủy
-                  const opts = locked ? STATUS_OPTS.filter(o => o.val===curDisp || o.val==="Hủy" || o.val==="Huy" || (STATUS_OPTS.find(x=>x.val===curDisp)==null && o.val===form.status)) : STATUS_OPTS;
+                  const opts = locked ? STATUS_OPTS.filter(o => o.val===curDisp || o.val==="Hủy" || o.val==="Hủy" || (STATUS_OPTS.find(x=>x.val===curDisp)==null && o.val===form.status)) : STATUS_OPTS;
                   const shown = (opts.some(o=>o.val===form.status) || !locked) ? opts : [{val:form.status,label:form.status},...opts];
                   return (<>
                     <select value={form.status} onChange={e=>set("status",e.target.value)} style={inp}>
