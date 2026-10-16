@@ -528,7 +528,7 @@ export default function RevenueReportPage({ user }) {
   }, []);
 
   const periodRepair = useMemo(() =>
-    repairOrders.filter(o => DONE_STATUS.includes(o.status) && inPeriod(o.done_date||o.updated_date, period, customFrom, customTo)),
+    repairOrders.filter(o => DONE_STATUS.includes(o.status) && inPeriod(o.done_date||o.updated_date||o.updated||o.received_date, period, customFrom, customTo)),
     [repairOrders, period, customFrom, customTo]);
   const periodSale = useMemo(() =>
     saleOrders.filter(o => o.status==="completed" && inPeriod(o.created_date||o.created, period, customFrom, customTo)),
