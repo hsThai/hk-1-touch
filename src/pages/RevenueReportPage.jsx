@@ -564,7 +564,7 @@ export default function RevenueReportPage({ user }) {
     return arr.join(" · ");
   };
 
-  const repairRev = periodRepair.reduce((s,o) => s+(o.final_cost||0), 0);
+  const repairRev = periodRepair.reduce((s,o) => s+(o.final_cost||o.estimated_cost||0), 0);
   const saleRev   = periodSale.reduce((s,o)   => s+(o.total||0), 0);
   const totalRev  = repairRev + saleRev;
   const totalExp  = periodExp.reduce((s,e)    => s+(e.amount||0), 0);
@@ -584,8 +584,8 @@ export default function RevenueReportPage({ user }) {
       sheetName = "Đơn sửa";
       rows = [["Mã phiếu","Khách hàng","SĐT","Thiết bị","KTV","Giá cuối","Đã cọc","Còn lại","Ngày xong"],
         ...periodRepair.map(o=>[o.order_code||o.id, o.customer_name||"", o.customer_phone||"",
-          o.device_model||"", o.assigned_to_name||"", o.final_cost||0, o.deposit||0,
-          Math.max(0,(o.final_cost||0)-(o.deposit||0)), dVN(o.done_date)])];
+          o.device_model||"", o.assigned_to_name||"", (o.final_cost||o.estimated_cost||0), o.deposit||0,
+          Math.max(0,(o.final_cost||o.estimated_cost||0)-(o.deposit||0)), dVN(o.done_date)])];
       sumRow = [["Tổng doanh thu sửa chữa", repairRev]];
     } else if (detailTab === "sale") {
       sheetName = "Bán lẻ";
@@ -613,14 +613,14 @@ export default function RevenueReportPage({ user }) {
         const name = o.device_model || o.device_name || "Không rõ";
         if (!pm[name]) pm[name] = { countSale:0, revenue:0 };
         pm[name].countSale += 1;
-        pm[name].revenue += (o.final_cost||0);
+        pm[name].revenue += (o.final_cost||o.estimated_cost||0);
       });
       const list = Object.values(pm).sort((a,b)=>b.revenue-a.revenue).slice(0,50);
       rows = [["Tên sản phẩm / dịch vụ","SL bán","Doanh thu"], ...list.map(x=>[x.name, x.countSale, x.revenue])];
     } else if (detailTab === "pl") {
       sheetName = "Lãi lỗ";
       const days = {};
-      periodRepair.forEach(o=>{ const d=dVN(o.done_date||o.created_date||o.created); days[d]=days[d]||{r:0,s:0,e:0}; days[d].r+=(o.final_cost||0); });
+      periodRepair.forEach(o=>{ const d=dVN(o.done_date||o.created_date||o.created); days[d]=days[d]||{r:0,s:0,e:0}; days[d].r+=(o.final_cost||o.estimated_cost||0); });
       periodSale.forEach(o=>{ const d=dVN(o.created_date||o.created); days[d]=days[d]||{r:0,s:0,e:0}; days[d].s+=(o.total||0); });
       periodExp.forEach(e=>{ const d=dVN(e.expense_date||e.created_date||e.created); days[d]=days[d]||{r:0,s:0,e:0}; days[d].e+=(e.amount||0); });
       const list = Object.entries(days).sort((a,b)=>a[0]<b[0]?-1:1)
@@ -761,7 +761,7 @@ export default function RevenueReportPage({ user }) {
                       <td style={TD}>{o.customer_name||"-"}</td>
                       <td style={TD}>{o.device_model||"-"}</td>
                       <td style={TD}>{fmtDate(o.done_date)}</td>
-                      <td style={{...TD,textAlign:"right",fontWeight:800,color:"#059669"}}>{fmtMoney(o.final_cost)}</td>
+                      <td style={{...TD,textAlign:"right",fontWeight:800,color:"#059669"}}>{fmtMoney(o.final_cost||o.estimated_cost||0)}</td>
                     </tr>
                   ))
                 }
