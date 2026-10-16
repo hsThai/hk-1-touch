@@ -546,6 +546,22 @@ export default function RevenueReportPage({ user }) {
   }, [saleOrderItems]);
   const getQty = o => qtyByOrder[o.id] ?? qtyByOrder[o.order_code] ?? 0;
 
+  // Danh sách tên hàng của từng đơn ("Tên x SL", cách nhau bởi dấu ·)
+  const itemsByOrder = useMemo(() => {
+    const m = {};
+    (saleOrderItems||[]).forEach(it => {
+      const k = it.sale_order_id || it.sale_order_code;
+      if (!m[k]) m[k] = [];
+      const nm = it.part_name || it.sku || "?";
+      m[k].push(Number(it.qty)||1 === 1 ? nm : `${nm} ×${it.qty}`);
+    });
+    return m;
+  }, [saleOrderItems]);
+  const getItemNames = o => {
+    const arr = itemsByOrder[o.id] || itemsByOrder[o.order_code] || [];
+    return arr.join(" · ");
+  };
+
   const repairRev = periodRepair.reduce((s,o) => s+(o.final_cost||0), 0);
   const saleRev   = periodSale.reduce((s,o)   => s+(o.total||0), 0);
   const totalRev  = repairRev + saleRev;
@@ -569,9 +585,9 @@ export default function RevenueReportPage({ user }) {
       ]),
       [],
       ["CHI TIẾT BÁN LẺ"],
-      ["Mã đơn","Khách","SL bán","Tổng","Hình thức","Ngày"],
+      ["Mã đơn","Khách","Tên hàng","SL bán","Tổng","Hình thức","Ngày"],
       ...periodSale.map(o=>[
-        o.order_code||o.id, o.customer_name||"Khách lẻ", getQty(o), o.total||0, o.payment_method||"",
+        o.order_code||o.id, o.customer_name||"Khách lẻ", getItemNames(o), getQty(o), o.total||0, o.payment_method||"",
         new Date(o.created_date||o.created).toLocaleDateString("vi-VN")
       ]),
       [],
@@ -710,6 +726,7 @@ export default function RevenueReportPage({ user }) {
               <thead>
                 <tr>
                   <th style={TH}>Mã đơn</th><th style={TH}>Khách</th>
+                  <th style={TH}>Tên hàng</th>
                   <th style={{...TH,textAlign:"center"}}>SL bán</th>
                   <th style={{...TH,textAlign:"right"}}>Tổng tiền</th>
                   <th style={TH}>HTTT</th><th style={TH}>Ngày bán</th>
@@ -717,11 +734,12 @@ export default function RevenueReportPage({ user }) {
               </thead>
               <tbody>
                 {periodSale.length===0
-                  ? <tr><td colSpan={6} style={{...TD,textAlign:"center",color:"#9ca3af"}}>Không có dữ liệu</td></tr>
+                  ? <tr><td colSpan={7} style={{...TD,textAlign:"center",color:"#9ca3af"}}>Không có dữ liệu</td></tr>
                   : periodSale.map(o => (
                     <tr key={o.id}>
                       <td style={{...TD,fontWeight:700}}>{o.order_code}</td>
                       <td style={TD}>{o.customer_name||"Khách lẻ"}</td>
+                      <td style={{...TD,maxWidth:260,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontSize:12}} title={getItemNames(o)}>{getItemNames(o) || "-"}</td>
                       <td style={{...TD,textAlign:"center",fontWeight:700}}>{getQty(o)}</td>
                       <td style={{...TD,textAlign:"right",fontWeight:800,color:"#059669"}}>{fmtMoney(o.total)}</td>
                       <td style={TD}>{o.payment_method}</td>
