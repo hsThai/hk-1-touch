@@ -1202,7 +1202,7 @@ function WarehouseImport({ user }) {
             journal_date:    getLocalDate(),
             entry_type:      "payment", amount: impPaidAmt,
             ref_type:        "stock_import", ref_id: imp.id, ref_code: code,
-            description:     "Nhập hàng: " + (supplier || "NCC"),
+            description:     "Thanh toán nhập hàng theo phiếu " + (code || "") + " — NCC: " + (supplier || ""),
             payment_method:  "cash",
             created_by_id:   user.id, created_by_name: user.name || "",
           });

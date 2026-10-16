@@ -106,7 +106,7 @@ export default function CashierConfirmPage({ user }) {
         await CashJournal.create({
           journal_date:today,entry_type:"receipt",amount:confirming.total,
           ref_type:"sale_order",ref_id:confirming.id,ref_code:confirming.order_code,
-          description:"Bán lẻ: "+(confirming.customer_name||"Khách lẻ"),
+          description:"Thu tiền bán lẻ theo đơn "+(confirming.order_code||"")+" — "+(confirming.customer_name||"Khách lẻ"),
           payment_method:payMethod,
           created_by_id:user.id,created_by_name:user.full_name||user.name||"",
         });

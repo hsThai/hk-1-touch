@@ -61,7 +61,9 @@ async function recordPayment(voucher, amount, method, note, currentUser) {
       ref_type:        "debt_payment",
       ref_id:          voucher.id,
       ref_code:        voucher.voucher_code,
-      description:     (voucher.voucher_type === "receivable" ? "Thu nợ: " : "Trả nợ: ") + voucher.party_name,
+      description:     (voucher.voucher_type === "receivable"
+          ? "Thu nợ khách theo phiếu " + (voucher.voucher_code||"") + " — "
+          : "Trả nợ NCC theo phiếu " + (voucher.voucher_code||"") + " — ") + voucher.party_name,
       payment_method:  method,
       created_by_id:   currentUser.id,
       created_by_name: currentUser.full_name || currentUser.name || "",

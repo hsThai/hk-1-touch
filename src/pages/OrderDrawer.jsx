@@ -134,7 +134,7 @@ async function autoCreateOrUpdateDebt(order, finalCost, deposit, payMethod, curr
         ref_type:        "repair_order",
         ref_id:          order.id,
         ref_code:        order.order_code || order.id,
-        description:     "Thu tiền sửa: " + (order.customer_name || "") + " - " + (order.device_model || ""),
+        description:     "Thu tiền sửa chữa theo đơn " + (order.order_code || "") + " — " + (order.customer_name || "") + " · " + (order.device_model || ""),
         payment_method:  "cash",
         created_by_id:   currentUser.id,
         created_by_name: currentUser.full_name || currentUser.name || "",

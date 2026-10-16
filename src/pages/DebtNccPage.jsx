@@ -52,7 +52,7 @@ async function recordPayment(voucher, amount, method, note, user) {
       journal_date:    getLocalDate(),
       entry_type:      "payment", amount: Number(amount),
       ref_type:        "debt_payment", ref_id: voucher.id, ref_code: voucher.voucher_code,
-      description:     "Trả nợ NCC: " + voucher.party_name,
+      description:     "Trả nợ NCC theo phiếu " + (voucher.voucher_code||"") + " — " + voucher.party_name,
       payment_method:  method,
       created_by_id:   user?.id || "",
       created_by_name: user?.full_name || user?.name || "",

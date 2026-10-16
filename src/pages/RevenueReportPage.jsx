@@ -201,8 +201,8 @@ function CashJournalTab() {
         <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
           <thead>
             <tr>
-              <th style={TH}>Ngày</th><th style={TH}>Loại</th>
-              <th style={TH}>Mô tả</th><th style={TH}>H.thức</th>
+              <th style={TH}>Ngày</th><th style={TH}>Loại</th><th style={TH}>Chứng từ</th>
+              <th style={TH}>Diễn giải</th><th style={TH}>H.thức</th>
               <th style={{...TH,textAlign:"right"}}>Số tiền</th>
             </tr>
           </thead>
@@ -215,7 +215,8 @@ function CashJournalTab() {
                     ? <span style={{background:"#dcfce7",color:"#059669",borderRadius:99,padding:"2px 8px",fontSize:11,fontWeight:700}}>🟢 Thu</span>
                     : <span style={{background:"#fee2e2",color:"#dc2626",borderRadius:99,padding:"2px 8px",fontSize:11,fontWeight:700}}>🔴 Chi</span>}
                 </td>
-                <td style={TD}>{j.description||j.ref_code||"—"}</td>
+                <td style={{...TD,whiteSpace:"nowrap",fontWeight:700,color:"#4f46e5"}}>{j.ref_code||"—"}</td>
+                <td style={TD}>{j.description||"—"}</td>
                 <td style={TD}>{j.payment_method==="cash"?"💵 TM":"🏦 CK"}</td>
                 <td style={{...TD,textAlign:"right",fontWeight:800,color:j.entry_type==="receipt"?"#059669":"#dc2626"}}>{fmtMoney(j.amount)}</td>
               </tr>
