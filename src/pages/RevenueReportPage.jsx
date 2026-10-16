@@ -217,7 +217,7 @@ function CashJournalTab() {
                 </td>
                 <td style={{...TD,whiteSpace:"nowrap",fontWeight:700,color:"#4f46e5"}}>{j.ref_code||"—"}</td>
                 <td style={TD}>{j.description||"—"}</td>
-                <td style={TD}>{j.payment_method==="cash"?"💵 TM":"🏦 CK"}</td>
+                <td style={{...TD,whiteSpace:"nowrap"}}>{j.payment_method==="cash"?"💵 TM":"🏦 CK"}</td>
                 <td style={{...TD,textAlign:"right",fontWeight:800,color:j.entry_type==="receipt"?"#059669":"#dc2626"}}>{fmtMoney(j.amount)}</td>
               </tr>
             ))}
@@ -588,7 +588,7 @@ export default function RevenueReportPage({ user }) {
       ["CHI TIẾT BÁN LẺ"],
       ["Mã đơn","Khách","Tên hàng","SL bán","Tổng","Hình thức","Ngày"],
       ...periodSale.map(o=>[
-        o.order_code||o.id, o.customer_name||"Khách lẻ", getItemNames(o), getQty(o), o.total||0, o.payment_method||"",
+        o.order_code||o.id, o.customer_name||"Khách lẻ", getItemNames(o), getQty(o), o.total||0, o.payment_method==="cash"?"TM":o.payment_method?"CK":"",
         new Date(o.created_date||o.created).toLocaleDateString("vi-VN")
       ]),
       [],
@@ -743,7 +743,7 @@ export default function RevenueReportPage({ user }) {
                       <td style={{...TD,maxWidth:260,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontSize:12}} title={getItemNames(o)}>{getItemNames(o) || "-"}</td>
                       <td style={{...TD,textAlign:"center",fontWeight:700}}>{getQty(o)}</td>
                       <td style={{...TD,textAlign:"right",fontWeight:800,color:"#059669"}}>{fmtMoney(o.total)}</td>
-                      <td style={TD}>{o.payment_method}</td>
+                      <td style={{...TD,whiteSpace:"nowrap"}}>{o.payment_method==="cash"?"💵 TM":"🏦 CK"}</td>
                       <td style={TD}>{fmtDate(o.created_date||o.created)}</td>
                     </tr>
                   ))
