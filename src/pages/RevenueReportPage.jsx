@@ -572,9 +572,8 @@ export default function RevenueReportPage({ user }) {
 
   // Xuất file Excel THEO TAB ĐANG MỞ (trước đây luôn xuất gộp 3 mục trong 1 CSV khó đọc)
   const TAB_FILE = {
-    repair:"don-sua", sale:"ban-le", expense:"chi-phi", by_ktv:"ktv",
-    services:"dich-vu", top_products:"sp-ban-chay", pl:"lai-lo",
-    cash_journal:"so-quy", stock_report:"linh-kien",
+    repair:"don-sua", sale:"ban-le", expense:"chi-phi",
+    top_products:"sp-ban-chay", pl:"lai-lo", cash_journal:"so-quy",
   };
   const dVN = v => v ? new Date(v).toLocaleDateString("vi-VN") : "";
   const pmVN = v => v==="cash" ? "TM" : v ? "CK" : "";
@@ -599,28 +598,6 @@ export default function RevenueReportPage({ user }) {
       rows = [["Loại","Mô tả","Số tiền","Ngày","Người tạo"],
         ...periodExp.map(e=>[e.category||"Khác", e.description||"", e.amount||0, dVN(e.expense_date), e.created_by_name||""])];
       sumRow = [["Tổng chi phí", totalExp]];
-    } else if (detailTab === "by_ktv") {
-      sheetName = "Doanh thu KTV";
-      const byKtv = {};
-      periodRepair.forEach(o=>{
-        const name = o.assigned_to_name||"Chưa phân công";
-        if (!byKtv[name]) byKtv[name] = { count:0, revenue:0 };
-        byKtv[name].count++; byKtv[name].revenue += (o.final_cost||0);
-      });
-      const list = Object.values(byKtv).sort((a,b)=>b.revenue-a.revenue);
-      rows = [["KTV","Số đơn","Doanh thu"], ...list.map(k=>[k.name, k.count, k.revenue])];
-    } else if (detailTab === "services") {
-      sheetName = "Dịch vụ";
-      const svcMap = {};
-      periodRepair.forEach(o=>{
-        const issues = (o.issue_description||"").split(/[,.\n;、]+/).map(x=>x.trim()).filter(x=>x.length>2&&x.length<60);
-        issues.forEach(svc=>{
-          if (!svcMap[svc]) svcMap[svc] = { count:0, revenue:0 };
-          svcMap[svc].count++; svcMap[svc].revenue += (o.final_cost||0)/Math.max(issues.length,1);
-        });
-      });
-      const list = Object.values(svcMap).sort((a,b)=>b.count-a.count).slice(0,20);
-      rows = [["Dịch vụ","Lần","Doanh thu phân bổ"], ...list.map(k=>[k.name, k.count, Math.round(k.revenue)])];
     } else if (detailTab === "top_products") {
       sheetName = "SP bán chạy";
       const completedSaleIds = new Set((saleOrders||[]).filter(o=>o.status==="completed").map(o=>o.id));
@@ -660,18 +637,6 @@ export default function RevenueReportPage({ user }) {
       const tin = inJ.filter(j=>j.entry_type==="receipt").reduce((t,j)=>t+(j.amount||0),0);
       const tout = inJ.filter(j=>j.entry_type!=="receipt").reduce((t,j)=>t+(j.amount||0),0);
       sumRow = [["Tổng thu", tin],["Tổng chi", tout],["Chênh lệch", tin-tout]];
-    } else if (detailTab === "stock_report") {
-      sheetName = "Linh kiện";
-      const [imp, exp] = await Promise.all([
-        StockImport.list({ limit:200, sort:"-id" }).catch(()=>[]),
-        StockExportRequest.list({ limit:200, sort:"-id" }).catch(()=>[]),
-      ]);
-      const start = startOf(period, customFrom);
-      const fi = (imp||[]).filter(i=>new Date(i.created_date||i.created)>=start);
-      const fe = (exp||[]).filter(e=>new Date(e.created_date||e.created)>=start);
-      rows = [["Loại","Mã phiếu","Đơn vị / KTV","Mã đơn","Tổng giá trị","Trạng thái","Ngày"],
-        ...fi.map(i=>["Nhập kho", i.import_code||"", i.supplier_name||"", "", i.total_value||0, i.status||"", dVN(i.created_date||i.created)]),
-        ...fe.map(e=>["Xuất kho", e.request_code||"", e.requested_by_name||"", e.order_code||"", e.total_value||0, e.status||"", dVN(e.created_date||e.created)])];
     }
 
     const wb = XLSX.utils.book_new();
@@ -705,12 +670,9 @@ export default function RevenueReportPage({ user }) {
     { key:"repair",       label:"🔧 Đơn sửa" },
     { key:"sale",         label:"🛒 Bán lẻ" },
     { key:"expense",      label:"💸 Chi phí" },
-    { key:"by_ktv",       label:"👨‍🔧 KTV" },
-    { key:"services",     label:"🏆 Dịch vụ" },
     { key:"top_products", label:"🏅 SP bán chạy" },
     { key:"pl",           label:"📊 Lãi lỗ" },
     { key:"cash_journal", label:"💰 Sổ quỹ" },
-    { key:"stock_report", label:"📦 LK" },
   ];
 
   if (loading) return <div style={{ textAlign:"center", padding:48, color:"#9ca3af" }}>⏳ Đang tải...</div>;
@@ -876,12 +838,9 @@ export default function RevenueReportPage({ user }) {
           </div>
         )}
 
-        {detailTab==="by_ktv"       && <div style={{padding:16}}><TabByKTV orders={repairOrders} period={period} inPeriod={inPeriod} DONE_STATUS={DONE_STATUS} customFrom={customFrom} customTo={customTo}/></div>}
-        {detailTab==="services"     && <div style={{padding:16}}><TabServices orders={repairOrders} period={period} inPeriod={inPeriod} DONE_STATUS={DONE_STATUS} customFrom={customFrom} customTo={customTo}/></div>}
         {detailTab==="top_products" && <TopProductsTab repairOrders={repairOrders} saleOrders={saleOrders} saleOrderItems={saleOrderItems} />}
         {detailTab==="pl"           && <ProfitLossTab repairOrders={repairOrders} saleOrders={saleOrders} expenses={expenses}/>}
         {detailTab==="cash_journal" && <CashJournalTab/>}
-        {detailTab==="stock_report" && <div style={{padding:16}}><TabStockReport period={period} startOf={startOf} customFrom={customFrom}/></div>}
       </div>
     </div>
   );
