@@ -535,6 +535,17 @@ export default function RevenueReportPage({ user }) {
     expenses.filter(e => e.status==="approved" && inPeriod(e.expense_date||e.created_date||e.created, period, customFrom, customTo)),
     [expenses, period, customFrom, customTo]);
 
+  // SL bán của từng đơn bán lẻ (tổng qty từ sale_order_items — field items trên đơn luôn rỗng)
+  const qtyByOrder = useMemo(() => {
+    const m = {};
+    (saleOrderItems||[]).forEach(it => {
+      const k = it.sale_order_id || it.sale_order_code;
+      m[k] = (m[k]||0) + (Number(it.qty)||0);
+    });
+    return m;
+  }, [saleOrderItems]);
+  const getQty = o => qtyByOrder[o.id] ?? qtyByOrder[o.order_code] ?? 0;
+
   const repairRev = periodRepair.reduce((s,o) => s+(o.final_cost||0), 0);
   const saleRev   = periodSale.reduce((s,o)   => s+(o.total||0), 0);
   const totalRev  = repairRev + saleRev;
@@ -558,9 +569,9 @@ export default function RevenueReportPage({ user }) {
       ]),
       [],
       ["CHI TIẾT BÁN LẺ"],
-      ["Mã đơn","Ghi chú","Tổng","Hình thức","Ngày"],
+      ["Mã đơn","Khách","SL bán","Tổng","Hình thức","Ngày"],
       ...periodSale.map(o=>[
-        o.order_code||o.id, o.note||"", o.total||0, o.payment_method||"",
+        o.order_code||o.id, o.customer_name||"Khách lẻ", getQty(o), o.total||0, o.payment_method||"",
         new Date(o.created_date||o.created).toLocaleDateString("vi-VN")
       ]),
       [],
@@ -699,7 +710,7 @@ export default function RevenueReportPage({ user }) {
               <thead>
                 <tr>
                   <th style={TH}>Mã đơn</th><th style={TH}>Khách</th>
-                  <th style={{...TH,textAlign:"center"}}>Số SP</th>
+                  <th style={{...TH,textAlign:"center"}}>SL bán</th>
                   <th style={{...TH,textAlign:"right"}}>Tổng tiền</th>
                   <th style={TH}>HTTT</th><th style={TH}>Ngày bán</th>
                 </tr>
@@ -711,7 +722,7 @@ export default function RevenueReportPage({ user }) {
                     <tr key={o.id}>
                       <td style={{...TD,fontWeight:700}}>{o.order_code}</td>
                       <td style={TD}>{o.customer_name||"Khách lẻ"}</td>
-                      <td style={{...TD,textAlign:"center"}}>{(o.items||[]).length}</td>
+                      <td style={{...TD,textAlign:"center",fontWeight:700}}>{getQty(o)}</td>
                       <td style={{...TD,textAlign:"right",fontWeight:800,color:"#059669"}}>{fmtMoney(o.total)}</td>
                       <td style={TD}>{o.payment_method}</td>
                       <td style={TD}>{fmtDate(o.created_date||o.created)}</td>
