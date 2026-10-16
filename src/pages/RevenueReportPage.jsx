@@ -351,7 +351,7 @@ function ProfitLossTab({ repairOrders, saleOrders, expenses }) {
   }
 
   const DONE_ST = ["Đã Thanh Toán","Hoàn Thành","Đã Giao","Da Thanh Toan","Hoan Thanh","Da Giao"];
-  const repairRev = repairOrders.filter(o=>DONE_ST.includes(o.status)&&inP(o.paid_at||o.done_date)).reduce((s,o)=>s+(o.final_cost||0),0);
+  const repairRev = repairOrders.filter(o=>DONE_ST.includes(o.status)&&inP(o.paid_at||o.done_date)).reduce((s,o)=>s+(o.final_cost||o.estimated_cost||0),0);
   const saleRev   = saleOrders.filter(o=>o.status==="completed"&&inP(o.created_date||o.created)).reduce((s,o)=>s+(o.total||0),0);
   const totalRev  = repairRev + saleRev;
 
