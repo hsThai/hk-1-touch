@@ -1,6 +1,7 @@
 /* RevenueReportPage.jsx — Báo cáo doanh thu */
 import React, { useState, useEffect, useMemo } from "react";
 import { RepairOrder, SaleOrder, SaleOrderItem, Expense, StockImport, StockExportRequest, CashJournal } from "./pb.jsx";
+import * as XLSX from "xlsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 function fmtDate(dateStr) {
@@ -569,39 +570,126 @@ export default function RevenueReportPage({ user }) {
   const totalExp  = periodExp.reduce((s,e)    => s+(e.amount||0), 0);
   const profit    = totalRev - totalExp;
 
-  function exportCSV() {
-    const BOM = "\uFEFF";
-    const rows = [
-      ["BÁO CÁO DOANH THU — " + period.toUpperCase(),"","",""],
-      ["Doanh thu sửa",repairRev,"Doanh thu bán",saleRev,"Tổng",totalRev],
-      ["Chi phí",totalExp,"Lợi nhuận",totalRev-totalExp],
-      [],
-      ["CHI TIẾT ĐƠN SỬA"],
-      ["Mã phiếu","Khách hàng","SĐT","Thiết bị","KTV","Giá cuối","Đã cọc","Còn lại","Ngày xong"],
-      ...periodRepair.map(o=>[
-        o.order_code||o.id, o.customer_name||"", o.customer_phone||"",
-        o.device_model||"", o.assigned_to_name||"",
-        o.final_cost||0, o.deposit||0, Math.max(0,(o.final_cost||0)-(o.deposit||0)),
-        o.done_date ? new Date(o.done_date).toLocaleDateString("vi-VN") : ""
-      ]),
-      [],
-      ["CHI TIẾT BÁN LẺ"],
-      ["Mã đơn","Khách","Tên hàng","SL bán","Tổng","Hình thức","Ngày"],
-      ...periodSale.map(o=>[
-        o.order_code||o.id, o.customer_name||"Khách lẻ", getItemNames(o), getQty(o), o.total||0, o.payment_method==="cash"?"TM":o.payment_method?"CK":"",
-        new Date(o.created_date||o.created).toLocaleDateString("vi-VN")
-      ]),
-      [],
-      ["CHI PHÍ"],
-      ["Loại","Mô tả","Số tiền","Ngày"],
-      ...periodExp.map(e=>[
-        e.category||"Khác", e.description||"", e.amount||0,
-        e.expense_date ? new Date(e.expense_date).toLocaleDateString("vi-VN") : ""
-      ]),
-    ];
-    const blob = new Blob([BOM+rows.map(r=>r.join(",")).join("\n")],{type:"text/csv;charset=utf-8"});
-    const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
-    a.download="BaoCao_"+period+"_"+new Date().toISOString().slice(0,10)+".csv"; a.click();
+  // Xuất file Excel THEO TAB ĐANG MỞ (trước đây luôn xuất gộp 3 mục trong 1 CSV khó đọc)
+  const TAB_FILE = {
+    repair:"don-sua", sale:"ban-le", expense:"chi-phi", by_ktv:"ktv",
+    services:"dich-vu", top_products:"sp-ban-chay", pl:"lai-lo",
+    cash_journal:"so-quy", stock_report:"linh-kien",
+  };
+  const dVN = v => v ? new Date(v).toLocaleDateString("vi-VN") : "";
+  const pmVN = v => v==="cash" ? "TM" : v ? "CK" : "";
+
+  async function exportExcel() {
+    let rows = [], sheetName = "Báo cáo", sumRow = null;
+    if (detailTab === "repair") {
+      sheetName = "Đơn sửa";
+      rows = [["Mã phiếu","Khách hàng","SĐT","Thiết bị","KTV","Giá cuối","Đã cọc","Còn lại","Ngày xong"],
+        ...periodRepair.map(o=>[o.order_code||o.id, o.customer_name||"", o.customer_phone||"",
+          o.device_model||"", o.assigned_to_name||"", o.final_cost||0, o.deposit||0,
+          Math.max(0,(o.final_cost||0)-(o.deposit||0)), dVN(o.done_date)])];
+      sumRow = [["Tổng doanh thu sửa chữa", repairRev]];
+    } else if (detailTab === "sale") {
+      sheetName = "Bán lẻ";
+      rows = [["Mã đơn","Khách","Tên hàng","SL bán","Tổng tiền","H.thức","Ngày bán"],
+        ...periodSale.map(o=>[o.order_code||o.id, o.customer_name||"Khách lẻ", getItemNames(o),
+          getQty(o), o.total||0, pmVN(o.payment_method), dVN(o.created_date||o.created)])];
+      sumRow = [["Tổng doanh thu bán lẻ", saleRev]];
+    } else if (detailTab === "expense") {
+      sheetName = "Chi phí";
+      rows = [["Loại","Mô tả","Số tiền","Ngày","Người tạo"],
+        ...periodExp.map(e=>[e.category||"Khác", e.description||"", e.amount||0, dVN(e.expense_date), e.created_by_name||""])];
+      sumRow = [["Tổng chi phí", totalExp]];
+    } else if (detailTab === "by_ktv") {
+      sheetName = "Doanh thu KTV";
+      const byKtv = {};
+      periodRepair.forEach(o=>{
+        const name = o.assigned_to_name||"Chưa phân công";
+        if (!byKtv[name]) byKtv[name] = { count:0, revenue:0 };
+        byKtv[name].count++; byKtv[name].revenue += (o.final_cost||0);
+      });
+      const list = Object.values(byKtv).sort((a,b)=>b.revenue-a.revenue);
+      rows = [["KTV","Số đơn","Doanh thu"], ...list.map(k=>[k.name, k.count, k.revenue])];
+    } else if (detailTab === "services") {
+      sheetName = "Dịch vụ";
+      const svcMap = {};
+      periodRepair.forEach(o=>{
+        const issues = (o.issue_description||"").split(/[,.\n;、]+/).map(x=>x.trim()).filter(x=>x.length>2&&x.length<60);
+        issues.forEach(svc=>{
+          if (!svcMap[svc]) svcMap[svc] = { count:0, revenue:0 };
+          svcMap[svc].count++; svcMap[svc].revenue += (o.final_cost||0)/Math.max(issues.length,1);
+        });
+      });
+      const list = Object.values(svcMap).sort((a,b)=>b.count-a.count).slice(0,20);
+      rows = [["Dịch vụ","Lần","Doanh thu phân bổ"], ...list.map(k=>[k.name, k.count, Math.round(k.revenue)])];
+    } else if (detailTab === "top_products") {
+      sheetName = "SP bán chạy";
+      const completedSaleIds = new Set((saleOrders||[]).filter(o=>o.status==="completed").map(o=>o.id));
+      const pm = {};
+      (saleOrderItems||[]).forEach(it=>{
+        if (!completedSaleIds.has(it.sale_order_id)) return;
+        const name = it.part_name || it.sku || "Không rõ";
+        if (!pm[name]) pm[name] = { countSale:0, revenue:0 };
+        pm[name].countSale += Number(it.qty)||1;
+        pm[name].revenue += Number(it.total_price || (it.unit_price*it.qty) || 0);
+      });
+      (periodRepair||[]).forEach(o=>{
+        const name = o.device_model || o.device_name || "Không rõ";
+        if (!pm[name]) pm[name] = { countSale:0, revenue:0 };
+        pm[name].countSale += 1;
+        pm[name].revenue += (o.final_cost||0);
+      });
+      const list = Object.values(pm).sort((a,b)=>b.revenue-a.revenue).slice(0,50);
+      rows = [["Tên sản phẩm / dịch vụ","SL bán","Doanh thu"], ...list.map(x=>[x.name, x.countSale, x.revenue])];
+    } else if (detailTab === "pl") {
+      sheetName = "Lãi lỗ";
+      const days = {};
+      periodRepair.forEach(o=>{ const d=dVN(o.done_date||o.created_date||o.created); days[d]=days[d]||{r:0,s:0,e:0}; days[d].r+=(o.final_cost||0); });
+      periodSale.forEach(o=>{ const d=dVN(o.created_date||o.created); days[d]=days[d]||{r:0,s:0,e:0}; days[d].s+=(o.total||0); });
+      periodExp.forEach(e=>{ const d=dVN(e.expense_date||e.created_date||e.created); days[d]=days[d]||{r:0,s:0,e:0}; days[d].e+=(e.amount||0); });
+      const list = Object.entries(days).sort((a,b)=>a[0]<b[0]?-1:1)
+        .map(([d,v])=>[d, v.r, v.s, v.r+v.s, v.e, v.r+v.s-v.e]);
+      rows = [["Ngày","DT sửa chữa","DT bán lẻ","Tổng DT","Chi phí","Lợi nhuận"], ...list];
+      sumRow = [["Tổng kỳ", repairRev, saleRev, totalRev, totalExp, profit]];
+    } else if (detailTab === "cash_journal") {
+      sheetName = "Sổ quỹ";
+      const journals = await CashJournal.list({ limit:500, sort:"-journal_date" }).catch(()=>[]);
+      const inJ = journals.filter(j=>inPeriod(j.journal_date, period, customFrom, customTo));
+      rows = [["Ngày","Loại","Chứng từ","Diễn giải","H.thức","Số tiền"],
+        ...inJ.map(j=>[j.journal_date||"", j.entry_type==="receipt"?"Thu":"Chi",
+          j.ref_code||"", j.description||"", pmVN(j.payment_method), j.amount||0])];
+      const tin = inJ.filter(j=>j.entry_type==="receipt").reduce((t,j)=>t+(j.amount||0),0);
+      const tout = inJ.filter(j=>j.entry_type!=="receipt").reduce((t,j)=>t+(j.amount||0),0);
+      sumRow = [["Tổng thu", tin],["Tổng chi", tout],["Chênh lệch", tin-tout]];
+    } else if (detailTab === "stock_report") {
+      sheetName = "Linh kiện";
+      const [imp, exp] = await Promise.all([
+        StockImport.list({ limit:200, sort:"-id" }).catch(()=>[]),
+        StockExportRequest.list({ limit:200, sort:"-id" }).catch(()=>[]),
+      ]);
+      const start = startOf(period, customFrom);
+      const fi = (imp||[]).filter(i=>new Date(i.created_date||i.created)>=start);
+      const fe = (exp||[]).filter(e=>new Date(e.created_date||e.created)>=start);
+      rows = [["Loại","Mã phiếu","Đơn vị / KTV","Mã đơn","Tổng giá trị","Trạng thái","Ngày"],
+        ...fi.map(i=>["Nhập kho", i.import_code||"", i.supplier_name||"", "", i.total_value||0, i.status||"", dVN(i.created_date||i.created)]),
+        ...fe.map(e=>["Xuất kho", e.request_code||"", e.requested_by_name||"", e.order_code||"", e.total_value||0, e.status||"", dVN(e.created_date||e.created)])];
+    }
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const widths = (rows[0]||[]).map((_,ci)=>{
+      let w = 12;
+      rows.forEach(r=>{ const v = String(r[ci]??""); if (v.length > w) w = Math.min(v.length, 60); });
+      return { wch: w + 2 };
+    });
+    ws["!cols"] = widths;
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    if (sumRow) {
+      let r = rows.length + 2;
+      const wsSum = XLSX.utils.aoa_to_sheet(sumRow);
+      XLSX.utils.book_append_sheet(wb, wsSum, "Tổng hợp");
+    }
+    const file = "BaoCao_" + (TAB_FILE[detailTab]||detailTab) + "_" + period + "_" + new Date().toISOString().slice(0,10) + ".xlsx";
+    XLSX.writeFile(wb, file);
   }
 
   const SUMMARY_CARDS = [
@@ -685,9 +773,9 @@ export default function RevenueReportPage({ user }) {
         </div>
         {/* Export button */}
         <div style={{ padding:"10px 16px", borderBottom:"1px solid #f3f4f6", display:"flex", justifyContent:"flex-end" }}>
-          <button onClick={exportCSV}
+          <button onClick={exportExcel}
             style={{ padding:"8px 16px", background:"#4f46e5", color:"#fff", border:"none", borderRadius:10, fontWeight:700, fontSize:12, cursor:"pointer" }}>
-            📥 Xuất CSV
+            📥 Xuất Excel
           </button>
         </div>
 
