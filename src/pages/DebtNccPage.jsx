@@ -186,7 +186,9 @@ export default function DebtNccPage({ user }) {
   const supplierList = Object.values(bySupplier).sort((a,b) => b.totalDebt - a.totalDebt);
   const supplierListWithDebt = supplierList.filter(s => s.totalDebt > 0);
 
-  const totalDebtEver = vouchers.filter(v=>v.status!=="cancelled").reduce((s,v) => s + Number(v.total_amount||0), 0);
+  // "Lũy kế" = nợ CÒN phải trả (phiếu đã trả xong không tính) — khớp với danh sách NCC còn nợ
+const totalDebtEver = remaining;
+const totalPaidEver = vouchers.filter(v=>v.status!=="cancelled").reduce((s,v) => s + Number(v.paid_amount||0), 0);
   const remaining     = vouchers.filter(v=>v.status!=="cancelled").reduce((s,v) => s + Number(v.remaining||0), 0);
   const paidMonth = (() => {
     const now = new Date();
@@ -213,7 +215,7 @@ export default function DebtNccPage({ user }) {
       <div style={{ display:"flex", gap:12, flexWrap:"wrap", marginBottom:20 }}>
         <StatCard icon="🏦" label="Tổng nợ NCC (lũy kế)" value={fmt(totalDebtEver)} color="#4f46e5" bg="#eef2ff" />
         <StatCard icon="✅" label="Đã trả tháng này"     value={fmt(paidMonth)}    color="#059669" bg="#f0fdf4" />
-        <StatCard icon="⏳" label="Còn phải trả"         value={fmt(remaining)}    color="#d97706" bg="#fffbeb" />
+        <StatCard icon="⏳" label="Đã trả (lũy kế)"         value={fmt(totalPaidEver)}    color="#059669" bg="#f0fdf4" />
       </div>
 
       {/* Tabs */}
