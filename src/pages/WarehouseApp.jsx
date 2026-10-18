@@ -714,11 +714,7 @@ function WarehouseImport({ user }) {
       Warehouse.list({ sort:"name", limit:50 }).then(r => {
         const active = (r||[]).filter(w => w.is_active !== false);
         setWarehouses(active);
-        // Auto-chọn kho đầu tiên nếu chưa chọn
-        if (!warehouseId && active.length > 0) {
-          setWarehouseId(active[0].id);
-          setWarehouseName(active[0].name);
-        }
+        // Không auto-chọn — người dùng phải chủ động chọn kho (bắt buộc)
       }).catch(()=>{});
       // Load PO đang chờ nhận hàng
       PurchaseOrder.list({ filter:'(status = "confirmed" || status = "partial")', sort:"-id", limit:50 })
@@ -1548,21 +1544,26 @@ function WarehouseImport({ user }) {
                     ⚠️ Chưa có kho nào. Vào <strong>Thiết lập → Kho hàng</strong> để thêm kho.
                   </div>
                 ) : (
-                  <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                  <select
+                    value={warehouseId}
+                    onChange={e=>{
+                      const w = warehouses.find(x=>x.id===e.target.value);
+                      setWarehouseId(w ? w.id : "");
+                      setWarehouseName(w ? w.name : "");
+                    }}
+                    style={{
+                      width:"100%", padding:"11px 12px", borderRadius:10, fontSize:14, fontWeight:600,
+                      border: warehouseId ? "1.5px solid #e5e7eb" : "1.5px solid #f59e0b",
+                      background:"#fff", color: warehouseId ? "#1f2937" : "#9ca3af",
+                      cursor:"pointer", appearance:"none",
+                      backgroundImage:"url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='%236b7280'><path d='M7 10l5 5 5-5z'/></svg>\")",
+                      backgroundRepeat:"no-repeat", backgroundPosition:"right 10px center",
+                    }}>
+                    <option value="" disabled>— Chọn kho nhập hàng —</option>
                     {warehouses.map(w => (
-                      <button key={w.id}
-                        onClick={()=>{ setWarehouseId(w.id); setWarehouseName(w.name); }}
-                        style={{
-                          padding:"8px 16px", borderRadius:10, fontSize:13, fontWeight:700, cursor:"pointer",
-                          border: warehouseId===w.id ? "2px solid #4f46e5" : "1.5px solid #e5e7eb",
-                          background: warehouseId===w.id ? "#ede9fe" : "#f9fafb",
-                          color: warehouseId===w.id ? "#4f46e5" : "#374151",
-                          transition:"all .15s",
-                        }}>
-                        🏭 {w.name}
-                      </button>
+                      <option key={w.id} value={w.id}>🏭 {w.name}</option>
                     ))}
-                  </div>
+                  </select>
                 )}
               </div>
 
