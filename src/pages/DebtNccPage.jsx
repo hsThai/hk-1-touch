@@ -154,6 +154,7 @@ export default function DebtNccPage({ user }) {
   const [expanded,  setExpanded]  = useState(null); // party_name đang mở rộng danh sách phiếu
   const [toast,     setToast]     = useState("");
   const [activeTab, setActiveTab] = useState("list");
+  const { can } = usePermission();
 
   const showToast = (msg) => { setToast(msg); setTimeout(()=>setToast(""), 3000); };
 
