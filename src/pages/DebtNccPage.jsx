@@ -61,7 +61,8 @@ async function recordPayment(voucher, amount, method, note, user) {
 }
 
 function PaymentModal({ voucher, onClose, onSaved, user }) {
-  const [amount, setAmount] = useState(String(voucher.remaining || 0));
+  const vRem = voucher._rem != null ? voucher._rem : Math.max(0, Number(voucher.remaining||0));
+    const [amount, setAmount] = useState(String(vRem));
   const [method, setMethod] = useState("cash");
   const [note,   setNote]   = useState("");
   const [saving, setSaving] = useState(false);
@@ -70,7 +71,7 @@ function PaymentModal({ voucher, onClose, onSaved, user }) {
   async function handlePay() {
     const amt = Number(amount);
     if (!amt || amt <= 0) { setErr("Nhập số tiền hợp lệ"); return; }
-    if (amt > (voucher.remaining || 0)) { setErr("Số tiền vượt quá số còn lại của phiếu này"); return; }
+    if (amt > vRem) { setErr("Số tiền vượt quá số còn lại của phiếu này"); return; }
     setSaving(true);
     try {
       await recordPayment(voucher, amt, method, note, user);
@@ -97,7 +98,7 @@ function PaymentModal({ voucher, onClose, onSaved, user }) {
             style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:"1.5px solid #e5e7eb",
               fontSize:15, fontWeight:700, boxSizing:"border-box" }} />
           <div style={{ fontSize:12, color:"#9ca3af", marginTop:3 }}>
-            Còn nợ phiếu này: {fmt(voucher.remaining)}
+            Còn nợ phiếu này: {fmt(vRem)}
           </div>
         </div>
 
@@ -149,6 +150,7 @@ export default function DebtNccPage({ user }) {
   }, []);
   const [vouchers,  setVouchers]  = useState([]);
   const [payments,  setPayments]  = useState([]);
+  const [paidByVoucher, setPaidByVoucher] = useState({});
   const [loading,   setLoading]   = useState(true);
   const [payTarget, setPayTarget] = useState(null);
   const [expanded,  setExpanded]  = useState(null); // party_name đang mở rộng danh sách phiếu
@@ -168,11 +170,19 @@ export default function DebtNccPage({ user }) {
       const ids = new Set((vs||[]).map(v=>v.id));
       const pays = await DebtPayment.list({ sort:"-id", limit:500 }).catch(()=>[]);
       setPayments((pays||[]).filter(p => ids.has(p.voucher_id)));
+      // Nghiệp vụ kế toán: sổ chi tiết (chứng từ thanh toán) là nguồn sự thật.
+      // Còn nợ được TÍNH LẠI từ chứng từ, không tin field remaining/paid_amount trên phiếu (dễ bị sửa tay lệch sổ).
+      const byV = {};
+      (pays||[]).forEach(px => { byV[px.voucher_id] = (byV[px.voucher_id]||0) + (Number(px.amount)||0); });
+      setPaidByVoucher(byV);
     } catch(e) { console.error(e); }
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Số còn nợ của 1 phiếu = tổng nợ − tổng chứng từ đã trả (nguồn: sổ thanh toán)
+  const rem = v => Math.max(0, Number(v.total_amount||0) - (paidByVoucher[v.id]||0));
 
   // Nhóm theo NCC (party_name) — chỉ tính các phiếu chưa hủy
   const bySupplier = {};
@@ -180,15 +190,16 @@ export default function DebtNccPage({ user }) {
     const key = v.party_name || "—";
     if (!bySupplier[key]) bySupplier[key] = { name:key, vouchers:[], totalDebt:0, totalEver:0 };
     bySupplier[key].vouchers.push(v);
-    bySupplier[key].totalDebt += Number(v.remaining || 0);
+    bySupplier[key].totalDebt += rem(v);
     bySupplier[key].totalEver += Number(v.total_amount || 0);
   });
   const supplierList = Object.values(bySupplier).sort((a,b) => b.totalDebt - a.totalDebt);
   const supplierListWithDebt = supplierList.filter(s => s.totalDebt > 0);
 
   // "Lũy kế" = nợ CÒN phải trả (phiếu đã trả xong không tính) — khớp với danh sách NCC còn nợ
-const totalDebtEver = remaining;
-const totalPaidEver = vouchers.filter(v=>v.status!=="cancelled").reduce((s,v) => s + Number(v.paid_amount||0), 0);
+const totalDebtEver = vouchers.filter(v=>v.status!=="cancelled").reduce((s,v) => s + rem(v), 0);
+// Đã trả (lũy kế) theo SỔ CHỨNG TỪ thanh toán — không theo field trên phiếu
+const totalPaidEver = Object.values(paidByVoucher).reduce((s,x) => s + Number(x||0), 0);
   const remaining     = vouchers.filter(v=>v.status!=="cancelled").reduce((s,v) => s + Number(v.remaining||0), 0);
   const paidMonth = (() => {
     const now = new Date();
@@ -243,7 +254,7 @@ const totalPaidEver = vouchers.filter(v=>v.status!=="cancelled").reduce((s,v) =>
         ) : (
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
             {supplierListWithDebt.map(s => {
-              const openVouchers = s.vouchers.filter(v => (v.remaining||0) > 0).sort((a,b)=>(a.id>b.id?1:-1));
+              const openVouchers = s.vouchers.filter(v => rem(v) > 0).sort((a,b)=>(a.id>b.id?1:-1));
               const isOpen = expanded === s.name;
               return (
                 <div key={s.name} style={{ background:"#fff", border:"1.5px solid #e5e7eb", borderRadius:14, overflow:"hidden" }}>
@@ -273,9 +284,9 @@ const totalPaidEver = vouchers.filter(v=>v.status!=="cancelled").reduce((s,v) =>
                               </div>
                             </div>
                             <div style={{ textAlign:"right", display:"flex", alignItems:"center", gap:8 }}>
-                              <div style={{ fontSize:14, fontWeight:800, color:"#dc2626" }}>{fmt(v.remaining)}</div>
+                              <div style={{ fontSize:14, fontWeight:800, color:"#dc2626" }}>{fmt(rem(v))}</div>
                               {canManage && (
-                                <button onClick={(e) => { e.stopPropagation(); setPayTarget(v); }}
+                                <button onClick={(e) => { e.stopPropagation(); setPayTarget({ ...v, _rem: rem(v) }); }}
                                   style={{ padding:"5px 12px", borderRadius:8, border:"none",
                                     background:"linear-gradient(135deg,#4f46e5,#7c3aed)", color:"#fff",
                                     fontSize:12, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>
