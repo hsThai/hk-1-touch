@@ -573,16 +573,89 @@ function MainAppContent({ onUserChange }) {
     if (found) setOpenAccordion(found.key);
   }, [page]);
 
-  // ── Global: chặn chọn chữ toàn app ──────────────────────
+  // ── Global: chọn chữ & copy ──────────────────────────────
+  // PC (≥1024px): KHÔNG chặn chọn chữ — copy mọi nội dung như bình thường.
+  // Mobile: vẫn chặn chọn chữ (tránh menu prompt khi bấm giữ), NHƯNG:
+  //   - Bấm giữ (long-press) vào MÃ ĐƠN → copy ngay vào clipboard kèm thông báo.
+  //   - Trên PC, nháy đôi vào mã đơn cũng copy nhanh.
   useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
     const style = document.createElement("style");
     style.id = "hkapp-no-select";
-    style.textContent = `
+    const mobileCSS = `
       * { -webkit-user-select: none !important; user-select: none !important; -webkit-touch-callout: none !important; }
       input, textarea, [contenteditable] { -webkit-user-select: text !important; user-select: text !important; }
     `;
-    document.head.appendChild(style);
-    return () => { document.getElementById("hkapp-no-select")?.remove(); };
+    function apply() {
+      if (mq.matches) document.getElementById("hkapp-no-select")?.remove();
+      else if (!document.getElementById("hkapp-no-select")) {
+        style.textContent = mobileCSS;
+        document.head.appendChild(style);
+      }
+    }
+    apply();
+    mq.addEventListener("change", apply);
+
+    // Toast mini "Đã copy mã"
+    let toastEl = null, toastTimer = null;
+    function showCopyToast(text) {
+      if (!toastEl) {
+        toastEl = document.createElement("div");
+        toastEl.style.cssText = "position:fixed;bottom:80px;left:50%;transform:translateX(-50%);"
+          + "background:#1e1b4b;color:#fff;padding:8px 16px;border-radius:99px;font-size:13px;"
+          + "font-weight:700;z-index:99999;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.25);"
+          + "transition:opacity .25s;";
+        document.body.appendChild(toastEl);
+      }
+      toastEl.textContent = "📋 Đã copy " + text;
+      toastEl.style.opacity = "1";
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { toastEl.style.opacity = "0"; }, 1500);
+    }
+
+    // Mã đơn: SC249621, BL-261008-2646, PN260809-9849, DT-…, KC-…, CN-…, PX-…, RMA…
+    const CODE_RE = /\b((?:SC|BL|PN|PX|KC|CN|DT|RMA)[A-Z0-9]*(?:-[A-Z0-9]+)*)\b/i;
+    function findCode(el) {
+      let node = el;
+      for (let i = 0; node && node !== document.body && i < 3; i++) {
+        const txt = (node.textContent || "").trim();
+        if (txt.length <= 40) {
+          const m = txt.match(CODE_RE);
+          if (m) return m[1].toUpperCase();
+        }
+        node = node.parentElement;
+      }
+      return null;
+    }
+    async function tryCopy(e) {
+      const code = findCode(e.target);
+      if (!code) return;
+      try { await navigator.clipboard.writeText(code); }
+      catch {
+        const ta = document.createElement("textarea");
+        ta.value = code;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand("copy"); } catch {}
+        ta.remove();
+      }
+      showCopyToast(code);
+    }
+    // Mobile: long-press mã đơn → copy (không mở menu prompt)
+    const onCtx = (e) => { if (!mq.matches && findCode(e.target)) tryCopy(e); };
+    // PC: nháy đôi mã đơn → copy nhanh
+    const onDbl  = (e) => { if (mq.matches && findCode(e.target)) tryCopy(e); };
+    document.addEventListener("contextmenu", onCtx);
+    document.addEventListener("dblclick", onDbl);
+
+    return () => {
+      mq.removeEventListener("change", apply);
+      document.removeEventListener("contextmenu", onCtx);
+      document.removeEventListener("dblclick", onDbl);
+      document.getElementById("hkapp-no-select")?.remove();
+      clearTimeout(toastTimer);
+      toastEl?.remove();
+    };
   }, []);
 
   // ── Chặn nút Back + Android gesture back ─────────────────
