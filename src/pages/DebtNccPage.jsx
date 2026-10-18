@@ -278,10 +278,9 @@ const totalPaidEver = Object.values(paidByVoucher).reduce((s,x) => s + Number(x|
                             gap:10, borderBottom:"1px solid #f9fafb" }}>
                             <div>
                               <div style={{ fontSize:13, fontWeight:700 }}>{v.voucher_code} {v.origin_code ? `· ${v.origin_code}` : ""}</div>
-                              <div style={{ fontSize:11, color:"#9ca3af" }}>
-                                Tổng {fmt(v.total_amount)} · Đã trả {fmt(v.paid_amount)} ·{" "}
-                                <span style={{ color:st.color, fontWeight:700 }}>{st.label}</span>
-                              </div>
+                              <div style={{ fontSize:11, color:"#9ca3af" }}>Tổng {fmt(v.total_amount)}</div>
+                              <div style={{ fontSize:11, color:"#9ca3af" }}>Đã trả {fmt(Number(v.total_amount||0) - rem(v))}</div>
+                              <div style={{ fontSize:11, color:st.color, fontWeight:700 }}>{st.label}</div>
                             </div>
                             <div style={{ textAlign:"right", display:"flex", alignItems:"center", gap:8 }}>
                               <div style={{ fontSize:14, fontWeight:800, color:"#dc2626" }}>{fmt(rem(v))}</div>
