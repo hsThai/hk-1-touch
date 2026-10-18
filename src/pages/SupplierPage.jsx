@@ -22,7 +22,7 @@ function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 const EMPTY = { name:"", code:"", supplier_type:"goods", phone:"", email:"", address:"", contact_name:"", bank_account:"", bank_name:"", total_debt:0, note:"", is_active:true };
 
 // ── Modal form ────────────────────────────────────────────
-function SupplierModal({ init, onSave, onClose }) {
+function SupplierModal({ init, onSave, onClose, user }) {
   const [isPC, setIsPC] = React.useState(() => window.innerWidth >= 900);
   React.useEffect(() => {
     const fn = () => setIsPC(window.innerWidth >= 900);
@@ -331,6 +331,7 @@ export default function SupplierPage({ user }) {
       {/* Modal */}
       {modal !== null && (
         <SupplierModal
+          user={user}
           init={modal || null}
           onSave={() => { setModal(null); load(); showToast("✅ Đã lưu nhà cung cấp"); }}
           onClose={() => setModal(null)}
