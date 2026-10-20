@@ -82,6 +82,7 @@ import LoginPage, { showSystemNotif, requestNotifPermission } from "./LoginV2";
 import { PermissionProvider, usePermission } from "./PermissionContext.jsx";
 import ChangePassword from "./ChangePassword";
 import { renderReportPages, renderPurchaseNccPages, renderSalesPages, renderSetupPages, renderMobilePages, PAGE_PERMS } from "./MainAppWidgets.jsx";
+import * as XLSX from "xlsx";
 import {
   WarehouseOrders,
   TechnicianHome,
@@ -1953,9 +1954,44 @@ function MainAppContent({ onUserChange }) {
   // ── Tasks list ───────────────────────────────────────────
   function TaskList() {
     const list = user.role==="technician" ? filtered : filtered;
+    function exportRepairExcel() {
+      const data = list.map(o => {
+        const ktv = users.find(u=>u.id===o.assigned_to);
+        return {
+          "Mã đơn": o.order_code || o.id || "",
+          "Trạng thái": o.status || "",
+          "Khách hàng": o.customer_name || "",
+          "SĐT": o.customer_phone || "",
+          "Máy": o.device_model || o.device_name || "",
+          "Kỹ thuật viên": ktv?.name || "",
+          "Báo giá": o.estimated_cost || 0,
+          "Tiền cọc": o.deposit || 0,
+          "Chốt giá": o.final_cost || 0,
+          "Ngày nhận": String(o.received_date || "").slice(0,10),
+          "Ngày xong": String(o.done_date || "").slice(0,10),
+        };
+      });
+      data.push({ "Mã đơn":"", "Trạng thái":"TỔNG CỘNG", "Khách hàng":"", "SĐT":"", "Máy":"",
+        "Kỹ thuật viên":"", "Báo giá": list.reduce((s3,o)=>s3+(o.estimated_cost||0),0),
+        "Tiền cọc": list.reduce((s3,o)=>s3+(o.deposit||0),0),
+        "Chốt giá": list.reduce((s3,o)=>s3+(o.final_cost||0),0), "Ngày nhận":"", "Ngày xong":"" });
+      const ws = XLSX.utils.json_to_sheet(data);
+      ws["!cols"] = [{ wch:13 },{ wch:15 },{ wch:22 },{ wch:13 },{ wch:22 },{ wch:16 },{ wch:12 },{ wch:12 },{ wch:12 },{ wch:11 },{ wch:11 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Đơn sửa chữa");
+      XLSX.writeFile(wb, `don-sua-chua_${new Date().toISOString().slice(0,10)}.xlsx`);
+    }
     const filterLabel = dashboardFilter==="active"?"Đang xử lý":dashboardFilter==="done"?"Hoàn thành":dashboardFilter==="needs_reassign"?"Cần xử lý":null;
     return (
       <div style={{ padding:"0 16px 80px" }}>
+        <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:8 }}>
+          <button onClick={exportRepairExcel} style={{ height:34, padding:"0 14px", borderRadius:10,
+            border:"none", background:"#059669", color:"#fff", cursor:"pointer",
+            display:"flex", alignItems:"center", gap:6, fontSize:12.5, fontWeight:700 }}>
+            <span className="material-icons" style={{ fontSize:15, fontFamily:"Material Icons" }}>download</span>
+            Xuất Excel ({list.length} đơn)
+          </button>
+        </div>
         {filterLabel && (
           <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10, padding:"2px 0" }}>
             <div style={{ background:"#eef2ff", border:"1.5px solid #c7d2fe", borderRadius:99, padding:"5px 14px", fontSize:12, fontWeight:700, color:"#4f46e5", display:"flex", alignItems:"center", gap:6 }}>

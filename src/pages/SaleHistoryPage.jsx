@@ -3,6 +3,7 @@ import React, { useState, useEffect, lazy, Suspense } from "react";
 import { SaleOrder, SaleOrderItem, DebtPayment, DebtVoucher, logAction, sortNewestFirst } from "./pb.jsx";
 import { usePermission } from "./PermissionContext.jsx";
 import { printSaleReceiptA5, previewSaleReceipt } from "../utils/printClient.js";
+import * as XLSX from "xlsx";
 
 const ReturnFormLazy = lazy(() =>
   import("./ReturnOrderPage.jsx").then(m => ({ default: m.ReturnForm }))
@@ -406,6 +407,28 @@ export default function SaleHistoryPage({ user }) {
 
   const totalRevenue = filtered.reduce((s,o) => s+(o.total||0), 0);
 
+  const PM_LABEL = { cash:"Tiền mặt", transfer:"Chuyển khoản", card:"Thẻ", combo:"Kết hợp", credit:"Ghi nợ" };
+  const ST_LABEL = { completed:"Hoàn thành", pending_payment:"Chờ thu tiền", draft:"Báo giá / Tạm", cancelled:"Đã hủy", credit:"Ghi nợ" };
+  function exportExcel() {
+    const data = filtered.map(o => ({
+      "Mã đơn": o.order_code || "",
+      "Ngày": String(o.created_date || o.created || "").slice(0,16).replace("T"," "),
+      "Khách hàng": o.customer_name || "",
+      "SĐT": o.customer_phone || "",
+      "Thu ngân": o.cashier_name || "",
+      "HT thanh toán": PM_LABEL[o.payment_method] || o.payment_method || "",
+      "Trạng thái": ST_LABEL[o.status] || o.status || "",
+      "Tổng tiền": o.total || 0,
+    }));
+    data.push({ "Mã đơn":"", "Ngày":"", "Khách hàng":"", "SĐT":"", "Thu ngân":"",
+      "HT thanh toán":"TỔNG CỘNG", "Trạng thái":"", "Tổng tiền": totalRevenue });
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws["!cols"] = [{ wch:16 },{ wch:17 },{ wch:24 },{ wch:13 },{ wch:16 },{ wch:14 },{ wch:15 },{ wch:13 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Đơn bán hàng");
+    XLSX.writeFile(wb, `don-ban-hang_${new Date().toISOString().slice(0,10)}.xlsx`);
+  }
+
   /* ─── Card mỗi đơn ─── */
   function OrderCard({ o }) {
     const sb = statusBadge(o.status);
@@ -529,7 +552,13 @@ export default function SaleHistoryPage({ user }) {
           </div>
         </div>
         {/* Hàng 4: Nút reload */}
-        <div style={{ display:"flex", justifyContent:"flex-end" }}>
+        <div style={{ display:"flex", justifyContent:"flex-end", gap:8 }}>
+          <button onClick={exportExcel} style={{ height:36, padding:"0 16px", borderRadius:10,
+            border:"none", background:"#059669", color:"#fff", cursor:"pointer",
+            display:"flex", alignItems:"center", gap:6, fontSize:13, fontWeight:700 }}>
+            <span className="material-icons" style={{ fontSize:16, fontFamily:"Material Icons" }}>download</span>
+            Xuất Excel ({filtered.length} đơn)
+          </button>
           <button onClick={load} style={{ height:36, padding:"0 16px", borderRadius:10,
             border:"1.5px solid #e5e7eb", background:"#fff", cursor:"pointer",
             display:"flex", alignItems:"center", gap:6, fontSize:13, color:"#6b7280" }}>
