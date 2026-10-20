@@ -4,7 +4,7 @@
  * Cho phép ghi nhận và theo dõi linh kiện trả lại nhà cung cấp (DOA, lỗi, sai spec)
  */
 import React, { useState, useEffect } from "react";
-import { SparePart, StockLedger, Supplier, logAction } from "./pb.jsx";
+import { SparePart, StockLedger, Supplier, StockImport, StockImportItem, logAction } from "./pb.jsx";
 import { usePermission } from "./PermissionContext.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
@@ -43,6 +43,51 @@ function CreateRMAModal({ user, suppliers, spareParts, onClose, onCreated }) {
   const [saving, setSaving] = useState(false);
   const [err,    setErr]    = useState("");
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const [importsBySupplier, setImportsBySupplier] = useState(null); // {supplier_name: Set(import_id)}
+  const [importItems, setImportItems] = useState(null);             // toan bo item da nhap
+
+  // Load 1 lan toan bo lich su nhap hang de loc "hang da nhap tu NCC nay"
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const [imps, its] = await Promise.all([
+          StockImport.list({ sort:"-id", limit:500 }).catch(()=>[]),
+          StockImportItem.list({ sort:"-id", limit:1000 }).catch(()=>[]),
+        ]);
+        if (!alive) return;
+        const bySup = {};
+        (imps||[]).forEach(im => {
+          const nm = (im.supplier_name||"").trim();
+          if (!nm) return;
+          if (!bySup[nm]) bySup[nm] = new Set();
+          bySup[nm].add(im.id);
+        });
+        setImportsBySupplier(bySup);
+        setImportItems(its||[]);
+      } catch {}
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  // Loc linh kien theo NCC da chon: chi giu hang tung nhap tu NCC do
+  const supplierParts = (() => {
+    const sup = suppliers.find(s => s.id === form.supplier_id);
+    if (!sup || !importsBySupplier || !importItems) return null; // chua loc duoc
+    const impIds = importsBySupplier[(sup.name || sup.full_name || "").trim()];
+    if (!impIds || impIds.size === 0) return []; // NCC chua tung nhap hang
+    const imported = importItems.filter(it => impIds.has(it.import_id));
+    const skus = new Set(); const names = new Set();
+    imported.forEach(it => {
+      if (it.sku) skus.add(String(it.sku).trim().toLowerCase());
+      if (it.name) names.add(String(it.name).trim().toLowerCase());
+    });
+    const matched = spareParts.filter(p =>
+      (p.sku && skus.has(String(p.sku).trim().toLowerCase())) ||
+      (p.name && names.has(String(p.name).trim().toLowerCase()))
+    );
+    return matched;
+  })();
 
   async function handleSave() {
     if (!form.supplier_id)          { setErr("Chọn nhà cung cấp"); return; }
@@ -106,16 +151,40 @@ function CreateRMAModal({ user, suppliers, spareParts, onClose, onCreated }) {
 
         {/* NCC */}
         <label style={LBL}>Nhà cung cấp *</label>
-        <select value={form.supplier_id} onChange={e => set("supplier_id", e.target.value)} style={INP}>
+        <select value={form.supplier_id} onChange={e => {
+          const prev = form.part_id;
+          set("supplier_id", e.target.value);
+          // nếu linh kiện đã chọn không thuộc NCC mới → bỏ chọn
+          setTimeout(() => {
+            setForm(f => {
+              const sup = suppliers.find(s => s.id === f.supplier_id);
+              if (!prev || !sup || !importsBySupplier || !importItems) return f;
+              const impIds = importsBySupplier[(sup.name || sup.full_name || "").trim()];
+              if (!impIds || impIds.size === 0) return f; // NCC chua co lich su → giu nguyen danh sach day du
+              const imported = importItems.filter(it => impIds.has(it.import_id));
+              const skus = new Set(imported.map(it => String(it.sku||"").trim().toLowerCase()).filter(Boolean));
+              const names = new Set(imported.map(it => String(it.name||"").trim().toLowerCase()).filter(Boolean));
+              const part = spareParts.find(p => p.id === f.part_id);
+              const ok = part && ((part.sku && skus.has(String(part.sku).trim().toLowerCase())) ||
+                                  (part.name && names.has(String(part.name).trim().toLowerCase())));
+              return ok ? f : { ...f, part_id: "" };
+            });
+          }, 0);
+        }} style={INP}>
           <option value="">— Chọn NCC —</option>
           {suppliers.map(s => <option key={s.id} value={s.id}>{s.name || s.full_name}</option>)}
         </select>
 
         {/* Linh kiện */}
         <label style={LBL}>Linh kiện *</label>
-        <select value={form.part_id} onChange={e => set("part_id", e.target.value)} style={INP}>
-          <option value="">— Chọn linh kiện —</option>
-          {spareParts.map(p => (
+        <select value={form.part_id} onChange={e => set("part_id", e.target.value)} style={INP}
+          disabled={supplierParts !== null && supplierParts.length === 0}>
+          <option value="">
+            {supplierParts === null ? "— Chọn linh kiện —"
+              : supplierParts.length === 0 ? "— NCC này chưa có phiếu nhập hàng —"
+              : `— Chọn linh kiện (đã nhập từ NCC: ${supplierParts.length}) —`}
+          </option>
+          {(supplierParts === null ? spareParts : supplierParts).map(p => (
             <option key={p.id} value={p.id}>{p.name} {p.sku ? `— ${p.sku}` : ""}</option>
           ))}
         </select>
