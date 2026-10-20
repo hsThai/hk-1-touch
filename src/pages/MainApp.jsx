@@ -83,6 +83,7 @@ import { PermissionProvider, usePermission } from "./PermissionContext.jsx";
 import ChangePassword from "./ChangePassword";
 import { renderReportPages, renderPurchaseNccPages, renderSalesPages, renderSetupPages, renderMobilePages, PAGE_PERMS } from "./MainAppWidgets.jsx";
 import * as XLSX from "xlsx";
+import ExportConfirmModal, { buildExcelResult } from "./ExportConfirm.jsx";
 import {
   WarehouseOrders,
   TechnicianHome,
@@ -1956,6 +1957,7 @@ function MainAppContent({ onUserChange }) {
     const [fltStatus, setFltStatus] = useState("");
     const [fltFrom, setFltFrom]     = useState("");
     const [fltTo, setFltTo]         = useState("");
+    const [exportDone, setExportDone] = useState(null);
     const baseList = user.role==="technician" ? filtered : filtered;
     const list = baseList.filter(o => {
       if (fltStatus && o.status !== fltStatus) return false;
@@ -1993,7 +1995,8 @@ function MainAppContent({ onUserChange }) {
       ws["!cols"] = [{ wch:13 },{ wch:15 },{ wch:22 },{ wch:13 },{ wch:22 },{ wch:16 },{ wch:12 },{ wch:12 },{ wch:12 },{ wch:11 },{ wch:11 }];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Đơn sửa chữa");
-      XLSX.writeFile(wb, `don-sua-chua_${new Date().toISOString().slice(0,10)}.xlsx`);
+      const fileName = `don-sua-chua_${new Date().toISOString().slice(0,10)}.xlsx`;
+      setExportDone(buildExcelResult(wb, fileName));
     }
     const filterLabel = dashboardFilter==="active"?"Đang xử lý":dashboardFilter==="done"?"Hoàn thành":dashboardFilter==="needs_reassign"?"Cần xử lý":null;
     return (
@@ -2110,6 +2113,8 @@ function MainAppContent({ onUserChange }) {
             </div>
           );
         })}
+        {exportDone && <ExportConfirmModal fileName={exportDone.fileName} url={exportDone.url}
+          onClose={() => { URL.revokeObjectURL(exportDone.url); setExportDone(null); }} />}
       </div>
     );
   }

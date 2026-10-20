@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Warehouse, StockLedger, StockMovement } from "./pb.jsx";
 import * as XLSX from "xlsx";
+import ExportConfirmModal, { buildExcelResult } from "./ExportConfirm.jsx";
 import { usePermission } from "./PermissionContext.jsx";
 
 function fmtMoney(n) {
@@ -19,6 +20,7 @@ function getMonthRange(ym) {
 export default function StockReportNXT({ user }) {
   const { can: canPerm } = usePermission();
   const canExportNXT = !!canPerm("stock_card","export");
+  const [exportDone, setExportDone] = useState(null);
   const [isPC, setIsPC] = useState(() => window.innerWidth >= 900);
   useEffect(() => {
     const fn = () => setIsPC(window.innerWidth >= 900);
@@ -151,7 +153,8 @@ export default function StockReportNXT({ user }) {
     ws["!cols"] = [{ wch:14 },{ wch:34 },{ wch:16 },{ wch:6 },{ wch:11 },{ wch:11 },{ wch:13 },{ wch:12 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "NXT " + ym);
-    XLSX.writeFile(wb, `bao-cao-nxt_${ym}_${warehouseId === "all" ? "tat-ca-kho" : whName.replace(/\s+/g,"-").toLowerCase()}.xlsx`);
+    const fileName = `bao-cao-nxt_${ym}_${warehouseId === "all" ? "tat-ca-kho" : whName.replace(/\s+/g,"-").toLowerCase()}.xlsx`;
+    setExportDone(buildExcelResult(wb, fileName));
   }
 
   const displayed = rows.filter(r =>
@@ -386,6 +389,8 @@ export default function StockReportNXT({ user }) {
           </div>
         </div>
       )}
+      {exportDone && <ExportConfirmModal fileName={exportDone.fileName} url={exportDone.url}
+        onClose={() => { URL.revokeObjectURL(exportDone.url); setExportDone(null); }} />}
     </div>
   );
 }

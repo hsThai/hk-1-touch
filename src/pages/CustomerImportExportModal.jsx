@@ -7,6 +7,7 @@
 import React, { useState, useMemo } from "react";
 import * as XLSX from "xlsx";
 import { Customer, logAction } from "./pb.jsx";
+import ExportConfirmModal, { buildExcelResult } from "./ExportConfirm.jsx";
 
 const TEMPLATE_HEADERS = ["Họ tên", "Số điện thoại", "Địa chỉ", "Ghi chú"];
 
@@ -26,6 +27,7 @@ export default function CustomerImportExportModal({ user, customers, onClose, on
   const [errors, setErrors] = useState([]);
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [exportDone, setExportDone] = useState(null);
 
   // ── XUẤT FILE ─────────────────────────────────────────────
   function exportExcel() {
@@ -39,7 +41,8 @@ export default function CustomerImportExportModal({ user, customers, onClose, on
     ws["!cols"] = [{ wch: 28 }, { wch: 16 }, { wch: 36 }, { wch: 28 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Danh sách khách hàng");
-    XLSX.writeFile(wb, `danh-sach-khach-hang_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    const fileName = `danh-sach-khach-hang_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    setExportDone(buildExcelResult(wb, fileName));
   }
 
   function downloadTemplate() {
@@ -149,6 +152,9 @@ export default function CustomerImportExportModal({ user, customers, onClose, on
           <div style={{ fontWeight: 900, fontSize: 18, color: "#1e1b4b" }}>👥 Nhập / Xuất file danh sách khách hàng</div>
           <button onClick={onClose} style={{ border: "none", background: "transparent", fontSize: 20, cursor: "pointer", color: "#9ca3af" }}>✕</button>
         </div>
+
+        {exportDone && <ExportConfirmModal fileName={exportDone.fileName} url={exportDone.url}
+          onClose={() => { URL.revokeObjectURL(exportDone.url); setExportDone(null); }} />}
 
         {mode === "menu" && (
           <div style={{ marginTop: 16 }}>

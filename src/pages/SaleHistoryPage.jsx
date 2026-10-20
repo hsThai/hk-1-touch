@@ -4,6 +4,7 @@ import { SaleOrder, SaleOrderItem, DebtPayment, DebtVoucher, logAction, sortNewe
 import { usePermission } from "./PermissionContext.jsx";
 import { printSaleReceiptA5, previewSaleReceipt } from "../utils/printClient.js";
 import * as XLSX from "xlsx";
+import ExportConfirmModal, { buildExcelResult } from "./ExportConfirm.jsx";
 
 const ReturnFormLazy = lazy(() =>
   import("./ReturnOrderPage.jsx").then(m => ({ default: m.ReturnForm }))
@@ -293,6 +294,7 @@ function DetailContent({ detail, detailItems, onClose, user }) {
 export default function SaleHistoryPage({ user }) {
   const { can: canPerm } = usePermission();
   const canExportSale = !!canPerm("sale_order","export");
+  const [exportDone, setExportDone] = useState(null);
   const canEditOrd = !!canPerm("pos_orders","edit"); // Sửa / Huỷ / Xác nhận đơn nháp
   const [orders, setOrders]           = useState([]);
   const [loading, setLoading]         = useState(true);
@@ -427,7 +429,8 @@ export default function SaleHistoryPage({ user }) {
     ws["!cols"] = [{ wch:16 },{ wch:17 },{ wch:24 },{ wch:13 },{ wch:16 },{ wch:14 },{ wch:15 },{ wch:13 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Đơn bán hàng");
-    XLSX.writeFile(wb, `don-ban-hang_${new Date().toISOString().slice(0,10)}.xlsx`);
+    const fileName = `don-ban-hang_${new Date().toISOString().slice(0,10)}.xlsx`;
+    setExportDone(buildExcelResult(wb, fileName));
   }
 
   /* ─── Card mỗi đơn ─── */
@@ -643,6 +646,8 @@ export default function SaleHistoryPage({ user }) {
           </div>
         </div>
       )}
+      {exportDone && <ExportConfirmModal fileName={exportDone.fileName} url={exportDone.url}
+        onClose={() => { URL.revokeObjectURL(exportDone.url); setExportDone(null); }} />}
     </div>
   );
 }
