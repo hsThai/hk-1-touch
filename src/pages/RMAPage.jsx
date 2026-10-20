@@ -162,6 +162,7 @@ function CreateRMAModal({ user, suppliers, spareParts, onClose, onCreated }) {
 
 // ── Main component ──────────────────────────────────────
 export default function RMAPage({ user }) {
+  const { can } = usePermission();
   const [ledgers,   setLedgers]   = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [parts,     setParts]     = useState([]);
