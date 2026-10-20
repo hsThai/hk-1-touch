@@ -1953,7 +1953,21 @@ function MainAppContent({ onUserChange }) {
 
   // ── Tasks list ───────────────────────────────────────────
   function TaskList() {
-    const list = user.role==="technician" ? filtered : filtered;
+    const [fltStatus, setFltStatus] = useState("");
+    const [fltFrom, setFltFrom]     = useState("");
+    const [fltTo, setFltTo]         = useState("");
+    const baseList = user.role==="technician" ? filtered : filtered;
+    const list = baseList.filter(o => {
+      if (fltStatus && o.status !== fltStatus) return false;
+      if (fltFrom || fltTo) {
+        const dstr = String(o.received_date || o.done_date || o.updated || "").slice(0,10);
+        const d = new Date(dstr);
+        if (isNaN(d)) return false;
+        if (fltFrom && d < new Date(fltFrom)) return false;
+        if (fltTo && d > new Date(fltTo + "T23:59:59")) return false;
+      }
+      return true;
+    });
     function exportRepairExcel() {
       const data = list.map(o => {
         const ktv = users.find(u=>u.id===o.assigned_to);
@@ -1984,7 +1998,30 @@ function MainAppContent({ onUserChange }) {
     const filterLabel = dashboardFilter==="active"?"Đang xử lý":dashboardFilter==="done"?"Hoàn thành":dashboardFilter==="needs_reassign"?"Cần xử lý":null;
     return (
       <div style={{ padding:"0 16px 80px" }}>
-        <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:8 }}>
+        {/* Bo loc: trang thai + khoang ngay (giong trang don ban hang) */}
+        <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:8, alignItems:"flex-end" }}>
+          <div style={{ minWidth:150, flex:1, maxWidth:220 }}>
+            <div style={{ fontSize:11, color:"#9ca3af", marginBottom:3, paddingLeft:2 }}>Trạng thái</div>
+            <select value={fltStatus} onChange={e=>setFltStatus(e.target.value)} style={{ height:34, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 8px", fontSize:12.5, outline:"none", background:"#fff" }}>
+              <option value="">Tất cả trạng thái</option>
+              {["Chờ KTV Sửa","KTV Đang Kiểm","Chờ Báo Giá","Chờ Xác Nhận","Đang Sửa","Chờ Linh Kiện","Hoàn Thành","Đã Giao","Đã Thanh Toán","Hủy"].map(st => <option key={st} value={st}>{st}</option>)}
+            </select>
+          </div>
+          <div style={{ flex:1, minWidth:120 }}>
+            <div style={{ fontSize:11, color:"#9ca3af", marginBottom:3, paddingLeft:2 }}>Từ ngày</div>
+            <input type="date" value={fltFrom} onChange={e=>setFltFrom(e.target.value)} style={{ height:34, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 8px", fontSize:12.5, outline:"none", background:"#fff", width:"100%", boxSizing:"border-box" }} />
+          </div>
+          <div style={{ flex:1, minWidth:120 }}>
+            <div style={{ fontSize:11, color:"#9ca3af", marginBottom:3, paddingLeft:2 }}>Đến ngày</div>
+            <input type="date" value={fltTo} onChange={e=>setFltTo(e.target.value)} style={{ height:34, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 8px", fontSize:12.5, outline:"none", background:"#fff", width:"100%", boxSizing:"border-box" }} />
+          </div>
+          {(fltStatus || fltFrom || fltTo) && (
+            <button onClick={()=>{ setFltStatus(""); setFltFrom(""); setFltTo(""); }}
+              style={{ height:34, padding:"0 12px", borderRadius:10, border:"1.5px solid #fecaca",
+                background:"#fef2f2", color:"#dc2626", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+              ✕ Xóa lọc
+            </button>
+          )}
           <button onClick={exportRepairExcel} style={{ height:34, padding:"0 14px", borderRadius:10,
             border:"none", background:"#059669", color:"#fff", cursor:"pointer",
             display:"flex", alignItems:"center", gap:6, fontSize:12.5, fontWeight:700 }}>
