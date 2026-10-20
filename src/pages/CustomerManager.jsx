@@ -97,7 +97,7 @@ export default function CustomerManager({ onSelectCustomer, user }) {
           </button>
           <button onClick={()=>setShowImportExport(true)}
             style={{ flex:1, height:46, background:"#059669", color:"#fff", border:"none", borderRadius:12, fontWeight:800, fontSize:13.5, cursor:"pointer", whiteSpace:"nowrap" }}>
-            📁 Excel
+            📁 Xuất/Nhập KH
           </button>
         </div>
       </div>
