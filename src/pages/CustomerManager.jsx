@@ -1,6 +1,7 @@
 /* v1774860462-1148 */
 import { useState, useEffect } from "react";
 import { Customer, RepairOrder, logAction } from "./pb.jsx";
+import CustomerImportExportModal from "./CustomerImportExportModal.jsx";
 
 const EMPTY = { full_name:"", phone:"", address:"", note:"" };
 
@@ -15,6 +16,7 @@ export default function CustomerManager({ onSelectCustomer, user }) {
   const [detail, setDetail]   = useState(null); // customer history
   const [orders, setOrders]   = useState([]);
   const [toast, setToast]     = useState("");
+  const [showImportExport, setShowImportExport] = useState(false);
 
   useEffect(() => { load(); }, []);
 
@@ -88,10 +90,16 @@ export default function CustomerManager({ onSelectCustomer, user }) {
           </div>
           {onSelectCustomer && <div style={{ fontSize:12, color:"#6b7280" }}>Chọn khách để điền vào đơn</div>}
         </div>
-        <button onClick={openAdd}
-          style={{ width:"100%", height:46, background:"#4f46e5", color:"#fff", border:"none", borderRadius:12, fontWeight:800, fontSize:15, cursor:"pointer" }}>
-          ＋ Thêm khách hàng mới
-        </button>
+        <div style={{ display:"flex", gap:8 }}>
+          <button onClick={openAdd}
+            style={{ flex:2, height:46, background:"#4f46e5", color:"#fff", border:"none", borderRadius:12, fontWeight:800, fontSize:15, cursor:"pointer" }}>
+            ＋ Thêm khách hàng mới
+          </button>
+          <button onClick={()=>setShowImportExport(true)}
+            style={{ flex:1, height:46, background:"#059669", color:"#fff", border:"none", borderRadius:12, fontWeight:800, fontSize:13.5, cursor:"pointer", whiteSpace:"nowrap" }}>
+            📁 Excel
+          </button>
+        </div>
       </div>
 
       <input value={search} onChange={e=>setSearch(e.target.value)}
@@ -206,6 +214,15 @@ export default function CustomerManager({ onSelectCustomer, user }) {
             ))}
           </div>
         </div>
+      )}
+
+      {showImportExport && (
+        <CustomerImportExportModal
+          user={user}
+          customers={list}
+          onClose={()=>setShowImportExport(false)}
+          onImported={()=>{ load(); showToast("✅ Đã nhập danh sách khách hàng"); }}
+        />
       )}
 
       {toast && (
