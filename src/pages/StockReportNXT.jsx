@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Warehouse, StockLedger, StockMovement } from "./pb.jsx";
+import * as XLSX from "xlsx";
 
 function fmtMoney(n) {
   if (!n) return "0đ";
@@ -123,6 +124,33 @@ export default function StockReportNXT({ user }) {
     setHistLoading(false);
   }
 
+  function exportExcel() {
+    const whName = warehouseId === "all" ? "Tất cả kho"
+      : (warehouses.find(w => w.id === warehouseId)?.name || warehouseId);
+    const data = displayed.map(r => ({
+      "SKU": r.sku || "",
+      "Tên hàng": r.name || "",
+      "Danh mục": r.category || "",
+      "ĐV": r.unit || "",
+      "Nhập tháng": r.stock_in || 0,
+      "Xuất tháng": r.stock_out || 0,
+      "Tồn hiện tại": r.stock_now || 0,
+      "Đơn giá": r.unit_price || 0,
+    }));
+    data.push({
+      "SKU": "", "Tên hàng": "TỔNG CỘNG", "Danh mục": "", "ĐV": "",
+      "Nhập tháng": displayed.reduce((s2,r) => s2 + (r.stock_in||0), 0),
+      "Xuất tháng": displayed.reduce((s2,r) => s2 + (r.stock_out||0), 0),
+      "Tồn hiện tại": displayed.reduce((s2,r) => s2 + (r.stock_now||0), 0),
+      "Đơn giá": "",
+    });
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws["!cols"] = [{ wch:14 },{ wch:34 },{ wch:16 },{ wch:6 },{ wch:11 },{ wch:11 },{ wch:13 },{ wch:12 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "NXT " + ym);
+    XLSX.writeFile(wb, `bao-cao-nxt_${ym}_${warehouseId === "all" ? "tat-ca-kho" : whName.replace(/\s+/g,"-").toLowerCase()}.xlsx`);
+  }
+
   const displayed = rows.filter(r =>
     !search ||
     r.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -172,6 +200,12 @@ export default function StockReportNXT({ user }) {
           style={{ flex:1, minWidth:160, padding:"8px 12px", borderRadius:8,
             border:"1px solid #e5e7eb", fontSize:14 }}
         />
+        <button onClick={exportExcel}
+          style={{ padding:"8px 14px", borderRadius:8, border:"none",
+            background:"#059669", color:"#fff", fontWeight:700, fontSize:13.5,
+            cursor:"pointer", whiteSpace:"nowrap" }}>
+          ⬇️ Xuất Excel
+        </button>
       </div>
 
       {/* Summary cards */}
