@@ -14,13 +14,13 @@ const RESOURCE_META = {
   // ── Dịch vụ Sửa chữa
   repair_create:      { label:"Menu Tạo đơn",                    module:"Dịch vụ Sửa chữa", icon:"add_circle", actions:["can_create"] },
   repair_board:       { label:"Menu Theo dõi đơn sửa",           module:"Dịch vụ Sửa chữa", icon:"view_kanban", actions:["can_view"] },
-  repair_order:       { label:"Menu Danh sách & Lịch sử đơn",    module:"Dịch vụ Sửa chữa", icon:"list_alt", actions:["can_view","can_edit","can_delete"] },
+  repair_order:       { label:"Menu Danh sách & Lịch sử đơn",    module:"Dịch vụ Sửa chữa", icon:"list_alt", actions:["can_view","can_edit","can_delete","can_export"] },
   // ── Bán hàng
   pos_sale:           { label:"Thu ngân (POS) · Tab Bán hàng",   module:"Bán hàng", icon:"storefront", actions:["can_create","can_edit"] },
   pos_orders:         { label:"Thu ngân (POS) · Tab Đơn hàng",   module:"Bán hàng", icon:"receipt_long", actions:["can_view","can_edit","can_delete"] },
   pos_collect:        { label:"Thu ngân (POS) · Tab Thu tiền",   module:"Bán hàng", icon:"payments", actions:["can_view","can_approve"] },
   pos_reconcile:      { label:"Thu ngân (POS) · Tab Đối soát",   module:"Bán hàng", icon:"balance", actions:["can_view","can_approve"] },
-  sale_order:         { label:"Menu Quản lý đơn bán hàng",       module:"Bán hàng", icon:"receipt_long", actions:["can_view"] },
+  sale_order:         { label:"Menu Quản lý đơn bán hàng",       module:"Bán hàng", icon:"receipt_long", actions:["can_view","can_export"] },
   return_order:       { label:"Menu Xử lý Đổi trả",              module:"Bán hàng", icon:"swap_horiz", actions:["can_view","can_create"] },
   // ── Hàng hóa
   product_mgr:        { label:"Menu Danh mục hàng hóa",          module:"Hàng hóa", icon:"inventory_2", actions:["can_view","can_edit","can_export"] },
@@ -32,7 +32,7 @@ const RESOURCE_META = {
   stock_export:       { label:"Menu Xuất kho",                   module:"Kho & Vật tư", icon:"outbox", actions:["can_view"] },
   pack_order:         { label:"Menu Soạn hàng & Giao nhận · Soạn hàng", module:"Kho & Vật tư", icon:"inventory", actions:["can_view","can_edit"] },
   ship_order:         { label:"Menu Soạn hàng & Giao nhận · Giao nhận", module:"Kho & Vật tư", icon:"local_shipping", actions:["can_view","can_edit"] },
-  stock_card:         { label:"Menu Thẻ kho (NXT)",              module:"Kho & Vật tư", icon:"assessment", actions:["can_view"] },
+  stock_card:         { label:"Menu Thẻ kho (NXT)",              module:"Kho & Vật tư", icon:"assessment", actions:["can_view","can_export"] },
   stock_count:        { label:"Menu Kiểm kê kho",                module:"Kho & Vật tư", icon:"fact_check", actions:["can_view","can_create","can_edit","can_approve"] },
   wh_defect:          { label:"Menu LK lỗi / RMA",               module:"Kho & Vật tư", icon:"warning", actions:["can_view","can_create"] },
   wh_shipping:        { label:"Menu Vận đơn",                    module:"Kho & Vật tư", icon:"local_shipping", actions:["can_view"] },
@@ -45,7 +45,7 @@ const RESOURCE_META = {
   debt_ncc:           { label:"Menu Công nợ NCC",                module:"Mua hàng (NCC)", icon:"account_balance_wallet", actions:["can_view"] },
   supplier:           { label:"Menu Danh sách NCC",              module:"Mua hàng (NCC)", icon:"storefront", actions:["can_view","can_edit"] },
   // ── Khách hàng
-  customer:           { label:"Menu Danh sách khách hàng",       module:"Khách hàng", icon:"group", actions:["can_view"] },
+  customer:           { label:"Menu Danh sách khách hàng",       module:"Khách hàng", icon:"group", actions:["can_view","can_export"] },
   // ── Kế toán
   cash_journal:       { label:"Menu Sổ quỹ",                     module:"Kế toán", icon:"menu_book", actions:["can_view","can_create"] },
   debt:               { label:"Menu Công nợ khách hàng",         module:"Kế toán", icon:"account_balance_wallet", actions:["can_view","can_create","can_edit","can_approve"] },

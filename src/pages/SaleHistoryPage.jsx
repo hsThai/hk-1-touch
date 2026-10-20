@@ -292,6 +292,7 @@ function DetailContent({ detail, detailItems, onClose, user }) {
 
 export default function SaleHistoryPage({ user }) {
   const { can: canPerm } = usePermission();
+  const canExportSale = !!canPerm("sale_order","export");
   const canEditOrd = !!canPerm("pos_orders","edit"); // Sửa / Huỷ / Xác nhận đơn nháp
   const [orders, setOrders]           = useState([]);
   const [loading, setLoading]         = useState(true);
@@ -553,12 +554,14 @@ export default function SaleHistoryPage({ user }) {
         </div>
         {/* Hàng 4: Nút reload */}
         <div style={{ display:"flex", justifyContent:"flex-end", gap:8 }}>
+          {canExportSale && (
           <button onClick={exportExcel} style={{ height:36, padding:"0 16px", borderRadius:10,
             border:"none", background:"#059669", color:"#fff", cursor:"pointer",
             display:"flex", alignItems:"center", gap:6, fontSize:13, fontWeight:700 }}>
             <span className="material-icons" style={{ fontSize:16, fontFamily:"Material Icons" }}>download</span>
             Xuất Excel ({filtered.length} đơn)
           </button>
+          )}
           <button onClick={load} style={{ height:36, padding:"0 16px", borderRadius:10,
             border:"1.5px solid #e5e7eb", background:"#fff", cursor:"pointer",
             display:"flex", alignItems:"center", gap:6, fontSize:13, color:"#6b7280" }}>

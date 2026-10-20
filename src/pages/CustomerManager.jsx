@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { Customer, RepairOrder, logAction } from "./pb.jsx";
 import CustomerImportExportModal from "./CustomerImportExportModal.jsx";
+import { usePermission } from "./PermissionContext.jsx";
 
 const EMPTY = { full_name:"", phone:"", address:"", note:"" };
 
@@ -17,6 +18,8 @@ export default function CustomerManager({ onSelectCustomer, user }) {
   const [orders, setOrders]   = useState([]);
   const [toast, setToast]     = useState("");
   const [showImportExport, setShowImportExport] = useState(false);
+  const { can: canPerm } = usePermission();
+  const canExportCustomers = !!canPerm("customer","export");
 
   useEffect(() => { load(); }, []);
 
@@ -95,10 +98,12 @@ export default function CustomerManager({ onSelectCustomer, user }) {
             style={{ flex:2, height:46, background:"#4f46e5", color:"#fff", border:"none", borderRadius:12, fontWeight:800, fontSize:15, cursor:"pointer" }}>
             ＋ Thêm khách hàng mới
           </button>
-          <button onClick={()=>setShowImportExport(true)}
-            style={{ flex:1, height:46, background:"#059669", color:"#fff", border:"none", borderRadius:12, fontWeight:800, fontSize:13.5, cursor:"pointer", whiteSpace:"nowrap" }}>
-            📁 Xuất/Nhập KH
-          </button>
+          {canExportCustomers && (
+            <button onClick={()=>setShowImportExport(true)}
+              style={{ flex:1, height:46, background:"#059669", color:"#fff", border:"none", borderRadius:12, fontWeight:800, fontSize:13.5, cursor:"pointer", whiteSpace:"nowrap" }}>
+              📁 Xuất/Nhập KH
+            </button>
+          )}
         </div>
       </div>
 

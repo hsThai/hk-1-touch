@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Warehouse, StockLedger, StockMovement } from "./pb.jsx";
 import * as XLSX from "xlsx";
+import { usePermission } from "./PermissionContext.jsx";
 
 function fmtMoney(n) {
   if (!n) return "0đ";
@@ -16,6 +17,8 @@ function getMonthRange(ym) {
 }
 
 export default function StockReportNXT({ user }) {
+  const { can: canPerm } = usePermission();
+  const canExportNXT = !!canPerm("stock_card","export");
   const [isPC, setIsPC] = useState(() => window.innerWidth >= 900);
   useEffect(() => {
     const fn = () => setIsPC(window.innerWidth >= 900);
@@ -200,12 +203,14 @@ export default function StockReportNXT({ user }) {
           style={{ flex:1, minWidth:160, padding:"8px 12px", borderRadius:8,
             border:"1px solid #e5e7eb", fontSize:14 }}
         />
-        <button onClick={exportExcel}
-          style={{ padding:"8px 14px", borderRadius:8, border:"none",
-            background:"#059669", color:"#fff", fontWeight:700, fontSize:13.5,
-            cursor:"pointer", whiteSpace:"nowrap" }}>
-          ⬇️ Xuất Excel
-        </button>
+        {canExportNXT && (
+          <button onClick={exportExcel}
+            style={{ padding:"8px 14px", borderRadius:8, border:"none",
+              background:"#059669", color:"#fff", fontWeight:700, fontSize:13.5,
+              cursor:"pointer", whiteSpace:"nowrap" }}>
+            ⬇️ Xuất Excel
+          </button>
+        )}
       </div>
 
       {/* Summary cards */}

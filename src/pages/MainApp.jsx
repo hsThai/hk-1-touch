@@ -2022,12 +2022,14 @@ function MainAppContent({ onUserChange }) {
               ✕ Xóa lọc
             </button>
           )}
+          {can("repair_order","export") && (
           <button onClick={exportRepairExcel} style={{ height:34, padding:"0 14px", borderRadius:10,
             border:"none", background:"#059669", color:"#fff", cursor:"pointer",
             display:"flex", alignItems:"center", gap:6, fontSize:12.5, fontWeight:700 }}>
             <span className="material-icons" style={{ fontSize:15, fontFamily:"Material Icons" }}>download</span>
             Xuất Excel ({list.length} đơn)
           </button>
+          )}
         </div>
         {filterLabel && (
           <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10, padding:"2px 0" }}>
