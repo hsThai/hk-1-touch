@@ -71,6 +71,9 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems }) {
   const [custSearch,   setCustSearch]   = useState("");
   const [custSuggs,    setCustSuggs]    = useState([]);
   const [showCustDrop, setShowCustDrop] = useState(false);
+  const [partSearch,   setPartSearch]   = useState("");
+  const [partSuggs,   setPartSuggs]    = useState([]);
+  const [showPartDrop, setShowPartDrop] = useState(false);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
   // ── Checklist chọn hàng (chỉ khi đơn có nhiều sản phẩm) ──
@@ -111,16 +114,40 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems }) {
     });
   }
 
+  // Autocomplete sản phẩm / dịch vụ (linh kiện + dịch vụ)
+  useEffect(() => {
+    const q = partSearch.trim();
+    if (q.length < 1) { setPartSuggs([]); return; }
+    const timer = setTimeout(async () => {
+      try {
+        const { token } = getAuth();
+        const res = await fetch(
+          `${getPbUrl()}/api/collections/spare_parts/records?perPage=500&sort=-id`,
+          { headers: token ? { Authorization: token } : {} }
+        );
+        if (!res.ok) return;
+        const json = await res.json();
+        const arr = json.items || [];
+        const filtered = arr.filter(pt =>
+          (pt.name||"").toLowerCase().includes(q.toLowerCase()) ||
+          (pt.sku||"").toLowerCase().includes(q.toLowerCase())
+        ).slice(0, 6);
+        setPartSuggs(filtered);
+      } catch {}
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [partSearch]);
+
   // Autocomplete khách hàng
   useEffect(() => {
     const q = custSearch.trim();
     if (q.length < 1) { setCustSuggs([]); return; }
     const timer = setTimeout(async () => {
       try {
-        const pbUrl = localStorage.getItem("pb_url") || "http://localhost:8090";
-        const token = localStorage.getItem("staff_token") || "";
+        // Fix: dùng helper chuẩn getPbUrl/getAuth — trước đây đọc nhầm key localStorage nên gợi ý không bao giờ chạy
+        const { token } = getAuth();
         const res = await fetch(
-          `${pbUrl}/api/collections/customers/records?perPage=200&sort=-id`,
+          `${getPbUrl()}/api/collections/customers/records?perPage=200&sort=-id`,
           { headers: token ? { Authorization: token } : {} }
         );
         if (!res.ok) return;
@@ -307,10 +334,41 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems }) {
             )}
           </div>
         ) : (
-          <div style={{ marginBottom:12 }}>
+          <div style={{ marginBottom:12, position:"relative" }}>
             <label style={{ fontSize:12, color:"#6b7280", fontWeight:600 }}>Tên sản phẩm / dịch vụ *</label>
-            <input value={form.product_name} onChange={e=>set("product_name",e.target.value)}
-              placeholder="iPhone 13 Pro Max / Thay màn hình..." style={{ ...INP, marginTop:4 }} />
+            <input
+              value={partSearch || form.product_name}
+              onChange={e => { setPartSearch(e.target.value); set("product_name", e.target.value); setShowPartDrop(true); }}
+              onFocus={() => setShowPartDrop(true)}
+              onBlur={() => setTimeout(() => setShowPartDrop(false), 180)}
+              placeholder="Nhập tên linh kiện / dịch vụ để gợi ý..."
+              style={{ ...INP, marginTop:4 }} />
+            {showPartDrop && partSuggs.length > 0 && (
+              <div style={{
+                position:"absolute", top:"100%", left:0, right:0, zIndex:100,
+                background:"#fff", border:"1.5px solid #e5e7eb", borderRadius:10,
+                boxShadow:"0 8px 24px rgba(0,0,0,.12)", overflow:"hidden", marginTop:2,
+              }}>
+                {partSuggs.map(pt => (
+                  <div key={pt.id}
+                    onMouseDown={() => {
+                      set("product_name", pt.name || "");
+                      setPartSearch(pt.name || "");
+                      setPartSuggs([]);
+                      setShowPartDrop(false);
+                    }}
+                    style={{ padding:"9px 14px", cursor:"pointer", borderBottom:"1px solid #f3f4f6" }}
+                    onMouseEnter={e => e.currentTarget.style.background="#f5f3ff"}
+                    onMouseLeave={e => e.currentTarget.style.background="#fff"}
+                  >
+                    <div style={{ fontWeight:700, fontSize:13, color:"#1e1b4b" }}>{pt.name}</div>
+                    <div style={{ fontSize:11, color:"#6b7280" }}>
+                      {pt.sku && `SKU: ${pt.sku} · `}{pt.category || "LK"}{pt.price ? ` · ${fmtMoney(pt.price)}` : ""}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
