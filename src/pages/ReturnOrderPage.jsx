@@ -122,7 +122,7 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems }) {
       try {
         const { token } = getAuth();
         const res = await fetch(
-          `${getPbUrl()}/api/collections/spare_parts/records?perPage=500&sort=-id`,
+          `${getPbUrl()}/api/collections/product_catalog/records?perPage=500&sort=-id`,
           { headers: token ? { Authorization: token } : {} }
         );
         if (!res.ok) return;
