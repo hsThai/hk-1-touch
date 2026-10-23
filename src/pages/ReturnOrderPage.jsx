@@ -44,7 +44,7 @@ const STATUS_COLORS = {
 const ADMIN_ROLES = ["owner","admin","manager","team_leader","cashier"];
 
 // ── Form tạo đơn đổi trả ─────────────────────────────────
-export function ReturnForm({ user, onSave, onClose, initialData, orderItems }) {
+export function ReturnForm({ user, onSave, onClose, initialData, orderItems, editRecord }) {
   const items = orderItems || [];
   const multiItem = items.length > 1; // chỉ hiện checklist khi đơn có NHIỀU hàng
   const [form, setForm] = useState(() => {
@@ -68,7 +68,7 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems }) {
       status:         "pending",
       return_date:    new Date().toISOString().slice(0,10),
       items:          [],
-      ...(initialData || {}),
+      ...(editRecord || initialData || {}),
     };
     // Đơn nhiều hàng: bắt KH chọn thủ công, không tự điền sẵn tên/số tiền
     if (multiItem) { base.product_name = ""; base.refund_amount = 0; base.items = []; }
@@ -234,6 +234,21 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems }) {
     setSaving(true);
     try {
       const { token } = getAuth();
+      if (editRecord) {
+        // CHE DO SUA: PATCH bản ghi hiện có, bỏ các field hệ thống, KHÔNG ghi sổ quỹ lại
+        const { id, collectionId, collectionName, created, updated, ...payload } = form;
+        const res = await fetch(`${getPbUrl()}/api/collections/return_orders/records/${editRecord.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type":"application/json", ...(token ? { Authorization:token } : {}) },
+          body: JSON.stringify({ ...payload, status: editRecord.status }), // giữ nguyên trạng thái, chỉ sửa nội dung
+        });
+        if (!res.ok) throw new Error("Lỗi cập nhật đơn đổi trả");
+        logAction(user, "update_return", "return_order", editRecord.id, "Sua don doi tra: " + (form.code||""));
+        onSave();
+        onClose();
+        setSaving(false);
+        return;
+      }
       const res = await fetch(`${getPbUrl()}/api/collections/return_orders/records`, {
         method: "POST",
         headers: { "Content-Type":"application/json", ...(token ? { Authorization:token } : {}) },
@@ -271,7 +286,7 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems }) {
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.5)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center" }}>
       <div style={{ background:"#fff", borderRadius:20, padding:28, width:"min(520px,95vw)", maxHeight:"90vh", overflowY:"auto" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
-          <div style={{ fontWeight:900, fontSize:17 }}>🔄 Tạo đơn Đổi trả / Bảo hành</div>
+          <div style={{ fontWeight:900, fontSize:17 }}>{editRecord ? "🔄 Sửa đơn Đổi trả / Bảo hành" : "🔄 Tạo đơn Đổi trả / Bảo hành"}</div>
           <button onClick={onClose} style={{ width:32, height:32, borderRadius:"50%", border:"none", background:"#f3f4f6", cursor:"pointer", fontSize:16 }}>✕</button>
         </div>
 
@@ -594,6 +609,8 @@ export default function ReturnOrderPage({ user }) {
     return "";
   });
   const [filter,  setFilter]  = useState("all");
+  const [detail,  setDetail]  = useState(null);   // đơn đang xem chi tiết
+  const [editRecord, setEditRecord] = useState(null); // đơn đang sửa
 
   const { can } = usePermission();
   // Nut "Tao don doi tra" theo quyen phan quyen (return_order: Xem/Tao), khong khoa cung role nua
@@ -618,6 +635,46 @@ export default function ReturnOrderPage({ user }) {
   }
 
   useEffect(() => { load(); }, []);
+
+  // Đổi trạng thái đơn đổi trả (pending → processing → done / cancelled)
+  async function updateReturnStatus(r, newStatus) {
+    if (!window.confirm(`Đổi trạng thái đơn ${r.code} → "${STATUS_COLORS[newStatus]?.label || newStatus}"?`)) return;
+    try {
+      const { token } = getAuth();
+      const res = await fetch(`${getPbUrl()}/api/collections/return_orders/records/${r.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type":"application/json", ...(token ? { Authorization:token } : {}) },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) throw new Error("Lỗi cập nhật trạng thái");
+      logAction(user, "update_return_status", "return_order", r.id, `Đổi trạng thái ${r.code}: ${r.status} → ${newStatus}`);
+
+      // Hoàn thành đơn HOÀN TIỀN → ghi sổ quỹ chi (nếu chưa có bút toán nào cho đơn này)
+      if (newStatus === "done" && r.return_type === "refund" && (r.refund_amount||0) > 0) {
+        try {
+          const jres = await fetch(`${getPbUrl()}/api/collections/cash_journal/records?perPage=1&filter=(ref_code="${r.code}")`,
+            { headers: token ? { Authorization:token } : {} });
+          const jjson = jres.ok ? await jres.json() : { items: [] };
+          const already = (jjson.items || []).length > 0;
+          if (!already) {
+            if (window.confirm(`Ghi hoàn tiền ${fmtMoney(r.refund_amount)} vào Sổ quỹ?`)) {
+              await CashJournal.create({
+                entry_type:   "payment",
+                amount:        r.refund_amount,
+                description:  `Hoàn tiền đổi trả — ${r.customer_name} — ${r.code}`,
+                journal_date:  new Date().toISOString().slice(0,10),
+                ref_code:      r.code,
+                ref_type:      "return",
+                payment_method: r.refund_method || "cash",
+              });
+            }
+          }
+        } catch {}
+      }
+      setDetail(null);
+      load();
+    } catch(e) { alert("Lỗi: " + e.message); }
+  }
 
   const displayed = list.filter(r => {
     const matchSearch = !search || [r.customer_name, r.customer_phone, r.code, r.ref_code, r.product_name]
@@ -718,7 +775,10 @@ export default function ReturnOrderPage({ user }) {
               {displayed.map(r => {
                 const st = STATUS_COLORS[r.status] || STATUS_COLORS.pending;
                 return (
-                  <tr key={r.id} style={{ borderBottom:"1px solid #f3f4f6" }}>
+                  <tr key={r.id} onClick={() => setDetail(r)}
+                    style={{ borderBottom:"1px solid #f3f4f6", cursor:"pointer" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#f5f3ff"}
+                    onMouseLeave={e => e.currentTarget.style.background = ""}>
                     <td style={{ padding:"10px 14px", fontWeight:700, color:"#6366f1", whiteSpace:"nowrap" }}>{r.code}</td>
                     <td style={{ padding:"10px 14px" }}>
                       <div style={{ fontWeight:600 }}>{r.customer_name || "—"}</div>
@@ -758,6 +818,78 @@ export default function ReturnOrderPage({ user }) {
           onClose={() => setModal(false)}
         />
       )}
+
+      {editRecord && (
+        <ReturnForm
+          user={user}
+          editRecord={editRecord}
+          onSave={() => { setEditRecord(null); setDetail(null); load(); }}
+          onClose={() => setEditRecord(null)}
+        />
+      )}
+
+      {/* Modal chi tiết + xử lý đơn đổi trả */}
+      {detail && (() => {
+        const st = STATUS_COLORS[detail.status] || STATUS_COLORS.pending;
+        const tLabel = RETURN_TYPES.find(t=>t.key===detail.return_type)?.label || detail.return_type;
+        const Row = ({ l, v }) => (
+          <div style={{ display:"flex", gap:10, padding:"7px 0", borderBottom:"1px dashed #f1f5f9", fontSize:13 }}>
+            <div style={{ width:130, color:"#6b7280", flexShrink:0 }}>{l}</div>
+            <div style={{ fontWeight:600, color:"#1f2937" }}>{v || "—"}</div>
+          </div>
+        );
+        return (
+          <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.5)", zIndex:1100, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}
+            onClick={e => { if (e.target === e.currentTarget) setDetail(null); }}>
+            <div style={{ background:"#fff", borderRadius:20, padding:24, width:"min(560px,95vw)", maxHeight:"90vh", overflowY:"auto" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+                <div>
+                  <div style={{ fontWeight:900, fontSize:17, color:"#1e1b4b" }}>{detail.code}</div>
+                  <span style={{ padding:"3px 12px", borderRadius:20, fontSize:11, fontWeight:700, background:st.bg, color:st.color }}>{st.label}</span>
+                </div>
+                <button onClick={()=>setDetail(null)} style={{ width:32, height:32, borderRadius:"50%", border:"none", background:"#f3f4f6", cursor:"pointer", fontSize:16 }}>✕</button>
+              </div>
+              <Row l="Khách hàng" v={`${detail.customer_name || ""}${detail.customer_phone ? " · " + detail.customer_phone : ""}`} />
+              <Row l="Hình thức xử lý" v={tLabel} />
+              <Row l="Đơn gốc" v={detail.ref_code} />
+              <Row l="Sản phẩm đổi trả" v={detail.product_name} />
+              {detail.new_product_name && <Row l={detail.return_type === "warranty" ? "SP bảo hành đổi mới" : "SP đổi mới"} v={detail.new_product_name} />}
+              {detail.return_type === "exchange" && <Row l="Chênh lệch giá" v={detail.price_diff ? fmtMoney(detail.price_diff) : "0đ"} />}
+              {detail.warranty_end_date && <Row l="BH hết hạn" v={fmtDate(detail.warranty_end_date)} />}
+              {detail.return_type === "repair_free" && <Row l="KTV phụ trách" v={detail.assigned_tech} />}
+              {detail.promise_date && <Row l="Hẹn xong" v={fmtDate(detail.promise_date)} />}
+              {detail.return_type === "refund" && <Row l="Số tiền hoàn" v={detail.refund_amount>0 ? fmtMoney(detail.refund_amount) + (detail.refund_method === "transfer" ? " (chuyển khoản)" : " (tiền mặt)") : "—"} />}
+              <Row l="Lý do" v={detail.reason} />
+              <Row l="Ngày đổi trả" v={fmtDate(detail.return_date || detail.created)} />
+              {detail.note && <Row l="Ghi chú" v={detail.note} />}
+
+              {/* Nút xử lý theo trạng thái */}
+              {isAdmin && detail.status !== "done" && detail.status !== "cancelled" && (
+                <div style={{ display:"flex", gap:8, marginTop:18, flexWrap:"wrap" }}>
+                  {detail.status === "pending" && (
+                    <button onClick={() => updateReturnStatus(detail, "processing")}
+                      style={{ flex:1, height:44, borderRadius:12, border:"none", background:"#2563eb", color:"#fff", fontWeight:800, fontSize:13.5, cursor:"pointer" }}>
+                      ▶️ Bắt đầu xử lý
+                    </button>
+                  )}
+                  <button onClick={() => updateReturnStatus(detail, "done")}
+                    style={{ flex:1, height:44, borderRadius:12, border:"none", background:"#059669", color:"#fff", fontWeight:800, fontSize:13.5, cursor:"pointer" }}>
+                    ✅ Hoàn thành
+                  </button>
+                  <button onClick={() => { setEditRecord(detail); setDetail(null); }}
+                    style={{ flex:1, height:44, borderRadius:12, border:"1.5px solid #e5e7eb", background:"#fff", color:"#374151", fontWeight:800, fontSize:13.5, cursor:"pointer" }}>
+                    ✏️ Sửa đơn
+                  </button>
+                  <button onClick={() => updateReturnStatus(detail, "cancelled")}
+                    style={{ flex:1, height:44, borderRadius:12, border:"1.5px solid #fecaca", background:"#fef2f2", color:"#dc2626", fontWeight:800, fontSize:13.5, cursor:"pointer" }}>
+                    ❌ Huỷ đơn
+                    </button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
