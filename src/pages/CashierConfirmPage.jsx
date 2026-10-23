@@ -1,7 +1,7 @@
 // CashierConfirmPage.jsx — Trang xác nhận thu tiền cho Thu ngân
 // HK One Touch
 import React, { useState, useEffect } from "react";
-import { SaleOrder, SaleOrderItem, CashJournal, DebtVoucher, getLocalDate, logAction, notifyRoles, sortNewestFirst } from "./pb.jsx";
+import { SaleOrder, SaleOrderItem, CashJournal, DebtVoucher, getLocalDate, getPbUrl, getAuth, logAction, notifyRoles, sortNewestFirst } from "./pb.jsx";
 import { printSaleReceiptA5 } from "../utils/printClient.js";
 import { usePermission } from "./PermissionContext.jsx";
 
