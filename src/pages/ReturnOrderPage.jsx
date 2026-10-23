@@ -288,6 +288,21 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems }) {
             <input value={form.ref_code} onChange={e=>set("ref_code",e.target.value)}
               placeholder="BL-260601-0001" style={{ ...INP, marginTop:4 }} />
           </div>
+            {refSearch && <div style={{ fontSize:11, color:"#9ca3af", marginTop:4 }}>⏳ Đang tra cứu đơn…</div>}
+            {originOrder && (
+              <div style={{ marginTop:6, background:"#f0fdf4", border:"1.5px solid #bbf7d0", borderRadius:10, padding:"8px 10px" }}>
+                <div style={{ fontSize:12, fontWeight:800, color:"#059669" }}>
+                  ✓ Đơn gốc: {originOrder.code} · {originOrder.type === "sale" ? "Bán lẻ" : "Sửa chữa"}
+                </div>
+                <div style={{ fontSize:11.5, color:"#374151", marginTop:2 }}>
+                  👤 {originOrder.customer_name}{originOrder.customer_phone ? ` · ${originOrder.customer_phone}` : ""} · 💰 {fmtMoney(originOrder.total)}
+                </div>
+                {originOrder.products && <div style={{ fontSize:11, color:"#6b7280", marginTop:2 }}>📦 {originOrder.products}</div>}
+              </div>
+            )}
+            {form.ref_code && !refSearch && !originOrder && /^(BL|SC)/i.test(form.ref_code) && (
+              <div style={{ fontSize:11, color:"#d97706", marginTop:4 }}>⚠️ Chưa tìm thấy đơn “{form.ref_code}”</div>
+            )}
           <div>
             <label style={{ fontSize:12, color:"#6b7280", fontWeight:600 }}>Ngày đổi trả</label>
             <input type="date" value={form.return_date} onChange={e=>set("return_date",e.target.value)}
