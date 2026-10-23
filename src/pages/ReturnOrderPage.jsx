@@ -3,7 +3,7 @@
  * @version 2026-06-01-v1
  */
 import React, { useState, useEffect } from "react";
-import { CashJournal, getPbUrl, getAuth, logAction } from "./pb.jsx";
+import { CashJournal, getPbUrl, getAuth, logAction, notifyRoles, Notification, Staff } from "./pb.jsx";
 import { usePermission } from "./PermissionContext.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
@@ -661,6 +661,101 @@ export default function ReturnOrderPage({ user }) {
 
   useEffect(() => { load(); }, []);
 
+  // Chuyển thu ngân chi tiền (hoàn tiền)
+  async function sendToCashier(r) {
+    if (!window.confirm(`Chuyển đơn ${r.code} cho THU NGÂN chi tiền hoàn ${fmtMoney(r.refund_amount)}? Thu ngân sẽ thấy phiếu chi trong app Thu ngân.`)) return;
+    try {
+      await notifyRoles(["cashier"], {
+        title: "💵 Phiếu chi hoàn tiền",
+        message: `Đơn ${r.code} — hoàn ${fmtMoney(r.refund_amount)} cho ${r.customer_name||"khách"}${r.customer_phone?" ("+r.customer_phone+")":""} — chờ thu ngân chi tiền`,
+        order: { id: r.id, order_code: r.code },
+        type: "return_pay",
+      });
+      logAction(user, "return_to_cashier", "return_order", r.id, `Chuyển thu ngân chi tiền đơn ${r.code}`);
+      alert("✅ Đã gửi cho thu ngân. Thu ngân vào app Thu ngân → tab 'Chi đổi trả' để chi tiền.");
+    } catch(e) { alert("Lỗi: " + e.message); }
+  }
+
+  // Sửa lại miễn phí → tạo đơn sửa chữa cho KTV
+  async function createRepairOrder(r) {
+    if (!window.confirm(`Tạo đơn SỬA CHỮA MIỄN PHÍ cho ${r.customer_name||"khách"} (liên kết đơn ${r.code})?`)) return;
+    try {
+      const { token } = getAuth();
+      const d = new Date();
+      const scCode = "SC" + String(d.getFullYear()).slice(2)
+        + String(d.getMonth()+1).padStart(2,"0") + String(d.getDate()).padStart(2,"0")
+        + "-" + String(d.getHours()).padStart(2,"0") + String(d.getMinutes()).padStart(2,"0")
+        + String(d.getSeconds()).padStart(2,"0");
+      // Tìm staff id theo tên KTV đã chọn
+      let tech = null;
+      if (r.assigned_tech) {
+        try {
+          const stf = await Staff.filter({ is_active: true }).catch(()=>[]);
+          tech = (stf||[]).find(st => st.full_name === r.assigned_tech) || null;
+        } catch {}
+      }
+      const payload = {
+        order_code: scCode,
+        customer_name: r.customer_name || "",
+        customer_phone: r.customer_phone || "",
+        device_name: r.product_name || "",
+        device_model: r.product_name || "",
+        issue_description: `Sửa lại miễn phí theo đơn đổi trả ${r.code}${r.reason ? " — " + r.reason : ""}`,
+        status: tech ? "Đang Sửa" : "Chờ KTV Sửa",
+        priority: "Thường",
+        estimated_cost: 0, final_cost: 0, deposit: 0,
+        received_date: d.toISOString(),
+        note: (r.note||"") + (r.note ? " | " : "") + `Miễn phí theo đổi trả ${r.code}`,
+      };
+      if (tech) {
+        payload.assigned_to = tech.id;
+        payload.assigned_to_name = tech.full_name;
+        payload.assigned_at = d.toISOString();
+      }
+      const res = await fetch(`${getPbUrl()}/api/collections/repair_orders/records`, {
+        method: "POST",
+        headers: { "Content-Type":"application/json", ...(token ? { Authorization:token } : {}) },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error("Lỗi tạo đơn sửa chữa");
+      const created = await res.json();
+      // Lưu liên kết + thông báo KTV
+      await fetch(`${getPbUrl()}/api/collections/return_orders/records/${r.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type":"application/json", ...(token ? { Authorization:token } : {}) },
+        body: JSON.stringify({ sc_order_code: created.order_code || scCode }),
+      });
+      if (tech) {
+        await Notification.create({
+          user_id: tech.id, user_name: tech.full_name,
+          title: "🔧 Sửa lại miễn phí (đổi trả)",
+          message: `Đơn ${created.order_code || scCode} — ${r.product_name||""} của ${r.customer_name||"khách"} — sửa lại miễn phí theo đơn ${r.code}`,
+          order_id: created.id, order_code: created.order_code || scCode,
+          type: "assign", is_read: false,
+        }).catch(()=>{});
+      }
+      logAction(user, "return_create_repair", "return_order", r.id, `Tạo đơn sửa miễn phí ${created.order_code || scCode} từ đơn đổi trả ${r.code}`);
+      alert(`✅ Đã tạo đơn sửa ${created.order_code || scCode}${tech ? " — đã gán cho " + tech.full_name : " — chờ phân công KTV"}`);
+      setDetail({ ...r, sc_order_code: created.order_code || scCode });
+      load();
+    } catch(e) { alert("Lỗi: " + e.message); }
+  }
+
+  // Đổi SP / Bảo hành → báo kho soạn hàng đổi
+  async function notifyWarehouse(r) {
+    if (!window.confirm(`Gửi yêu cầu SOẠN HÀNG ĐỔI cho kho (đơn ${r.code}${r.new_product_name ? " — đổi sang: " + r.new_product_name : ""})?`)) return;
+    try {
+      await notifyRoles(["warehouse","packer"], {
+        title: "📦 Soạn hàng đổi trả",
+        message: `Đơn ${r.code} — đổi hàng cho ${r.customer_name||"khách"}${r.new_product_name ? " — lấy hàng: " + r.new_product_name : ""}`,
+        order: { id: r.id, order_code: r.code },
+        type: "return_exchange",
+      });
+      logAction(user, "return_notify_warehouse", "return_order", r.id, `Báo kho soạn hàng đổi — đơn ${r.code}`);
+      alert("✅ Đã gửi yêu cầu cho kho.");
+    } catch(e) { alert("Lỗi: " + e.message); }
+  }
+
   // Đổi trạng thái đơn đổi trả (pending → processing → done / cancelled)
   async function updateReturnStatus(r, newStatus) {
     if (!window.confirm(`Đổi trạng thái đơn ${r.code} → "${STATUS_COLORS[newStatus]?.label || newStatus}"?`)) return;
@@ -887,6 +982,32 @@ export default function ReturnOrderPage({ user }) {
               <Row l="Lý do" v={detail.reason} />
               <Row l="Ngày đổi trả" v={fmtDate(detail.return_date || detail.created)} />
               {detail.note && <Row l="Ghi chú" v={detail.note} />}
+
+              {detail.sc_order_code && <Row l="Đơn sửa liên kết" v={`🔗 ${detail.sc_order_code}`} />}
+
+              {/* Nút nối luồng theo hình thức xử lý */}
+              {isAdmin && detail.status === "processing" && (
+                <div style={{ display:"flex", gap:8, marginTop:14, flexWrap:"wrap" }}>
+                  {detail.return_type === "refund" && (detail.refund_amount||0) > 0 && !detail.sc_order_code && (
+                    <button onClick={() => sendToCashier(detail)}
+                      style={{ flex:1, height:44, borderRadius:12, border:"none", background:"#7c3aed", color:"#fff", fontWeight:800, fontSize:13, cursor:"pointer" }}>
+                      💵 Chuyển thu ngân chi tiền
+                    </button>
+                  )}
+                  {detail.return_type === "repair_free" && !detail.sc_order_code && (
+                    <button onClick={() => createRepairOrder(detail)}
+                      style={{ flex:1, height:44, borderRadius:12, border:"none", background:"#ea580c", color:"#fff", fontWeight:800, fontSize:13, cursor:"pointer" }}>
+                      🔧 Tạo đơn sửa miễn phí
+                    </button>
+                  )}
+                  {(detail.return_type === "exchange" || detail.return_type === "warranty") && (
+                    <button onClick={() => notifyWarehouse(detail)}
+                      style={{ flex:1, height:44, borderRadius:12, border:"none", background:"#0284c7", color:"#fff", fontWeight:800, fontSize:13, cursor:"pointer" }}>
+                      📦 Báo kho soạn hàng đổi
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/* Nút xử lý theo trạng thái */}
               {isAdmin && detail.status !== "done" && detail.status !== "cancelled" && (

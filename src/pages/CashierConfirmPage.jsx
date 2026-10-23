@@ -32,6 +32,8 @@ export default function CashierConfirmPage({ user }) {
   const [loading,setLoading]       = useState(false);
   const [submitting,setSubmitting] = useState(false);
   const [todayPaidIds,setTodayPaidIds] = useState(new Set());
+  const [payouts, setPayouts] = useState([]); // phiếu chi hoàn tiền đổi trả
+  const [payingOut, setPayingOut] = useState("");
 
   useEffect(()=>{
     loadOrders();
@@ -42,10 +44,14 @@ export default function CashierConfirmPage({ user }) {
   async function loadOrders(){
     setLoading(true);
     try{
-      const [all, journals] = await Promise.all([
+      const [all, journals, dtOrders] = await Promise.all([
         SaleOrder.list({limit:200,sort:"-id"}),
         CashJournal.list({limit:500,sort:"-id",filter:`(journal_date="${getLocalDate()}")&&(ref_type="sale_order")`}),
+        fetch(`${getPbUrl()}/api/collections/return_orders/records?perPage=100&sort=-id&filter=(return_type="refund")`, {
+          headers: (()=>{ const t=getAuth().token; return t?{Authorization:t}:{}; })()
+        }).then(r=>r.ok?r.json():{items:[]}).catch(()=>({items:[]})),
       ]);
+      setPayouts(((dtOrders.items)||[]).filter(o => o.status === "processing" && (o.refund_amount||0) > 0));
       setOrders(sortNewestFirst(all));
       // Lưu tập ref_id đã thu hôm nay theo journal (chính xác hơn dùng created_date)
       const todayPaidIds = new Set((journals||[]).map(j=>j.ref_id).filter(Boolean));
@@ -121,11 +127,46 @@ export default function CashierConfirmPage({ user }) {
     setSubmitting(false);
   }
 
+  async function payPayout(r){
+    if(!window.confirm(`Xác nhận ĐÃ CHI hoàn tiền ${Number(r.refund_amount||0).toLocaleString("vi-VN")}đ cho ${r.customer_name||"khách"} (đơn ${r.code})?`)) return;
+    setPayingOut(r.id);
+    try{
+      const { token } = getAuth();
+      const res = await fetch(`${getPbUrl()}/api/collections/return_orders/records/${r.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type":"application/json", ...(token?{Authorization:token}:{}) },
+        body: JSON.stringify({ status: "done" }),
+      });
+      if(!res.ok) throw new Error("Lỗi cập nhật đơn đổi trả");
+      // Ghi sổ quỹ chi hoàn tiền (nếu chưa có bút toán)
+      try{
+        const jres = await fetch(`${getPbUrl()}/api/collections/cash_journal/records?perPage=1&filter=(ref_code="${r.code}")`, {
+          headers: token?{Authorization:token}:{} });
+        const jjson = jres.ok?await jres.json():{items:[]};
+        if(((jjson.items)||[]).length === 0){
+          await CashJournal.create({
+            entry_type: "payment",
+            amount: r.refund_amount,
+            description: `Hoàn tiền đổi trả — ${r.customer_name||"khách"} — ${r.code}`,
+            journal_date: getLocalDate(),
+            ref_code: r.code,
+            ref_type: "return",
+            payment_method: r.refund_method || "cash",
+          });
+        }
+      }catch{}
+      logAction(user, "return_payout", "return_order", r.id, `Thu ngân ĐÃ CHI hoàn tiền đơn ${r.code}: ${Number(r.refund_amount||0).toLocaleString("vi-VN")}đ`);
+      loadOrders();
+    }catch(e){ alert("Lỗi: " + (e.message||e)); }
+    setPayingOut("");
+  }
+
   const list=tab==="pending"?pending:doneToday;
 
   const CONFIRM_TABS = [
     { key:"pending", icon:"pending_actions", label:`Chờ xác nhận (${pending.length})` },
     { key:"done",    icon:"check_circle",     label:`Đã thu hôm nay (${doneToday.length})` },
+    ...(canCollect && payouts.length > 0 ? [{ key:"payout", icon:"currency_exchange", label:`Chi đổi trả (${payouts.length})` }] : []),
   ];
 
   return (
@@ -162,6 +203,34 @@ export default function CashierConfirmPage({ user }) {
 
       <div style={{padding:"12px 16px"}}>
         {loading&&<div style={{textAlign:"center",color:"#9ca3af",padding:24}}>⏳ Đang tải...</div>}
+
+        {/* Phiếu chi hoàn tiền đổi trả */}
+        {tab==="payout" && !loading && (payouts.length===0
+          ? <div style={{textAlign:"center",padding:"40px 20px",color:"#9ca3af"}}>
+              <div style={{fontSize:40,marginBottom:12}}>📭</div>
+              <div style={{fontWeight:700,fontSize:15,color:"#6b7280"}}>Không có phiếu chi hoàn tiền nào đang chờ</div>
+            </div>
+          : payouts.map(r=>(
+            <div key={r.id} style={{background:"#fff",borderRadius:16,border:"1.5px solid #fecaca",marginBottom:12,padding:"14px 16px",boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}}>
+                <div>
+                  <div style={{fontWeight:900,fontSize:15,color:"#1e1b4b",marginBottom:3}}>💵 {r.code} <span style={{fontSize:11,fontWeight:700,color:"#d97706",background:"#fef3c7",borderRadius:20,padding:"2px 10px",marginLeft:4}}>Hoàn tiền</span></div>
+                  <div style={{fontSize:13,color:"#374151",marginBottom:2}}>👤 {r.customer_name||"Khách"}{r.customer_phone?" · "+r.customer_phone:""}</div>
+                  {r.product_name && <div style={{fontSize:12,color:"#9ca3af"}}>📦 {r.product_name}</div>}
+                  {r.ref_code && <div style={{fontSize:11,color:"#6b7280"}}>📎 Đơn gốc: {r.ref_code}</div>}
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontWeight:900,fontSize:17,color:"#dc2626"}}>{Number(r.refund_amount||0).toLocaleString("vi-VN")}đ</div>
+                  <div style={{fontSize:11,color:"#9ca3af",marginBottom:8}}>{r.refund_method==="transfer"?"Chuyển khoản":"Tiền mặt"}</div>
+                  <button onClick={()=>payPayout(r)} disabled={payingOut===r.id}
+                    style={{padding:"8px 16px",borderRadius:10,border:"none",background:"#059669",color:"#fff",fontWeight:800,fontSize:13,cursor:"pointer",opacity:payingOut===r.id?.6:1}}>
+                    {payingOut===r.id?"Đang ghi...":"✅ Đã chi tiền"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
         {!loading&&list.length===0&&(
           <div style={{textAlign:"center",padding:"40px 20px",color:"#9ca3af"}}>
             <div style={{fontSize:40,marginBottom:12}}>{tab==="pending"?"📭":"✅"}</div>
