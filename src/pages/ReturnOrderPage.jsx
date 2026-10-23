@@ -82,6 +82,7 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems, edi
   const [partSuggs,   setPartSuggs]    = useState([]);
   const [showPartDrop, setShowPartDrop] = useState(false);
   const [originOrder, setOriginOrder] = useState(null);
+  const [originItems, setOriginItems] = useState([]); // sản phẩm của ĐƠN GỐC tra cứu được → chọn hàng đổi trả
   const [pasteMsg, setPasteMsg] = useState("");
   const [refSearch,   setRefSearch]   = useState(false);
   const [techs, setTechs] = useState([]);
@@ -102,8 +103,10 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems, edi
     return init;
   });
 
+  const allItems = originItems.length ? originItems : items; // ưu tiên sản phẩm từ đơn gốc tra cứu
+
   function applyPickedToForm(nextPicked) {
-    const chosen = items
+    const chosen = allItems
       .map((it,i) => ({ it, sel: nextPicked[i] }))
       .filter(x => x.sel?.checked);
     const names = chosen.map(x => `${x.it.part_name}${x.it.qty>1 ? ` (x${x.sel.qty})` : ""}`).join(", ");
@@ -124,7 +127,7 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems, edi
     });
   }
   function changeQty(i, qty) {
-    const max = items[i]?.qty || 1;
+    const max = allItems[i]?.qty || 1;
     const q = Math.max(1, Math.min(max, Number(qty)||1));
     setPicked(p => {
       const next = { ...p, [i]: { ...p[i], qty: q } };
@@ -160,7 +163,7 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems, edi
   // ── Tra cứu đơn gốc theo mã (BL-… → đơn bán, SC-… → đơn sửa) ──
   useEffect(() => {
     const code = (form.ref_code || "").trim();
-    if (!/^(BL|SC)[-\d]/i.test(code) || code.length < 6) { setOriginOrder(null); return; }
+    if (!/^(BL|SC)[-\d]/i.test(code) || code.length < 6) { setOriginOrder(null); setOriginItems([]); return; }
     const timer = setTimeout(async () => {
       setRefSearch(true);
       try {
@@ -172,7 +175,7 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems, edi
           { headers: token ? { Authorization: token } : {} });
         const json = res.ok ? await res.json() : null;
         const o = json?.items?.[0];
-        if (!o) { setOriginOrder(null); return; }
+        if (!o) { setOriginOrder(null); setOriginItems([]); return; }
         let total = 0, products = "";
         if (isSale) {
           total = Number(o.total || o.subtotal || 0);
@@ -186,14 +189,36 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems, edi
           const d = new Date(o.done_date); d.setDate(d.getDate() + Number(o.warranty_days||0));
           wEnd = d.toISOString().slice(0,10);
         }
+        // Lấy danh sách sản phẩm của đơn gốc để hiển thị chọn hàng đổi trả
+        let oItems = [];
+        if (isSale) {
+          if (Array.isArray(o.items) && o.items.length > 0) {
+            oItems = o.items.map(it => ({ sku: it.sku||"", part_name: it.part_name||"", qty: it.qty||1, unit_price: it.unit_price||0 }));
+          } else {
+            try {
+              const ires = await fetch(`${getPbUrl()}/api/collections/sale_order_items/records?perPage=100&filter=(sale_order_id="${o.id}")`,
+                { headers: token ? { Authorization: token } : {} });
+              const ijson = ires.ok ? await ires.json() : { items: [] };
+              oItems = (ijson.items || []).map(it => ({ sku: it.sku||"", part_name: it.part_name||"", qty: it.qty||1, unit_price: it.unit_price||0 }));
+            } catch {}
+          }
+        } else {
+          oItems = [{ sku:"", part_name: products || (o.device_model||o.device_name||""), qty:1, unit_price: total }];
+        }
+        setOriginItems(oItems);
+        setPicked(oItems.reduce((acc, _, i2) => { acc[i2] = { checked:false, qty: oItems[i2].qty || 1 }; return acc; }, {}));
         setOriginOrder({ type: isSale ? "sale" : "repair", code: o.order_code, status: o.status,
           customer_name: o.customer_name, customer_phone: o.customer_phone, total, products, warranty_end: wEnd });
         setForm(f => {
           const next = { ...f, origin_total: total };
           if (!f.customer_name.trim())  next.customer_name  = o.customer_name || "";
           if (!f.customer_phone.trim()) next.customer_phone = o.customer_phone || "";
-          if (!f.product_name.trim())  next.product_name   = products || "";
-          if (f.refund_amount === 0 && f.return_type === "refund") next.refund_amount = total;
+          // Có danh sách sản phẩm → để checklist quyết định tên hàng & số tiền;
+          // không có (đơn cũ thiếu items) mới tự điền dạng text
+          if (oItems.length === 0) {
+            if (!f.product_name.trim())  next.product_name   = products || "";
+            if (f.refund_amount === 0 && f.return_type === "refund") next.refund_amount = total;
+          }
           if (!f.warranty_end_date && wEnd) next.warranty_end_date = wEnd;
           return next;
         });
@@ -406,11 +431,11 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems, edi
         </div>
 
         {/* Sản phẩm */}
-        {multiItem ? (
+        {(multiItem || originItems.length > 0) ? (
           <div style={{ marginBottom:12 }}>
-            <label style={{ fontSize:12, color:"#6b7280", fontWeight:600 }}>Chọn sản phẩm cần đổi trả *</label>
+            <label style={{ fontSize:12, color:"#6b7280", fontWeight:600 }}>Chọn sản phẩm cần đổi trả * {originItems.length ? `(${originItems.length} sản phẩm từ đơn gốc ${originOrder?.code || ""})` : ""}</label>
             <div style={{ marginTop:6, border:"1.5px solid #e5e7eb", borderRadius:12, overflow:"hidden" }}>
-              {items.map((it, i) => {
+              {allItems.map((it, i) => {
                 const sel = picked[i] || { checked:false, qty: it.qty||1 };
                 return (
                   <div key={i} style={{
