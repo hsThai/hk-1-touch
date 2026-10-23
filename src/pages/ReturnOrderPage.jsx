@@ -82,6 +82,7 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems }) {
   const [partSuggs,   setPartSuggs]    = useState([]);
   const [showPartDrop, setShowPartDrop] = useState(false);
   const [originOrder, setOriginOrder] = useState(null);
+  const [pasteMsg, setPasteMsg] = useState("");
   const [refSearch,   setRefSearch]   = useState(false);
   const [techs, setTechs] = useState([]);
   const partField = React.useRef("product_name");
@@ -350,8 +351,22 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems }) {
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
           <div>
             <label style={{ fontSize:12, color:"#6b7280", fontWeight:600 }}>Mã đơn gốc (BL-/SC-)</label>
-            <input value={form.ref_code} onChange={e=>set("ref_code",e.target.value)}
-              placeholder="BL-260601-0001" style={{ ...INP, marginTop:4 }} />
+            <div style={{ position:"relative" }}>
+              <input value={form.ref_code} onChange={e=>set("ref_code",e.target.value)}
+                placeholder="BL-260601-0001" style={{ ...INP, marginTop:4, paddingRight:44 }} />
+              <button type="button" onClick={async () => {
+                try {
+                  const txt = (await navigator.clipboard.readText() || "").trim();
+                  if (txt) { set("ref_code", txt); setPasteMsg(""); }
+                  else setPasteMsg("Clipboard trống");
+                } catch { setPasteMsg("Không đọc được clipboard — bấm giữ ô rồi chọn Dán"); }
+              }}
+                title="Dán từ clipboard"
+                style={{ position:"absolute", right:6, top:"calc(4px + 4px)", height:34, width:34,
+                  borderRadius:8, border:"1.5px solid #e5e7eb", background:"#f5f3ff", cursor:"pointer",
+                  display:"flex", alignItems:"center", justifyContent:"center", fontSize:16 }}>📋</button>
+              {pasteMsg && <div style={{ fontSize:11, color:"#d97706", marginTop:3 }}>{pasteMsg}</div>}
+            </div>
           </div>
             {refSearch && <div style={{ fontSize:11, color:"#9ca3af", marginTop:4 }}>⏳ Đang tra cứu đơn…</div>}
             {originOrder && (

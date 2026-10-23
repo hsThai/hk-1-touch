@@ -644,7 +644,13 @@ function MainAppContent({ onUserChange }) {
       showCopyToast(code);
     }
     // Mobile: long-press mã đơn → copy (không mở menu prompt)
-    const onCtx = (e) => { if (!mq.matches && findCode(e.target)) tryCopy(e); };
+    // NHƯNG: bấm giữ trong Ô NHẬP (input/textarea/select) → KHÔNG copy,
+    // trả về menu mặc định của trình duyệt để DÁN (paste) bình thường.
+    const onCtx = (e) => {
+      const t = e.target;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+      if (!mq.matches && findCode(e.target)) tryCopy(e);
+    };
     // PC: nháy đôi mã đơn → copy nhanh
     const onDbl  = (e) => { if (mq.matches && findCode(e.target)) tryCopy(e); };
     document.addEventListener("contextmenu", onCtx);
