@@ -57,6 +57,13 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems }) {
       ref_code:       "",
       product_name:   "",
       refund_amount:  0,
+      refund_method:  "cash",
+      new_product_name: "",
+      price_diff:     0,
+      warranty_end_date: "",
+      assigned_tech:  "",
+      promise_date:   "",
+      origin_total:   0,
       note:           "",
       status:         "pending",
       return_date:    new Date().toISOString().slice(0,10),
@@ -74,6 +81,17 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems }) {
   const [partSearch,   setPartSearch]   = useState("");
   const [partSuggs,   setPartSuggs]    = useState([]);
   const [showPartDrop, setShowPartDrop] = useState(false);
+  const [originOrder, setOriginOrder] = useState(null);
+  const [refSearch,   setRefSearch]   = useState(false);
+  const [techs, setTechs] = useState([]);
+  const partField = React.useRef("product_name");
+
+  useEffect(() => {
+    fetch(`${getPbUrl()}/api/collections/staff/records?perPage=200&sort=-id`)
+      .then(r => r.ok ? r.json() : {items:[]})
+      .then(j => setTechs((j.items||[]).filter(st => st.role === "technician")))
+      .catch(()=>{});
+  }, []);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
   // ── Checklist chọn hàng (chỉ khi đơn có nhiều sản phẩm) ──
@@ -138,6 +156,52 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems }) {
     return () => clearTimeout(timer);
   }, [partSearch]);
 
+  // ── Tra cứu đơn gốc theo mã (BL-… → đơn bán, SC-… → đơn sửa) ──
+  useEffect(() => {
+    const code = (form.ref_code || "").trim();
+    if (!/^(BL|SC)[-\d]/i.test(code) || code.length < 6) { setOriginOrder(null); return; }
+    const timer = setTimeout(async () => {
+      setRefSearch(true);
+      try {
+        const { token } = getAuth();
+        const esc = code.replace(/"/g, '\\"');
+        const isSale = /^BL/i.test(code);
+        const col = isSale ? "sale_orders" : "repair_orders";
+        const res = await fetch(`${getPbUrl()}/api/collections/${col}/records?perPage=1&filter=(order_code="${esc}")`,
+          { headers: token ? { Authorization: token } : {} });
+        const json = res.ok ? await res.json() : null;
+        const o = json?.items?.[0];
+        if (!o) { setOriginOrder(null); return; }
+        let total = 0, products = "";
+        if (isSale) {
+          total = Number(o.total || o.subtotal || 0);
+          products = (Array.isArray(o.items) ? o.items : []).map(it => it.part_name).filter(Boolean).join(", ");
+        } else {
+          total = Number(o.final_cost || o.estimated_cost || 0);
+          products = [o.device_model || o.device_name, o.issue_description].filter(Boolean).join(" — ");
+        }
+        let wEnd = "";
+        if (!isSale && o.done_date && o.warranty_days) {
+          const d = new Date(o.done_date); d.setDate(d.getDate() + Number(o.warranty_days||0));
+          wEnd = d.toISOString().slice(0,10);
+        }
+        setOriginOrder({ type: isSale ? "sale" : "repair", code: o.order_code, status: o.status,
+          customer_name: o.customer_name, customer_phone: o.customer_phone, total, products, warranty_end: wEnd });
+        setForm(f => {
+          const next = { ...f, origin_total: total };
+          if (!f.customer_name.trim())  next.customer_name  = o.customer_name || "";
+          if (!f.customer_phone.trim()) next.customer_phone = o.customer_phone || "";
+          if (!f.product_name.trim())  next.product_name   = products || "";
+          if (f.refund_amount === 0 && f.return_type === "refund") next.refund_amount = total;
+          if (!f.warranty_end_date && wEnd) next.warranty_end_date = wEnd;
+          return next;
+        });
+      } catch {}
+      setRefSearch(false);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [form.ref_code]);
+
   // Autocomplete khách hàng
   useEffect(() => {
     const q = custSearch.trim();
@@ -188,6 +252,7 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems }) {
             journal_date:  form.return_date,
             ref_code:      form.code,
             ref_type:      "return",
+            payment_method: form.refund_method || "cash",
           }).catch(()=>{});
         }
       }
@@ -353,8 +418,8 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems }) {
             <label style={{ fontSize:12, color:"#6b7280", fontWeight:600 }}>Tên sản phẩm / dịch vụ *</label>
             <input
               value={partSearch || form.product_name}
-              onChange={e => { setPartSearch(e.target.value); set("product_name", e.target.value); setShowPartDrop(true); }}
-              onFocus={() => setShowPartDrop(true)}
+              onChange={e => { partField.current = "product_name"; setPartSearch(e.target.value); set("product_name", e.target.value); setShowPartDrop(true); }}
+              onFocus={() => { partField.current = "product_name"; setShowPartDrop(true); }}
               onBlur={() => setTimeout(() => setShowPartDrop(false), 180)}
               placeholder="Nhập tên linh kiện / dịch vụ để gợi ý..."
               style={{ ...INP, marginTop:4 }} />
@@ -396,13 +461,91 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems }) {
           </select>
         </div>
 
+        {/* Đổi sản phẩm mới / Bảo hành đổi mới */}
+        {(form.return_type === "exchange" || form.return_type === "warranty") && (
+          <div style={{ marginBottom:12, position:"relative" }}>
+            <label style={{ fontSize:12, color:"#6b7280", fontWeight:600 }}>
+              {form.return_type === "exchange" ? "Sản phẩm đổi mới *" : "Sản phẩm bảo hành đổi mới *"}
+            </label>
+            <input
+              value={form.new_product_name}
+              onChange={e => { partField.current = "new_product_name"; setPartSearch(e.target.value); set("new_product_name", e.target.value); setShowPartDrop(true); }}
+              onFocus={() => { partField.current = "new_product_name"; }}
+              onBlur={() => setTimeout(() => setShowPartDrop(false), 180)}
+              placeholder="Nhập tên linh kiện / dịch vụ để gợi ý..."
+              style={{ ...INP, marginTop:4 }} />
+            {showPartDrop && partSuggs.length > 0 && partField.current === "new_product_name" && (
+              <div style={{ position:"absolute", top:"100%", left:0, right:0, zIndex:100, background:"#fff",
+                border:"1.5px solid #e5e7eb", borderRadius:10, boxShadow:"0 8px 24px rgba(0,0,0,.12)", overflow:"hidden", marginTop:2 }}>
+                {partSuggs.map(pt => (
+                  <div key={pt.id} onMouseDown={() => { set("new_product_name", pt.name||""); setPartSearch(pt.name||""); setPartSuggs([]); setShowPartDrop(false); }}
+                    style={{ padding:"9px 14px", cursor:"pointer", borderBottom:"1px solid #f3f4f6" }}>
+                    <div style={{ fontWeight:700, fontSize:13, color:"#1e1b4b" }}>{pt.name}</div>
+                    <div style={{ fontSize:11, color:"#6b7280" }}>{pt.sku && `SKU: ${pt.sku} · `}{pt.price ? fmtMoney(pt.price) : ""}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {form.return_type === "exchange" && (
+              <div style={{ marginTop:10 }}>
+                <label style={{ fontSize:12, color:"#6b7280", fontWeight:600 }}>Chênh lệch giá khách trả thêm (đ) — âm nếu hoàn tiền lại</label>
+                <input type="number" value={form.price_diff}
+                  onChange={e=>set("price_diff", Number(e.target.value)||0)}
+                  style={{ ...INP, marginTop:4 }} />
+              </div>
+            )}
+            {form.return_type === "warranty" && (
+              <div style={{ marginTop:10 }}>
+                <label style={{ fontSize:12, color:"#6b7280", fontWeight:600 }}>Ngày hết hạn bảo hành</label>
+                <input type="date" value={form.warranty_end_date}
+                  onChange={e=>set("warranty_end_date", e.target.value)}
+                  style={{ ...INP, marginTop:4 }} />
+                {originOrder?.warranty_end && <div style={{ fontSize:11, color:"#059669", marginTop:3 }}>✓ Theo đơn gốc: bảo hành đến {originOrder.warranty_end}</div>}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Sửa lại miễn phí — KTV phụ trách + ngày hẹn xong */}
+        {form.return_type === "repair_free" && (
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
+            <div>
+              <label style={{ fontSize:12, color:"#6b7280", fontWeight:600 }}>KTV phụ trách</label>
+              <select value={form.assigned_tech} onChange={e=>set("assigned_tech", e.target.value)}
+                style={{ ...INP, marginTop:4, background:"#fff" }}>
+                <option value="">— Chọn KTV —</option>
+                {techs.map(t => <option key={t.id} value={t.full_name}>{t.full_name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize:12, color:"#6b7280", fontWeight:600 }}>Ngày hẹn xong</label>
+              <input type="date" value={form.promise_date}
+                onChange={e=>set("promise_date", e.target.value)}
+                style={{ ...INP, marginTop:4 }} />
+            </div>
+          </div>
+        )}
+
         {/* Số tiền hoàn — chỉ khi refund */}
         {form.return_type === "refund" && (
-          <div style={{ marginBottom:12 }}>
-            <label style={{ fontSize:12, color:"#dc2626", fontWeight:600 }}>Số tiền hoàn lại (đ)</label>
-            <input type="number" min={0} value={form.refund_amount}
-              onChange={e=>set("refund_amount",Number(e.target.value))}
-              style={{ ...INP, marginTop:4, borderColor:"#fca5a5" }} />
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
+            <div>
+              <label style={{ fontSize:12, color:"#dc2626", fontWeight:600 }}>Số tiền hoàn lại (đ)</label>
+              <input type="number" min={0} value={form.refund_amount}
+                onChange={e=>set("refund_amount",Number(e.target.value))}
+                style={{ ...INP, marginTop:4, borderColor:"#fca5a5" }} />
+              {originOrder && originOrder.total > 0 && (
+                <div style={{ fontSize:11, color:"#6b7280", marginTop:3 }}>Giá trị đơn gốc: {fmtMoney(originOrder.total)}</div>
+              )}
+            </div>
+            <div>
+              <label style={{ fontSize:12, color:"#6b7280", fontWeight:600 }}>Hình thức hoàn tiền</label>
+              <select value={form.refund_method} onChange={e=>set("refund_method", e.target.value)}
+                style={{ ...INP, marginTop:4, background:"#fff" }}>
+                <option value="cash">💵 Tiền mặt</option>
+                <option value="transfer">🏦 Chuyển khoản</option>
+              </select>
+            </div>
           </div>
         )}
 
