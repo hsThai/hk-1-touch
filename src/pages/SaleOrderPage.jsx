@@ -1,7 +1,7 @@
 /* SaleOrderPage.jsx — POS bán hàng lẻ */
 import React, { useState, useEffect, useRef } from "react";
 import { ProductThumb } from "./ProductThumb.jsx";
-import { SparePart, SaleOrder, SaleOrderItem, StockMovement, StockLedger, AppSettings, Customer , DebtVoucher, CashJournal, logAction, notifyRoles, sortNewestFirst } from "./pb.jsx";
+import { SparePart, SaleOrder, SaleOrderItem, StockMovement, StockLedger, AppSettings, Customer , DebtVoucher, CashJournal, logAction, notifyRoles, sortNewestFirst, getPbUrl } from "./pb.jsx";
 import { previewSaleReceipt } from "../utils/printClient.js";
 import { usePermission } from "./PermissionContext.jsx";
 
@@ -40,6 +40,11 @@ export default function SaleOrderPage({ user }) {
   const [search,      setSearch]      = useState("");
   const [searchRes,   setSearchRes]   = useState([]);
   const [cart,        setCart]        = useState([]);
+  // ── Tồn kho theo kho: chỉ bán từ Kho BH, kho khác chỉ để THAM KHẢO ──
+  const [bhWarehouseId, setBhWarehouseId] = useState("");
+  const [stockMap, setStockMap] = useState({}); // part_id -> { bh, others:[{name,qty}], hasLedger }
+  const [infoPartId, setInfoPartId] = useState(""); // ô đang mở bảng tồn kho tham khảo
+  const stockCache = useRef({});
   const [custName,       setCustName]       = useState("");
   const [custPhone,      setCustPhone]      = useState("");
   const [deliveryType,   setDeliveryType]   = useState("pickup"); // pickup | carrier (ĐVVC) | staff (NV giao)
@@ -143,6 +148,58 @@ export default function SaleOrderPage({ user }) {
 
   function showToast(msg) { setToast(msg); setTimeout(() => setToast(""), 3000); }
 
+  // Kho BH (kho bán hàng chính)
+  useEffect(() => {
+    (async () => {
+      try {
+        const whs = await fetch(`${getPbUrl()}/api/collections/warehouses/records?perPage=50&filter=${encodeURIComponent("(is_active=true)")}`)
+          .then(r => r.ok ? r.json() : { items: [] }).catch(() => ({ items: [] }));
+        const bh = (whs.items || []).find(w => (w.code || "").toUpperCase() === "KHOBH")
+          || (whs.items || []).find(w => /kho bh/i.test(w.name || ""));
+        if (bh) setBhWarehouseId(bh.id);
+      } catch {}
+    })();
+  }, []);
+
+  // Lấy tồn kho các kho cho danh sách sản phẩm (1 lần cho cả danh sách tìm kiếm)
+  async function loadStockInfo(parts) {
+    const need = (parts || []).map(x => x.id).filter(id => id && !stockCache.current[id]);
+    if (need.length === 0) return;
+    try {
+      const filter = need.map(id => `part_id="${id}"`).join(" || ");
+      const r = await fetch(`${getPbUrl()}/api/collections/stock_ledgers/records?perPage=500&filter=${encodeURIComponent(`(${filter})`)}`)
+        .then(x => x.ok ? x.json() : { items: [] }).catch(() => ({ items: [] }));
+      const grouped = {};
+      for (const led of (r.items || [])) {
+        const qty = Number(led.qty_on_hand || 0);
+        const g = grouped[led.part_id] || { bh: 0, others: [], hasLedger: true };
+        const isBH = (bhWarehouseId && led.warehouse_id === bhWarehouseId) || /^kho bh$/i.test((led.warehouse_name || "").trim());
+        if (isBH) g.bh += qty;
+        else if (qty !== 0) {
+          const ex = g.others.find(o => o.name === (led.warehouse_name || "Kho khác"));
+          if (ex) ex.qty += qty;
+          else g.others.push({ name: led.warehouse_name || "Kho khác", qty });
+        }
+        grouped[led.part_id] = g;
+      }
+      Object.keys(grouped).forEach(id => { stockCache.current[id] = grouped[id]; });
+      need.forEach(id => { if (!stockCache.current[id]) stockCache.current[id] = { bh: 0, others: [], hasLedger: false }; });
+      setStockMap({ ...stockCache.current });
+    } catch {}
+  }
+
+  // Tồn BÁN ĐƯỢC = tồn Kho BH (chưa có sổ kho thì lấy tồn danh mục làm mặc định cũ)
+  function sellableQty(part) {
+    const info = stockMap[part.id];
+    if (info && info.hasLedger) return info.bh;
+    if (info && !info.hasLedger) return Number(part.stock_qty || 0);
+    return Number(part.stock_qty || 0); // chưa tải xong
+  }
+  function otherStockLines(part) {
+    const info = stockMap[part.id];
+    return info?.others || [];
+  }
+
   useEffect(() => {
     if (searchTimer.current) clearTimeout(searchTimer.current);
     if (!search.trim()) { setSearchRes([]); return; }
@@ -158,17 +215,26 @@ export default function SaleOrderPage({ user }) {
           limit: 30,
         });
         setSearchRes(found || []);
+        loadStockInfo(found || []);
       } catch { setSearchRes([]); }
     }, 300);
   }, [search]);
 
   function addToCart(part) {
-    if (!(part.stock_qty > 0)) return;
+    const avail = sellableQty(part);
+    if (avail <= 0) {
+      const others = otherStockLines(part);
+      const refTxt = others.length
+        ? " · Kho khác (tham khảo): " + others.map(o => `${o.name} ${o.qty}`).join(", ")
+        : "";
+      showToast(`⛔ Kho BH hết hàng — không bán được${refTxt}`);
+      return;
+    }
     setCart(prev => {
       const ex = prev.find(i => i.part_id === part.id);
-      if (ex) return prev.map(i => i.part_id===part.id ? {...i, qty:Math.min(i.qty+1,i.stock_max)} : i);
+      if (ex) return prev.map(i => i.part_id===part.id ? {...i, qty:Math.min(i.qty+1, avail)} : i);
       return [...prev, { part_id:part.id, part_name:part.name, sku:part.sku||"",
-        unit_price:part.price||0, qty:1, stock_max:part.stock_qty||0 }];
+        unit_price:part.price||0, qty:1, stock_max:avail }];
     });
     setSearch(""); setSearchRes([]);
   }
@@ -547,11 +613,48 @@ export default function SaleOrderPage({ user }) {
                   <div style={{ fontSize:12, color:"#6b7280" }}>{p.sku} · {fmtMoney(p.price)}</div>
                 </div>
                 </div>
-                {p.stock_qty>0
-                  ? <span style={{ fontSize:12, background:"#dcfce7", color:"#059669", borderRadius:99, padding:"2px 10px", fontWeight:700 }}>Còn {p.stock_qty}</span>
-                  : <span style={{ fontSize:12, background:"#fee2e2", color:"#dc2626", borderRadius:99, padding:"2px 10px", fontWeight:700 }}>Hết hàng</span>}
+                <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
+                  {sellableQty(p) > 0
+                    ? <span style={{ fontSize:12, background:"#dcfce7", color:"#059669", borderRadius:99, padding:"2px 10px", fontWeight:700 }}>BH: {sellableQty(p)}</span>
+                    : <span style={{ fontSize:12, background:"#fee2e2", color:"#dc2626", borderRadius:99, padding:"2px 10px", fontWeight:700 }}>BH: 0</span>}
+                  <button type="button"
+                    onMouseEnter={()=>setInfoPartId(p.id)}
+                    onClick={e=>{ e.stopPropagation(); setInfoPartId(infoPartId===p.id?"":p.id); }}
+                    title="Xem tồn kho các kho khác (tham khảo)"
+                    style={{ width:24, height:24, borderRadius:"50%", border:"1.5px solid #93c5fd",
+                      background: infoPartId===p.id ? "#2563eb" : "#eff6ff",
+                      color: infoPartId===p.id ? "#fff" : "#2563eb",
+                      fontWeight:900, fontSize:12, cursor:"pointer", lineHeight:1 }}>i</button>
+                </div>
               </div>
             ))}
+            {infoPartId && searchRes.find(p=>p.id===infoPartId) && (() => {
+              const pp = searchRes.find(p=>p.id===infoPartId);
+              const others = otherStockLines(pp);
+              return (
+                <div onClick={e=>e.stopPropagation()}
+                  style={{ padding:"10px 14px", background:"#eff6ff", borderTop:"1.5px solid #bfdbfe" }}>
+                  <div style={{ fontSize:11.5, fontWeight:800, color:"#1e40af", marginBottom:4 }}>
+                    📦 Tồn kho tham khảo — {pp.name}
+                  </div>
+                  <div style={{ fontSize:11.5, color:"#1e3a8a" }}>
+                    🏦 <b>Kho BH (bán được):</b> {sellableQty(pp)}
+                  </div>
+                  {others.length > 0 ? (
+                    <div style={{ fontSize:11.5, color:"#6b7280", marginTop:3 }}>
+                      {others.map((o,i) => (
+                        <div key={i}>• {o.name}: <b>{o.qty}</b></div>
+                      ))}
+                      <div style={{ marginTop:4, color:"#b45309", fontWeight:700 }}>
+                        ⚠️ Hàng ở kho khác chỉ để tham khảo — không chọn bán từ đây.
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize:11.5, color:"#9ca3af", marginTop:3 }}>Không có hàng ở kho khác.</div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>
@@ -593,6 +696,14 @@ export default function SaleOrderPage({ user }) {
                   <span style={{ fontSize:12, color:"#6b7280" }}>đ/cái</span>
                 </div>
               </div>
+              <button type="button"
+                onMouseEnter={()=>setInfoPartId("cart-"+item.part_id)}
+                onClick={()=>setInfoPartId(infoPartId==="cart-"+item.part_id ? "" : "cart-"+item.part_id)}
+                title="Xem tồn kho các kho khác (tham khảo)"
+                style={{ width:24, height:24, borderRadius:"50%", border:"1.5px solid #93c5fd",
+                  background: infoPartId==="cart-"+item.part_id ? "#2563eb" : "#eff6ff",
+                  color: infoPartId==="cart-"+item.part_id ? "#fff" : "#2563eb",
+                  fontWeight:900, fontSize:12, cursor:"pointer", lineHeight:1, flexShrink:0 }}>i</button>
               <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                 <button onClick={()=>updateQty(idx,-1)} style={{ width:32, height:32, borderRadius:8, border:"1.5px solid #e5e7eb", background:"#f9fafb", cursor:"pointer", fontWeight:900, fontSize:16 }}>−</button>
                 <span style={{ fontWeight:800, fontSize:15, minWidth:24, textAlign:"center" }}>{item.qty}</span>
@@ -602,6 +713,30 @@ export default function SaleOrderPage({ user }) {
               <button onClick={()=>removeItem(idx)} style={{ background:"none", border:"none", cursor:"pointer", color:"#dc2626", fontSize:22, padding:2 }}>×</button>
             </div>
           ))}
+          {infoPartId.startsWith("cart-") && (() => {
+            const pid = infoPartId.slice(5);
+            const info = stockMap[pid];
+            const others = info?.others || [];
+            const item = cart.find(i => i.part_id === pid);
+            return (
+              <div style={{ padding:"10px 14px", background:"#eff6ff", borderTop:"1.5px solid #bfdbfe" }}>
+                <div style={{ fontSize:11.5, fontWeight:800, color:"#1e40af", marginBottom:4 }}>
+                  📦 Tồn kho tham khảo — {item?.part_name || ""}
+                </div>
+                <div style={{ fontSize:11.5, color:"#1e3a8a" }}>
+                  🏦 <b>Kho BH (bán được):</b> {info?.hasLedger ? info.bh : (item?.stock_max ?? 0)}
+                </div>
+                {others.length > 0 ? (
+                  <div style={{ fontSize:11.5, color:"#6b7280", marginTop:3 }}>
+                    {others.map((o,i) => <div key={i}>• {o.name}: <b>{o.qty}</b></div>)}
+                    <div style={{ marginTop:4, color:"#b45309", fontWeight:700 }}>⚠️ Kho khác chỉ tham khảo — không bán từ đây.</div>
+                  </div>
+                ) : (
+                  <div style={{ fontSize:11.5, color:"#9ca3af", marginTop:3 }}>Không có hàng ở kho khác.</div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
 
