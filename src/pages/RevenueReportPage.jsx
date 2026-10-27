@@ -231,6 +231,162 @@ function CashJournalTab() {
 
 
 // ── Tab Top sản phẩm bán chạy ─────────────────────────────
+// ── Báo cáo theo SẢN PHẨM: SL bán, doanh thu, giá vốn, lãi gộp ──
+function ProductReportTab({ saleOrders, saleOrderItems, repairOrders, periodSale, periodRepair }) {
+  const [q, setQ] = useState("");
+  const [sortBy, setSortBy] = useState("revenue");
+
+  const map = {};
+  const saleIds = new Set((periodSale || []).map(o => o.id));
+  const orderCodeOf = {};
+  (periodSale || []).forEach(o => { orderCodeOf[o.id] = o.order_code; orderCodeOf[o.order_code] = o.order_code; });
+
+  (saleOrderItems || []).forEach(it => {
+    const key = it.sale_order_id || it.sale_order_code;
+    if (!saleIds.has(it.sale_order_id) && !saleIds.has(it.sale_order_code)) return;
+    const name = it.part_name || it.sku || "Không rõ";
+    const g = map[name] || (map[name] = { name, sku: it.sku || "", qty: 0, revenue: 0, cost: 0, orders: new Set() });
+    g.qty += Number(it.qty) || 1;
+    g.revenue += Number(it.total_price || (it.unit_price || 0) * (it.qty || 0));
+    g.cost += Number(it.cost_price || 0) * (Number(it.qty) || 1);
+    g.orders.add(it.sale_order_id || it.sale_order_code);
+  });
+  (periodRepair || []).forEach(o => {
+    const name = o.device_model || o.device_name || "Dịch vụ sửa chữa";
+    const g = map[name] || (map[name] = { name, sku: "", qty: 0, revenue: 0, cost: 0, orders: new Set() });
+    g.qty += 1;
+    g.revenue += (o.final_cost || o.estimated_cost || 0);
+    g.orders.add(o.order_code || o.id);
+  });
+
+  const total = Object.values(map).reduce((s, x) => s + x.revenue, 0) || 1;
+  const rows = Object.values(map)
+    .filter(x => !q.trim() || x.name.toLowerCase().includes(q.trim().toLowerCase()) || (x.sku || "").toLowerCase().includes(q.trim().toLowerCase()))
+    .sort((a, b) => sortBy === "qty" ? b.qty - a.qty : sortBy === "profit" ? (b.revenue - b.cost) - (a.revenue - a.cost) : b.revenue - a.revenue);
+
+  return (
+    <div style={{ padding: 16 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+        <input value={q} onChange={e => setQ(e.target.value)} placeholder="🔍 Tìm sản phẩm / SKU..."
+          style={{ flex: 1, minWidth: 180, height: 38, borderRadius: 10, border: "1.5px solid #e5e7eb", paddingLeft: 44, paddingRight: 12, fontSize: 13 }} />
+        {[["revenue", "Doanh thu"], ["qty", "Số lượng"], ["profit", "Lãi gộp"]].map(([k, lb]) => (
+          <button key={k} onClick={() => setSortBy(k)} style={{
+            padding: "0 12px", height: 38, borderRadius: 10, border: "1.5px solid", cursor: "pointer",
+            borderColor: sortBy === k ? "#059669" : "#e5e7eb", background: sortBy === k ? "#f0fdf4" : "#fff",
+            color: sortBy === k ? "#059669" : "#6b7280", fontWeight: 700, fontSize: 12,
+          }}>{lb}</button>
+        ))}
+      </div>
+      {rows.length === 0 ? <div style={{ textAlign: "center", padding: 50, color: "#9ca3af" }}>📭 Chưa có dữ liệu trong kỳ</div> : (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: "#f8fafc" }}>
+                {["Sản phẩm / dịch vụ", "SL", "Số đơn", "Doanh thu", "Giá vốn", "Lãi gộp", "% DT"].map(h => (
+                  <th key={h} style={{ padding: "9px 10px", textAlign: h === "Sản phẩm / dịch vụ" ? "left" : "right", borderBottom: "1.5px solid #e5e7eb", whiteSpace: "nowrap" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((x, i) => {
+                const profit = x.revenue - x.cost;
+                return (
+                  <tr key={x.name + i} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                    <td style={{ padding: "8px 10px" }}>
+                      <div style={{ fontWeight: 700, color: "#1f2937" }}>{x.name}</div>
+                      {x.sku && <div style={{ fontSize: 11, color: "#9ca3af" }}>{x.sku}</div>}
+                    </td>
+                    <td style={{ padding: "8px 10px", textAlign: "right", fontWeight: 700 }}>{x.qty}</td>
+                    <td style={{ padding: "8px 10px", textAlign: "right", color: "#6b7280" }}>{x.orders.size}</td>
+                    <td style={{ padding: "8px 10px", textAlign: "right", fontWeight: 700, color: "#059669" }}>{fmtMoney(x.revenue)}</td>
+                    <td style={{ padding: "8px 10px", textAlign: "right", color: "#6b7280" }}>{x.cost ? fmtMoney(x.cost) : "—"}</td>
+                    <td style={{ padding: "8px 10px", textAlign: "right", fontWeight: 700, color: profit >= 0 ? "#2563eb" : "#dc2626" }}>{x.cost ? fmtMoney(profit) : "—"}</td>
+                    <td style={{ padding: "8px 10px", textAlign: "right", color: "#9ca3af" }}>{((x.revenue / total) * 100).toFixed(1)}%</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <div style={{ padding: "10px 10px", fontSize: 12.5, color: "#6b7280" }}>
+            {rows.length} mặt hàng · Tổng doanh thu kỳ: <b style={{ color: "#059669" }}>{fmtMoney(total)}</b>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Báo cáo theo KHÁCH HÀNG: doanh thu bán + sửa, số đơn, số lần ──
+function CustomerReportTab({ periodSale, periodRepair }) {
+  const [q, setQ] = useState("");
+  const [sortBy, setSortBy] = useState("revenue");
+  const map = {};
+  const add = (name, phone, field, amount, code) => {
+    const key = (phone || name || "Khách lẻ").trim();
+    const g = map[key] || (map[key] = { name: name || "Khách lẻ", phone: phone || "", saleRev: 0, repairRev: 0, orders: new Set() });
+    g[field] += amount;
+    g.orders.add(code);
+  };
+  (periodSale || []).forEach(o => add(o.customer_name, o.customer_phone, "saleRev", o.total || 0, o.order_code || o.id));
+  (periodRepair || []).forEach(o => add(o.customer_name, o.customer_phone, "repairRev", (o.final_cost || o.estimated_cost || 0), o.order_code || o.id));
+
+  const total = Object.values(map).reduce((s, x) => s + x.saleRev + x.repairRev, 0) || 1;
+  const rows = Object.values(map)
+    .filter(x => !q.trim() || x.name.toLowerCase().includes(q.trim().toLowerCase()) || (x.phone || "").includes(q.trim()))
+    .sort((a, b) => sortBy === "orders"
+      ? b.orders.size - a.orders.size
+      : (b.saleRev + b.repairRev) - (a.saleRev + a.repairRev));
+
+  return (
+    <div style={{ padding: 16 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+        <input value={q} onChange={e => setQ(e.target.value)} placeholder="🔍 Tìm khách hàng / SĐT..."
+          style={{ flex: 1, minWidth: 180, height: 38, borderRadius: 10, border: "1.5px solid #e5e7eb", paddingLeft: 44, paddingRight: 12, fontSize: 13 }} />
+        {[["revenue", "Doanh thu"], ["orders", "Số đơn"]].map(([k, lb]) => (
+          <button key={k} onClick={() => setSortBy(k)} style={{
+            padding: "0 12px", height: 38, borderRadius: 10, border: "1.5px solid", cursor: "pointer",
+            borderColor: sortBy === k ? "#059669" : "#e5e7eb", background: sortBy === k ? "#f0fdf4" : "#fff",
+            color: sortBy === k ? "#059669" : "#6b7280", fontWeight: 700, fontSize: 12,
+          }}>{lb}</button>
+        ))}
+      </div>
+      {rows.length === 0 ? <div style={{ textAlign: "center", padding: 50, color: "#9ca3af" }}>📭 Chưa có dữ liệu trong kỳ</div> : (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: "#f8fafc" }}>
+                {["Khách hàng", "Số đơn", "DT bán hàng", "DT sửa chữa", "Tổng DT"].map(h => (
+                  <th key={h} style={{ padding: "9px 10px", textAlign: h === "Khách hàng" ? "left" : "right", borderBottom: "1.5px solid #e5e7eb", whiteSpace: "nowrap" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((x, i) => {
+                const sum = x.saleRev + x.repairRev;
+                return (
+                  <tr key={x.name + i} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                    <td style={{ padding: "8px 10px" }}>
+                      <div style={{ fontWeight: 700, color: "#1f2937" }}>{x.name}</div>
+                      {x.phone && <div style={{ fontSize: 11, color: "#9ca3af" }}>{x.phone}</div>}
+                    </td>
+                    <td style={{ padding: "8px 10px", textAlign: "right", color: "#6b7280" }}>{x.orders.size}</td>
+                    <td style={{ padding: "8px 10px", textAlign: "right" }}>{x.saleRev ? fmtMoney(x.saleRev) : "—"}</td>
+                    <td style={{ padding: "8px 10px", textAlign: "right" }}>{x.repairRev ? fmtMoney(x.repairRev) : "—"}</td>
+                    <td style={{ padding: "8px 10px", textAlign: "right", fontWeight: 800, color: "#059669" }}>{fmtMoney(sum)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <div style={{ padding: "10px 10px", fontSize: 12.5, color: "#6b7280" }}>
+            {rows.length} khách hàng · Tổng doanh thu kỳ: <b style={{ color: "#059669" }}>{fmtMoney(total)}</b>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TopProductsTab({ repairOrders, saleOrders, saleOrderItems }) {
   // Phân tích từ repair_orders (theo thiết bị) + sale_order_items (theo linh kiện/SP bán lẻ thực tế)
   const productMap = {};
@@ -593,6 +749,42 @@ export default function RevenueReportPage({ user }) {
         ...periodSale.map(o=>[o.order_code||o.id, o.customer_name||"Khách lẻ", getItemNames(o),
           getQty(o), o.total||0, pmVN(o.payment_method), dVN(o.created_date||o.created)])];
       sumRow = [["Tổng doanh thu bán lẻ", saleRev]];
+    } else if (detailTab === "by_product") {
+      sheetName = "Theo sản phẩm";
+      const pm = {};
+      const sIds = new Set((periodSale||[]).map(o=>o.id));
+      (saleOrderItems||[]).forEach(it=>{
+        const k = it.sale_order_id || it.sale_order_code;
+        if (!sIds.has(it.sale_order_id) && !sIds.has(it.sale_order_code)) return;
+        const nm = it.part_name || it.sku || "Không rõ";
+        pm[nm] = pm[nm] || { qty:0, revenue:0, cost:0 };
+        pm[nm].qty += Number(it.qty)||1;
+        pm[nm].revenue += Number(it.total_price || (it.unit_price*it.qty) || 0);
+        pm[nm].cost += Number(it.cost_price||0)*(Number(it.qty)||1);
+      });
+      (periodRepair||[]).forEach(o=>{
+        const nm = o.device_model || o.device_name || "Dịch vụ sửa chữa";
+        pm[nm] = pm[nm] || { qty:0, revenue:0, cost:0 };
+        pm[nm].qty += 1; pm[nm].revenue += (o.final_cost||o.estimated_cost||0);
+      });
+      const list = Object.entries(pm).sort((a,b)=>b[1].revenue-a[1].revenue);
+      rows = [["Sản phẩm / dịch vụ","SL","Doanh thu","Giá vốn","Lãi gộp"],
+        ...list.map(([nm,v])=>[nm, v.qty, v.revenue, v.cost, v.revenue - v.cost])];
+      sumRow = [["Tổng doanh thu", list.reduce((t,x)=>t+x[1].revenue,0)]];
+    } else if (detailTab === "by_customer") {
+      sheetName = "Theo khách hàng";
+      const cm = {};
+      const addR = (name, phone, f, amt, code) => {
+        const k = (phone||name||"Khách lẻ").trim();
+        cm[k] = cm[k] || { name:name||"Khách lẻ", phone:phone||"", sale:0, repair:0, orders:new Set() };
+        cm[k][f] += amt; cm[k].orders.add(code);
+      };
+      (periodSale||[]).forEach(o=>addR(o.customer_name,o.customer_phone,"sale",o.total||0,o.order_code||o.id));
+      (periodRepair||[]).forEach(o=>addR(o.customer_name,o.customer_phone,"repair",(o.final_cost||o.estimated_cost||0),o.order_code||o.id));
+      const list = Object.values(cm).sort((a,b)=>(b.sale+b.repair)-(a.sale+a.repair));
+      rows = [["Khách hàng","SĐT","Số đơn","DT bán hàng","DT sửa chữa","Tổng DT"],
+        ...list.map(x=>[x.name, x.phone, x.orders.size, x.sale, x.repair, x.sale+x.repair])];
+      sumRow = [["Tổng doanh thu", list.reduce((t,x)=>t+x.sale+x.repair,0)]];
     } else if (detailTab === "expense") {
       sheetName = "Chi phí";
       rows = [["Loại","Mô tả","Số tiền","Ngày","Người tạo"],
@@ -671,6 +863,8 @@ export default function RevenueReportPage({ user }) {
     { key:"sale",         label:"🛒 Bán lẻ" },
     { key:"expense",      label:"💸 Chi phí" },
     { key:"top_products", label:"🏅 SP bán chạy" },
+    { key:"by_product",   label:"📦 Theo sản phẩm" },
+    { key:"by_customer",  label:"👥 Theo khách hàng" },
     { key:"pl",           label:"📊 Lãi lỗ" },
     { key:"cash_journal", label:"💰 Sổ quỹ" },
   ];
@@ -839,6 +1033,8 @@ export default function RevenueReportPage({ user }) {
         )}
 
         {detailTab==="top_products" && <TopProductsTab repairOrders={repairOrders} saleOrders={saleOrders} saleOrderItems={saleOrderItems} />}
+        {detailTab==="by_product"  && <ProductReportTab saleOrders={saleOrders} saleOrderItems={saleOrderItems} repairOrders={repairOrders} periodSale={periodSale} periodRepair={periodRepair} />}
+        {detailTab==="by_customer" && <CustomerReportTab periodSale={periodSale} periodRepair={periodRepair} />}
         {detailTab==="pl"           && <ProfitLossTab repairOrders={repairOrders} saleOrders={saleOrders} expenses={expenses}/>}
         {detailTab==="cash_journal" && <CashJournalTab/>}
       </div>

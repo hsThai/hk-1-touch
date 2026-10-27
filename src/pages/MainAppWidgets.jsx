@@ -24,6 +24,7 @@ export const PAGE_PERMS = {
   customers:       ["customer", "view"],
   suppliers:       ["supplier", "view"],
   debts:           ["debt", "view"],
+  report_debt:     ["debt", "view"],
   department:      ["department", "view"],
   role_perm:       ["role_perm", "view"],
   settings:        ["settings", "view"],
@@ -72,6 +73,10 @@ export function renderReportPages(page, user, can) {
       {page === "report_profit" && user && (can && !can("profit_report","view")
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
         : <Suspense fallback={<Loading />}><ReportProfitPage user={user} /></Suspense>
+      )}
+      {page === "report_debt" && user && (can && !can("debt","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền xem báo cáo công nợ</div>
+        : <Suspense fallback={<Loading />}><ReportDebtPage user={user} /></Suspense>
       )}
       {page === "report_staff" && user && (can && !can("kpi","view")
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
@@ -128,6 +133,9 @@ const PackingPageMobile = lazy(() => import("./PackingPage.jsx").catch(()=>({ de
 const ReturnOrderPage = lazy(() => import("./ReturnOrderPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Đổi trả</div> })));
 const PricePolicyPage = lazy(() => import("./PricePolicyPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Chính sách giá</div> })));
 const ProductManagerPage = lazy(() => import("./ProductManagerPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Danh mục hàng hóa</div> })));
+const ReportDebtPage = lazy(() => import("./ReportDebtPage.jsx").catch(() => ({
+  default: () => <div style={{ padding: 40, textAlign: "center", color: "#9ca3af" }}>⚠️ Lỗi tải Báo cáo công nợ</div>
+})));
 const RevenueReportPage = lazy(() => import("./RevenueReportPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Doanh thu</div> })));
 const StockReportNXT  = lazy(() => import("./StockReportNXT.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Thẻ kho</div> })));
 const IntegrationsPage = lazy(() => import("./IntegrationsPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Tích hợp</div> })));

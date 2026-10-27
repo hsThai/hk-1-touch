@@ -41,7 +41,8 @@ export default function SaleOrderPage({ user }) {
   const [searchRes,   setSearchRes]   = useState([]);
   const [cart,        setCart]        = useState([]);
   // ── Tồn kho theo kho: chỉ bán từ Kho BH, kho khác chỉ để THAM KHẢO ──
-  const [bhWarehouseId, setBhWarehouseId] = useState("");
+  const [sellWhIds, setSellWhIds] = useState([]);   // kho được phép bán: Kho BH + Kho Haravan
+  const [sellWhNames, setSellWhNames] = useState([]);
   const [stockMap, setStockMap] = useState({}); // part_id -> { bh, others:[{name,qty}], hasLedger }
   const [infoPartId, setInfoPartId] = useState(""); // ô đang mở bảng tồn kho tham khảo
   const stockCache = useRef({});
@@ -154,9 +155,14 @@ export default function SaleOrderPage({ user }) {
       try {
         const whs = await fetch(`${getPbUrl()}/api/collections/warehouses/records?perPage=50&filter=${encodeURIComponent("(is_active=true)")}`)
           .then(r => r.ok ? r.json() : { items: [] }).catch(() => ({ items: [] }));
-        const bh = (whs.items || []).find(w => (w.code || "").toUpperCase() === "KHOBH")
-          || (whs.items || []).find(w => /kho bh/i.test(w.name || ""));
-        if (bh) setBhWarehouseId(bh.id);
+        // Kho BÁN ĐƯỢC = Kho BH + Kho Haravan. Kho 16 là kho nhập/chuyển (không bán).
+        const sellable = (whs.items || []).filter(w => {
+          const code = (w.code || "").toUpperCase().replace(/[_-]/g, "");
+          const name = (w.name || "").toLowerCase();
+          return code === "KHOBH" || /kho\s*bh/.test(name) || code.includes("HRV") || /haravan/.test(name);
+        });
+        setSellWhIds(sellable.map(w => w.id));
+        setSellWhNames(sellable.map(w => w.name || w.code));
       } catch {}
     })();
   }, []);
@@ -173,7 +179,7 @@ export default function SaleOrderPage({ user }) {
       for (const led of (r.items || [])) {
         const qty = Number(led.qty_on_hand || 0);
         const g = grouped[led.part_id] || { bh: 0, others: [], hasLedger: true };
-        const isBH = (bhWarehouseId && led.warehouse_id === bhWarehouseId) || /^kho bh$/i.test((led.warehouse_name || "").trim());
+        const isBH = sellWhIds.includes(led.warehouse_id);
         if (isBH) g.bh += qty;
         else if (qty !== 0) {
           const ex = g.others.find(o => o.name === (led.warehouse_name || "Kho khác"));
@@ -188,7 +194,13 @@ export default function SaleOrderPage({ user }) {
     } catch {}
   }
 
-  // Tồn BÁN ĐƯỢC = tồn Kho BH (chưa có sổ kho thì lấy tồn danh mục làm mặc định cũ)
+  useEffect(() => {
+    if (sellWhIds.length === 0) return;
+    stockCache.current = {};
+    if (searchRes.length) loadStockInfo(searchRes);
+  }, [sellWhIds.join(",")]);
+
+  // Tồn BÁN ĐƯỢC = tồn các kho bán được (Kho BH + Kho Haravan)
   function sellableQty(part) {
     const info = stockMap[part.id];
     if (info && info.hasLedger) return info.bh;

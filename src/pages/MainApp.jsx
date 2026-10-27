@@ -408,11 +408,12 @@ const MGR_ACCORDIONS = [
     key: "acc_report",
     icon: "bar_chart",
     label: "Báo cáo",
-    pages: ["revenue","report_profit","report_staff"],
+    pages: ["revenue","report_profit","report_staff","report_debt"],
     items: [
       { key:"revenue",       icon:"bar_chart",   label:"Doanh thu" },
       { key:"report_profit", icon:"trending_up", label:"Lợi nhuận" },
       { key:"report_staff",  icon:"people",      label:"KPI Nhân viên" },
+      { key:"report_debt",   icon:"credit_card", label:"Công nợ khách hàng" },
     ],
   },
   {
@@ -1737,6 +1738,7 @@ function MainAppContent({ onUserChange }) {
       items.push({ key:"report_profit", icon:"trending_up", label:"Lợi nhuận" });
     if (can("kpi","view") && !isManager)
       items.push({ key:"report_staff",  icon:"people",      label:"KPI Nhân viên" });
+      items.push({ key:"report_debt",   icon:"credit_card", label:"Công nợ KH" });
 
     // 9. THIẾT LẬP
     if (can("staff","view") && !isManager)
@@ -2317,6 +2319,7 @@ function MainAppContent({ onUserChange }) {
     "expense":          { label:"🧾 Chi phí",                  grad:["#e11d48","#be123c"] },
     "sale_history":     { label:"🧾 Lịch sử bán hàng",         grad:["#e11d48","#be123c"] },
     "report_profit":    { label:"📈 Báo cáo lợi nhuận",        grad:["#7c3aed","#6d28d9"] },
+    "report_debt":      { label:"💳 Báo cáo công nợ KH",         grad:["#7c3aed","#6d28d9"] },
     "report_staff":     { label:"👨‍💼 KPI nhân viên",          grad:["#7c3aed","#6d28d9"] },
     "revenue":          { label:"💹 Doanh thu",                grad:["#7c3aed","#6d28d9"] },
     "staff":            { label:"👤 Nhân viên",                grad:["#475569","#334155"] },

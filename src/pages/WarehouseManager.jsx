@@ -653,6 +653,8 @@ function StockLedgerTab({ user, toast }) {
   const [groupMode, setGroupMode] = useState("warehouse"); // warehouse | product
   const [allLedger, setAllLedger] = useState([]);   // tồn của tất cả kho được phép (cho chế độ theo hàng hóa)
   const [shown, setShown] = useState(60);           // số thẻ đang hiển thị (tải dần)
+  const [catalogAll, setCatalogAll] = useState([]);   // danh mục hàng (hiển thị tồn 0 cho kho chưa có dòng sổ kho)
+  const [catalogDone, setCatalogDone] = useState(false);
   const [adjustModal, setAdjustModal] = useState(null);
   const [adjForm, setAdjForm] = useState({ qty:"", note:"" });
 
@@ -698,6 +700,36 @@ function StockLedgerTab({ user, toast }) {
       .filter(g => !q || g.name?.toLowerCase().includes(q) || g.sku?.toLowerCase().includes(q))
       .sort((a,b)=> (a.name||"").localeCompare(b.name||"","vi"));
   }, [allLedger, search]);
+
+  // Tải danh mục hàng theo trang (tối ưu: không ghi N×kho dòng, kho mới vẫn hiện đủ danh mục tồn 0)
+  async function ensureCatalog(target) {
+    if (catalogDone) return;
+    let cur = catalogAll;
+    while (cur.length < target) {
+      let page = [];
+      try { page = await SparePart.list({ limit: 500, skip: cur.length, sort: "name" }) || []; }
+      catch { page = []; }
+      if (page.length === 0) { setCatalogDone(true); setCatalogAll(cur); return; }
+      cur = [...cur, ...page];
+      setCatalogAll(cur);
+      if (page.length < 500) { setCatalogDone(true); return; }
+    }
+  }
+  useEffect(() => { if (!selWH) return; setCatalogAll([]); setCatalogDone(false); ensureCatalog(600); }, [selWH]);
+
+  // Gộp: dòng sổ kho thật + mặt hàng trong danh mục chưa có tồn (hiện 0)
+  const ledgerWithCatalog = React.useMemo(() => {
+    const have = new Set(filteredLedger.map(l => l.part_id || l.sku || l.part_name));
+    const q = search.trim().toLowerCase();
+    const virtual = (catalogAll || [])
+      .filter(c => !have.has(c.id) && (!q || (c.name || "").toLowerCase().includes(q) || (c.sku || "").toLowerCase().includes(q)))
+      .map(c => ({
+        id: "virtual-" + c.id, part_id: c.id, part_name: c.name, sku: c.sku,
+        qty_on_hand: 0, qty_reserved: 0, qty_available: 0, min_qty: 0,
+        cost_price: c.cost_price || 0, unit: c.unit, warehouse_id: selWH, _virtual: true,
+      }));
+    return [...filteredLedger, ...virtual].sort((a, b) => (a.part_name || "").localeCompare(b.part_name || "", "vi"));
+  }, [filteredLedger, catalogAll, search, selWH]);
 
   const wh = warehouses.find(w=>w.id===selWH);
   const filteredLedger = ledger.filter(l =>
@@ -849,11 +881,11 @@ function StockLedgerTab({ user, toast }) {
           )}
 
           {effMode==="ledger" && groupMode==="warehouse" && (
-            filteredLedger.length===0 ? (
+            ledgerWithCatalog.length===0 ? (
               <div style={{ ...S.empty, background:"#fff", borderRadius:12, border:"1px solid #e5e7eb" }}>Chưa có dữ liệu tồn kho</div>
             ) : (
               <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                {filteredLedger.slice(0, shown).map(l=>{
+                {ledgerWithCatalog.slice(0, shown).map(l=>{
                   const isLow = l.min_qty>0 && l.qty_available<=l.min_qty;
                   return (
                     <div key={l.id} style={{ background:"#fff", border:`1px solid ${isLow?"#fdba74":"#e5e7eb"}`, borderLeft:`4px solid ${isLow?"#f97316":"#4f46e5"}`, borderRadius:12, padding:"12px 14px" }}>
@@ -875,16 +907,19 @@ function StockLedgerTab({ user, toast }) {
                         <span>Tồn: <b style={{ color:"#111827" }}>{fmt(l.qty_on_hand)}</b></span>
                         <span>Đặt sẵn: <b style={{ color:"#111827" }}>{fmt(l.qty_reserved)}</b></span>
                         {canSeeCost && <span>Giá vốn: <b style={{ color:"#111827" }}>{fmt(l.cost_price)}</b></span>}
-                        {canAdjust && (
-                          <button style={{ ...S.btnSm("#6b7280"), marginLeft:"auto" }}
-                            onClick={()=>{ setAdjustModal(l); setAdjForm({qty:String(l.qty_on_hand||0),note:""}); }}>⚖️ Điều chỉnh</button>
-                        )}
+                        {l._virtual
+                          ? <span style={{ marginLeft:"auto", fontSize:11, color:"#9ca3af" }}>Chưa có tồn trong kho này</span>
+                          : canAdjust && (
+                            <button style={{ ...S.btnSm("#6b7280"), marginLeft:"auto" }}
+                              onClick={()=>{ setAdjustModal(l); setAdjForm({qty:String(l.qty_on_hand||0),note:""}); }}>⚖️ Điều chỉnh</button>
+                          )}
                       </div>
                     </div>
                   );
                 })}
-                {filteredLedger.length>shown && (
-                  <button style={{ ...S.btnGhost(), width:"100%", padding:12 }} onClick={()=>setShown(n=>n+60)}>Xem thêm ({filteredLedger.length-shown} mã hàng)</button>
+                {ledgerWithCatalog.length>shown && (
+                  <button style={{ ...S.btnGhost(), width:"100%", padding:12 }}
+                    onClick={()=>{ setShown(n=>n+60); if (!catalogDone) ensureCatalog(catalogAll.length + 600); }}>Xem thêm ({ledgerWithCatalog.length-shown} mã hàng)</button>
                 )}
               </div>
             )
