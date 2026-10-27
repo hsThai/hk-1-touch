@@ -307,6 +307,83 @@ export async function notifyLeaderOf(staffId, { title, message, order, type = "a
   } catch (e) { console.warn("[notifyLeaderOf]", e.message); }
 }
 
+// ── Nhập hàng khách trả về vào kho BH (mặc định) hoặc kho lỗi bảo hành ──
+// order: bản ghi return_orders (có items / product_name / code / return_type / return_stock)
+export async function receiveReturnStock(order, user) {
+  try {
+    const whCode = order.return_stock === "defect" ? "KHO-LỖI-BẢO-HÀNH" : "KhoBH";
+    const { token } = getAuth();
+    const H = () => ({ "Content-Type": "application/json", ...(token ? { Authorization: token } : {}) });
+    const q = (str) => encodeURIComponent(str);
+    const getJSON = async (url) => {
+      try { const r = await fetch(url, { headers: H() }); return r.ok ? await r.json() : { items: [] }; }
+      catch { return { items: [] }; }
+    };
+    const wh = await getJSON(`${getPbUrl()}/api/collections/warehouses/records?perPage=1&filter=${q(`(code='${whCode}')`)}`);
+    const warehouse = wh.items?.[0];
+    if (!warehouse) return { ok: false, reason: `Không tìm thấy kho ${whCode}` };
+
+    const items = (Array.isArray(order.items) && order.items.length)
+      ? order.items
+      : [{ sku: "", part_name: order.product_name || "", qty: 1, unit_price: 0 }];
+
+    let count = 0;
+    for (const it of items) {
+      let part = null;
+      if (it.sku) {
+        const esc = String(it.sku).replace(/'/g, "\\'");
+        const pr = await getJSON(`${getPbUrl()}/api/collections/product_catalog/records?perPage=1&filter=${q(`(sku='${esc}')`)}`);
+        part = pr.items?.[0] || null;
+      }
+      const qty = Math.abs(Number(it.qty || 1)) || 1;
+      let led = null;
+      if (part) {
+        const lr = await getJSON(`${getPbUrl()}/api/collections/stock_ledgers/records?perPage=1&filter=${q(`(part_id='${part.id}' && warehouse_id='${warehouse.id}')`)}`);
+        led = lr.items?.[0] || null;
+      }
+      const before = Number(led?.qty_on_hand || 0);
+      const after = before + qty;
+      const now = new Date().toISOString();
+      const noteTxt = `Hàng trả về (${order.return_type || ""}) — đơn đổi trả ${order.code || ""}`;
+      if (led) {
+        await fetch(`${getPbUrl()}/api/collections/stock_ledgers/records/${led.id}`, {
+          method: "PATCH", headers: H(),
+          body: JSON.stringify({ qty_on_hand: after, qty_available: after - Number(led.qty_reserved || 0), last_movement_at: now }),
+        });
+      } else {
+        await fetch(`${getPbUrl()}/api/collections/stock_ledgers/records`, {
+          method: "POST", headers: H(),
+          body: JSON.stringify({
+            warehouse_id: warehouse.id, warehouse_name: warehouse.name,
+            part_id: part?.id || "", part_name: it.part_name || part?.name || "",
+            sku: it.sku || part?.sku || "", category: part?.category || "", unit: part?.unit || "Cái",
+            qty_on_hand: qty, qty_reserved: 0, qty_available: qty, min_qty: 0,
+            cost_price: Number(part?.cost_price || 0), last_movement_at: now, note: noteTxt,
+          }),
+        });
+      }
+      await fetch(`${getPbUrl()}/api/collections/stock_movements/records`, {
+        method: "POST", headers: H(),
+        body: JSON.stringify({
+          movement_code: "MV" + Date.now().toString().slice(-9) + Math.floor(Math.random() * 90 + 10),
+          movement_type: "return_in",
+          warehouse_id: warehouse.id, warehouse_name: warehouse.name,
+          part_id: part?.id || "", part_name: it.part_name || part?.name || "", sku: it.sku || part?.sku || "",
+          qty_before: before, qty_change: qty, qty_after: after,
+          unit_price: Number(it.unit_price || 0),
+          ref_type: "return", ref_id: order.id, ref_code: order.code,
+          note: noteTxt + (order.return_stock === "defect" ? " · Kho lỗi" : " · Kho BH"),
+          created_by_id: user?.id || "", created_by_name: user?.name || user?.full_name || "",
+        }),
+      });
+      count++;
+    }
+    return { ok: true, count, warehouse: warehouse.name };
+  } catch (e) {
+    return { ok: false, reason: e.message };
+  }
+}
+
 export async function notifyRoles(roles, { title, message, order, type = "assign", excludeId = "" }) {
   try {
     const staff = await Staff.filter({ is_active: true });

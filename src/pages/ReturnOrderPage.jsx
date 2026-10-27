@@ -3,7 +3,7 @@
  * @version 2026-06-01-v1
  */
 import React, { useState, useEffect } from "react";
-import { CashJournal, getPbUrl, getAuth, logAction, notifyRoles, Notification, Staff } from "./pb.jsx";
+import { CashJournal, getPbUrl, getAuth, logAction, notifyRoles, Notification, Staff, receiveReturnStock } from "./pb.jsx";
 import { usePermission } from "./PermissionContext.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
@@ -58,6 +58,7 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems, edi
       product_name:   "",
       refund_amount:  0,
       refund_method:  "cash",
+      return_stock:   "warranty",
       new_product_name: "",
       price_diff:     0,
       warranty_end_date: "",
@@ -82,6 +83,8 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems, edi
   const [partSuggs,   setPartSuggs]    = useState([]);
   const [showPartDrop, setShowPartDrop] = useState(false);
   const [originOrder, setOriginOrder] = useState(null);
+  const [priorReturns, setPriorReturns] = useState([]); // các đơn đổi trả trước của cùng đơn gốc
+  const [newPartStock, setNewPartStock] = useState(null); // tồn kho của sản phẩm đổi mới
   const [originItems, setOriginItems] = useState([]); // sản phẩm của ĐƠN GỐC tra cứu được → chọn hàng đổi trả
   const [pasteMsg, setPasteMsg] = useState("");
   const [refSearch,   setRefSearch]   = useState(false);
@@ -163,7 +166,7 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems, edi
   // ── Tra cứu đơn gốc theo mã (BL-… → đơn bán, SC-… → đơn sửa) ──
   useEffect(() => {
     const code = (form.ref_code || "").trim();
-    if (!/^(BL|SC)[-\d]/i.test(code) || code.length < 6) { setOriginOrder(null); setOriginItems([]); return; }
+    if (!/^(BL|SC)[-\d]/i.test(code) || code.length < 6) { setOriginOrder(null); setOriginItems([]); setPriorReturns([]); return; }
     const timer = setTimeout(async () => {
       setRefSearch(true);
       try {
@@ -175,7 +178,7 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems, edi
           { headers: token ? { Authorization: token } : {} });
         const json = res.ok ? await res.json() : null;
         const o = json?.items?.[0];
-        if (!o) { setOriginOrder(null); setOriginItems([]); return; }
+        if (!o) { setOriginOrder(null); setOriginItems([]); setPriorReturns([]); return; }
         let total = 0, products = "";
         if (isSale) {
           total = Number(o.total || o.subtotal || 0);
@@ -209,6 +212,14 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems, edi
         setPicked(oItems.reduce((acc, _, i2) => { acc[i2] = { checked:false, qty: oItems[i2].qty || 1 }; return acc; }, {}));
         setOriginOrder({ type: isSale ? "sale" : "repair", code: o.order_code, status: o.status,
           customer_name: o.customer_name, customer_phone: o.customer_phone, total, products, warranty_end: wEnd });
+        // Lịch sử đổi trả trước đó của cùng đơn gốc → cảnh báo đổi lần 2, 3...
+        try {
+          const escCode = code.replace(/"/g, '\\"');
+          const rres = await fetch(`${getPbUrl()}/api/collections/return_orders/records?perPage=20&sort=-id&filter=${encodeURIComponent(`(ref_code="${escCode}")`)}`,
+            { headers: token ? { Authorization: token } : {} });
+          const rjson = rres.ok ? await rres.json() : { items: [] };
+          setPriorReturns((rjson.items || []).filter(x => x.status !== "cancelled"));
+        } catch { setPriorReturns([]); }
         setForm(f => {
           const next = { ...f, origin_total: total };
           if (!f.customer_name.trim())  next.customer_name  = o.customer_name || "";
@@ -420,6 +431,22 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems, edi
                 {originOrder.products && <div style={{ fontSize:11, color:"#6b7280", marginTop:2 }}>📦 {originOrder.products}</div>}
               </div>
             )}
+            {priorReturns.length > 0 && (
+              <div style={{ marginTop:6, background:"#fffbeb", border:"1.5px solid #fcd34d", borderRadius:10, padding:"8px 10px" }}>
+                <div style={{ fontSize:12, fontWeight:800, color:"#b45309" }}>
+                  ⚠️ Đơn này đã được đổi trả {priorReturns.length} lần trước đó
+                </div>
+                <div style={{ marginTop:4 }}>
+                  {priorReturns.slice(0,5).map(x => (
+                    <div key={x.id} style={{ fontSize:11, color:"#92400e", padding:"2px 0" }}>
+                      • {x.code} · {fmtDate(x.return_date || x.created)} · {RETURN_TYPES.find(t=>t.key===x.return_type)?.label || x.return_type}
+                      {x.product_name ? ` · ${x.product_name}` : ""}
+                      {" · "}{STATUS_COLORS[x.status]?.label || x.status}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {form.ref_code && !refSearch && !originOrder && /^(BL|SC)/i.test(form.ref_code) && (
               <div style={{ fontSize:11, color:"#d97706", marginTop:4 }}>⚠️ Chưa tìm thấy đơn “{form.ref_code}”</div>
             )}
@@ -533,12 +560,23 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems, edi
               <div style={{ position:"absolute", top:"100%", left:0, right:0, zIndex:100, background:"#fff",
                 border:"1.5px solid #e5e7eb", borderRadius:10, boxShadow:"0 8px 24px rgba(0,0,0,.12)", overflow:"hidden", marginTop:2 }}>
                 {partSuggs.map(pt => (
-                  <div key={pt.id} onMouseDown={() => { set("new_product_name", pt.name||""); setPartSearch(pt.name||""); setPartSuggs([]); setShowPartDrop(false); }}
+                  <div key={pt.id} onMouseDown={() => { set("new_product_name", pt.name||""); setPartSearch(pt.name||""); setNewPartStock(Number(pt.stock_qty||0)); setPartSuggs([]); setShowPartDrop(false); }}
                     style={{ padding:"9px 14px", cursor:"pointer", borderBottom:"1px solid #f3f4f6" }}>
                     <div style={{ fontWeight:700, fontSize:13, color:"#1e1b4b" }}>{pt.name}</div>
                     <div style={{ fontSize:11, color:"#6b7280" }}>{pt.sku && `SKU: ${pt.sku} · `}{pt.price ? fmtMoney(pt.price) : ""}</div>
+                    <div style={{ fontSize:11, fontWeight:700, color: Number(pt.stock_qty||0) > 0 ? "#059669" : "#dc2626" }}>
+                      📦 Tồn kho: {Number(pt.stock_qty||0)}
+                    </div>
                   </div>
                 ))}
+              </div>
+            )}
+            {newPartStock !== null && (
+              <div style={{ fontSize:11.5, fontWeight:700, marginTop:4,
+                color: newPartStock > 0 ? "#059669" : "#dc2626" }}>
+                {newPartStock > 0
+                  ? `✅ Còn ${newPartStock} trong kho — đủ hàng để đổi`
+                  : "⛔ HẾT HÀNG trong kho — không đủ để đổi, cần nhập thêm hoặc hẹn khách"}
               </div>
             )}
             {form.return_type === "exchange" && (
@@ -603,6 +641,26 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems, edi
             </div>
           </div>
         )}
+
+        {/* Nhập lại vào kho nào — mặc định Kho BH */}
+        <div style={{ marginBottom:12 }}>
+          <label style={{ fontSize:12, color:"#6b7280", fontWeight:600 }}>Hàng khách trả về nhập vào kho</label>
+          <div style={{ display:"flex", gap:8, marginTop:6 }}>
+            {[
+              { key:"warranty", label:"🏦 Kho BH", desc:"Hàng còn dùng được / chờ bảo hành" },
+              { key:"defect",   label:"⚠️ Kho lỗi", desc:"Hàng hỏng, chờ xử lý NCC" },
+            ].map(o2 => (
+              <button key={o2.key} type="button" onClick={()=>set("return_stock", o2.key)} style={{
+                flex:1, padding:"8px 10px", borderRadius:10, cursor:"pointer", textAlign:"left",
+                border:"1.5px solid", borderColor: form.return_stock === o2.key ? "#059669" : "#e5e7eb",
+                background: form.return_stock === o2.key ? "#f0fdf4" : "#fff",
+              }}>
+                <div style={{ fontWeight:800, fontSize:12.5, color: form.return_stock === o2.key ? "#059669" : "#374151" }}>{o2.label}</div>
+                <div style={{ fontSize:10.5, color:"#9ca3af", marginTop:2 }}>{o2.desc}</div>
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* Ghi chú */}
         <div style={{ marginBottom:20 }}>
@@ -790,6 +848,14 @@ export default function ReturnOrderPage({ user }) {
             }
           }
         } catch {}
+      }
+      // Hoàn thành → nhập hàng khách trả về vào kho BH / kho lỗi
+      if (newStatus === "done") {
+        const res2 = await receiveReturnStock({ ...r, status: "done" }, user);
+        if (res2.ok) {
+          logAction(user, "return_stock_in", "return_order", r.id,
+            `Nhập ${res2.count} mặt hàng trả về vào ${res2.warehouse} — đơn ${r.code}`);
+        }
       }
       setDetail(null);
       load();
@@ -983,6 +1049,7 @@ export default function ReturnOrderPage({ user }) {
               <Row l="Ngày đổi trả" v={fmtDate(detail.return_date || detail.created)} />
               {detail.note && <Row l="Ghi chú" v={detail.note} />}
 
+              <Row l="Nhập lại kho" v={detail.return_stock === "defect" ? "⚠️ Kho lỗi bảo hành" : "🏦 Kho BH"} />
               {detail.sc_order_code && <Row l="Đơn sửa liên kết" v={`🔗 ${detail.sc_order_code}`} />}
 
               {/* Nút nối luồng theo hình thức xử lý */}

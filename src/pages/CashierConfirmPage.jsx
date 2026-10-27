@@ -1,7 +1,7 @@
 // CashierConfirmPage.jsx — Trang xác nhận thu tiền cho Thu ngân
 // HK One Touch
 import React, { useState, useEffect } from "react";
-import { SaleOrder, SaleOrderItem, CashJournal, DebtVoucher, getLocalDate, getPbUrl, getAuth, logAction, notifyRoles, sortNewestFirst } from "./pb.jsx";
+import { SaleOrder, SaleOrderItem, CashJournal, DebtVoucher, getLocalDate, getPbUrl, getAuth, logAction, notifyRoles, sortNewestFirst, receiveReturnStock } from "./pb.jsx";
 import { printSaleReceiptA5 } from "../utils/printClient.js";
 import { usePermission } from "./PermissionContext.jsx";
 
@@ -156,6 +156,11 @@ export default function CashierConfirmPage({ user }) {
         }
       }catch{}
       logAction(user, "return_payout", "return_order", r.id, `Thu ngân ĐÃ CHI hoàn tiền đơn ${r.code}: ${Number(r.refund_amount||0).toLocaleString("vi-VN")}đ`);
+      // Nhập hàng khách trả về vào kho BH / kho lỗi
+      receiveReturnStock(r, user).then(res2 => {
+        if (res2.ok) logAction(user, "return_stock_in", "return_order", r.id,
+          `Nhập ${res2.count} mặt hàng trả về vào ${res2.warehouse} — đơn ${r.code}`);
+      }).catch(()=>{});
       loadOrders();
     }catch(e){ alert("Lỗi: " + (e.message||e)); }
     setPayingOut("");

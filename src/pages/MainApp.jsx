@@ -2806,6 +2806,8 @@ function MainAppContent({ onUserChange }) {
         {renderMobilePages(page, user, { setPage, dashboardTab, notifications, dbNotifications, setShowNotif, setShowQRScan: setShowSmartScan, cashierTab, setCashierTab, setSelectedOrder: setSelectedOrderSync, can, focusOrderCode, onFocusConsumed: () => setFocusOrderCode(null), focusPackTab, onFocusTabConsumed: () => setFocusPackTab(null) })}
         </div>
       </Suspense>
+      </div>
+    )}
 
       {/* ═══ UNIFIED BOTTOM NAV — dynamic theo quyền, active state ═══ */}
       {!isPC && !["wh_manager","wh_app","stock_count","wh_ledger","wh_defect","wh_shipping","wh_report"].includes(page) && (
@@ -2958,8 +2960,6 @@ function MainAppContent({ onUserChange }) {
           </div>
         </div>
       )}
-    </div>
-    )}
 
       {/* ── Global overlays — hiện trên cả PC lẫn Mobile ── */}
       {selectedOrder && (
