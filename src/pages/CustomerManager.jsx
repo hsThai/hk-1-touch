@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Customer, RepairOrder, logAction } from "./pb.jsx";
 import CustomerImportExportModal from "./CustomerImportExportModal.jsx";
 import { usePermission } from "./PermissionContext.jsx";
+import { useUnsaved } from "../utils/unsavedGuard.jsx";
 
 const EMPTY = { full_name:"", phone:"", address:"", note:"" };
 
@@ -12,6 +13,8 @@ export default function CustomerManager({ onSelectCustomer, user }) {
   const [search, setSearch]   = useState("");
   const [modal, setModal]     = useState(null);
   const [form, setForm]       = useState(EMPTY);
+  useUnsaved("cust_new", !!modal && !!((form.full_name || "").trim() || (form.phone || "").trim() || (form.address || "").trim()),
+    "Khách hàng đang nhập (chưa lưu)");
   const [saving, setSaving]   = useState(false);
   const [err, setErr]         = useState("");
   const [detail, setDetail]   = useState(null); // customer history

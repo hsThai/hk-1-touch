@@ -13,6 +13,7 @@ import {
   getPbUrl, getAuth, logHistory, logAction, getLocalDate } from "./pb.jsx";
 import { uploadFile, getVideoDuration, MAX_VIDEO_SECONDS } from "./pb.jsx";
 import { scopeByTeam, canSeeAll } from "../utils/teamScope.js";
+import { useUnsaved } from "../utils/unsavedGuard.jsx";
 import {
   timeAgo, genOrderId, getKpiTimerInfo,
   MediaViewer, AcceptChecklistModal, AcceptTimer,
@@ -366,6 +367,8 @@ function WarehouseExport({ user }) {
   const [confirmNote, setConfirmNote] = React.useState("");
   const [confirmMedia, setConfirmMedia] = React.useState([]);
   const [confirming, setConfirming] = React.useState(false);
+  useUnsaved("wh_export", !!viewReq && (((confirmNote || "").trim().length > 0) || (confirmMedia?.length || 0) > 0),
+    "Xác nhận phiếu xuất kho (chưa gửi)");
   const [toast, setToast]         = React.useState("");
   const fileRef = React.useRef(null);
 
@@ -702,6 +705,8 @@ function WarehouseImport({ user }) {
   const [impPayMethod,setImpPayMethod]    = React.useState("cash");
   const [note, setNote]                   = React.useState("");
   const [items, setItems]                 = React.useState([]);
+  useUnsaved("wh_import", !!showForm && (items?.length || 0) > 0,
+    "Phiếu nhập kho đang tạo (chưa lưu)");
   const [saving, setSaving]               = React.useState(false);
   const [allParts, setAllParts]           = React.useState([]);
   const [confirmDelete, setConfirmDelete] = React.useState(null); // imp object cần xóa
@@ -1511,7 +1516,7 @@ function WarehouseImport({ user }) {
             {/* Header */}
             <div style={{ background:"linear-gradient(135deg,#7c3aed,#6d28d9)", padding:"16px 18px", borderRadius: isDesktop ? "20px 20px 0 0" : "24px 24px 0 0", flexShrink:0, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <div style={{ color:"#fff", fontWeight:900, fontSize:16 }}>📥 Tạo phiếu nhập hàng</div>
-              <button onClick={()=>setShowForm(false)}
+              <button onClick={()=>{ if ((items?.length||0) > 0 && !window.confirm("Phiếu nhập chưa lưu. Đóng và bỏ nội dung đang nhập?")) return; setShowForm(false); }}
                 style={{ background:"rgba(255,255,255,.2)", border:"1.5px solid rgba(255,255,255,.35)", color:"#fff", width:36, height:36, borderRadius:"50%", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
                 <span className="material-icons" style={{fontSize:20}}>close</span>
               </button>

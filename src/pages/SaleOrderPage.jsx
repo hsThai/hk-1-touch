@@ -4,6 +4,7 @@ import { ProductThumb } from "./ProductThumb.jsx";
 import { SparePart, SaleOrder, SaleOrderItem, StockMovement, StockLedger, AppSettings, Customer , DebtVoucher, CashJournal, logAction, notifyRoles, sortNewestFirst, getPbUrl } from "./pb.jsx";
 import { previewSaleReceipt } from "../utils/printClient.js";
 import { usePermission } from "./PermissionContext.jsx";
+import { useUnsaved } from "../utils/unsavedGuard.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 function padZ(n) { return String(n).padStart(4,"0"); }
@@ -46,6 +47,7 @@ export default function SaleOrderPage({ user }) {
   const [bhWhId, setBhWhId]       = useState("");   // kho BH — kho bán chính
   const [sellWhNames, setSellWhNames] = useState([]);
   const [stockMap, setStockMap] = useState({}); // part_id -> { bh, others:[{name,qty}], hasLedger }
+  // Đang làm dở → chặn rời trang
   const [infoPop, setInfoPop] = useState(null); // { id, top, left } — bong bóng tồn kho tham khảo
 
   // Mở/đóng bong bóng tồn kho ngay cạnh nút (i)
@@ -77,8 +79,16 @@ export default function SaleOrderPage({ user }) {
   const [custSearch,     setCustSearch]     = useState("");
   const [custSuggestions,setCustSuggestions]= useState([]);
   const [showAddCust,    setShowAddCust]    = useState(false);
+  useUnsaved("sale_order",
+    cart.length > 0 || (custName || "").trim().length > 0,
+    "Đơn bán hàng đang tạo (chưa lưu)");
+
   const [newCustName,    setNewCustName]    = useState("");
   const [newCustPhone,   setNewCustPhone]   = useState("");
+  useUnsaved("sale_new_customer",
+    (newCustName || "").trim().length > 0 || (newCustPhone || "").trim().length > 0,
+    "Khách hàng mới đang nhập (chưa lưu)");
+
   const [savingNewCust,  setSavingNewCust]  = useState(false);
   const [discount,    setDiscount]    = useState(0);
   const [shippingFee, setShippingFee] = useState(0); // phí vận chuyển (ĐVVC / NV giao) — khách trả, cộng vào tổng

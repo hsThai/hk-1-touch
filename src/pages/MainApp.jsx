@@ -81,6 +81,7 @@ import { NewOrderModal, KPIPage, ProductHistoryModal } from "./OrderForms";
 import LoginPage, { showSystemNotif, requestNotifPermission } from "./LoginV2";
 import { PermissionProvider, usePermission } from "./PermissionContext.jsx";
 import ChangePassword from "./ChangePassword";
+import { useBeforeUnloadGuard, LeaveConfirm } from "../utils/unsavedGuard.jsx";
 import { renderReportPages, renderPurchaseNccPages, renderSalesPages, renderSetupPages, renderMobilePages, PAGE_PERMS } from "./MainAppWidgets.jsx";
 import * as XLSX from "xlsx";
 import ExportConfirmModal, { buildExcelResult } from "./ExportConfirm.jsx";
@@ -520,7 +521,20 @@ function MainAppContent({ onUserChange }) {
   };
   const users = users_raw;
   const [dataLoading, setDataLoading] = useState(true);
-  const [page, setPage] = useState("board");
+  const [page, setPageRaw] = useState("board");
+  // Chặn rời trang khi đang làm dở (chưa lưu) — hỏi lại trước khi đổi trang
+  const unsavedItems = useBeforeUnloadGuard();
+  const [pendingPage, setPendingPage] = useState(null);
+  function setPage(next) {
+    const target = typeof next === "function" ? next(page) : next;
+    if (target !== page && unsavedItems.length > 0) { setPendingPage(target); return; }
+    setPageRaw(target);
+  }
+  function leaveAnyway() {
+    const t = pendingPage;
+    setPendingPage(null);
+    if (t !== null && t !== undefined) setPageRaw(t);
+  }
   // openAccordion: key của accordion đang mở, hoặc null
   const [openAccordion, setOpenAccordion] = useState("acc_overview");
   const [dashboardTab, setDashboardTab] = useState("overview");
@@ -2933,6 +2947,10 @@ function MainAppContent({ onUserChange }) {
       )}
 
       {/* Modals */}
+      {pendingPage !== null && pendingPage !== undefined && (
+        <LeaveConfirm items={unsavedItems} onStay={()=>setPendingPage(null)} onLeave={leaveAnyway} />
+      )}
+
       {showNewOrder && <NewOrderModal onClose={() => { setShowNewOrder(false); setNewOrderProductQR(""); }} onCreate={createOrder} users={users} orders={orders} initialProductQR={newOrderProductQR} />}
 
       {/* Modal: Hàng trong kho - Chưa bán */}

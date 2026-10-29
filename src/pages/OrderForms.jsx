@@ -1,5 +1,6 @@
 /* v3-rebuild-1774864528 */
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useUnsaved } from "../utils/unsavedGuard.jsx";
 import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, SparePartUsage, logAction } from "./pb.jsx";
 import { uploadFile, getAuth } from "./pb.jsx";
 
@@ -27,6 +28,9 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
     qr_code:"", product_qr:"", notes:"",
   });
 
+  useUnsaved("repair_new",
+    !!((form.device_model || "").trim() || (form.customer_name || "").trim() || (form.issue_description || "").trim()),
+    "Đơn sửa chữa đang tạo (chưa lưu)");
   const [qt1, setQt1]             = useState({});
   const [qt1Note, setQt1Note]     = useState("");
   const [selectedKtv, setSelectedKtv] = useState("");
@@ -198,7 +202,7 @@ function NewOrderModal({ onClose, onCreate, users, orders, initialProductQR="" }
               <MI name="add_circle" style={{ fontSize:22, color:"#fff" }} />
               Tạo Đơn Mới
             </div>
-            <button onClick={onClose} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:34, height:34, borderRadius:"50%", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <button onClick={()=>{ const dirty = !!((form.device_model||"").trim() || (form.customer_name||"").trim() || (form.issue_description||"").trim()); if (dirty && !window.confirm("Đơn chưa lưu. Đóng và bỏ nội dung đang nhập?")) return; onClose(); }} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:34, height:34, borderRadius:"50%", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
               <MI name="close" style={{ fontSize:20, color:"#fff" }} />
             </button>
           </div>
