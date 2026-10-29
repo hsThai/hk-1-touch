@@ -42,6 +42,8 @@ export default function SaleOrderPage({ user }) {
   const [cart,        setCart]        = useState([]);
   // ── Tồn kho theo kho: chỉ bán từ Kho BH, kho khác chỉ để THAM KHẢO ──
   const [sellWhIds, setSellWhIds] = useState([]);   // kho được phép bán: Kho BH + Kho Haravan
+  const [allWh, setAllWh]         = useState([]);   // toàn bộ kho (để hiện tồn kho khác, kể cả = 0)
+  const [bhWhId, setBhWhId]       = useState("");   // kho BH — kho bán chính
   const [sellWhNames, setSellWhNames] = useState([]);
   const [stockMap, setStockMap] = useState({}); // part_id -> { bh, others:[{name,qty}], hasLedger }
   const [infoPop, setInfoPop] = useState(null); // { id, top, left } — bong bóng tồn kho tham khảo
@@ -185,6 +187,14 @@ export default function SaleOrderPage({ user }) {
         });
         setSellWhIds(sellable.map(w => w.id));
         setSellWhNames(sellable.map(w => w.name || w.code));
+        const list = (whs.items || []).filter(w => w.is_active !== false)
+          .map(w => ({ id: w.id, name: w.name || w.code || "Kho" }));
+        setAllWh(list);
+        const bh = (whs.items || []).find(w => {
+          const code = (w.code || "").toUpperCase().replace(/[_-]/g, "");
+          return code === "KHOBH" || /kho\s*bh/i.test(w.name || "");
+        });
+        setBhWhId(bh?.id || "");
       } catch {}
     })();
   }, []);
@@ -200,18 +210,24 @@ export default function SaleOrderPage({ user }) {
       const grouped = {};
       for (const led of (r.items || [])) {
         const qty = Number(led.qty_on_hand || 0);
-        const g = grouped[led.part_id] || { bh: 0, others: [], hasLedger: true };
-        const isBH = sellWhIds.includes(led.warehouse_id);
-        if (isBH) g.bh += qty;
-        else if (qty !== 0) {
-          const ex = g.others.find(o => o.name === (led.warehouse_name || "Kho khác"));
-          if (ex) ex.qty += qty;
-          else g.others.push({ name: led.warehouse_name || "Kho khác", qty });
-        }
+        const g = grouped[led.part_id] || { bh: 0, others: [], byWh: {}, hasLedger: true };
+        const q = Number(led.qty_on_hand || 0);
+        if (sellWhIds.includes(led.warehouse_id)) g.bh += q;
+        g.byWh[led.warehouse_id] = (g.byWh[led.warehouse_id] || 0) + q;
         grouped[led.part_id] = g;
       }
-      Object.keys(grouped).forEach(id => { stockCache.current[id] = grouped[id]; });
-      need.forEach(id => { if (!stockCache.current[id]) stockCache.current[id] = { bh: 0, others: [], hasLedger: false }; });
+      // Bổ sung danh sách "kho khác" = mọi kho trừ kho BH (hiện cả kho tồn 0, dạng "—")
+      const othersFor = (byWh) => (allWh || [])
+        .filter(w => w.id !== bhWhId)
+        .map(w => ({ name: w.name, qty: Number(byWh?.[w.id] || 0) }))
+        .sort((a, b) => (b.qty - a.qty) || a.name.localeCompare(b.name, "vi"));
+      Object.keys(grouped).forEach(id => {
+        grouped[id].others = othersFor(grouped[id].byWh);
+        stockCache.current[id] = grouped[id];
+      });
+      need.forEach(id => {
+        if (!stockCache.current[id]) stockCache.current[id] = { bh: 0, others: othersFor({}), byWh: {}, hasLedger: false };
+      });
       setStockMap({ ...stockCache.current });
     } catch {}
   }
@@ -257,7 +273,7 @@ export default function SaleOrderPage({ user }) {
   function addToCart(part) {
     const avail = sellableQty(part);
     if (avail <= 0) {
-      const others = otherStockLines(part);
+      const others = otherStockLines(part).filter(o => o.qty > 0);
       const refTxt = others.length
         ? " · Kho khác (tham khảo): " + others.map(o => `${o.name} ${o.qty}`).join(", ")
         : "";
@@ -1026,19 +1042,15 @@ export default function SaleOrderPage({ user }) {
               <div style={{ fontSize:12, color:"#059669", fontWeight:800 }}>
                 🏦 Kho bán được (BH + Haravan): {bhQty}
               </div>
-              {others.length > 0 ? (
-                <div style={{ marginTop:5, borderTop:"1px dashed #e5e7eb", paddingTop:5 }}>
+              {others.length > 0 && (
+                <div style={{ marginTop:6, borderTop:"1px dashed #e5e7eb", paddingTop:6 }}>
+                  <div style={{ fontSize:11.5, fontWeight:800, color:"#1e3a8a", marginBottom:3 }}>Tồn kho khác:</div>
                   {others.map((o,i) => (
-                    <div key={i} style={{ fontSize:11.5, color:"#4b5563", display:"flex", justifyContent:"space-between" }}>
-                      <span>• {o.name}</span><b>{o.qty}</b>
+                    <div key={i} style={{ fontSize:11.5, color: o.qty > 0 ? "#374151" : "#9ca3af", lineHeight:1.5 }}>
+                      {o.name}{o.qty > 0 ? `: ${o.qty}` : "—"}
                     </div>
                   ))}
-                  <div style={{ fontSize:10.5, color:"#b45309", fontWeight:700, marginTop:4, lineHeight:1.35 }}>
-                    ⚠️ Kho khác chỉ tham khảo — không bán từ đây
-                  </div>
                 </div>
-              ) : (
-                <div style={{ fontSize:11, color:"#9ca3af", marginTop:4 }}>Không có hàng ở kho khác</div>
               )}
             </div>
           </>
