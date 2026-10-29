@@ -676,6 +676,28 @@ function WarehouseImport({ user }) {
   const [importType, setImportType]       = React.useState("spare_part");
   const [supplier, setSupplier]           = React.useState("");
   const [supplierPhone, setSupplierPhone] = React.useState("");
+  // Tạo nhanh nhà cung cấp ngay trong phiếu nhập
+  const isDesktop = useIsDesktop(1024);
+  const [showQuickSup, setShowQuickSup] = useState(false);
+  const [qsName, setQsName]   = useState("");
+  const [qsPhone, setQsPhone] = useState("");
+  const [qsSaving, setQsSaving] = useState(false);
+  async function saveQuickSupplier() {
+    const nm = qsName.trim();
+    if (!nm) { alert("Nhập tên nhà cung cấp!"); return; }
+    setQsSaving(true);
+    try {
+      const last = await Supplier.list({ limit: 1, sort: "-id" }).catch(() => []);
+      const num = String((last?.[0]?.code || "").replace(/\D/g, "") || "0");
+      const code = "NCC" + String(Number(num) + 1).padStart(4, "0");
+      await Supplier.create({ name: nm, phone: qsPhone.trim(), code, is_active: true, supplier_type: "parts" });
+      setSupplier(nm);
+      setSupplierPhone(qsPhone.trim());
+      logAction(user, "create", "supplier", nm, `Tạo nhanh NCC từ phiếu nhập: ${nm}`);
+      setShowQuickSup(false); setQsName(""); setQsPhone("");
+    } catch (e) { alert("Lỗi tạo NCC: " + (e.message || e)); }
+    setQsSaving(false);
+  }
   const [impPaidAmt,  setImpPaidAmt]      = React.useState(0);
   const [impPayMethod,setImpPayMethod]    = React.useState("cash");
   const [note, setNote]                   = React.useState("");
@@ -1445,12 +1467,49 @@ function WarehouseImport({ user }) {
         </div>
       )}
 
+      {/* Modal tạo nhanh NCC */}
+      {showQuickSup && (
+        <div style={{ position:"fixed", inset:0, zIndex:1200, background:"rgba(0,0,0,.6)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}
+          onClick={e=>{ if (e.target===e.currentTarget) setShowQuickSup(false); }}>
+          <div style={{ background:"#fff", borderRadius:18, width:"min(420px,94vw)", padding:"18px 18px 16px", boxShadow:"0 16px 44px rgba(0,0,0,.3)" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+              <div style={{ fontWeight:900, fontSize:15, color:"#1e1b4b" }}>➕ Tạo nhanh nhà cung cấp</div>
+              <button onClick={()=>setShowQuickSup(false)}
+                style={{ width:30, height:30, borderRadius:"50%", border:"none", background:"#f3f4f6", cursor:"pointer", fontSize:15 }}>✕</button>
+            </div>
+            <div style={{ marginBottom:10 }}>
+              <div style={{ fontSize:12.5, fontWeight:700, marginBottom:5 }}>Tên nhà cung cấp *</div>
+              <input value={qsName} onChange={e=>setQsName(e.target.value)} autoFocus
+                placeholder="Tên NCC..."
+                style={{ width:"100%", height:42, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:14, outline:"none", boxSizing:"border-box" }} />
+            </div>
+            <div style={{ marginBottom:14 }}>
+              <div style={{ fontSize:12.5, fontWeight:700, marginBottom:5 }}>Số điện thoại</div>
+              <input value={qsPhone} onChange={e=>setQsPhone(e.target.value)}
+                placeholder="SĐT nhà cung cấp..."
+                style={{ width:"100%", height:42, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:14, outline:"none", boxSizing:"border-box" }} />
+            </div>
+            <button onClick={saveQuickSupplier} disabled={qsSaving}
+              style={{ width:"100%", height:44, borderRadius:12, border:"none", background:"#7c3aed", color:"#fff", fontWeight:800, fontSize:14, cursor:"pointer" }}>
+              {qsSaving ? "⏳ Đang lưu..." : "Lưu nhà cung cấp"}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Form tạo phiếu */}
       {showForm && (
-        <div style={{ position:"fixed", inset:0, zIndex:500, background:"rgba(0,0,0,.6)", display:"flex", alignItems:"flex-end" }}>
-          <div style={{ background:"#fff", borderRadius:"24px 24px 0 0", width:"100%", maxHeight:"80vh", display:"flex", flexDirection:"column" }}>
+        <div style={{ position:"fixed", inset:0, zIndex:500, background:"rgba(0,0,0,.6)",
+          display:"flex", alignItems:isDesktop?"center":"flex-end", justifyContent:"center",
+          padding: isDesktop ? 20 : 0 }}>
+          <div style={{ background:"#fff",
+            borderRadius: isDesktop ? 20 : "24px 24px 0 0",
+            width: isDesktop ? "min(760px, 92vw)" : "100%",
+            maxHeight: isDesktop ? "88vh" : "80vh",
+            display:"flex", flexDirection:"column",
+            boxShadow: isDesktop ? "0 24px 64px rgba(0,0,0,.35)" : "none" }}>
             {/* Header */}
-            <div style={{ background:"linear-gradient(135deg,#7c3aed,#6d28d9)", padding:"16px 18px", borderRadius:"24px 24px 0 0", flexShrink:0, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <div style={{ background:"linear-gradient(135deg,#7c3aed,#6d28d9)", padding:"16px 18px", borderRadius: isDesktop ? "20px 20px 0 0" : "24px 24px 0 0", flexShrink:0, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <div style={{ color:"#fff", fontWeight:900, fontSize:16 }}>📥 Tạo phiếu nhập hàng</div>
               <button onClick={()=>setShowForm(false)}
                 style={{ background:"rgba(255,255,255,.2)", border:"1.5px solid rgba(255,255,255,.35)", color:"#fff", width:36, height:36, borderRadius:"50%", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
@@ -1570,6 +1629,7 @@ function WarehouseImport({ user }) {
               {/* NCC */}
               <div style={{ marginBottom:12, position:"relative" }}>
                 <div style={{ fontSize:13, fontWeight:700, marginBottom:6 }}>Nhà cung cấp *</div>
+                <div style={{ display:"flex", gap:8, alignItems:"center" }}>
                 <input
                   ref={supplierInputRef}
                   value={supplier}
@@ -1577,8 +1637,13 @@ function WarehouseImport({ user }) {
                   onFocus={()=>setShowSupplierDrop(true)}
                   onBlur={()=>setTimeout(()=>setShowSupplierDrop(false),180)}
                   placeholder="Tên nhà cung cấp..."
-                  style={{ width:"100%", height:42, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:14, outline:"none", boxSizing:"border-box" }}
+                  style={{ flex:1, minWidth:0, height:42, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:14, outline:"none", boxSizing:"border-box" }}
                 />
+                <button type="button" onClick={()=>{ setQsName(supplier||""); setQsPhone(supplierPhone||""); setShowQuickSup(true); }}
+                  title="Tạo nhanh nhà cung cấp"
+                  style={{ width:44, height:42, flexShrink:0, borderRadius:10, border:"none",
+                    background:"#7c3aed", color:"#fff", fontWeight:900, fontSize:20, cursor:"pointer", lineHeight:1 }}>+</button>
+                </div>
                 {showSupplierDrop && supplierSugg.length > 0 && (() => {
                   const el = supplierInputRef.current;
                   if (!el) return null;
