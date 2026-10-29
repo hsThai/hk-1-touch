@@ -1035,10 +1035,6 @@ export default function SaleOrderPage({ user }) {
             <div style={{ position:"fixed", top:infoPop.top, left:infoPop.left, width:250, zIndex:901,
               background:"#fff", border:"1.5px solid #bfdbfe", borderRadius:12, padding:"10px 12px",
               boxShadow:"0 10px 30px rgba(0,0,0,.18)" }}>
-              <div style={{ fontSize:11.5, fontWeight:800, color:"#1e40af", marginBottom:5, lineHeight:1.3 }}>
-                📦 Tồn kho tham khảo
-              </div>
-              <div style={{ fontSize:12, fontWeight:700, color:"#1f2937", marginBottom:6, lineHeight:1.3 }}>{name}</div>
               <div style={{ fontSize:12, color:"#059669", fontWeight:800 }}>
                 🏦 Kho bán được (BH + Haravan): {bhQty}
               </div>
