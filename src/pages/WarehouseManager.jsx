@@ -717,6 +717,12 @@ function StockLedgerTab({ user, toast }) {
   }
   useEffect(() => { if (!selWH) return; setCatalogAll([]); setCatalogDone(false); ensureCatalog(600); }, [selWH]);
 
+
+  const wh = warehouses.find(w=>w.id===selWH);
+  const filteredLedger = ledger.filter(l =>
+    !search || l.part_name?.toLowerCase().includes(search.toLowerCase()) || l.sku?.toLowerCase().includes(search.toLowerCase()) || l.location_code?.toLowerCase().includes(search.toLowerCase())
+  );
+
   // Gộp: dòng sổ kho thật + mặt hàng trong danh mục chưa có tồn (hiện 0)
   const ledgerWithCatalog = React.useMemo(() => {
     const have = new Set(filteredLedger.map(l => l.part_id || l.sku || l.part_name));
@@ -731,10 +737,6 @@ function StockLedgerTab({ user, toast }) {
     return [...filteredLedger, ...virtual].sort((a, b) => (a.part_name || "").localeCompare(b.part_name || "", "vi"));
   }, [filteredLedger, catalogAll, search, selWH]);
 
-  const wh = warehouses.find(w=>w.id===selWH);
-  const filteredLedger = ledger.filter(l =>
-    !search || l.part_name?.toLowerCase().includes(search.toLowerCase()) || l.sku?.toLowerCase().includes(search.toLowerCase()) || l.location_code?.toLowerCase().includes(search.toLowerCase())
-  );
 
   const totalValue = filteredLedger.reduce((s,l)=>(s + (l.qty_on_hand||0)*(l.cost_price||0)),0);
   const lowStock = filteredLedger.filter(l=>l.min_qty>0 && l.qty_available<=l.min_qty).length;
