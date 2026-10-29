@@ -180,10 +180,11 @@ export default function SaleOrderPage({ user }) {
         const whs = await fetch(`${getPbUrl()}/api/collections/warehouses/records?perPage=50&filter=${encodeURIComponent("(is_active=true)")}`)
           .then(r => r.ok ? r.json() : { items: [] }).catch(() => ({ items: [] }));
         // Kho BÁN ĐƯỢC = Kho BH + Kho Haravan. Kho 16 là kho nhập/chuyển (không bán).
+        // CHỈ bán từ Kho BH. (Kho Haravan bán riêng trên hệ thống Haravan.)
         const sellable = (whs.items || []).filter(w => {
           const code = (w.code || "").toUpperCase().replace(/[_-]/g, "");
           const name = (w.name || "").toLowerCase();
-          return code === "KHOBH" || /kho\s*bh/.test(name) || code.includes("HRV") || /haravan/.test(name);
+          return code === "KHOBH" || /kho\s*bh/.test(name);
         });
         setSellWhIds(sellable.map(w => w.id));
         setSellWhNames(sellable.map(w => w.name || w.code));
@@ -1036,14 +1037,14 @@ export default function SaleOrderPage({ user }) {
               background:"#fff", border:"1.5px solid #bfdbfe", borderRadius:12, padding:"10px 12px",
               boxShadow:"0 10px 30px rgba(0,0,0,.18)" }}>
               <div style={{ fontSize:12, color:"#059669", fontWeight:800 }}>
-                🏦 Kho bán được (BH + Haravan): {bhQty}
+                🏦 Kho BH: {bhQty}
               </div>
               {others.length > 0 && (
                 <div style={{ marginTop:6, borderTop:"1px dashed #e5e7eb", paddingTop:6 }}>
                   <div style={{ fontSize:11.5, fontWeight:800, color:"#1e3a8a", marginBottom:3 }}>Tồn kho khác:</div>
                   {others.map((o,i) => (
                     <div key={i} style={{ fontSize:11.5, color: o.qty > 0 ? "#374151" : "#9ca3af", lineHeight:1.5 }}>
-                      {o.name}{o.qty > 0 ? `: ${o.qty}` : "—"}
+                      {o.name}: {o.qty}
                     </div>
                   ))}
                 </div>
