@@ -666,8 +666,8 @@ export default function SaleOrderPage({ user }) {
                 </div>
                 <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
                   {sellableQty(p) > 0
-                    ? <span style={{ fontSize:12, background:"#dcfce7", color:"#059669", borderRadius:99, padding:"2px 10px", fontWeight:700 }}>BH: {sellableQty(p)}</span>
-                    : <span style={{ fontSize:12, background:"#fee2e2", color:"#dc2626", borderRadius:99, padding:"2px 10px", fontWeight:700 }}>BH: 0</span>}
+                    ? <span style={{ fontSize:12, background:"#dcfce7", color:"#059669", borderRadius:99, padding:"2px 10px", fontWeight:700 }}>Kho BH: {sellableQty(p)}</span>
+                    : <span style={{ fontSize:12, background:"#fee2e2", color:"#dc2626", borderRadius:99, padding:"2px 10px", fontWeight:700 }}>Kho BH: 0</span>}
                   <button type="button"
                     onClick={e=>toggleInfo(e, p.id)}
                     title="Xem tồn kho các kho khác (tham khảo)"
