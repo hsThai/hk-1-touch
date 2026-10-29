@@ -725,10 +725,28 @@ function StockLedgerTab({ user, toast }) {
 
   // Gộp: dòng sổ kho thật + mặt hàng trong danh mục chưa có tồn (hiện 0)
   const ledgerWithCatalog = React.useMemo(() => {
-    const have = new Set(filteredLedger.map(l => l.part_id || l.sku || l.part_name));
+    const norm = (x) => String(x || "").trim().toLowerCase();
+    // Chống trùng: so khớp cả part_id, SKU và tên hàng (dữ liệu cũ có nhiều bản ghi danh mục trùng SKU)
+    const have = new Set();
+    filteredLedger.forEach(l => {
+      if (l.part_id) have.add("id:" + l.part_id);
+      if (l.sku) have.add("sku:" + norm(l.sku));
+      if (l.part_name) have.add("nm:" + norm(l.part_name));
+    });
     const q = search.trim().toLowerCase();
+    const seen = new Set();
     const virtual = (catalogAll || [])
-      .filter(c => !have.has(c.id) && (!q || (c.name || "").toLowerCase().includes(q) || (c.sku || "").toLowerCase().includes(q)))
+      .filter(c => {
+        if (have.has("id:" + c.id)) return false;
+        if (c.sku && have.has("sku:" + norm(c.sku))) return false;
+        if (c.name && have.has("nm:" + norm(c.name))) return false;
+        if (q && !((c.name || "").toLowerCase().includes(q) || (c.sku || "").toLowerCase().includes(q))) return false;
+        // loại trùng ngay trong danh mục
+        const key = c.sku ? "sku:" + norm(c.sku) : "nm:" + norm(c.name);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
       .map(c => ({
         id: "virtual-" + c.id, part_id: c.id, part_name: c.name, sku: c.sku,
         qty_on_hand: 0, qty_reserved: 0, qty_available: 0, min_qty: 0,
