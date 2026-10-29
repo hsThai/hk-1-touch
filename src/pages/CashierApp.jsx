@@ -1,6 +1,7 @@
 /* CashierApp.jsx — App 3: Kế toán & Bán hàng lẻ */
 import React, { useState, useEffect } from "react";
 import { usePermission } from "./PermissionContext.jsx";
+import { useUnsavedList, LeaveConfirm } from "../utils/unsavedGuard.jsx";
 import { RepairOrder, SaleOrder, SaleOrderItem, Expense, CashJournal, ShiftReconcile, DebtVoucher, logAction, getLocalDate, sortNewestFirst } from "./pb.jsx";
 
 const ALLOWED_ROLES = ["accountant", "cashier", "manager", "admin", "owner", "sales", "team_leader"];
@@ -480,6 +481,13 @@ export default function CashierApp({ user, onNotif, onQRScan, notifCount=0, forc
   const { can } = usePermission();
   const defaultTab = ["cashier","accountant"].includes(user?.role) ? "confirm" : "sale";
   const [tab, setTab] = useState(defaultTab);
+  // Chặn đổi tab khi đang làm dở (đơn bán hàng / phiếu chưa lưu)
+  const unsavedItems = useUnsavedList();
+  const [pendingTab, setPendingTab] = useState(null);
+  function goTab(next) {
+    if (next !== tab && unsavedItems.length > 0) { setPendingTab(next); return; }
+    setTab(next);
+  }
   const [SaleOrderPage, setSaleOrderPage]             = useState(null);
   const [CashierConfirmPage, setCashierConfirmPage]   = useState(null);
   const [SaleHistoryPage, setSaleHistoryPage]         = useState(null);
@@ -577,7 +585,7 @@ export default function CashierApp({ user, onNotif, onQRScan, notifCount=0, forc
         {NAV_TABS.map(t => {
           const active = tab === t.key;
           return (
-            <button key={t.key} onClick={() => setTab(t.key)}
+            <button key={t.key} onClick={() => goTab(t.key)}
               style={{
                 flex:1, display:"flex", flexDirection:"column",
                 alignItems:"center", justifyContent:"center",
@@ -616,6 +624,9 @@ export default function CashierApp({ user, onNotif, onQRScan, notifCount=0, forc
         {tab === "shift"   && can("pos_reconcile","view") && <ShiftReconcilePage user={user} />}
       </div>
 
+      {pendingTab && (
+        <LeaveConfirm items={unsavedItems} onStay={()=>setPendingTab(null)} onLeave={()=>{ const t=pendingTab; setPendingTab(null); setTab(t); }} />
+      )}
     </div>
   );
 }
