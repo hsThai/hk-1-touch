@@ -44,7 +44,29 @@ export default function SaleOrderPage({ user }) {
   const [sellWhIds, setSellWhIds] = useState([]);   // kho được phép bán: Kho BH + Kho Haravan
   const [sellWhNames, setSellWhNames] = useState([]);
   const [stockMap, setStockMap] = useState({}); // part_id -> { bh, others:[{name,qty}], hasLedger }
-  const [infoPartId, setInfoPartId] = useState(""); // ô đang mở bảng tồn kho tham khảo
+  const [infoPop, setInfoPop] = useState(null); // { id, top, left } — bong bóng tồn kho tham khảo
+
+  // Mở/đóng bong bóng tồn kho ngay cạnh nút (i)
+  function toggleInfo(e, id) {
+    if (e) { e.stopPropagation(); e.preventDefault(); }
+    if (infoPop && infoPop.id === id) { setInfoPop(null); return; }
+    const r = e?.currentTarget?.getBoundingClientRect?.();
+    const W = 250;
+    let left = 12, top = 12;
+    if (r) {
+      left = r.left - W - 10;
+      if (left < 8) left = Math.min(r.right + 10, window.innerWidth - W - 8);
+      top = r.top - 8;
+      const H = othersHeightFor(id);
+      if (top + H > window.innerHeight - 8) top = Math.max(8, window.innerHeight - H - 8);
+    }
+    setInfoPop({ id, top, left });
+  }
+  function othersHeightFor(id) {
+    const p = searchRes.find(x => x.id === id) || cart.find(c => c.part_id === id);
+    const info = stockMap[p?.id || p?.part_id || id];
+    return 96 + ((info?.others?.length || 0) * 16);
+  }
   const stockCache = useRef({});
   const [custName,       setCustName]       = useState("");
   const [custPhone,      setCustPhone]      = useState("");
@@ -630,43 +652,15 @@ export default function SaleOrderPage({ user }) {
                     ? <span style={{ fontSize:12, background:"#dcfce7", color:"#059669", borderRadius:99, padding:"2px 10px", fontWeight:700 }}>BH: {sellableQty(p)}</span>
                     : <span style={{ fontSize:12, background:"#fee2e2", color:"#dc2626", borderRadius:99, padding:"2px 10px", fontWeight:700 }}>BH: 0</span>}
                   <button type="button"
-                    onMouseEnter={()=>setInfoPartId(p.id)}
-                    onClick={e=>{ e.stopPropagation(); setInfoPartId(infoPartId===p.id?"":p.id); }}
+                    onClick={e=>toggleInfo(e, p.id)}
                     title="Xem tồn kho các kho khác (tham khảo)"
                     style={{ width:24, height:24, borderRadius:"50%", border:"1.5px solid #93c5fd",
-                      background: infoPartId===p.id ? "#2563eb" : "#eff6ff",
-                      color: infoPartId===p.id ? "#fff" : "#2563eb",
+                      background: infoPop?.id===p.id ? "#2563eb" : "#eff6ff",
+                      color: infoPop?.id===p.id ? "#fff" : "#2563eb",
                       fontWeight:900, fontSize:12, cursor:"pointer", lineHeight:1 }}>i</button>
                 </div>
               </div>
             ))}
-            {infoPartId && searchRes.find(p=>p.id===infoPartId) && (() => {
-              const pp = searchRes.find(p=>p.id===infoPartId);
-              const others = otherStockLines(pp);
-              return (
-                <div onClick={e=>e.stopPropagation()}
-                  style={{ padding:"10px 14px", background:"#eff6ff", borderTop:"1.5px solid #bfdbfe" }}>
-                  <div style={{ fontSize:11.5, fontWeight:800, color:"#1e40af", marginBottom:4 }}>
-                    📦 Tồn kho tham khảo — {pp.name}
-                  </div>
-                  <div style={{ fontSize:11.5, color:"#1e3a8a" }}>
-                    🏦 <b>Kho BH (bán được):</b> {sellableQty(pp)}
-                  </div>
-                  {others.length > 0 ? (
-                    <div style={{ fontSize:11.5, color:"#6b7280", marginTop:3 }}>
-                      {others.map((o,i) => (
-                        <div key={i}>• {o.name}: <b>{o.qty}</b></div>
-                      ))}
-                      <div style={{ marginTop:4, color:"#b45309", fontWeight:700 }}>
-                        ⚠️ Hàng ở kho khác chỉ để tham khảo — không chọn bán từ đây.
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ fontSize:11.5, color:"#9ca3af", marginTop:3 }}>Không có hàng ở kho khác.</div>
-                  )}
-                </div>
-              );
-            })()}
           </div>
         )}
       </div>
@@ -709,12 +703,11 @@ export default function SaleOrderPage({ user }) {
                 </div>
               </div>
               <button type="button"
-                onMouseEnter={()=>setInfoPartId("cart-"+item.part_id)}
-                onClick={()=>setInfoPartId(infoPartId==="cart-"+item.part_id ? "" : "cart-"+item.part_id)}
+                onClick={e=>toggleInfo(e, item.part_id)}
                 title="Xem tồn kho các kho khác (tham khảo)"
                 style={{ width:24, height:24, borderRadius:"50%", border:"1.5px solid #93c5fd",
-                  background: infoPartId==="cart-"+item.part_id ? "#2563eb" : "#eff6ff",
-                  color: infoPartId==="cart-"+item.part_id ? "#fff" : "#2563eb",
+                  background: infoPop?.id===item.part_id ? "#2563eb" : "#eff6ff",
+                  color: infoPop?.id===item.part_id ? "#fff" : "#2563eb",
                   fontWeight:900, fontSize:12, cursor:"pointer", lineHeight:1, flexShrink:0 }}>i</button>
               <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                 <button onClick={()=>updateQty(idx,-1)} style={{ width:32, height:32, borderRadius:8, border:"1.5px solid #e5e7eb", background:"#f9fafb", cursor:"pointer", fontWeight:900, fontSize:16 }}>−</button>
@@ -725,30 +718,6 @@ export default function SaleOrderPage({ user }) {
               <button onClick={()=>removeItem(idx)} style={{ background:"none", border:"none", cursor:"pointer", color:"#dc2626", fontSize:22, padding:2 }}>×</button>
             </div>
           ))}
-          {infoPartId.startsWith("cart-") && (() => {
-            const pid = infoPartId.slice(5);
-            const info = stockMap[pid];
-            const others = info?.others || [];
-            const item = cart.find(i => i.part_id === pid);
-            return (
-              <div style={{ padding:"10px 14px", background:"#eff6ff", borderTop:"1.5px solid #bfdbfe" }}>
-                <div style={{ fontSize:11.5, fontWeight:800, color:"#1e40af", marginBottom:4 }}>
-                  📦 Tồn kho tham khảo — {item?.part_name || ""}
-                </div>
-                <div style={{ fontSize:11.5, color:"#1e3a8a" }}>
-                  🏦 <b>Kho BH (bán được):</b> {info?.hasLedger ? info.bh : (item?.stock_max ?? 0)}
-                </div>
-                {others.length > 0 ? (
-                  <div style={{ fontSize:11.5, color:"#6b7280", marginTop:3 }}>
-                    {others.map((o,i) => <div key={i}>• {o.name}: <b>{o.qty}</b></div>)}
-                    <div style={{ marginTop:4, color:"#b45309", fontWeight:700 }}>⚠️ Kho khác chỉ tham khảo — không bán từ đây.</div>
-                  </div>
-                ) : (
-                  <div style={{ fontSize:11.5, color:"#9ca3af", marginTop:3 }}>Không có hàng ở kho khác.</div>
-                )}
-              </div>
-            );
-          })()}
         </div>
       )}
 
@@ -1035,6 +1004,46 @@ export default function SaleOrderPage({ user }) {
           </div>
         </div>
       )}
+
+      {/* Bong bóng tồn kho tham khảo — nằm ngay cạnh nút (i) */}
+      {infoPop && (() => {
+        const pp = searchRes.find(x => x.id === infoPop.id) || null;
+        const ci = cart.find(c => c.part_id === infoPop.id) || null;
+        const name = pp?.name || ci?.part_name || "";
+        const info = stockMap[infoPop.id];
+        const others = info?.others || [];
+        const bhQty = info?.hasLedger ? info.bh : (ci?.stock_max ?? (pp ? sellableQty(pp) : 0));
+        return (
+          <>
+            <div onClick={()=>setInfoPop(null)} style={{ position:"fixed", inset:0, zIndex:900 }} />
+            <div style={{ position:"fixed", top:infoPop.top, left:infoPop.left, width:250, zIndex:901,
+              background:"#fff", border:"1.5px solid #bfdbfe", borderRadius:12, padding:"10px 12px",
+              boxShadow:"0 10px 30px rgba(0,0,0,.18)" }}>
+              <div style={{ fontSize:11.5, fontWeight:800, color:"#1e40af", marginBottom:5, lineHeight:1.3 }}>
+                📦 Tồn kho tham khảo
+              </div>
+              <div style={{ fontSize:12, fontWeight:700, color:"#1f2937", marginBottom:6, lineHeight:1.3 }}>{name}</div>
+              <div style={{ fontSize:12, color:"#059669", fontWeight:800 }}>
+                🏦 Kho bán được (BH + Haravan): {bhQty}
+              </div>
+              {others.length > 0 ? (
+                <div style={{ marginTop:5, borderTop:"1px dashed #e5e7eb", paddingTop:5 }}>
+                  {others.map((o,i) => (
+                    <div key={i} style={{ fontSize:11.5, color:"#4b5563", display:"flex", justifyContent:"space-between" }}>
+                      <span>• {o.name}</span><b>{o.qty}</b>
+                    </div>
+                  ))}
+                  <div style={{ fontSize:10.5, color:"#b45309", fontWeight:700, marginTop:4, lineHeight:1.35 }}>
+                    ⚠️ Kho khác chỉ tham khảo — không bán từ đây
+                  </div>
+                </div>
+              ) : (
+                <div style={{ fontSize:11, color:"#9ca3af", marginTop:4 }}>Không có hàng ở kho khác</div>
+              )}
+            </div>
+          </>
+        );
+      })()}
 
       {toast && (
         <div style={{ position:"fixed", bottom:80, left:"50%", transform:"translateX(-50%)",
