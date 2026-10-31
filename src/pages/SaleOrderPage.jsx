@@ -302,7 +302,7 @@ export default function SaleOrderPage({ user }) {
         loadStockInfo(found || []);
       } catch { setSearchRes([]); }
     }, 300);
-  }, [search]);
+  }, [search, combos]);
 
   function addToCart(part) {
     const avail = part._combo ? Number(part.stock_qty || 0) : sellableQty(part);
