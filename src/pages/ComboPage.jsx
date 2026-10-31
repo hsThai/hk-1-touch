@@ -57,8 +57,10 @@ export default function ComboPage({ user }) {
   const [partRes, setPartRes] = useState([]);
   const [saving, setSaving] = useState(false);
   const [assemble, setAssemble] = useState(null);     // { combo } modal ghép
-  const [asmQty, setAsmQty] = useState(1);
-  const [asmWh, setAsmWh] = useState("");
+  const [asmQtyStr, setAsmQtyStr] = useState("1");    // giữ dạng chuỗi để gõ số không bị nối "12"
+  const [asmWhDefault, setAsmWhDefault] = useState(""); // kho mặc định cho tất cả dòng
+  const [asmLines, setAsmLines] = useState([]);        // [{part_id, part_name, per, whId}]
+  const [asmStock, setAsmStock] = useState({});        // part_id -> { whId: {id, qty} }
   const [asmBusy, setAsmBusy] = useState(false);
   const [confirmDel, setConfirmDel] = useState(null);
 
@@ -79,9 +81,9 @@ export default function ComboPage({ user }) {
       its.forEach(it => { (map[it.combo_id] = map[it.combo_id] || []).push(it); });
       setItemsByCombo(map);
       setWarehouses(whs.filter(w => w.is_active !== false));
-      if (!asmWh) {
+      if (!asmWhDefault) {
         const k16 = whs.find(w => (w.code || "").toLowerCase().startsWith("kho16"));
-        setAsmWh(k16?.id || whs[0]?.id || "");
+        setAsmWhDefault(k16?.id || whs[0]?.id || "");
       }
     } catch (e) { showToast("❌ " + e.message); }
     setLoading(false);
@@ -159,54 +161,88 @@ export default function ComboPage({ user }) {
     setSaving(false);
   }
 
+  // Mở modal ghép: tải tồn từng linh kiện ở từng kho để chọn kho riêng cho mỗi món
+  async function openAssemble(c) {
+    const its = itemsByCombo[c.id] || [];
+    const k16 = warehouses.find(w => (w.code || "").toLowerCase().startsWith("kho16"));
+    const defWh = asmWhDefault || k16?.id || warehouses[0]?.id || "";
+    setAssemble({ combo: c });
+    setAsmQtyStr("1");
+    setAsmStock({});
+    setAsmLines(its.map(it => ({ part_id: it.part_id, part_name: it.part_name, sku: it.sku,
+      per: Number(it.qty) || 1, unit_price: Number(it.unit_price) || 0, whId: defWh })));
+    if (!its.length) return;
+    try {
+      const flt = its.map(it => `part_id="${it.part_id}"`).join(" || ");
+      const ledgers = await pbList("stock_ledgers", `perPage=500&filter=${encodeURIComponent(`(${flt})`)}`);
+      const map = {};
+      ledgers.forEach(l => {
+        const g = map[l.part_id] || (map[l.part_id] = {});
+        g[l.warehouse_id] = { id: l.id, qty: Number(l.qty_on_hand || 0), reserved: Number(l.qty_reserved || 0), whName: l.warehouse_name || "" };
+      });
+      setAsmStock(map);
+      // dòng nào kho mặc định không có hàng thì tự nhảy sang kho còn nhiều nhất
+      setAsmLines(prev => prev.map(ln => {
+        const g = map[ln.part_id] || {};
+        if (g[ln.whId] && g[ln.whId].qty > 0) return ln;
+        let best = ln.whId, bestQty = -1;
+        Object.entries(g).forEach(([wid, v]) => { if (v.qty > bestQty) { bestQty = v.qty; best = wid; } });
+        return { ...ln, whId: best };
+      }));
+    } catch { }
+  }
+
+  function applyDefaultWh(whId) {
+    setAsmWhDefault(whId);
+    setAsmLines(prev => prev.map(ln => ({ ...ln, whId })));
+  }
+
   async function doAssemble() {
     const c = assemble?.combo;
-    if (!c || !asmWh) return;
-    const its = itemsByCombo[c.id] || [];
-    if (its.length === 0) { showToast("⚠️ Combo chưa có thành phần"); return; }
+    const qty = Math.max(1, parseInt(asmQtyStr, 10) || 1);
+    if (!c) return;
+    if (asmLines.length === 0) { showToast("⚠️ Combo chưa có thành phần"); return; }
     setAsmBusy(true);
     try {
-      const ledgers = await pbList("stock_ledgers", `perPage=500&filter=${encodeURIComponent(`(warehouse_id="${asmWh}")`)}`);
-      const byPart = {};
-      ledgers.forEach(l => { byPart[l.part_id] = l; });
-      const whName = warehouses.find(w => w.id === asmWh)?.name || "";
-      // kiểm tra đủ hàng
       const shortage = [];
-      for (const it of its) {
-        const need = (Number(it.qty) || 1) * Number(asmQty);
-        const have = Number(byPart[it.part_id]?.qty_on_hand || 0);
-        if (have < need) shortage.push(`${it.part_name || it.sku}: cần ${need}, còn ${have}`);
-      }
+      asmLines.forEach(ln => {
+        const led = asmStock[ln.part_id]?.[ln.whId];
+        const need = ln.per * qty;
+        const have = led ? led.qty : 0;
+        if (have < need) shortage.push(`${ln.part_name}: cần ${need}, còn ${have}`);
+      });
       if (shortage.length) { showToast("⛔ Thiếu hàng: " + shortage.slice(0, 3).join(" · ")); setAsmBusy(false); return; }
-      // trừ kho từng linh kiện + ghi thẻ kho
-      for (const it of its) {
-        const need = (Number(it.qty) || 1) * Number(asmQty);
-        const led = byPart[it.part_id];
-        const before = Number(led.qty_on_hand || 0);
+
+      for (const ln of asmLines) {
+        const need = ln.per * qty;
+        const led = asmStock[ln.part_id][ln.whId];
+        const before = led.qty;
         const after = Math.max(0, before - need);
+        const whName = warehouses.find(w => w.id === ln.whId)?.name || led.whName || "";
         await pbUpdate("stock_ledgers", led.id, {
-          qty_on_hand: after, qty_available: Math.max(0, after - Number(led.qty_reserved || 0)),
+          qty_on_hand: after,
+          qty_available: Math.max(0, after - (led.reserved || 0)),
           last_movement_at: new Date().toISOString(),
         });
         await pbCreate("stock_movements", {
           movement_code: "MV" + Date.now().toString().slice(-8) + Math.floor(Math.random() * 90),
           movement_type: "combo_pick",
-          warehouse_id: asmWh, warehouse_name: whName,
-          part_id: it.part_id, part_name: it.part_name, sku: it.sku,
+          warehouse_id: ln.whId, warehouse_name: whName,
+          part_id: ln.part_id, part_name: ln.part_name, sku: ln.sku,
           qty_before: before, qty_change: -need, qty_after: after,
-          unit_price: it.unit_price || 0,
+          unit_price: ln.unit_price || 0,
           ref_type: "combo", ref_id: c.id, ref_code: c.sku || c.name,
-          note: `Ghép ${asmQty} combo ${c.name}`,
+          note: `Ghép ${qty} combo ${c.name}`,
           created_by_id: user?.id || "", created_by_name: user?.full_name || user?.name || "",
           created_date: new Date().toISOString().replace("T", " ").split(".")[0],
         }).catch(() => { });
       }
       await pbUpdate("product_combos", c.id, {
-        stock_qty: Number(c.stock_qty || 0) + Number(asmQty),
+        stock_qty: Number(c.stock_qty || 0) + qty,
         last_assembled_at: new Date().toISOString(),
       });
-      logAction(user, "update", "product_combo", c.id, `Ghép ${asmQty} combo ${c.name} tại ${whName} — trừ ${its.length} loại linh kiện`);
-      showToast(`✅ Đã ghép ${asmQty} combo ${c.name}`);
+      logAction(user, "update", "product_combo", c.id, `Ghép ${qty} combo ${c.name} — trừ ${asmLines.length} loại linh kiện`);
+      showToast(`✅ Đã ghép ${qty} combo ${c.name}`);
       setAssemble(null);
       await load();
     } catch (e) { showToast("❌ " + e.message); }
@@ -273,7 +309,7 @@ export default function ComboPage({ user }) {
               </div>
               {canEdit && (
                 <>
-                  <button onClick={() => { setAssemble({ combo: c }); setAsmQty(1); }}
+                  <button onClick={() => openAssemble(c)}
                     style={{ height: 36, padding: "0 12px", borderRadius: 10, border: "none", background: "#059669", color: "#fff", fontWeight: 800, fontSize: 12.5, cursor: "pointer" }}>
                     Ghép
                   </button>
@@ -395,10 +431,10 @@ export default function ComboPage({ user }) {
       {/* Modal ghép combo */}
       {assemble && (() => {
         const c = assemble.combo;
-        const its = itemsByCombo[c.id] || [];
+        const qty = Math.max(1, parseInt(asmQtyStr, 10) || 1);
         return (
           <div style={{ position: "fixed", inset: 0, zIndex: 1600, background: "rgba(0,0,0,.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-            <div style={{ background: "#fff", borderRadius: 18, width: "min(460px,94vw)", padding: "18px 18px 16px", maxHeight: "88vh", overflowY: "auto" }}>
+            <div style={{ background: "#fff", borderRadius: 18, width: "min(480px,94vw)", padding: "18px 18px 16px", maxHeight: "90vh", overflowY: "auto" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                 <div style={{ fontWeight: 900, fontSize: 15, color: "#1e1b4b" }}>🔧 Ghép combo</div>
                 <button onClick={() => setAssemble(null)} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: "#f3f4f6", cursor: "pointer" }}>✕</button>
@@ -407,34 +443,59 @@ export default function ComboPage({ user }) {
               <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 12 }}>Tồn combo hiện tại: <b>{c.stock_qty || 0}</b></div>
 
               <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 5 }}>Lấy linh kiện từ kho</div>
-                <select value={asmWh} onChange={e => setAsmWh(e.target.value)}
+                <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 5 }}>Số combo muốn ghép</div>
+                <input type="text" inputMode="numeric" pattern="[0-9]*" value={asmQtyStr}
+                  onFocus={e => e.target.select()}
+                  onChange={e => setAsmQtyStr(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
+                  placeholder="1"
+                  style={{ width: "100%", height: 42, borderRadius: 10, border: "1.5px solid #c7d2fe", padding: "0 12px", fontSize: 16, fontWeight: 800, outline: "none", boxSizing: "border-box" }} />
+              </div>
+
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 5 }}>Kho mặc định cho tất cả linh kiện</div>
+                <select value={asmWhDefault} onChange={e => applyDefaultWh(e.target.value)}
                   style={{ width: "100%", height: 42, borderRadius: 10, border: "1.5px solid #e5e7eb", padding: "0 10px", fontSize: 14, background: "#fff" }}>
                   {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                 </select>
-              </div>
-
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 5 }}>Số combo muốn ghép</div>
-                <input type="number" min={1} value={asmQty} onChange={e => setAsmQty(Math.max(1, Number(e.target.value) || 1))}
-                  style={{ width: "100%", height: 42, borderRadius: 10, border: "1.5px solid #e5e7eb", padding: "0 12px", fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+                <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>Có thể đổi kho riêng cho từng linh kiện ở danh sách bên dưới.</div>
               </div>
 
               <div style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 12, padding: "10px 12px", marginBottom: 14 }}>
-                <div style={{ fontSize: 11.5, fontWeight: 800, color: "#6b7280", marginBottom: 5 }}>LINH KIỆN SẼ TRỪ</div>
-                {its.map((it, i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#374151", padding: "2px 0" }}>
-                    <span>{it.part_name}</span>
-                    <b>-{(Number(it.qty) || 1) * asmQty}</b>
-                  </div>
-                ))}
+                <div style={{ fontSize: 11.5, fontWeight: 800, color: "#6b7280", marginBottom: 6 }}>LINH KIỆN SẼ TRỪ</div>
+                {asmLines.map((ln, i) => {
+                  const need = ln.per * qty;
+                  const led = asmStock[ln.part_id]?.[ln.whId];
+                  const have = led ? led.qty : 0;
+                  const okStock = have >= need;
+                  return (
+                    <div key={i} style={{ padding: "7px 0", borderTop: i ? "1px dashed #e5e7eb" : "none" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                        <div style={{ fontSize: 12.5, color: "#374151", fontWeight: 600, flex: 1, minWidth: 0 }}>{ln.part_name}</div>
+                        <b style={{ fontSize: 13, color: okStock ? "#374151" : "#dc2626", flexShrink: 0 }}>-{need}</b>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                        <select value={ln.whId}
+                          onChange={e => setAsmLines(prev => prev.map((x, idx) => idx === i ? { ...x, whId: e.target.value } : x))}
+                          style={{ flex: 1, minWidth: 0, height: 32, borderRadius: 8, border: `1.5px solid ${okStock ? "#e5e7eb" : "#fecaca"}`, padding: "0 8px", fontSize: 12, background: "#fff" }}>
+                          {warehouses.map(w => {
+                            const q = asmStock[ln.part_id]?.[w.id]?.qty || 0;
+                            return <option key={w.id} value={w.id}>{w.name}{q > 0 ? ` (${q})` : " (0)"}</option>;
+                          })}
+                        </select>
+                        <span style={{ fontSize: 11, color: okStock ? "#059669" : "#dc2626", fontWeight: 700, flexShrink: 0 }}>
+                          còn {have}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               <div style={{ display: "flex", gap: 10 }}>
                 <button onClick={() => setAssemble(null)} style={{ flex: 1, height: 44, borderRadius: 12, border: "1.5px solid #d1d5db", background: "#fff", fontWeight: 700, cursor: "pointer" }}>Hủy</button>
                 <button onClick={doAssemble} disabled={asmBusy}
                   style={{ flex: 1.4, height: 44, borderRadius: 12, border: "none", background: "#059669", color: "#fff", fontWeight: 800, cursor: "pointer" }}>
-                  {asmBusy ? "⏳ Đang ghép..." : `Xác nhận ghép ${asmQty}`}
+                  {asmBusy ? "⏳ Đang ghép..." : `Xác nhận ghép ${qty}`}
                 </button>
               </div>
             </div>
