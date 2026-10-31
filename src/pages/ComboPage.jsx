@@ -10,7 +10,10 @@ function dVN(s) {
   const d = new Date(s);
   return isNaN(d) ? "" : `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
 }
-function hdr() { return { "Content-Type": "application/json", ...(getAuth() ? { Authorization: getAuth() } : {}) }; }
+function hdr() {
+  const a = getAuth() || {};
+  return { "Content-Type": "application/json", ...(a.token ? { Authorization: a.token } : {}) };
+}
 async function pbList(col, qs = "") {
   const r = await fetch(`${getPbUrl()}/api/collections/${col}/records?${qs}`, { headers: hdr() });
   if (!r.ok) throw new Error("Không tải được " + col);
@@ -222,14 +225,6 @@ export default function ComboPage({ user }) {
   }
 
   const filtered = combos.filter(c => !q.trim() || (c.name || "").toLowerCase().includes(q.trim().toLowerCase()) || (c.sku || "").toLowerCase().includes(q.trim().toLowerCase()));
-
-  // số combo có thể ghép từ tồn hiện tại của kho đang chọn (tính khi mở modal ghép)
-  const asmMax = useMemo(() => {
-    if (!assemble) return 0;
-    const its = itemsByCombo[assemble.combo.id] || [];
-    if (!its.length) return 0;
-    return Math.max(0, ...[]); // tạm, tính động bên dưới nếu cần
-  }, [assemble, itemsByCombo]);
 
   if (loading) return <div style={{ padding: 48, textAlign: "center", color: "#9ca3af" }}>⏳ Đang tải combo...</div>;
 
