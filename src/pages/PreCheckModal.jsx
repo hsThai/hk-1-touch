@@ -604,6 +604,7 @@ export function CustomerConfirmModal({ order, users = [], currentUser, onClose, 
   const [showSvc, setShowSvc]     = useState(false);
   const [svcFilter, setSvcFilter] = useState("");
   const [stockByPart, setStockByPart] = useState({});
+  const [combos, setCombos] = useState([]);   // combo sản phẩm (dùng trong báo giá)
 
   // Tồn kho tổng theo part_id — tải 1 lần khi mở
   useEffect(() => {
@@ -617,6 +618,17 @@ export function CustomerConfirmModal({ order, users = [], currentUser, onClose, 
     return () => { dead = true; };
   }, []);
 
+  // Combo sản phẩm — bán/ dùng trong báo giá sẽ trừ tồn combo
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch(`${getPbUrl()}/api/collections/product_combos/records?perPage=300&filter=${encodeURIComponent("(is_active=true)")}`)
+          .then(x => x.ok ? x.json() : { items: [] }).catch(() => ({ items: [] }));
+        setCombos(r.items || []);
+      } catch { }
+    })();
+  }, []);
+
   // Tìm linh kiện TRÊN SERVER toàn bộ catalog
   useEffect(() => {
     const term = partSearch.trim();
@@ -626,7 +638,12 @@ export function CustomerConfirmModal({ order, users = [], currentUser, onClose, 
       try {
         const q = term.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
         const found = await SparePart.list({ filter: `is_active=true && (name~"${q}" || sku~"${q}" || serial_imei~"${q}")`, sort: "name", limit: 30 });
-        setPartRes(found || []);
+        const ql = ql0.toLowerCase();
+        const comboHits = (combos || []).filter(c =>
+          (c.name || "").toLowerCase().includes(ql) || (c.sku || "").toLowerCase().includes(ql)
+        ).map(c => ({ id: c.id, name: c.name, sku: c.sku, price: c.price || 0,
+          stock_qty: Number(c.stock_qty || 0), _combo: true }));
+        setPartRes([...comboHits, ...(found || [])]);
       } catch { setPartRes([]); }
       setSearching(false);
     }, 300);
@@ -634,10 +651,12 @@ export function CustomerConfirmModal({ order, users = [], currentUser, onClose, 
   }, [partSearch]);
 
   function addPart(p) {
-    const stock = stockByPart[p.id] ?? (Number(p.stock_qty) || 0);
+    const isCombo = !!p._combo;
+    const stock = isCombo ? Number(p.stock_qty || 0) : (stockByPart[p.id] ?? (Number(p.stock_qty) || 0));
     setLines(prev => [...prev, {
-      key: "p" + p.id + "_" + Date.now(), name: p.name, sku: p.sku || "", part_id: p.id,
-      is_service: false, qty: 1, price: p.price !== undefined ? p.price : "",
+      key: (isCombo ? "c" : "p") + p.id + "_" + Date.now(),
+      name: isCombo ? `[Combo] ${p.name}` : p.name, sku: p.sku || "", part_id: p.id,
+      is_service: false, is_combo: isCombo, qty: 1, price: p.price !== undefined ? p.price : "",
       waiting: stock <= 0, expected_date: "", po_due_date: "",
     }]);
     setPartSearch(""); setPartRes([]);
@@ -832,7 +851,7 @@ export function CustomerConfirmModal({ order, users = [], currentUser, onClose, 
                       </div>
                       <div style={{ textAlign:"right", flexShrink:0 }}>
                         <div style={{ fontSize:11, fontWeight:800, color:"#0369a1" }}>{(p.price||0).toLocaleString("vi-VN")}đ</div>
-                        <div style={{ fontSize:10, fontWeight:700, color: stock > 0 ? "#059669" : "#dc2626" }}>{stock > 0 ? `Tồn: ${stock}` : "Hết hàng"}</div>
+                        <div style={{ fontSize:10, fontWeight:700, color: p._combo ? "#7c3aed" : (stock > 0 ? "#059669" : "#dc2626") }}>{p._combo ? `COMBO: ${stock}` : stock > 0 ? `Tồn: ${stock}` : "Hết hàng"}</div>
                       </div>
                     </button>
                   );

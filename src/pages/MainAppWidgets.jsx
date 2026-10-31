@@ -13,6 +13,7 @@ export const PAGE_PERMS = {
   return_order:    ["return_order", "view"],
   price_policy:    ["price_policy", "view"],
   product_mgr:     ["product_mgr", "view"],
+  combo:           ["product_mgr", "view"],
   revenue:         ["revenue_report", "view"],
   stock_nxt:       ["stock_card", "view"],
   expense:         ["expense", "view"],
@@ -136,6 +137,9 @@ const ProductManagerPage = lazy(() => import("./ProductManagerPage.jsx").catch((
 const ReportDebtPage = lazy(() => import("./ReportDebtPage.jsx").catch(() => ({
   default: () => <div style={{ padding: 40, textAlign: "center", color: "#9ca3af" }}>⚠️ Lỗi tải Báo cáo công nợ</div>
 })));
+const ComboPage = lazy(() => import("./ComboPage.jsx").catch(() => ({
+  default: () => <div style={{ padding: 40, textAlign: "center", color: "#9ca3af" }}>⚠️ Lỗi tải Combo sản phẩm</div>
+})));
 const RevenueReportPage = lazy(() => import("./RevenueReportPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Doanh thu</div> })));
 const StockReportNXT  = lazy(() => import("./StockReportNXT.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Thẻ kho</div> })));
 const IntegrationsPage = lazy(() => import("./IntegrationsPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Tích hợp</div> })));
@@ -157,6 +161,10 @@ export function renderSalesPages(page, user, can) {
       {page === "product_mgr" && user && (can && !can("product_mgr","view")
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
         : <Suspense fallback={<Loading />}><ProductManagerPage user={user} /></Suspense>
+      )}
+      {page === "combo" && user && (can && !can("product_mgr","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền xem Combo sản phẩm</div>
+        : <Suspense fallback={<Loading />}><ComboPage user={user} /></Suspense>
       )}
       {page === "price_policy" && user && (can && !can("price_policy","view")
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>

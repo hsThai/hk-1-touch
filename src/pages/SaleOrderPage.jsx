@@ -45,6 +45,8 @@ export default function SaleOrderPage({ user }) {
   const [sellWhIds, setSellWhIds] = useState([]);   // kho được phép bán: Kho BH + Kho Haravan
   const [allWh, setAllWh]         = useState([]);   // toàn bộ kho (để hiện tồn kho khác, kể cả = 0)
   const [bhWhId, setBhWhId]       = useState("");   // kho BH — kho bán chính
+  const [combos, setCombos]       = useState([]);    // combo sản phẩm (bán như mặt hàng)
+  const [comboItems, setComboItems] = useState({});  // combo_id -> [thành phần]
   const [sellWhNames, setSellWhNames] = useState([]);
   const [stockMap, setStockMap] = useState({}); // part_id -> { bh, others:[{name,qty}], hasLedger }
   // Đang làm dở → chặn rời trang
@@ -210,6 +212,22 @@ export default function SaleOrderPage({ user }) {
     })();
   }, []);
 
+  // Combo sản phẩm: bán trừ tồn combo (linh kiện đã trừ lúc ghép)
+  useEffect(() => {
+    (async () => {
+      try {
+        const [cs, its] = await Promise.all([
+          fetch(`${getPbUrl()}/api/collections/product_combos/records?perPage=300&filter=${encodeURIComponent("(is_active=true)")}`).then(r => r.ok ? r.json() : { items: [] }).catch(() => ({ items: [] })),
+          fetch(`${getPbUrl()}/api/collections/product_combo_items/records?perPage=1000`).then(r => r.ok ? r.json() : { items: [] }).catch(() => ({ items: [] })),
+        ]);
+        setCombos(cs.items || []);
+        const map = {};
+        (its.items || []).forEach(it => { (map[it.combo_id] = map[it.combo_id] || []).push(it); });
+        setComboItems(map);
+      } catch { }
+    })();
+  }, []);
+
   // Lấy tồn kho các kho cho danh sách sản phẩm (1 lần cho cả danh sách tìm kiếm)
   async function loadStockInfo(parts) {
     const need = (parts || []).map(x => x.id).filter(id => id && !stockCache.current[id]);
@@ -275,14 +293,19 @@ export default function SaleOrderPage({ user }) {
           sort: "-stock_qty",
           limit: 30,
         });
-        setSearchRes(found || []);
+        const ql = q.toLowerCase();
+        const comboHits = (combos || []).filter(c =>
+          (c.name || "").toLowerCase().includes(ql) || (c.sku || "").toLowerCase().includes(ql)
+        ).map(c => ({ id: c.id, name: c.name, sku: c.sku, price: c.price || 0,
+          stock_qty: Number(c.stock_qty || 0), _combo: true }));
+        setSearchRes([...comboHits, ...(found || [])]);
         loadStockInfo(found || []);
       } catch { setSearchRes([]); }
     }, 300);
   }, [search]);
 
   function addToCart(part) {
-    const avail = sellableQty(part);
+    const avail = part._combo ? Number(part.stock_qty || 0) : sellableQty(part);
     if (avail <= 0) {
       const others = otherStockLines(part).filter(o => o.qty > 0);
       const refTxt = others.length
@@ -295,7 +318,7 @@ export default function SaleOrderPage({ user }) {
       const ex = prev.find(i => i.part_id === part.id);
       if (ex) return prev.map(i => i.part_id===part.id ? {...i, qty:Math.min(i.qty+1, avail)} : i);
       return [...prev, { part_id:part.id, part_name:part.name, sku:part.sku||"",
-        unit_price:part.price||0, qty:1, stock_max:avail }];
+        unit_price:part.price||0, qty:1, stock_max:avail, is_combo: !!part._combo }];
     });
     setSearch(""); setSearchRes([]);
   }
@@ -381,6 +404,15 @@ export default function SaleOrderPage({ user }) {
 
       // Bước 3: Trừ stock + tạo movement
       for (const item of cart) {
+        if (item.is_combo) {
+          try {
+            await fetch(`${getPbUrl()}/api/collections/product_combos/records/${item.part_id}`, {
+              method: "PATCH", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ stock_qty: Math.max(0, Number(item.stock_max) - Number(item.qty)) }),
+            });
+          } catch {}
+          continue;
+        }
         try { await SparePart.update(item.part_id, { stock_qty: Math.max(0, item.stock_max - item.qty) }); } catch {}
         // Update StockLedger (thẻ kho)
         let ledgerBefore = 0;
@@ -675,7 +707,11 @@ export default function SaleOrderPage({ user }) {
                 </div>
                 </div>
                 <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
-                  {sellableQty(p) > 0
+                  {p._combo ? (
+                    <span style={{ fontSize:12, background:"#ede9fe", color:"#7c3aed", borderRadius:99, padding:"2px 10px", fontWeight:800 }}>
+                      COMBO: {Number(p.stock_qty||0)}
+                    </span>
+                  ) : sellableQty(p) > 0
                     ? <span style={{ fontSize:12, background:"#dcfce7", color:"#059669", borderRadius:99, padding:"2px 10px", fontWeight:700 }}>Kho BH: {sellableQty(p)}</span>
                     : <span style={{ fontSize:12, background:"#fee2e2", color:"#dc2626", borderRadius:99, padding:"2px 10px", fontWeight:700 }}>Kho BH: 0</span>}
                   <button type="button"
@@ -1037,6 +1073,7 @@ export default function SaleOrderPage({ user }) {
         const pp = searchRes.find(x => x.id === infoPop.id) || null;
         const ci = cart.find(c => c.part_id === infoPop.id) || null;
         const name = pp?.name || ci?.part_name || "";
+        const combo = (combos || []).find(c => c.id === infoPop.id) || null;
         const info = stockMap[infoPop.id];
         const others = info?.others || [];
         const bhQty = info?.hasLedger ? info.bh : (ci?.stock_max ?? (pp ? sellableQty(pp) : 0));
@@ -1046,10 +1083,24 @@ export default function SaleOrderPage({ user }) {
             <div style={{ position:"fixed", top:infoPop.top, left:infoPop.left, width:250, zIndex:901,
               background:"#fff", border:"1.5px solid #bfdbfe", borderRadius:12, padding:"10px 12px",
               boxShadow:"0 10px 30px rgba(0,0,0,.18)" }}>
+              {combo ? (
+                <div>
+                  <div style={{ fontSize:12, color:"#7c3aed", fontWeight:800, marginBottom:4 }}>
+                    🎁 Combo sẵn: {Number(combo.stock_qty || 0)}
+                  </div>
+                  <div style={{ fontSize:11.5, color:"#1e3a8a", fontWeight:800, marginBottom:2 }}>Thành phần:</div>
+                  {(comboItems[combo.id] || []).map((it, i) => (
+                    <div key={i} style={{ fontSize:11.5, color:"#4b5563", lineHeight:1.5 }}>
+                      {it.part_name}: {it.qty}
+                    </div>
+                  ))}
+                </div>
+              ) : (
               <div style={{ fontSize:12, color:"#059669", fontWeight:800 }}>
                 🏦 Kho BH: {bhQty}
               </div>
-              {others.length > 0 && (
+              )}
+              {!combo && others.length > 0 && (
                 <div style={{ marginTop:6, borderTop:"1px dashed #e5e7eb", paddingTop:6 }}>
                   <div style={{ fontSize:11.5, fontWeight:800, color:"#1e3a8a", marginBottom:3 }}>Tồn kho khác:</div>
                   {others.map((o,i) => (

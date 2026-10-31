@@ -674,8 +674,33 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
     });
   }
 
+  // Trừ tồn combo đã dùng trong báo giá khi hoàn thành đơn
+  async function deductComboStock(ord) {
+    try {
+      let lines = ord.qt2_de_xuat || [];
+      if (typeof lines === "string") { try { lines = JSON.parse(lines); } catch { lines = []; } }
+      if (!Array.isArray(lines) || lines.length === 0) return;
+      const r = await fetch(`${getPbUrl()}/api/collections/product_combos/records?perPage=300`)
+        .then(x => x.ok ? x.json() : { items: [] }).catch(() => ({ items: [] }));
+      const map = {};
+      (r.items || []).forEach(c => { map[c.id] = c; });
+      for (const l of lines) {
+        const c = map[l.part_id];
+        if (!c) continue;
+        const q = Number(l.qty) || 1;
+        const left = Math.max(0, Number(c.stock_qty || 0) - q);
+        await fetch(`${getPbUrl()}/api/collections/product_combos/records/${c.id}`, {
+          method: "PATCH", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ stock_qty: left }),
+        }).catch(() => {});
+        logAction(currentUser, "update", "product_combo", c.id, `Dùng combo ${c.name} x${q} cho đơn ${ord.order_code || ord.id} — còn ${left}`);
+      }
+    } catch { }
+  }
+
   function handleMarkDone() {
     if (isPriceLocked) { showToast("Đơn chưa duyệt giá xong — chưa thể hoàn thành"); return; }
+    deductComboStock(order);
     onUpdate(order.id, { status:"Hoàn Thành", accept_stage:3 }, { userId:order.assigned_to, delta:2, note:"Sửa xong +2 KPI" });
       logHistory({ order_id:order._id||order.id, order_code:order.order_code||order.id, action_type:"delivered", action_label:"Xác nhận hoàn thành", changed_by_id:currentUser?.id||"", changed_by_name:currentUser?.name||"", changed_by_role:currentUser?.role||"", old_value:order.status||"", new_value:"Hoàn Thành" });
     logAction(currentUser, "complete_order", "repair_order", order._id||order.id, order.order_code||order.id);
