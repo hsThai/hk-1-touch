@@ -61,6 +61,11 @@ export default function ComboPage({ user }) {
   const [asmWhDefault, setAsmWhDefault] = useState(""); // kho mặc định cho tất cả dòng
   const [asmLines, setAsmLines] = useState([]);        // [{part_id, part_name, per, whId}]
   const [asmStock, setAsmStock] = useState({});        // part_id -> { whId: {id, qty} }
+  const [dasm, setDasm] = useState(null);               // { combo } modal tháo combo
+  const [dasmQtyStr, setDasmQtyStr] = useState("1");
+  const [dasmLines, setDasmLines] = useState([]);       // [{part_id, part_name, sku, per, unit_price, whId}]
+  const [dasmStock, setDasmStock] = useState({});       // part_id -> { whId: {id, qty} }
+  const [dasmBusy, setDasmBusy] = useState(false);
   const [asmBusy, setAsmBusy] = useState(false);
   const [confirmDel, setConfirmDel] = useState(null);
 
@@ -172,24 +177,107 @@ export default function ComboPage({ user }) {
     setAsmLines(its.map(it => ({ part_id: it.part_id, part_name: it.part_name, sku: it.sku,
       per: Number(it.qty) || 1, unit_price: Number(it.unit_price) || 0, whId: defWh })));
     if (!its.length) return;
+    const map = await loadComboStock(its);
+    setAsmStock(map);
+    // dòng nào kho mặc định không có hàng thì tự nhảy sang kho còn nhiều nhất
+    setAsmLines(prev => prev.map(ln => {
+      const g = map[ln.part_id] || {};
+      if (g[ln.whId] && g[ln.whId].qty > 0) return ln;
+      let best = ln.whId, bestQty = -1;
+      Object.entries(g).forEach(([wid, v]) => { if (v.qty > bestQty) { bestQty = v.qty; best = wid; } });
+      return { ...ln, whId: best };
+    }));
+  }
+
+  // Tải tồn từng linh kiện theo từng kho (dùng cho cả ghép và tháo)
+  async function loadComboStock(items) {
+    const map = {};
+    if (!items.length) return map;
     try {
-      const flt = its.map(it => `part_id="${it.part_id}"`).join(" || ");
+      const flt = items.map(it => `part_id="${it.part_id}"`).join(" || ");
       const ledgers = await pbList("stock_ledgers", `perPage=500&filter=${encodeURIComponent(`(${flt})`)}`);
-      const map = {};
       ledgers.forEach(l => {
         const g = map[l.part_id] || (map[l.part_id] = {});
         g[l.warehouse_id] = { id: l.id, qty: Number(l.qty_on_hand || 0), reserved: Number(l.qty_reserved || 0), whName: l.warehouse_name || "" };
       });
-      setAsmStock(map);
-      // dòng nào kho mặc định không có hàng thì tự nhảy sang kho còn nhiều nhất
-      setAsmLines(prev => prev.map(ln => {
-        const g = map[ln.part_id] || {};
-        if (g[ln.whId] && g[ln.whId].qty > 0) return ln;
-        let best = ln.whId, bestQty = -1;
-        Object.entries(g).forEach(([wid, v]) => { if (v.qty > bestQty) { bestQty = v.qty; best = wid; } });
-        return { ...ln, whId: best };
-      }));
     } catch { }
+    return map;
+  }
+
+  async function openDisassemble(c) {
+    const its = itemsByCombo[c.id] || [];
+    const k16 = warehouses.find(w => (w.code || "").toLowerCase().startsWith("kho16"));
+    const defWh = asmWhDefault || k16?.id || warehouses[0]?.id || "";
+    setDasm({ combo: c });
+    setDasmQtyStr("1");
+    setDasmStock({});
+    setDasmLines(its.map(it => ({ part_id: it.part_id, part_name: it.part_name, sku: it.sku,
+      per: Number(it.qty) || 1, unit_price: Number(it.unit_price) || 0, whId: defWh })));
+    setDasmStock(await loadComboStock(its));
+  }
+
+  async function doDisassemble() {
+    const c = dasm?.combo;
+    const qty = Math.max(1, parseInt(dasmQtyStr, 10) || 1);
+    if (!c) return;
+    if (qty > Number(c.stock_qty || 0)) { showToast(`⛔ Chỉ còn ${c.stock_qty || 0} combo để tháo`); return; }
+    if (dasmLines.length === 0) { showToast("⚠️ Combo chưa có thành phần"); return; }
+    setDasmBusy(true);
+    try {
+      for (const ln of dasmLines) {
+        const back = ln.per * qty;
+        const whName = warehouses.find(w => w.id === ln.whId)?.name || "";
+        const exist = dasmStock[ln.part_id]?.[ln.whId];
+        if (exist) {
+          const after = exist.qty + back;
+          await pbUpdate("stock_ledgers", exist.id, {
+            qty_on_hand: after,
+            qty_available: Math.max(0, after - (exist.reserved || 0)),
+            last_movement_at: new Date().toISOString(),
+          });
+          await pbCreate("stock_movements", {
+            movement_code: "MV" + Date.now().toString().slice(-8) + Math.floor(Math.random() * 90),
+            movement_type: "combo_return",
+            warehouse_id: ln.whId, warehouse_name: whName,
+            part_id: ln.part_id, part_name: ln.part_name, sku: ln.sku,
+            qty_before: exist.qty, qty_change: back, qty_after: after,
+            unit_price: ln.unit_price || 0,
+            ref_type: "combo", ref_id: c.id, ref_code: c.sku || c.name,
+            note: `Tháo ${qty} combo ${c.name}`,
+            created_by_id: user?.id || "", created_by_name: user?.full_name || user?.name || "",
+            created_date: new Date().toISOString().replace("T", " ").split(".")[0],
+          }).catch(() => { });
+        } else {
+          const created = await pbCreate("stock_ledgers", {
+            warehouse_id: ln.whId, warehouse_name: whName,
+            part_id: ln.part_id, part_name: ln.part_name, sku: ln.sku,
+            qty_on_hand: back, qty_reserved: 0, qty_available: back,
+            cost_price: ln.unit_price || 0,
+            last_movement_at: new Date().toISOString(),
+          });
+          await pbCreate("stock_movements", {
+            movement_code: "MV" + Date.now().toString().slice(-8) + Math.floor(Math.random() * 90),
+            movement_type: "combo_return",
+            warehouse_id: ln.whId, warehouse_name: whName,
+            part_id: ln.part_id, part_name: ln.part_name, sku: ln.sku,
+            qty_before: 0, qty_change: back, qty_after: back,
+            unit_price: ln.unit_price || 0,
+            ref_type: "combo", ref_id: c.id, ref_code: c.sku || c.name,
+            note: `Tháo ${qty} combo ${c.name} (tạo thẻ kho mới)`,
+            created_by_id: user?.id || "", created_by_name: user?.full_name || user?.name || "",
+            created_date: new Date().toISOString().replace("T", " ").split(".")[0],
+          }).catch(() => { });
+        }
+      }
+      await pbUpdate("product_combos", c.id, {
+        stock_qty: Math.max(0, Number(c.stock_qty || 0) - qty),
+      });
+      logAction(user, "update", "product_combo", c.id, `Tháo ${qty} combo ${c.name} — hoàn ${dasmLines.length} loại linh kiện về kho`);
+      showToast(`✅ Đã tháo ${qty} combo, hoàn linh kiện về kho`);
+      setDasm(null);
+      await load();
+    } catch (e) { showToast("❌ " + e.message); }
+    setDasmBusy(false);
   }
 
   function applyDefaultWh(whId) {
@@ -313,6 +401,12 @@ export default function ComboPage({ user }) {
                     style={{ height: 36, padding: "0 12px", borderRadius: 10, border: "none", background: "#059669", color: "#fff", fontWeight: 800, fontSize: 12.5, cursor: "pointer" }}>
                     Ghép
                   </button>
+                  {stock > 0 && (
+                    <button onClick={() => openDisassemble(c)}
+                      style={{ height: 36, padding: "0 12px", borderRadius: 10, border: "1.5px solid #fdba74", background: "#fff7ed", color: "#c2410c", fontWeight: 800, fontSize: 12.5, cursor: "pointer" }}>
+                      Tháo
+                    </button>
+                  )}
                   <button onClick={() => openEdit(c)} title="Sửa"
                     style={{ width: 36, height: 36, borderRadius: 10, border: "1.5px solid #e5e7eb", background: "#f9fafb", cursor: "pointer" }}>✏️</button>
                   <button onClick={() => setConfirmDel(c)} title="Xóa"
@@ -496,6 +590,74 @@ export default function ComboPage({ user }) {
                 <button onClick={doAssemble} disabled={asmBusy}
                   style={{ flex: 1.4, height: 44, borderRadius: 12, border: "none", background: "#059669", color: "#fff", fontWeight: 800, cursor: "pointer" }}>
                   {asmBusy ? "⏳ Đang ghép..." : `Xác nhận ghép ${qty}`}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Modal tháo combo — hoàn linh kiện về kho */}
+      {dasm && (() => {
+        const c = dasm.combo;
+        const qty = Math.max(1, parseInt(dasmQtyStr, 10) || 1);
+        const maxQty = Number(c.stock_qty || 0);
+        return (
+          <div style={{ position: "fixed", inset: 0, zIndex: 1650, background: "rgba(0,0,0,.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+            <div style={{ background: "#fff", borderRadius: 18, width: "min(480px,94vw)", padding: "18px 18px 16px", maxHeight: "90vh", overflowY: "auto" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <div style={{ fontWeight: 900, fontSize: 15, color: "#9a3412" }}>🧩 Tháo combo</div>
+                <button onClick={() => setDasm(null)} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: "#f3f4f6", cursor: "pointer" }}>✕</button>
+              </div>
+              <div style={{ fontSize: 13.5, fontWeight: 800, marginBottom: 2 }}>{c.name}</div>
+              <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 12 }}>Tồn combo hiện tại: <b>{maxQty}</b> · Tháo ra sẽ <b>hoàn lại linh kiện</b> về kho đã chọn</div>
+
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 5 }}>Số combo muốn tháo</div>
+                <input type="text" inputMode="numeric" pattern="[0-9]*" value={dasmQtyStr}
+                  onFocus={e => e.target.select()}
+                  onChange={e => setDasmQtyStr(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
+                  placeholder="1"
+                  style={{ width: "100%", height: 42, borderRadius: 10, border: `1.5px solid ${qty > maxQty ? "#fecaca" : "#fdba74"}`, padding: "0 12px", fontSize: 16, fontWeight: 800, outline: "none", boxSizing: "border-box" }} />
+                {qty > maxQty && (
+                  <div style={{ fontSize: 11.5, color: "#dc2626", marginTop: 4, fontWeight: 700 }}>Chỉ còn {maxQty} combo để tháo</div>
+                )}
+              </div>
+
+              <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 12, padding: "10px 12px", marginBottom: 14 }}>
+                <div style={{ fontSize: 11.5, fontWeight: 800, color: "#9a3412", marginBottom: 6 }}>LINH KIỆN HOÀN LẠI</div>
+                {dasmLines.map((ln, i) => {
+                  const back = ln.per * qty;
+                  const cur = dasmStock[ln.part_id]?.[ln.whId]?.qty;
+                  return (
+                    <div key={i} style={{ padding: "7px 0", borderTop: i ? "1px dashed #fed7aa" : "none" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                        <div style={{ fontSize: 12.5, color: "#374151", fontWeight: 600, flex: 1, minWidth: 0 }}>{ln.part_name}</div>
+                        <b style={{ fontSize: 13, color: "#c2410c", flexShrink: 0 }}>+{back}</b>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                        <select value={ln.whId}
+                          onChange={e => setDasmLines(prev => prev.map((x, idx) => idx === i ? { ...x, whId: e.target.value } : x))}
+                          style={{ flex: 1, minWidth: 0, height: 32, borderRadius: 8, border: "1.5px solid #e5e7eb", padding: "0 8px", fontSize: 12, background: "#fff" }}>
+                          {warehouses.map(w => {
+                            const q = dasmStock[ln.part_id]?.[w.id]?.qty;
+                            return <option key={w.id} value={w.id}>{w.name}{q !== undefined ? ` (${q})` : " (0)"}</option>;
+                          })}
+                        </select>
+                        <span style={{ fontSize: 11, color: "#6b7280", fontWeight: 700, flexShrink: 0 }}>
+                          {cur !== undefined ? `còn ${cur}` : "chưa có"}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => setDasm(null)} style={{ flex: 1, height: 44, borderRadius: 12, border: "1.5px solid #d1d5db", background: "#fff", fontWeight: 700, cursor: "pointer" }}>Hủy</button>
+                <button onClick={doDisassemble} disabled={dasmBusy || qty > maxQty}
+                  style={{ flex: 1.4, height: 44, borderRadius: 12, border: "none", background: qty > maxQty ? "#fca5a5" : "#ea580c", color: "#fff", fontWeight: 800, cursor: "pointer" }}>
+                  {dasmBusy ? "⏳ Đang tháo..." : `Xác nhận tháo ${qty}`}
                 </button>
               </div>
             </div>
