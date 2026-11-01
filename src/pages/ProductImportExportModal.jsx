@@ -7,6 +7,7 @@
  */
 import React, { useState, useMemo, useEffect } from "react";
 import * as XLSX from "xlsx";
+import { exportTable, buildConditions, dayStamp } from "../utils/excelExport.js";
 import { SparePart, ProductCategory, logAction, Warehouse, ensureStockLedgerForPart } from "./pb.jsx";
 
 const TEMPLATE_HEADERS = [
@@ -61,15 +62,18 @@ export default function ProductImportExportModal({ user, items, categories, catM
       "Kích hoạt": i.is_active !== false ? "Có" : "Không",
       "Ghi chú": i.note || "",
     }));
-    const ws = XLSX.utils.json_to_sheet(data, { header: TEMPLATE_HEADERS });
-    ws["!cols"] = [
-      { wch: 32 }, { wch: 16 }, { wch: 16 }, { wch: 8 }, { wch: 12 },
-      { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 16 }, { wch: 10 }, { wch: 24 },
-    ];
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Danh mục hàng hóa");
-    const stamp = new Date().toISOString().slice(0, 10);
-    XLSX.writeFile(wb, `danh-muc-hang-hoa_${stamp}.xlsx`);
+    exportTable({
+      fileName: `danh-muc-hang-hoa_${dayStamp()}`,
+      sheetName: "Danh mục hàng hóa",
+      title: "DANH MỤC HÀNG HÓA",
+      conditions: buildConditions(user, [
+        `Số mặt hàng xuất: ${items.length}`,
+        `Số danh mục: ${Object.keys(catMap || {}).length}`,
+      ]),
+      headers: TEMPLATE_HEADERS,
+      rows: data.map(d => TEMPLATE_HEADERS.map(h => d[h])),
+      widths: [32, 16, 16, 8, 12, 12, 12, 10, 16, 10, 24],
+    });
   }
 
   function downloadTemplate() {

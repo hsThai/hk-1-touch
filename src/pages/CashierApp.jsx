@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { usePermission } from "./PermissionContext.jsx";
 import { useUnsavedList, LeaveConfirm } from "../utils/unsavedGuard.jsx";
 import { RepairOrder, SaleOrder, SaleOrderItem, Expense, CashJournal, ShiftReconcile, DebtVoucher, logAction, getLocalDate, sortNewestFirst } from "./pb.jsx";
+import { exportSheet, buildConditions } from "../utils/excelExport.js";
 
 const ALLOWED_ROLES = ["accountant", "cashier", "manager", "admin", "owner", "sales", "team_leader"];
 const DONE_STATUS   = ["Hoàn Thành", "Đã Giao", "Đã Thanh Toán"];
@@ -216,9 +217,7 @@ function ShiftReconcilePage({ user }) {
 
   function exportCSV() {
     if (!data) return;
-    const BOM = "\uFEFF";
     const rows = [
-      ["DOI SOAT CA — " + date], [],
       ["DOANH THU"], ["Sua chua",data.repairRev,"Ban le",data.saleRev,"Thu no",data.debtRev||0,"Tong",data.totalRev],
       [], ["THANH TOAN"],
       ["TM sua",data.repairCash,"TM ban",data.saleCash,"TM no",data.debtCash||0,"Tong TM",data.sysCash],
@@ -235,9 +234,14 @@ function ShiftReconcilePage({ user }) {
       [], ["CHI PHI"], ["Loai","Mo ta","So tien"],
       ...(data.dayExp.map(e=>[e.category||"Khac",e.description||"",e.amount||0])),
     ];
-    const blob = new Blob([BOM+rows.map(r=>r.join(",")).join("\n")],{type:"text/csv;charset=utf-8"});
-    const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
-    a.download="DoiSoatCa_"+date+".csv"; a.click();
+    exportSheet({
+      fileName: "DoiSoatCa_"+String(date).replace(/[\/]/g,"-"),
+      sheetName: "Đối soát ca",
+      title: "ĐỐI SOÁT CA THU NGÂN",
+      conditions: buildConditions(user, [`Ngày: ${date}`, `Thu ngân: ${user?.full_name || user?.name || "—"}`]),
+      rows,
+      widths: [22, 18, 14, 16, 22, 16, 14, 14],
+    });
   }
 
   const inputStyle = { flex:1, border:"1.5px solid #e5e7eb", borderRadius:8, padding:"8px 10px", fontSize:14, outline:"none", textAlign:"right", minWidth:0, boxSizing:"border-box" };

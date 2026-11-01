@@ -1,6 +1,7 @@
 /* v1774860462-5573 */
 import { useState, useEffect } from "react";
 import { Staff, Warehouse, Role, ActionLog, RepairOrder, Department, logAction } from "./pb.jsx";
+import { exportTable, buildConditions, dayStamp } from "../utils/excelExport.js";
 import { ROLE_DEFINITIONS } from "./seedRoles.js";
 
 // Fallback tĩnh — dùng khi DB chưa có dữ liệu
@@ -74,15 +75,15 @@ function StaffKpiTab({ currentUser }) {
   const detailLogs = selStaff ? logs.filter(l=>l.staff_id===selStaff && inPeriod(l.logged_at)) : [];
 
   function exportKpi() {
-    const BOM = "﻿";
-    const rows = [
-      ["KPI NHÂN VIÊN — "+period.toUpperCase()],
-      ["Tên","Chức vụ","Đơn HT","Doanh thu","Thao tác"],
-      ...kpiList.map(k=>[k.name, k.role, k.orders, k.revenue, k.actions]),
-    ];
-    const blob = new Blob([BOM+rows.map(r=>r.join(",")).join("\n")], { type:"text/csv;charset=utf-8" });
-    const a = document.createElement("a"); a.href=URL.createObjectURL(blob);
-    a.download = "KPI_"+period+"_"+new Date().toISOString().slice(0,10)+".csv"; a.click();
+    exportTable({
+      fileName: "KPI_"+period+"_"+dayStamp(),
+      sheetName: "KPI nhân viên",
+      title: "BÁO CÁO KPI NHÂN VIÊN",
+      conditions: buildConditions(currentUser, [`Kỳ báo cáo: ${period}`, `Số nhân viên có phát sinh: ${kpiList.length}`]),
+      headers: ["Tên","Chức vụ","Đơn hoàn thành","Doanh thu","Thao tác"],
+      rows: kpiList.map(k=>[k.name, k.role, k.orders, k.revenue, k.actions]),
+      widths: [30, 18, 16, 18, 12],
+    });
   }
 
   return (

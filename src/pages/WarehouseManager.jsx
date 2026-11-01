@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { ProductThumb } from "./ProductThumb.jsx";
 import { getPbUrl, getAuth, logAction } from "./pb.jsx";
+import { exportSheet, buildConditions, dayStamp } from "../utils/excelExport.js";
 import { usePermission } from "./PermissionContext.jsx";
 import StockCountPage from "./StockCountPage.jsx";
 import PurchaseOrderPage from "./PurchaseOrderPage.jsx";
@@ -1965,7 +1966,7 @@ function ShippingTab({ user }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // StockReportTab — Báo cáo tồn kho tổng hợp
 // ─────────────────────────────────────────────────────────────────────────────
-function StockReportTab({ warehouses }) {
+function StockReportTab({ warehouses, user }) {
   const { can } = usePermission();
   const canExport = can("stock_report", "export");
   const [ledgers,   setLedgers]   = useState(null);
@@ -2007,29 +2008,30 @@ function StockReportTab({ warehouses }) {
 
   function exportReport() {
     if (!canExport) { alert("⛔ Bạn không có quyền xuất file báo cáo kho"); return; }
-    const BOM = "﻿";
-    // Wrap mỗi field trong double-quote để tránh comma trong tên LK làm hỏng CSV
-    const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const rows = [
-      ["BÁO CÁO TỒN KHO — "+new Date().toLocaleDateString("vi-VN")],
-      ["Tổng giá trị", totalValue],
-      [],
-      ["CHI TIẾT TỒN KHO"],
-      ["Kho","Tên LK","SKU","Tồn thực","Reserve","Khả dụng","Tối thiểu","Giá vốn","Giá trị"],
-      ...filtLedgers.map(l=>[
-        l.warehouse_name||"", l.part_name||"", l.sku||"",
-        l.qty_on_hand||0, l.qty_reserved||0, l.qty_available||0,
-        l.min_qty||0, l.cost_price||0, (l.qty_on_hand||0)*(l.cost_price||0),
+    exportSheet({
+      fileName: "TonKho_"+dayStamp(),
+      sheetName: "Tồn kho",
+      title: "BÁO CÁO TỒN KHO",
+      conditions: buildConditions(user, [
+        `Số dòng tồn kho: ${filtLedgers.length}`,
+        `Tổng giá trị tồn: ${Number(totalValue||0).toLocaleString("vi-VN")}đ`,
+        `Top linh kiện xuất nhiều: ${topList.length} mục (30 ngày)`,
       ]),
-      [],
-      ["TOP LK XUẤT NHIỀU (30 ngày)"],
-      ["Tên LK","Tổng xuất"],
-      ...topList.map(p=>[p.name, p.qty]),
-    ];
-    const csv = rows.map(r => r.map(q).join(",")).join("\n");
-    const blob = new Blob([BOM+csv], { type:"text/csv;charset=utf-8" });
-    const a = document.createElement("a"); a.href=URL.createObjectURL(blob);
-    a.download = "TonKho_"+new Date().toISOString().slice(0,10)+".csv"; a.click();
+      rows: [
+        ["CHI TIẾT TỒN KHO"],
+        ["Kho","Tên LK","SKU","Tồn thực","Reserve","Khả dụng","Tối thiểu","Giá vốn","Giá trị"],
+        ...filtLedgers.map(l=>[
+          l.warehouse_name||"", l.part_name||"", l.sku||"",
+          l.qty_on_hand||0, l.qty_reserved||0, l.qty_available||0,
+          l.min_qty||0, l.cost_price||0, (l.qty_on_hand||0)*(l.cost_price||0),
+        ]),
+        [],
+        ["TOP LK XUẤT NHIỀU (30 NGÀY)"],
+        ["Tên LK","Tổng xuất"],
+        ...topList.map(p=>[p.name, p.qty]),
+      ],
+      widths: [24, 40, 16, 10, 10, 10, 10, 14, 16],
+    });
   }
 
   return (
@@ -2126,7 +2128,7 @@ export function WhShippingPage({ user }) {
 export function WhReportPage({ user }) {
   const [whList, setWhList] = useState([]);
   useEffect(()=>{ WH.list({limit:100}).then(d=>setWhList(d||[])).catch(()=>{}); },[]);
-  return (<><WhPageHeader icon="📊" title="Báo cáo kho" subtitle="Tổng hợp tồn kho & cảnh báo hết hàng" /><StockReportTab warehouses={whList} /></>);
+  return (<><WhPageHeader icon="📊" title="Báo cáo kho" subtitle="Tổng hợp tồn kho & cảnh báo hết hàng" /><StockReportTab warehouses={whList} user={user} /></>);
 }
 
 export default function WarehouseManager({ user, onBack, initialTab }) {

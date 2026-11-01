@@ -4,6 +4,7 @@
  */
 import React, { useState, useEffect, useMemo } from "react";
 import { CashJournal, logAction } from "./pb.jsx";
+import { exportSheet, buildConditions } from "../utils/excelExport.js";
 import { usePermission } from "./PermissionContext.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
@@ -187,9 +188,7 @@ export default function CashJournalPage({ user }) {
   }, [monthData]);
 
   function exportCSV() {
-    const BOM = "\uFEFF";
     const rows = [
-      ["SỔ QUỸ TIỀN MẶT — " + month],
       ["Tổng thu", totalIn, "Tổng chi", totalOut, "Tồn quỹ", balance],
       [],
       ["STT","Ngày","Loại","Mô tả","Đơn gốc","Hình thức","Số tiền","Số dư"],
@@ -201,9 +200,14 @@ export default function CashJournalPage({ user }) {
         j.balance,
       ]),
     ];
-    const blob = new Blob([BOM+rows.map(r=>r.join(",")).join("\n")],{type:"text/csv;charset=utf-8"});
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-    a.download = "SoQuy_"+month+".csv"; a.click();
+    exportSheet({
+      fileName: "SoQuy_"+String(month).replace("/","-"),
+      sheetName: "Sổ quỹ",
+      title: "SỔ QUỸ TIỀN MẶT",
+      conditions: buildConditions(user, [`Kỳ báo cáo: ${month}`], [`Tổng số giao dịch: ${rowsWithBalance.length}`]),
+      rows,
+      widths: [6, 14, 10, 40, 16, 16, 16, 16],
+    });
   }
 
   if (!canManage) return (

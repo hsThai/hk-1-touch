@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { RepairOrder, SaleOrder, SaleOrderItem, Expense, StockImport, StockExportRequest, CashJournal } from "./pb.jsx";
 import * as XLSX from "xlsx";
+import { exportSheet, buildConditions, dayStamp } from "../utils/excelExport.js";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
 function fmtDate(dateStr) {
@@ -832,21 +833,30 @@ export default function RevenueReportPage({ user }) {
     }
 
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    const widths = (rows[0]||[]).map((_,ci)=>{
-      let w = 12;
-      rows.forEach(r=>{ const v = String(r[ci]??""); if (v.length > w) w = Math.min(v.length, 60); });
-      return { wch: w + 2 };
+    const TAB_TITLE = {
+      repair:"BÁO CÁO DOANH THU SỬA CHỮA", sale:"BÁO CÁO BÁN LẺ",
+      expense:"BÁO CÁO CHI PHÍ", top_products:"SẢN PHẨM BÁN CHẠY",
+      by_product:"DOANH THU THEO SẢN PHẨM", pl:"BÁO CÁO LÃI LỖ",
+      cash_journal:"SỔ QUỸ TIỀN MẶT",
+    };
+    const conds = buildConditions(user, [
+      `Kỳ báo cáo: ${period}`,
+      `Mục báo cáo: ${sheetName}`,
+      `Số dòng dữ liệu: ${Math.max(0, rows.length - 1)}`,
+      `Doanh thu kỳ: ${fmtMoney(totalRev)} · Chi phí: ${fmtMoney(totalExp)} · Lợi nhuận: ${fmtMoney(profit)}`,
+    ]);
+    exportSheet({
+      fileName: "BaoCao_" + (TAB_FILE[detailTab]||detailTab) + "_" + String(period).replace(/[\/]/g,"-") + "_" + dayStamp(),
+      sheetName,
+      title: TAB_TITLE[detailTab] || "BÁO CÁO",
+      conditions: conds,
+      rows: sumRow ? [...rows, [], ...sumRow] : rows,
+      widths: (rows[0]||[]).map((_,ci)=>{
+        let w = 12;
+        rows.forEach(r=>{ const v = String(r[ci]??""); if (v.length > w) w = Math.min(v.length, 60); });
+        return w + 2;
+      }),
     });
-    ws["!cols"] = widths;
-    XLSX.utils.book_append_sheet(wb, ws, sheetName);
-    if (sumRow) {
-      let r = rows.length + 2;
-      const wsSum = XLSX.utils.aoa_to_sheet(sumRow);
-      XLSX.utils.book_append_sheet(wb, wsSum, "Tổng hợp");
-    }
-    const file = "BaoCao_" + (TAB_FILE[detailTab]||detailTab) + "_" + period + "_" + new Date().toISOString().slice(0,10) + ".xlsx";
-    XLSX.writeFile(wb, file);
   }
 
   const SUMMARY_CARDS = [
