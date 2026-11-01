@@ -1,3 +1,55 @@
+// ── Nút thao tác có bong bóng chú thích: hover (PC) hoặc bấm giữ 2 giây (điện thoại) ──
+function ActionBtn({ hint, onClick, children, fg = "#6366f1", bg = "#ede9fe", bd = "#e0e7ff", disabled = false }) {
+  const btnRef = useRef(null);
+  const pressTimer = useRef(null);
+  const hideTimer = useRef(null);
+  const [tip, setTip] = useState(null); // {top, left, above}
+
+  function showTip() {
+    const r = btnRef.current?.getBoundingClientRect();
+    if (!r) return;
+    const W = 208;
+    let left = r.left + r.width / 2 - W / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - W - 8));
+    const above = r.top > 74;
+    setTip({ top: above ? r.top - 8 : r.bottom + 8, left, above });
+  }
+  function clearTimers() {
+    if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = null; }
+    if (hideTimer.current) { clearTimeout(hideTimer.current); hideTimer.current = null; }
+  }
+  function hideTip() { clearTimers(); setTip(null); }
+
+  return (
+    <>
+      <button ref={btnRef}
+        onClick={() => { hideTip(); onClick && onClick(); }}
+        disabled={disabled}
+        aria-label={hint}
+        onMouseEnter={() => { clearTimers(); hideTimer.current = setTimeout(showTip, 250); }}
+        onMouseLeave={hideTip}
+        onTouchStart={() => { clearTimers(); pressTimer.current = setTimeout(showTip, 2000); }}
+        onTouchEnd={() => { if (pressTimer.current) clearTimeout(pressTimer.current); hideTimer.current = setTimeout(() => setTip(null), 1600); }}
+        onTouchCancel={hideTip}
+        onContextMenu={e => e.preventDefault()}
+        style={{ width: 32, height: 30, display: "flex", alignItems: "center", justifyContent: "center",
+          borderRadius: 8, border: `1.5px solid ${bd}`, background: bg, color: fg,
+          cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? .5 : 1 }}>
+        {children}
+      </button>
+      {tip && (
+        <div style={{ position: "fixed", top: tip.top, left: tip.left, width: 208,
+          transform: tip.above ? "translateY(-100%)" : "none", zIndex: 4000,
+          background: "#1f2937", color: "#fff", borderRadius: 8, padding: "6px 10px",
+          fontSize: 11.5, fontWeight: 700, lineHeight: 1.35, textAlign: "center",
+          boxShadow: "0 6px 20px rgba(0,0,0,.25)", pointerEvents: "none" }}>
+          {hint}
+        </div>
+      )}
+    </>
+  );
+}
+
 /**
  * ProductManagerPage.jsx — Danh mục hàng hóa (CRUD)
  * Thêm / sửa / xóa / merge linh kiện — tham chiếu KiotViet Danh sách hàng hóa
@@ -544,10 +596,10 @@ export default function ProductManagerPage({ user }) {
           <option value="category">Sắp xếp: Danh mục</option>
         </select>
         {isAdmin && (
-          <label style={{ display:"flex", alignItems:"center", gap:6, cursor:"pointer", height:40, padding:"0 12px", borderRadius:10, border:"1.5px solid #e5e7eb", background:"#fff" }}>
+          <label title="Bật để hiện cả những mặt hàng đã ẩn (ngừng bán) trong danh sách" style={{ display:"flex", alignItems:"center", gap:6, cursor:"pointer", height:40, padding:"0 12px", borderRadius:10, border:"1.5px solid #e5e7eb", background:"#fff" }}>
             <input type="checkbox" checked={showInactive} onChange={e=>setShowInactive(e.target.checked)}
               style={{ width:16, height:16, accentColor:"#6366f1" }} />
-            <span style={{ fontSize:12, fontWeight:600, color:"#6b7280" }}>Hiện ẩn</span>
+            <span style={{ fontSize:12, fontWeight:600, color:"#6b7280" }}>Hiện cả hàng đang ẩn</span>
           </label>
         )}
       </div>
@@ -628,20 +680,23 @@ export default function ProductManagerPage({ user }) {
                     {isAdmin && (
                       <td style={{ padding:"10px 14px", textAlign:"center" }}>
                         <div style={{ display:"flex", gap:4, justifyContent:"center", flexWrap:"wrap" }}>
-                          <button onClick={()=>{ setEditing(item); setShowForm(true); }}
-                            title="Sửa"
-                            style={{ padding:"4px 8px", borderRadius:8, border:"1.5px solid #e0e7ff", background:"#ede9fe", color:"#6366f1", fontSize:11, fontWeight:700, cursor:"pointer" }}>✏️</button>
-                          <button onClick={()=>{ ensureFullItems(); setMerging(item); }}
-                            title="Gộp hàng trùng"
-                            style={{ padding:"4px 8px", borderRadius:8, border:"1.5px solid #fef3c7", background:"#fffbeb", color:"#d97706", fontSize:11, fontWeight:700, cursor:"pointer" }}>🔀</button>
-                          <button onClick={()=>toggleActive(item)}
-                            title={isActive ? "Ẩn" : "Hiện"}
-                            style={{ padding:"4px 8px", borderRadius:8, border:"1.5px solid #e5e7eb", background:"#f9fafb", color:"#6b7280", fontSize:11, fontWeight:700, cursor:"pointer" }}>
-                            {isActive ? "🙈" : "👁️"}
-                          </button>
-                          <button onClick={()=>handleDelete(item)}
-                            title="Xóa"
-                            style={{ padding:"4px 8px", borderRadius:8, border:"1.5px solid #fecaca", background:"#fef2f2", color:"#dc2626", fontSize:11, fontWeight:700, cursor:"pointer" }}>🗑️</button>
+                          <ActionBtn hint="Sửa thông tin hàng hóa" fg="#6366f1" bg="#ede9fe" bd="#e0e7ff"
+                            onClick={()=>{ setEditing(item); setShowForm(true); }}>
+                            <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:16 }}>edit</span>
+                          </ActionBtn>
+                          <ActionBtn hint="Gộp hàng trùng (gộp SKU trùng nhau)" fg="#d97706" bg="#fffbeb" bd="#fef3c7"
+                            onClick={()=>{ ensureFullItems(); setMerging(item); }}>
+                            <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:16 }}>call_merge</span>
+                          </ActionBtn>
+                          <ActionBtn hint={isActive ? "Đang bán — bấm để ẩn khỏi danh sách" : "Đang ẩn — bấm để hiện lại"}
+                            fg={isActive ? "#059669" : "#9ca3af"} bg={isActive ? "#f0fdf4" : "#f9fafb"} bd={isActive ? "#bbf7d0" : "#e5e7eb"}
+                            onClick={()=>toggleActive(item)}>
+                            <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:16 }}>{isActive ? "visibility" : "visibility_off"}</span>
+                          </ActionBtn>
+                          <ActionBtn hint="Xóa hàng hóa khỏi danh mục" fg="#dc2626" bg="#fef2f2" bd="#fecaca"
+                            onClick={()=>handleDelete(item)}>
+                            <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:16 }}>delete</span>
+                          </ActionBtn>
                         </div>
                       </td>
                     )}
