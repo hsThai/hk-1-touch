@@ -337,6 +337,7 @@ function ProductFormModal({ item, categories, onSave, onClose, user }) {
 function MergeModal({ source, items, onMerge, onClose, user }) {
   const [targetId, setTargetId] = useState("");
   const [merging, setMerging] = useState(false);
+  const [confirmToggle, setConfirmToggle] = useState(null); // hàng hóa chờ xác nhận ẩn/hiện
   const targets = items.filter(i => i.id !== source?.id);
 
   async function doMerge() {
@@ -504,6 +505,9 @@ export default function ProductManagerPage({ user }) {
     } catch (e) { alert("Lỗi: " + e.message); }
   }
 
+  // Bấm ẩn/hiện → hỏi xác nhận trước (tránh ẩn nhầm hàng đang bán)
+  function askToggleActive(item) { setConfirmToggle(item); }
+
   async function toggleActive(item) {
     try {
       const newVal = !item.is_active;
@@ -527,7 +531,7 @@ export default function ProductManagerPage({ user }) {
         <div>
           <div style={{ fontWeight:900, fontSize:20, color:"#1e1b4b", marginBottom:4 }}>📦 Danh mục hàng hóa</div>
           <div style={{ fontSize:13, color:"#9ca3af" }}>
-            Quản lý sản phẩm / linh kiện / dịch vụ — thêm, sửa, xóa, gộp hàng trùng
+            Quản lý sản phẩm / linh kiện / dịch vụ — thêm, sửa, xóa, ẩn/hiện hàng hóa
           </div>
         </div>
         {isAdmin && (
@@ -684,13 +688,9 @@ export default function ProductManagerPage({ user }) {
                             onClick={()=>{ setEditing(item); setShowForm(true); }}>
                             <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:16 }}>edit</span>
                           </ActionBtn>
-                          <ActionBtn hint="Gộp hàng trùng (gộp SKU trùng nhau)" fg="#d97706" bg="#fffbeb" bd="#fef3c7"
-                            onClick={()=>{ ensureFullItems(); setMerging(item); }}>
-                            <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:16 }}>call_merge</span>
-                          </ActionBtn>
                           <ActionBtn hint={isActive ? "Đang bán — bấm để ẩn khỏi danh sách" : "Đang ẩn — bấm để hiện lại"}
                             fg={isActive ? "#059669" : "#9ca3af"} bg={isActive ? "#f0fdf4" : "#f9fafb"} bd={isActive ? "#bbf7d0" : "#e5e7eb"}
-                            onClick={()=>toggleActive(item)}>
+                            onClick={()=>askToggleActive(item)}>
                             <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:16 }}>{isActive ? "visibility" : "visibility_off"}</span>
                           </ActionBtn>
                           <ActionBtn hint="Xóa hàng hóa khỏi danh mục" fg="#dc2626" bg="#fef2f2" bd="#fecaca"
@@ -761,6 +761,54 @@ export default function ProductManagerPage({ user }) {
           onImported={()=>{ load(); loadStats(); setFullItems([]); }}
         />
       )}
+
+      {/* Xác nhận ẩn / hiện hàng hóa */}
+      {confirmToggle && (() => {
+        const willHide = !!confirmToggle.is_active;
+        return (
+          <div style={{ position:"fixed", inset:0, zIndex:3500, background:"rgba(15,23,42,.55)",
+            display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+            <div style={{ background:"#fff", borderRadius:16, width:"min(420px,94vw)", padding:"20px 18px 16px",
+              boxShadow:"0 20px 60px rgba(0,0,0,.3)" }}>
+              <div style={{ fontSize:30, textAlign:"center", marginBottom:6 }}>{willHide ? "🙈" : "👁️"}</div>
+              <div style={{ fontWeight:900, fontSize:15.5, textAlign:"center", color:"#1e1b4b", marginBottom:8 }}>
+                {willHide ? "Ẩn hàng này khỏi danh sách bán?" : "Hiện lại hàng này?"}
+              </div>
+              <div style={{ fontSize:13.5, fontWeight:700, textAlign:"center", color:"#374151", marginBottom:10 }}>
+                {confirmToggle.name}
+              </div>
+              {willHide ? (
+                <div style={{ background:"#fef2f2", border:"1.5px solid #fecaca", borderRadius:12, padding:"10px 12px", marginBottom:14 }}>
+                  <div style={{ fontSize:12.5, color:"#b91c1c", fontWeight:700, lineHeight:1.6 }}>
+                    • Hàng sẽ không hiện khi tìm bán ở POS, báo giá sửa chữa.
+                  </div>
+                  <div style={{ fontSize:12.5, color:"#b91c1c", fontWeight:700, lineHeight:1.6 }}>
+                    • Tồn kho và lịch sử bán vẫn giữ nguyên.
+                  </div>
+                  <div style={{ fontSize:12.5, color:"#b91c1c", fontWeight:700, lineHeight:1.6 }}>
+                    • Có thể bật hiện lại bất cứ lúc nào.
+                  </div>
+                </div>
+              ) : (
+                <div style={{ background:"#f0fdf4", border:"1.5px solid #bbf7d0", borderRadius:12, padding:"10px 12px", marginBottom:14, fontSize:12.5, color:"#15803d", fontWeight:700 }}>
+                  Hàng sẽ hiện lại trong danh mục và khi tìm bán ở POS.
+                </div>
+              )}
+              <div style={{ display:"flex", gap:10 }}>
+                <button onClick={()=>setConfirmToggle(null)}
+                  style={{ flex:1, height:44, borderRadius:12, border:"1.5px solid #d1d5db", background:"#fff", fontWeight:800, fontSize:14, cursor:"pointer" }}>
+                  Hủy
+                </button>
+                <button onClick={()=>{ const it=confirmToggle; setConfirmToggle(null); toggleActive(it); }}
+                  style={{ flex:1.3, height:44, borderRadius:12, border:"none",
+                    background: willHide ? "#dc2626" : "#059669", color:"#fff", fontWeight:800, fontSize:14, cursor:"pointer" }}>
+                  {willHide ? "Ẩn hàng" : "Hiện lại"}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {tableViewer && (
         <MediaViewer
