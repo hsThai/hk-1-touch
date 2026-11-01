@@ -757,12 +757,34 @@ export default function SaleOrderPage({ user }) {
               display:"flex", alignItems:"center", gap:10 }}>
               <ProductThumb partId={item.part_id} sku={item.sku} size={48} />
               <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontWeight:700, fontSize:13, marginBottom:4 }}>{item.part_name}</div>
+                <div style={{ fontWeight:700, fontSize:13, marginBottom:4 }}>
+                  {item.part_name}
+                  {item.is_combo && (
+                    <span style={{ marginLeft:6, fontSize:10, fontWeight:800, color:"#7c3aed",
+                      background:"#ede9fe", borderRadius:99, padding:"1px 7px", verticalAlign:"middle" }}>
+                      COMBO
+                    </span>
+                  )}
+                </div>
+                {item.is_combo && (
+                  <div style={{ background:"#faf5ff", border:"1px dashed #ddd6fe", borderRadius:8,
+                    padding:"5px 8px", marginBottom:6 }}>
+                    <div style={{ fontSize:10, fontWeight:800, color:"#7c3aed", marginBottom:2, letterSpacing:.2 }}>
+                      GỒM {(comboItems[item.part_id] || []).length} MÓN
+                    </div>
+                    {(comboItems[item.part_id] || []).map((ci, k) => (
+                      <div key={k} style={{ fontSize:11, color:"#4b5563", lineHeight:1.5, display:"flex", justifyContent:"space-between", gap:6 }}>
+                        <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>• {ci.part_name}</span>
+                        <b style={{ flexShrink:0, color:"#7c3aed" }}>x{(Number(ci.qty) || 1) * item.qty}</b>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                   <input type="number" value={item.unit_price} min={0}
                     onChange={e=>updatePrice(idx,e.target.value)}
                     style={{ width:100, height:32, borderRadius:8, border:"1.5px solid #e5e7eb", padding:"0 8px", fontSize:13 }} />
-                  <span style={{ fontSize:12, color:"#6b7280" }}>đ/cái</span>
+                  <span style={{ fontSize:12, color:"#6b7280" }}>{item.is_combo ? "đ/combo" : "đ/cái"}</span>
                 </div>
               </div>
               <button type="button"
