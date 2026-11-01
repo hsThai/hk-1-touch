@@ -337,7 +337,6 @@ function ProductFormModal({ item, categories, onSave, onClose, user }) {
 function MergeModal({ source, items, onMerge, onClose, user }) {
   const [targetId, setTargetId] = useState("");
   const [merging, setMerging] = useState(false);
-  const [confirmToggle, setConfirmToggle] = useState(null); // hàng hóa chờ xác nhận ẩn/hiện
   const targets = items.filter(i => i.id !== source?.id);
 
   async function doMerge() {
@@ -393,6 +392,7 @@ function MergeModal({ source, items, onMerge, onClose, user }) {
 
 // ── Main Page ──────────────────────────────────────────────
 export default function ProductManagerPage({ user }) {
+  const [confirmToggle, setConfirmToggle] = useState(null); // hàng hóa chờ xác nhận ẩn/hiện
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
