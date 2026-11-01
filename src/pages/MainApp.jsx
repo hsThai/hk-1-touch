@@ -1664,6 +1664,7 @@ function MainAppContent({ onUserChange }) {
         { key:"pack_ship",      icon:"inventory",              label:"Soạn hàng & Giao",  perm:["pack_order","view"] },
         { key:"wh_manager",     icon:"warehouse",              label:"Thiết lập kho",    perm:["warehouse_mgr","view"] },
         { key:"wh_ledger",      icon:"inventory_2",            label:"Tồn kho",          perm:["stock_ledger","view"] },
+        { key:"combo",          icon:"redeem",                 label:"Combo sản phẩm",   perm:["combo","view"] },
         { key:"stock_nxt",      icon:"assessment",             label:"Thẻ kho (NXT)",    perm:["stock_card","view"] },
         { key:"stock_count",    icon:"fact_check",             label:"Kiểm kê kho",      perm:["stock_count","view"] },
         { key:"wh_defect",      icon:"warning",                label:"LK lỗi / RMA",     perm:["wh_defect","view"] },
@@ -1702,7 +1703,7 @@ function MainAppContent({ onUserChange }) {
       items.push({ key:"price_policy", icon:"price_change",  label:"Chính sách giá" });
     if (can("sale_order","view") && !isKtv && !isWarehouse)
       items.push({ key:"product_mgr", icon:"inventory_2",   label:"Danh mục hàng hóa" });
-    if ((can("combo","view") || can("product_mgr","view")) && !isKtv && !isWarehouse)
+    if ((can("combo","view") || can("product_mgr","view")))
       items.push({ key:"combo", icon:"redeem", label:"Combo sản phẩm" });
 
     // 4. KHO & VẬT TƯ
