@@ -36,7 +36,13 @@ const EMPTY_FORM = { name: "", sku: "", unit: "Combo", price: "", note: "" };
 
 export default function ComboPage({ user }) {
   const { can } = usePermission();
-  const canEdit = !can || can("combo", "create") || can("combo", "edit");
+  // Phân quyền chi tiết theo từng nút (không chỉ ẩn menu)
+  const noCtx   = !can;                                 // chưa có Provider → cho phép (an toàn cho dev)
+  const canView   = noCtx || can("combo", "view");
+  const canCreate = noCtx || can("combo", "create");
+  const canEditC  = noCtx || can("combo", "edit");
+  const canDel    = noCtx || can("combo", "delete");
+  const canEdit = canCreate || canEditC;                // dùng chung cho vài chỗ cũ
   const [isPC, setIsPC] = useState(window.innerWidth >= 1024);
   useEffect(() => {
     const fn = () => setIsPC(window.innerWidth >= 1024);
@@ -108,11 +114,15 @@ export default function ComboPage({ user }) {
     return () => clearTimeout(t);
   }, [partQ]);
 
+  function deny(msg) { showToast("⛔ " + (msg || "Bạn không có quyền thao tác chức năng này")); }
+
   function openCreate() {
+    if (!canCreate) { deny("Bạn không có quyền tạo combo"); return; }
     setForm({ ...EMPTY_FORM, sku: "CB" + Date.now().toString().slice(-6) });
     setLines([]); setPartQ(""); setPartRes([]);
   }
   function openEdit(c) {
+    if (!canEditC) { deny("Bạn không có quyền sửa combo"); return; }
     setForm({ id: c.id, name: c.name || "", sku: c.sku || "", unit: c.unit || "Combo", price: c.price || "", note: c.note || "" });
     setLines((itemsByCombo[c.id] || []).map(it => ({
       part_id: it.part_id, part_name: it.part_name, sku: it.sku,
@@ -168,6 +178,7 @@ export default function ComboPage({ user }) {
 
   // Mở modal ghép: tải tồn từng linh kiện ở từng kho để chọn kho riêng cho mỗi món
   async function openAssemble(c) {
+    if (!canEditC) { deny("Bạn không có quyền ghép combo"); return; }
     const its = itemsByCombo[c.id] || [];
     const k16 = warehouses.find(w => (w.code || "").toLowerCase().startsWith("kho16"));
     const defWh = asmWhDefault || k16?.id || warehouses[0]?.id || "";
@@ -205,6 +216,7 @@ export default function ComboPage({ user }) {
   }
 
   async function openDisassemble(c) {
+    if (!canEditC) { deny("Bạn không có quyền tháo combo"); return; }
     const its = itemsByCombo[c.id] || [];
     const k16 = warehouses.find(w => (w.code || "").toLowerCase().startsWith("kho16"));
     const defWh = asmWhDefault || k16?.id || warehouses[0]?.id || "";
@@ -338,6 +350,7 @@ export default function ComboPage({ user }) {
   }
 
   async function deleteCombo(c) {
+    if (!canDel) { deny("Bạn không có quyền xóa combo"); return; }
     try {
       for (const it of (itemsByCombo[c.id] || [])) await pbDelete("product_combo_items", it.id).catch(() => { });
       await pbDelete("product_combos", c.id);
@@ -359,7 +372,7 @@ export default function ComboPage({ user }) {
           <div style={{ fontWeight: 900, fontSize: 18, color: "#1e1b4b" }}>🎁 Combo sản phẩm</div>
           <div style={{ fontSize: 12.5, color: "#6b7280" }}>Ghép combo sẽ trừ tồn linh kiện · bán combo trừ tồn combo</div>
         </div>
-        {canEdit && (
+        {canCreate && (
           <button onClick={openCreate}
             style={{ height: 42, padding: "0 16px", borderRadius: 12, border: "none", background: "#7c3aed", color: "#fff", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>
             + Tạo combo
@@ -395,22 +408,28 @@ export default function ComboPage({ user }) {
                 <div style={{ fontWeight: 900, fontSize: 16, color: stock > 0 ? "#059669" : "#dc2626" }}>{stock}</div>
                 <div style={{ fontSize: 10.5, color: "#9ca3af" }}>combo sẵn</div>
               </div>
-              {canEdit && (
+              {(canEditC || canDel) && (
                 <>
+                  {canEditC && (
                   <button onClick={() => openAssemble(c)}
                     style={{ height: 36, padding: "0 12px", borderRadius: 10, border: "none", background: "#059669", color: "#fff", fontWeight: 800, fontSize: 12.5, cursor: "pointer" }}>
                     Ghép
                   </button>
-                  {stock > 0 && (
+                  )}
+                  {canEditC && stock > 0 && (
                     <button onClick={() => openDisassemble(c)}
                       style={{ height: 36, padding: "0 12px", borderRadius: 10, border: "1.5px solid #fdba74", background: "#fff7ed", color: "#c2410c", fontWeight: 800, fontSize: 12.5, cursor: "pointer" }}>
                       Tháo
                     </button>
                   )}
+                  {canEditC && (
                   <button onClick={() => openEdit(c)} title="Sửa"
                     style={{ width: 36, height: 36, borderRadius: 10, border: "1.5px solid #e5e7eb", background: "#f9fafb", cursor: "pointer" }}>✏️</button>
+                  )}
+                  {canDel && (
                   <button onClick={() => setConfirmDel(c)} title="Xóa"
                     style={{ width: 36, height: 36, borderRadius: 10, border: "1.5px solid #fecaca", background: "#fef2f2", color: "#dc2626", cursor: "pointer" }}>🗑</button>
+                  )}
                 </>
               )}
             </div>
