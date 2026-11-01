@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { SparePart, StockLedger } from "./pb.jsx";
+import { SparePart, StockLedger, getPbUrl } from "./pb.jsx";
 
 // ── Checklist QT1 — Ngoại quan (Tiếp tân) ──────────────────────────
 const QT1_ITEMS = [
@@ -638,7 +638,7 @@ export function CustomerConfirmModal({ order, users = [], currentUser, onClose, 
       try {
         const q = term.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
         const found = await SparePart.list({ filter: `is_active=true && (name~"${q}" || sku~"${q}" || serial_imei~"${q}")`, sort: "name", limit: 30 });
-        const ql = ql0.toLowerCase();
+        const ql = term.toLowerCase();
         const comboHits = (combos || []).filter(c =>
           (c.name || "").toLowerCase().includes(ql) || (c.sku || "").toLowerCase().includes(ql)
         ).map(c => ({ id: c.id, name: c.name, sku: c.sku, price: c.price || 0,
