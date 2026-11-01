@@ -96,6 +96,133 @@ const INP = {
 const LBL = { fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 4, display: "block" };
 
 // ── Add/Edit Modal ──────────────────────────────────────────
+// ── Thẻ kho nhanh: tồn theo từng kho + lịch sử nhập/xuất của 1 mặt hàng ──
+function fmtDT(s) {
+  if (!s) return "—";
+  const d = new Date(String(s).replace(" ", "T"));
+  if (isNaN(d)) return String(s);
+  const p = n => String(n).padStart(2, "0");
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+const MV_LABEL = {
+  in: { t: "📥 Nhập", c: "#059669" }, import: { t: "📥 Nhập", c: "#059669" },
+  out: { t: "📤 Xuất", c: "#dc2626" }, export: { t: "📤 Xuất", c: "#dc2626" },
+  transfer: { t: "🔄 Chuyển kho", c: "#0284c7" },
+  combo_pick: { t: "🎁 Ghép combo", c: "#7c3aed" }, combo_return: { t: "🧩 Tháo combo", c: "#c2410c" },
+  count: { t: "⚖️ Kiểm kê", c: "#ca8a04" }, adjust: { t: "⚖️ Điều chỉnh", c: "#ca8a04" },
+  return: { t: "↩️ Đổi trả", c: "#0891b2" }, sale: { t: "🛒 Bán hàng", c: "#dc2626" },
+};
+function StockCardModal({ item, onClose }) {
+  const [ledgers, setLedgers] = useState([]);
+  const [moves, setMoves] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState("history");
+
+  useEffect(() => {
+    let dead = false;
+    (async () => {
+      try {
+        const f = encodeURIComponent(`part_id="${item.id}"`);
+        const [l, m] = await Promise.all([
+          pbFetch(`collections/stock_ledgers/records?perPage=100&filter=${f}`).catch(() => ({ items: [] })),
+          pbFetch(`collections/stock_movements/records?perPage=60&sort=-id&filter=${f}`).catch(() => ({ items: [] })),
+        ]);
+        if (dead) return;
+        setLedgers(l.items || []);
+        setMoves(m.items || []);
+      } catch { }
+      if (!dead) setLoading(false);
+    })();
+    return () => { dead = true; };
+  }, [item.id]);
+
+  const total = ledgers.reduce((s, l) => s + (Number(l.qty_on_hand) || 0), 0);
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 3400, background: "rgba(15,23,42,.55)",
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div onClick={e => e.stopPropagation()}
+        style={{ background: "#fff", borderRadius: 16, width: "min(520px,96vw)", maxHeight: "90vh",
+          display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,.3)" }}>
+        <div style={{ background: "linear-gradient(135deg,#0f172a,#334155)", padding: "14px 16px",
+          display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ color: "#fff", fontWeight: 900, fontSize: 14, lineHeight: 1.3 }}>📋 Thẻ kho</div>
+            <div style={{ color: "rgba(255,255,255,.85)", fontSize: 12, marginTop: 2, lineHeight: 1.35 }}>{item.name}</div>
+            <div style={{ color: "rgba(255,255,255,.6)", fontSize: 11, marginTop: 1 }}>{item.sku || "—"} · Tổng tồn: <b style={{ color: "#fff" }}>{total}</b></div>
+          </div>
+          <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: "50%", border: "none",
+            background: "rgba(255,255,255,.2)", color: "#fff", cursor: "pointer", flexShrink: 0 }}>✕</button>
+        </div>
+
+        <div style={{ display: "flex", gap: 6, padding: "10px 12px 0" }}>
+          {[["history", "Lịch sử nhập/xuất"], ["stock", `Tồn theo kho (${ledgers.length})`]].map(([k, lb]) => (
+            <button key={k} onClick={() => setTab(k)}
+              style={{ flex: 1, height: 36, borderRadius: 10, cursor: "pointer", fontSize: 12.5, fontWeight: 800,
+                border: `1.5px solid ${tab === k ? "#0f172a" : "#e5e7eb"}`,
+                background: tab === k ? "#0f172a" : "#fff", color: tab === k ? "#fff" : "#6b7280" }}>
+              {lb}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px 16px" }}>
+          {loading && <div style={{ padding: 30, textAlign: "center", color: "#9ca3af" }}>⏳ Đang tải...</div>}
+
+          {!loading && tab === "stock" && (
+            ledgers.length === 0
+              ? <div style={{ padding: 30, textAlign: "center", color: "#9ca3af" }}>Chưa có tồn kho ở kho nào</div>
+              : ledgers.map(l => (
+                <div key={l.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
+                  padding: "9px 10px", borderBottom: "1px solid #f3f4f6" }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#1f2937" }}>{l.warehouse_name || "Kho"}</div>
+                    {l.location_code && <div style={{ fontSize: 11, color: "#9ca3af" }}>Vị trí: {l.location_code}</div>}
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 15, fontWeight: 900, color: (Number(l.qty_on_hand) || 0) > 0 ? "#059669" : "#9ca3af" }}>
+                      {Number(l.qty_on_hand) || 0}
+                    </div>
+                    <div style={{ fontSize: 10.5, color: "#9ca3af" }}>
+                      giữ {Number(l.qty_reserved) || 0} · bán được {Number(l.qty_available) || 0}
+                    </div>
+                  </div>
+                </div>
+              ))
+          )}
+
+          {!loading && tab === "history" && (
+            moves.length === 0
+              ? <div style={{ padding: 30, textAlign: "center", color: "#9ca3af" }}>Chưa có phát sinh nhập/xuất</div>
+              : moves.map(mv => {
+                const lb = MV_LABEL[mv.movement_type] || { t: mv.movement_type || "Biến động", c: "#6b7280" };
+                const chg = Number(mv.qty_change) || 0;
+                return (
+                  <div key={mv.id} style={{ padding: "9px 10px", borderBottom: "1px solid #f3f4f6" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                      <span style={{ fontSize: 12.5, fontWeight: 800, color: lb.c }}>{lb.t}</span>
+                      <b style={{ fontSize: 13, color: chg >= 0 ? "#059669" : "#dc2626", flexShrink: 0 }}>
+                        {chg >= 0 ? "+" : ""}{chg}
+                      </b>
+                    </div>
+                    <div style={{ fontSize: 11, color: "#6b7280", marginTop: 1 }}>
+                      {fmtDT(mv.created_date)} · {mv.warehouse_name || "—"} · còn {Number(mv.qty_after) || 0}
+                    </div>
+                    {(mv.ref_code || mv.note) && (
+                      <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 1 }}>
+                        {mv.ref_code ? `[${mv.ref_code}] ` : ""}{mv.note || ""}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ProductFormModal({ item, categories, onSave, onClose, user }) {
   const isEdit = !!item?.id;
   const [form, setForm] = useState({
@@ -409,6 +536,9 @@ export default function ProductManagerPage({ user }) {
 
   const { can } = usePermission();
   const isAdmin = !!can("product_mgr","edit"); // theo phan quyen
+  // Thẻ kho: kế toán / quản lý xem nhanh
+  const canStockCard = ["accountant","manager","admin","owner","supervisor"].includes(user?.role) || can("stock_card","view");
+  const [stockCard, setStockCard] = useState(null);
 
   const catMap = useMemo(() => {
     const m = {};
@@ -631,7 +761,7 @@ export default function ProductManagerPage({ user }) {
                 <th style={{ padding:"10px 14px", textAlign:"right", fontWeight:700, color:"#9ca3af" }}>Giá vốn</th>
                 <th style={{ padding:"10px 14px", textAlign:"right", fontWeight:700, color:"#059669" }}>Giá lẻ</th>
                 <th style={{ padding:"10px 14px", textAlign:"right", fontWeight:700, color:"#374151" }}>Tồn</th>
-                {isAdmin && <th style={{ padding:"10px 14px", textAlign:"center", fontWeight:700, color:"#374151" }}>Thao tác</th>}
+                {(isAdmin || canStockCard) && <th style={{ padding:"10px 14px", textAlign:"center", fontWeight:700, color:"#374151" }}>Thao tác</th>}
               </tr>
             </thead>
             <tbody>
@@ -681,9 +811,16 @@ export default function ProductManagerPage({ user }) {
                         {stock}
                       </span>
                     </td>
-                    {isAdmin && (
+                    {(isAdmin || canStockCard) && (
                       <td style={{ padding:"10px 14px", textAlign:"center" }}>
                         <div style={{ display:"flex", gap:4, justifyContent:"center", flexWrap:"wrap" }}>
+                          {canStockCard && (
+                            <ActionBtn hint="Xem thẻ kho (tồn từng kho + lịch sử nhập xuất)" fg="#0284c7" bg="#e0f2fe" bd="#bae6fd"
+                              onClick={()=>setStockCard(item)}>
+                              <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:16 }}>receipt_long</span>
+                            </ActionBtn>
+                          )}
+                          {isAdmin && (<>
                           <ActionBtn hint="Sửa thông tin hàng hóa" fg="#6366f1" bg="#ede9fe" bd="#e0e7ff"
                             onClick={()=>{ setEditing(item); setShowForm(true); }}>
                             <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:16 }}>edit</span>
@@ -697,6 +834,7 @@ export default function ProductManagerPage({ user }) {
                             onClick={()=>handleDelete(item)}>
                             <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:16 }}>delete</span>
                           </ActionBtn>
+                          </>)}
                         </div>
                       </td>
                     )}
@@ -761,6 +899,8 @@ export default function ProductManagerPage({ user }) {
           onImported={()=>{ load(); loadStats(); setFullItems([]); }}
         />
       )}
+
+      {stockCard && <StockCardModal item={stockCard} onClose={()=>setStockCard(null)} />}
 
       {/* Xác nhận ẩn / hiện hàng hóa */}
       {confirmToggle && (() => {
