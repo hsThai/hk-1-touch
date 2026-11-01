@@ -116,6 +116,7 @@ const TARGET_LABEL = {
   auth:               "Phiên đăng nhập",
   cash_journal:       "Sổ quỹ",
   app_settings:       "Cài đặt ứng dụng",
+  combo:              "Combo sản phẩm",
   price_policy:       "Chính sách giá",
   product_mgr:        "Danh mục hàng hóa",
   print_template:     "Mẫu in",

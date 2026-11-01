@@ -24,6 +24,7 @@ const RESOURCE_META = {
   return_order:       { label:"Menu Xử lý Đổi trả",              module:"Bán hàng", icon:"swap_horiz", actions:["can_view","can_create"] },
   // ── Hàng hóa
   product_mgr:        { label:"Menu Danh mục hàng hóa",          module:"Hàng hóa", icon:"inventory_2", actions:["can_view","can_edit","can_export"] },
+  combo:              { label:"Menu Combo sản phẩm",            module:"Hàng hóa", icon:"redeem", actions:["can_view","can_create","can_edit","can_delete"] },
   price_policy:       { label:"Menu Chính sách giá",             module:"Hàng hóa", icon:"price_change", actions:["can_view","can_edit"] },
   // ── Kho & Vật tư
   warehouse_mgr:      { label:"Menu Thiết lập kho",              module:"Kho & Vật tư", icon:"warehouse", actions:["can_view"] },

@@ -36,7 +36,7 @@ const EMPTY_FORM = { name: "", sku: "", unit: "Combo", price: "", note: "" };
 
 export default function ComboPage({ user }) {
   const { can } = usePermission();
-  const canEdit = !can || can("product_mgr", "edit") || can("product_mgr", "create");
+  const canEdit = !can || can("combo", "create") || can("combo", "edit");
   const [isPC, setIsPC] = useState(window.innerWidth >= 1024);
   useEffect(() => {
     const fn = () => setIsPC(window.innerWidth >= 1024);

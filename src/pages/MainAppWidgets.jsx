@@ -13,7 +13,7 @@ export const PAGE_PERMS = {
   return_order:    ["return_order", "view"],
   price_policy:    ["price_policy", "view"],
   product_mgr:     ["product_mgr", "view"],
-  combo:           ["product_mgr", "view"],
+  combo:           ["combo", "view"],
   revenue:         ["revenue_report", "view"],
   stock_nxt:       ["stock_card", "view"],
   expense:         ["expense", "view"],
@@ -162,7 +162,7 @@ export function renderSalesPages(page, user, can) {
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
         : <Suspense fallback={<Loading />}><ProductManagerPage user={user} /></Suspense>
       )}
-      {page === "combo" && user && (can && !can("product_mgr","view")
+      {page === "combo" && user && (can && !can("combo","view")
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền xem Combo sản phẩm</div>
         : <Suspense fallback={<Loading />}><ComboPage user={user} /></Suspense>
       )}

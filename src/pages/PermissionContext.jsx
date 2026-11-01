@@ -731,7 +731,9 @@ export function PermissionProvider({ user, children }) {
   const can = useCallback((resource, action = "view") => {
     if (!role) return false;
     const rolePerms = activeMatrix[role] || activeMatrix["guest"] || {};
-    const resPerms  = rolePerms[resource] || EMPTY_PERMS[resource] || p();
+    // Combo sản phẩm: nếu chưa có dòng quyền riêng thì dùng chung quyền Danh mục hàng hóa
+    const fb = (resource === "combo" && !rolePerms["combo"]) ? rolePerms["product_mgr"] : null;
+    const resPerms  = rolePerms[resource] || fb || EMPTY_PERMS[resource] || p();
     return !!resPerms[action];
   }, [role, activeMatrix]);
 
