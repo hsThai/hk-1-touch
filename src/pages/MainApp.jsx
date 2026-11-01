@@ -311,7 +311,7 @@ function usePageGuard(page, can) {
 
 // 5 trang thuộc bottom-nav chính. Mọi trang khác (settings/report/kho/PO/...) đều coi là "vào từ Menu"
 // để nút Menu sáng lên nhất quán, tránh trạng thái không nút nào active khi ở trang phụ.
-const MAIN_TAB_PAGES = ["my_tasks", "new", "tasks", "board", "cashier_home", "pack_ship"];
+const MAIN_TAB_PAGES = ["my_tasks", "new", "tasks", "board", "cashier_home", "pack_ship", "wh_home"];
 
 const MGR_ACCORDIONS = [
   {
@@ -2864,92 +2864,80 @@ function MainAppContent({ onUserChange }) {
             </div>
           )}
 
-          {/* Bottom nav bar */}
-          <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#fff",
-            borderTop:"1px solid #e5e7eb", display:"flex", zIndex:50,
-            paddingBottom:"env(safe-area-inset-bottom)" }}>
-            {/* Việc của tôi */}
-            <button onClick={() => setPage("my_tasks")}
-              style={{ flex:1, padding:"10px 4px", background:"none", border:"none",
-                cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
-              <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",lineHeight:1,
-                color: page==="my_tasks" ? "#4f46e5" : "#9ca3af"}}>checklist</span>
-              <span style={{ fontSize: bp==="tablet"?11:10,
-                color: page==="my_tasks" ? "#4f46e5" : "#9ca3af",
-                fontWeight: page==="my_tasks" ? 800 : 500 }}>Việc của tôi</span>
-            </button>
-
-            {/* Tạo đơn ▾ — chỉ hiện nếu có quyền tạo sửa chữa hoặc xem bán hàng */}
-            {(canCreateRepair || canViewSale) && (
-              <button onClick={() => {
-                if (canCreateRepair && canViewSale) {
-                  setShowCreateChooser(true);
-                } else if (canCreateRepair) {
-                  setShowNewOrder(true);
-                } else if (canViewSale) {
-                  setCashierTab("sale"); setPage("cashier_home");
-                }
-              }}
-                style={{ flex:1, padding:"10px 4px", background:"none", border:"none",
-                  cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
-                <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",lineHeight:1,
-                  color: page==="new" ? "#4f46e5" : "#9ca3af"}}>add_circle</span>
-                <span style={{ fontSize: bp==="tablet"?11:10,
-                  color: page==="new" ? "#4f46e5" : "#9ca3af",
-                  fontWeight: page==="new" ? 800 : 500 }}>Tạo đơn</span>
-              </button>
-            )}
-
-            {/* Đơn sửa — chỉ hiện nếu có quyền view repair */}
-            {canViewRepair && (
-              <button onClick={() => { setPage("tasks"); setDashboardFilter(null); }}
-                style={{ flex:1, padding:"10px 4px", background:"none", border:"none",
-                  cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
-                <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",lineHeight:1,
-                  color: page==="tasks" || page==="board" ? "#4f46e5" : "#9ca3af"}}>list_alt</span>
-                <span style={{ fontSize: bp==="tablet"?11:10,
-                  color: page==="tasks" || page==="board" ? "#4f46e5" : "#9ca3af",
-                  fontWeight: page==="tasks" || page==="board" ? 800 : 500 }}>Đơn sửa</span>
-              </button>
-            )}
-
-            {/* Thu ngân — hiện nếu có quyền ít nhất 1 tab POS */}
-            {canPOS && (
-              <button onClick={() => { setCashierTab(""); setPage("cashier_home"); }}
-                style={{ flex:1, padding:"10px 4px", background:"none", border:"none",
-                  cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
-                <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",lineHeight:1,
-                  color: page==="cashier_home" ? "#4f46e5" : "#9ca3af"}}>point_of_sale</span>
-                <span style={{ fontSize: bp==="tablet"?11:10,
-                  color: page==="cashier_home" ? "#4f46e5" : "#9ca3af",
-                  fontWeight: page==="cashier_home" ? 800 : 500 }}>Thu ngân</span>
-              </button>
-            )}
-
-            {/* Soạn hàng & Giao nhận — chỉ hiện nếu có quyền pack_order hoặc ship_order */}
-            {(canViewPack || canViewShip) && (
-              <button onClick={() => setPage("pack_ship")}
-                style={{ flex:1, padding:"10px 4px", background:"none", border:"none",
-                  cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
-                <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",lineHeight:1,
-                  color: page==="pack_ship" ? "#4f46e5" : "#9ca3af"}}>inventory</span>
-                <span style={{ fontSize: bp==="tablet"?11:10,
-                  color: page==="pack_ship" ? "#4f46e5" : "#9ca3af",
-                  fontWeight: page==="pack_ship" ? 800 : 500 }}>Soạn/Giao</span>
-              </button>
-            )}
-
-            {/* Menu — mở drawer. Active khi đang mở drawer HOẶC đang ở trang con ngoài 5 tab chính (settings/report/...) */}
-            <button onClick={() => setSidebarOpen(true)}
-              style={{ flex:1, padding:"10px 4px", background:"none", border:"none",
-                cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
-              <span className="material-icons" style={{fontSize:22,fontFamily:"Material Icons",lineHeight:1,
-                color: (sidebarOpen || !MAIN_TAB_PAGES.includes(page)) ? "#4f46e5" : "#9ca3af"}}>menu</span>
-              <span style={{ fontSize: bp==="tablet"?11:10,
-                color: (sidebarOpen || !MAIN_TAB_PAGES.includes(page)) ? "#4f46e5" : "#9ca3af",
-                fontWeight: (sidebarOpen || !MAIN_TAB_PAGES.includes(page)) ? 800 : 500 }}>Menu</span>
-            </button>
-          </div>
+          {/* Bottom nav bar — mỗi vai trò một bộ tab riêng, mỗi tab chỉ mở 1 nội dung duy nhất */}
+          {(() => {
+            const TABS = {
+              tasks_me: { icon:"checklist", label:"Việc của tôi", show:true,
+                on:()=>setPage("my_tasks"), act:()=>page==="my_tasks" },
+              board:    { icon:"list_alt", label:"Đơn sửa", show:!!canViewRepair,
+                on:()=>{ setPage("tasks"); setDashboardFilter(null); }, act:()=>page==="tasks"||page==="board" },
+              create:   { icon:"add_circle", label:"Tạo đơn", show:!!(canCreateRepair||canViewSale),
+                on:()=>{ if (canCreateRepair && canViewSale) setShowCreateChooser(true);
+                  else if (canCreateRepair) setShowNewOrder(true);
+                  else if (canViewSale) { setCashierTab("sale"); setPage("cashier_home"); } },
+                act:()=>page==="new" },
+              pos:      { icon:"point_of_sale", label:"Thu ngân", show:!!canPOS,
+                on:()=>{ setCashierTab(""); setPage("cashier_home"); }, act:()=>page==="cashier_home" },
+              pack:     { icon:"inventory", label:"Soạn/Giao", show:!!(canViewPack||canViewShip),
+                on:()=>setPage("pack_ship"), act:()=>page==="pack_ship" },
+              wh_home:  { icon:"warehouse", label:"Kho", show:true,
+                on:()=>setPage("wh_home"), act:()=>page==="wh_home" },
+            };
+            // Bộ tab theo vai trò — chỉ những trang là "việc chính" của người đó.
+            // Trang phụ (báo cáo, cài đặt, NCC, thẻ kho...) luôn vào qua Menu.
+            const BY_ROLE = {
+              warehouse:    ["tasks_me","wh_home","pack"],
+              technician:   ["tasks_me","board","create"],
+              mm_tech:      ["tasks_me","board","create"],
+              packer:       ["tasks_me","pack"],
+              delivery:     ["tasks_me","pack"],
+              cashier:      ["tasks_me","pos"],
+              accountant:   ["tasks_me","pos","board"],
+              receptionist: ["tasks_me","create","board"],
+              support:      ["tasks_me","create","board"],
+              sales_rep:    ["tasks_me","create","board","pos"],
+              manager:      ["tasks_me","board","pos","pack"],
+              admin:        ["tasks_me","board","pos","pack"],
+              owner:        ["tasks_me","board","pos","pack"],
+              supervisor:   ["tasks_me","board","pos","pack"],
+              marketing:    ["tasks_me","board"],
+              it:           ["tasks_me","board"],
+              viewer:       ["tasks_me"],
+              guest:        ["tasks_me"],
+            };
+            const keys = BY_ROLE[role] || ["tasks_me","board","pos","pack"];
+            const list = keys.filter(k => TABS[k] && TABS[k].show).map(k => ({ k, ...TABS[k] }));
+            const menuActive = sidebarOpen || !MAIN_TAB_PAGES.includes(page);
+            return (
+              <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#fff",
+                borderTop:"1px solid #e5e7eb", display:"flex", zIndex:50,
+                paddingBottom:"env(safe-area-inset-bottom)" }}>
+                {list.map(t => {
+                  const active = t.act();
+                  return (
+                    <button key={t.k} onClick={t.on}
+                      style={{ flex:1, padding:"10px 4px", background:"none", border:"none",
+                        cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
+                      <span className="material-icons" style={{fontSize:22, fontFamily:"Material Icons", lineHeight:1,
+                        color: active ? "#4f46e5" : "#9ca3af"}}>{t.icon}</span>
+                      <span style={{ fontSize: bp==="tablet"?11:10,
+                        color: active ? "#4f46e5" : "#9ca3af",
+                        fontWeight: active ? 800 : 500 }}>{t.label}</span>
+                    </button>
+                  );
+                })}
+                <button onClick={() => setSidebarOpen(true)}
+                  style={{ flex:1, padding:"10px 4px", background:"none", border:"none",
+                    cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
+                  <span className="material-icons" style={{fontSize:22, fontFamily:"Material Icons", lineHeight:1,
+                    color: menuActive ? "#4f46e5" : "#9ca3af"}}>menu</span>
+                  <span style={{ fontSize: bp==="tablet"?11:10,
+                    color: menuActive ? "#4f46e5" : "#9ca3af",
+                    fontWeight: menuActive ? 800 : 500 }}>Menu</span>
+                </button>
+              </div>
+            );
+          })()}
         </>
       )}
 
