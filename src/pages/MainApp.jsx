@@ -1702,6 +1702,8 @@ function MainAppContent({ onUserChange }) {
       items.push({ key:"price_policy", icon:"price_change",  label:"Chính sách giá" });
     if (can("sale_order","view") && !isKtv && !isWarehouse)
       items.push({ key:"product_mgr", icon:"inventory_2",   label:"Danh mục hàng hóa" });
+    if ((can("combo","view") || can("product_mgr","view")) && !isKtv && !isWarehouse)
+      items.push({ key:"combo", icon:"redeem", label:"Combo sản phẩm" });
 
     // 4. KHO & VẬT TƯ
     if (can("warehouse_mgr","view") && !isManager)
@@ -2315,6 +2317,7 @@ function MainAppContent({ onUserChange }) {
     "return_order":     { label:"🔄 Xử lý đổi trả",           grad:["#059669","#047857"] },
     "price_policy":     { label:"💲 Chính sách giá",           grad:["#059669","#047857"] },
     "product_mgr":      { label:"📦 Danh mục hàng hóa",         grad:["#7c3aed","#6d28d9"] },
+    "combo":            { label:"🎁 Combo sản phẩm",              grad:["#7c3aed","#6d28d9"] },
     "wh_home":          { label:"🏭 Kho tổng quan",            grad:["#0284c7","#0369a1"] },
   "pack_ship":        { label:"📦 Soạn hàng & Giao nhận",   grad:["#0c4a6e","#0369a1"] },
     "wh_orders":        { label:"📦 Đơn kho",                 grad:["#0284c7","#0369a1"] },
@@ -2377,6 +2380,7 @@ function MainAppContent({ onUserChange }) {
                   "return_order":      "🛒 Bán hàng",
                   "price_policy":      "📦 Hàng hóa",
                   "product_mgr":       "📦 Hàng hóa",
+                  "combo":             "🎁 Combo sản phẩm",
                   "wh_manager":        "📦 Kho & Vật tư",
                   "wh_ledger":         "📦 Kho & Vật tư",
                   "wh_export":         "📦 Kho & Vật tư",
