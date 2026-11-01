@@ -177,9 +177,11 @@ export default function CategoryManagerModal({ user, onClose, onChanged }) {
                   <span style={{ width:14, height:14, borderRadius:"50%", background: cat.color || "#6366f1", display:"inline-block" }} />
                   <button onClick={()=>setEditingId(cat.id)} title="Sửa"
                     style={{ padding:"4px 8px", borderRadius:8, border:"1.5px solid #e0e7ff", background:"#ede9fe", color:"#6366f1", fontSize:11, fontWeight:700, cursor:"pointer" }}>✏️</button>
-                  <button onClick={()=>toggleActive(cat)} title={cat.is_active === false ? "Hiện" : "Ẩn"}
+                  <button onClick={()=>toggleActive(cat)} title={cat.is_active === false ? "Đang ẩn — bấm để hiện lại" : "Đang hiện — bấm để ẩn"}
                     style={{ padding:"4px 8px", borderRadius:8, border:"1.5px solid #e5e7eb", background:"#f9fafb", color:"#6b7280", fontSize:11, fontWeight:700, cursor:"pointer" }}>
-                    {cat.is_active === false ? "👁️" : "🙈"}
+                    <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:16, verticalAlign:"middle" }}>
+                      {cat.is_active === false ? "visibility_off" : "visibility"}
+                    </span>
                   </button>
                   <button onClick={()=>handleDelete(cat)} title="Xóa"
                     style={{ padding:"4px 8px", borderRadius:8, border:"1.5px solid #fecaca", background:"#fef2f2", color:"#dc2626", fontSize:11, fontWeight:700, cursor:"pointer" }}>🗑️</button>
