@@ -1232,7 +1232,7 @@ function WarehouseImport({ user }) {
         }
         const __remaining = Math.max(0, __totalVal - impPaidAmt);
         if (__remaining > 0) {
-          logAction(user, "pay_debt", "debt_voucher", "", `Thanh toán NCC: ${supplier||""} — ${paidAmount.toLocaleString("vi-VN")}đ`);
+          logAction(user, "pay_debt", "debt_voucher", "", `Thanh toán NCC: ${supplier||""} — ${impPaidAmt.toLocaleString("vi-VN")}đ`);
           await DebtVoucher.create({
             voucher_code:  "PP-" + String(Date.now()).slice(-6),
             voucher_type:  "payable", party_type: "supplier",
