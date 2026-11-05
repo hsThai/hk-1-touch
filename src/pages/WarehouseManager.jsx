@@ -1734,6 +1734,8 @@ function DefectTab({ user, warehouses }) {
           user={user}
           suppliers={suppliers}
           spareParts={parts}
+          warehouseId={rmaItem.warehouse_id}
+          defectMovementId={rmaItem.id}
           prefill={{ part_name: rmaItem.part_name, sku: rmaItem.sku,
                      qty: Math.abs(rmaItem.qty_change || 1),
                      supplier_name: (rmaItem.note||"").match(/NCC:\s*([^|]+)/)?.[1]?.trim() || "",

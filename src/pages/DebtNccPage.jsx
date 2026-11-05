@@ -183,6 +183,9 @@ export default function DebtNccPage({ user }) {
 
   // Số còn nợ của 1 phiếu = tổng nợ − tổng chứng từ đã trả (nguồn: sổ thanh toán)
   const rem = v => Math.max(0, Number(v.total_amount||0) - (paidByVoucher[v.id]||0));
+  // Chứng từ GIẢM TRỪ (total_amount âm — sinh ra khi trả hàng lỗi cho NCC) làm giảm công nợ
+  const isCredit = v => Number(v.total_amount||0) < 0;
+  const debtOf = v => isCredit(v) ? Number(v.total_amount||0) : rem(v);
 
   // Nhóm theo NCC (party_name) — chỉ tính các phiếu chưa hủy
   const bySupplier = {};
@@ -190,14 +193,14 @@ export default function DebtNccPage({ user }) {
     const key = v.party_name || "—";
     if (!bySupplier[key]) bySupplier[key] = { name:key, vouchers:[], totalDebt:0, totalEver:0 };
     bySupplier[key].vouchers.push(v);
-    bySupplier[key].totalDebt += rem(v);
+    bySupplier[key].totalDebt += debtOf(v);
     bySupplier[key].totalEver += Number(v.total_amount || 0);
   });
   const supplierList = Object.values(bySupplier).sort((a,b) => b.totalDebt - a.totalDebt);
   const supplierListWithDebt = supplierList.filter(s => s.totalDebt > 0);
 
   // "Lũy kế" = nợ CÒN phải trả (phiếu đã trả xong không tính) — khớp với danh sách NCC còn nợ
-const totalDebtEver = vouchers.filter(v=>v.status!=="cancelled").reduce((s,v) => s + rem(v), 0);
+const totalDebtEver = vouchers.filter(v=>v.status!=="cancelled").reduce((s,v) => s + debtOf(v), 0);
 // Đã trả (lũy kế) theo SỔ CHỨNG TỪ thanh toán — không theo field trên phiếu
 const totalPaidEver = Object.values(paidByVoucher).reduce((s,x) => s + Number(x||0), 0);
   const remaining     = vouchers.filter(v=>v.status!=="cancelled").reduce((s,v) => s + Number(v.remaining||0), 0);

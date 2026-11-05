@@ -413,6 +413,7 @@ export const StockMovement      = makeCollection("stock_movements");
 export const StockTransfer      = makeCollection("stock_transfers");
 export const StockCount         = makeCollection("stock_counts");
 export const StockCountItem     = makeCollection("stock_count_items");
+export const RMATicket        = makeCollection("rma_tickets");
 export const SaleOrder          = makeCollection("sale_orders");
 export const SaleOrderItem      = makeCollection("sale_order_items");
 export const Expense            = makeCollection("expenses");
