@@ -1435,7 +1435,7 @@ function TransferTab({ user, toast }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // DefectTab — LK lỗi / Trả NCC
 // ─────────────────────────────────────────────────────────────────────────────
-function PartNameInput({ value, onChange, parts=[], placeholder="Tên linh kiện...", style={} }) {
+function PartNameInput({ value, onChange, parts=[], placeholder="Tên linh kiện...", style={}, stockOf }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState(value||"");
   const [remote, setRemote] = useState([]);
@@ -1485,9 +1485,19 @@ function PartNameInput({ value, onChange, parts=[], placeholder="Tên linh kiệ
               onMouseLeave={e=>e.currentTarget.style.background="#fff"}
             >
               <div style={{ fontWeight:600, fontSize:13 }}>{p.name}</div>
-              <div style={{ fontSize:11, color:"#9ca3af" }}>
-                {p.sku ? `SKU: ${p.sku}` : ""}
-                {(p.cost_price ?? p.price) ? `  •  ${((p.cost_price ?? p.price)||0).toLocaleString("vi")}đ` : ""}
+              <div style={{ fontSize:11, color:"#9ca3af", display:"flex", gap:6, alignItems:"center", flexWrap:"wrap" }}>
+                <span>{p.sku ? `SKU: ${p.sku}` : ""}</span>
+                {(() => {
+                  const q = stockOf ? stockOf(p) : null;
+                  if (q === null || q === undefined) return null;
+                  return (
+                    <span style={{ padding:"1px 6px", borderRadius:6, fontSize:10.5, fontWeight:700,
+                      background: q > 0 ? "#ecfdf5" : "#fef2f2", color: q > 0 ? "#059669" : "#dc2626" }}>
+                      Tồn: {q}
+                    </span>
+                  );
+                })()}
+                {(p.cost_price ?? p.price) ? <span>{`${((p.cost_price ?? p.price)||0).toLocaleString("vi")}đ`}</span> : null}
               </div>
             </div>
           ))}
@@ -1553,6 +1563,9 @@ function DefectTab({ user, warehouses }) {
   const [rmaItem,   setRmaItem]   = useState(null);     // LK lỗi đang gửi trả NCC
   const [form, setForm] = useState({ part_name:"", sku:"", qty:1, reason:"", supplier_name:"", note:"", warehouse_id:"",
     origin_import_id:"", origin_import_code:"", manualSupplier:false });
+  // Tồn kho theo SKU (để gợi ý hàng kèm số tồn) — ưu tiên tồn của kho đang chọn
+  const [stockRows, setStockRows] = useState([]);
+  const [stockReady, setStockReady] = useState(false);
   const [imports,  setImports]  = useState([]);   // phiếu nhập (để truy NCC gốc)
   const [impItems, setImpItems] = useState([]);   // dòng hàng của các phiếu nhập
 
@@ -1560,6 +1573,7 @@ function DefectTab({ user, warehouses }) {
     Catalog.list({ limit:300 }).then(p=>setParts(p||[])).catch(()=>{});
     Supplier.list({ limit:300 }).then(s=>setSuppliers(s||[])).catch(()=>{});
     Imports.all({ sort:"-id" }).then(d=>setImports(d||[])).catch(()=>{});
+    Ledger.all().then(rows => { setStockRows(rows || []); setStockReady(true); }).catch(() => setStockReady(true));
     ImportItems.all({ sort:"-id" }).then(d=>setImpItems(d||[])).catch(()=>{});
     loadList();
   }, []);
@@ -1601,6 +1615,20 @@ function DefectTab({ user, warehouses }) {
     if (form.supplier_name === top.supplier_name && form.origin_import_code === top.import_code) return;
     setForm(v => ({ ...v, supplier_name: top.supplier_name, origin_import_id: top.import_id, origin_import_code: top.import_code }));
   }, [form.part_name, form.sku, imports.length, impItems.length]);
+
+  // Tồn hiện tại của 1 linh kiện: nếu đã chọn kho thì đúng kho đó, chưa chọn thì tổng các kho
+  function stockOf(p) {
+    if (!stockReady) return null;
+    const sku = String(p?.sku || "").trim();
+    const name = String(p?.name || "").trim().toLowerCase();
+    const rows = stockRows.filter(r =>
+      (sku && String(r.sku||"").trim() === sku) ||
+      (!sku && name && String(r.part_name||"").trim().toLowerCase() === name));
+    if (!rows.length) return 0;
+    const inWh = form.warehouse_id ? rows.filter(r => r.warehouse_id === form.warehouse_id) : rows;
+    const use = inWh.length ? inWh : rows;
+    return use.reduce((a, r) => a + (Number(r.qty_on_hand)||0), 0);
+  }
 
   async function loadList() {
     setLoading(true);
@@ -1693,6 +1721,7 @@ function DefectTab({ user, warehouses }) {
           <PartNameInput
             value={form.part_name}
             parts={parts}
+            stockOf={stockOf}
             placeholder="Tên linh kiện *"
             onChange={(name, part) => setForm(v => ({
               ...v,
@@ -1704,7 +1733,6 @@ function DefectTab({ user, warehouses }) {
           {[
             {ph:"SKU",          key:"sku"},
             {ph:"Lý do lỗi",    key:"reason"},
-            {ph:"Ghi chú",      key:"note"},
           ].map(f=>(
             <input key={f.key} placeholder={f.ph} value={form[f.key]}
               onChange={e=>setForm(v=>({...v,[f.key]:e.target.value}))}
