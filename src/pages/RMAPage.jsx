@@ -31,15 +31,24 @@ const REASONS = [
 ];
 
 // ── Form tạo RMA mới ─────────────────────────────────────
-function CreateRMAModal({ user, suppliers, spareParts, onClose, onCreated }) {
+export function CreateRMAModal({ user, suppliers, spareParts, prefill, onClose, onCreated }) {
   const [form, setForm] = useState({
-    supplier_id:     "",
-    part_id:         "",
-    qty:             1,
-    reason:          "doa",
-    note:            "",
+    supplier_id:     prefill?.supplier_id || "",
+    part_id:         prefill?.part_id || "",
+    qty:             prefill?.qty || 1,
+    reason:          prefill?.reason || "doa",
+    note:            prefill?.note || "",
     expected_return: "",
   });
+  // NCC / LK điền sẵn từ tên (khi tạo phiếu từ 1 dòng "LK lỗi")
+  useEffect(() => {
+    if (!prefill) return;
+    setForm(f => ({
+      ...f,
+      part_id: f.part_id || (spareParts || []).find(p => (p.name||"").trim().toLowerCase() === String(prefill.part_name||"").trim().toLowerCase())?.id || "",
+      supplier_id: f.supplier_id || (suppliers || []).find(s2 => (s2.name||"").trim().toLowerCase() === String(prefill.supplier_name||"").trim().toLowerCase())?.id || "",
+    }));
+  }, [prefill, spareParts, suppliers]);
   const [saving, setSaving] = useState(false);
   const [err,    setErr]    = useState("");
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -230,7 +239,7 @@ function CreateRMAModal({ user, suppliers, spareParts, onClose, onCreated }) {
 }
 
 // ── Main component ──────────────────────────────────────
-export default function RMAPage({ user }) {
+export default function RMAPage({ user, readOnly = false }) {
   const { can } = usePermission();
   const [ledgers,   setLedgers]   = useState([]);
   const [suppliers, setSuppliers] = useState([]);
@@ -282,10 +291,12 @@ export default function RMAPage({ user }) {
         <div>
           <div style={{ fontWeight:900, fontSize:20, color:"#1e1b4b" }}>📦 Trả hàng NCC (RMA)</div>
           <div style={{ fontSize:13, color:"#6b7280", marginTop:2 }}>
-            Ghi nhận linh kiện lỗi DOA, sai spec — theo dõi đổi trả / hoàn tiền
+            {readOnly
+              ? "Phiếu trả NCC được tạo từ màn LK lỗi — bấm “Trả NCC” trên từng linh kiện lỗi"
+              : "Ghi nhận linh kiện lỗi DOA, sai spec — theo dõi đổi trả / hoàn tiền"}
           </div>
         </div>
-        {canCreate && (
+        {canCreate && !readOnly && (
           <button onClick={() => setShowCreate(true)}
             style={{ background:"#4f46e5", color:"#fff", border:"none", borderRadius:12,
               padding:"10px 20px", fontWeight:700, cursor:"pointer",
@@ -331,7 +342,7 @@ export default function RMAPage({ user }) {
           <div style={{ color:"#6b7280", fontSize:15, fontWeight:600 }}>
             {search ? "Không tìm thấy kết quả" : "Chưa có phiếu RMA nào"}
           </div>
-          {canCreate && !search && (
+          {canCreate && !readOnly && !search && (
             <button onClick={() => setShowCreate(true)}
               style={{ marginTop:16, background:"#4f46e5", color:"#fff", border:"none",
                 borderRadius:10, padding:"10px 24px", fontWeight:700, cursor:"pointer" }}>

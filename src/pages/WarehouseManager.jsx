@@ -10,7 +10,7 @@ import { exportSheet, buildConditions, dayStamp } from "../utils/excelExport.js"
 import { usePermission } from "./PermissionContext.jsx";
 import StockCountPage from "./StockCountPage.jsx";
 import PurchaseOrderPage from "./PurchaseOrderPage.jsx";
-import RMAPage from "./RMAPage.jsx";
+import RMAPage, { CreateRMAModal } from "./RMAPage.jsx";
 import { SaleOrder, RepairOrder, SparePart } from "./pb.jsx";
 
 // ─── PocketBase helpers ───────────────────────────────────
@@ -1548,6 +1548,8 @@ function DefectTab({ user, warehouses }) {
   const [parts,     setParts]     = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [saving,    setSaving]    = useState(false);
+  const [tab,       setTab]       = useState("defect"); // defect | rma
+  const [rmaItem,   setRmaItem]   = useState(null);     // LK lỗi đang gửi trả NCC
   const [form, setForm] = useState({ part_name:"", sku:"", qty:1, reason:"", supplier_name:"", note:"", warehouse_id:"" });
 
   useEffect(() => {
@@ -1684,22 +1686,68 @@ function DefectTab({ user, warehouses }) {
         </div>
       )}
 
+      <div style={{ display:"flex", gap:8, marginBottom:14 }}>
+        {[["defect","🔧 LK lỗi ("+list.length+")"],["rma","📄 Phiếu trả NCC"]].map(([k,lb])=>(
+          <button key={k} onClick={()=>setTab(k)}
+            style={{ flex:1, height:38, borderRadius:10, cursor:"pointer", fontSize:13, fontWeight:800,
+              border:`1.5px solid ${tab===k ? "#0f172a" : "#e5e7eb"}`,
+              background: tab===k ? "#0f172a" : "#fff", color: tab===k ? "#fff" : "#6b7280" }}>
+            {lb}
+          </button>
+        ))}
+      </div>
+
+      {tab === "rma" ? <RMAPage user={user} readOnly /> : (<>
       {loading && <div style={{ textAlign:"center", padding:40, color:"#9ca3af" }}>Đang tải...</div>}
       {!loading && list.length===0 && <div style={{ textAlign:"center", padding:40, color:"#9ca3af" }}>Chưa có LK lỗi nào</div>}
-      {list.map(m=>(
-        <div key={m.id} style={{ background:"#fff", borderRadius:10, padding:12, marginBottom:8, boxShadow:"0 1px 4px rgba(0,0,0,.05)" }}>
-          <div style={{ display:"flex", justifyContent:"space-between" }}>
+      {list.map(m=>{
+        const sent = /RMA|Đã gửi NCC/i.test(m.note || "");
+        return (
+        <div key={m.id} style={{ background:"#fff", borderRadius:10, padding:12, marginBottom:8, boxShadow:"0 1px 4px rgba(0,0,0,.06)" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
             <div style={{ fontWeight:700, fontSize:14 }}>{m.part_name}</div>
-            <div style={{ fontWeight:700, color:"#dc2626" }}>x{Math.abs(m.qty_change||0)}</div>
+            <div style={{ fontWeight:700, color:"#dc2626", flexShrink:0 }}>x{Math.abs(m.qty_change||0)}</div>
           </div>
           <div style={{ fontSize:12, color:"#6b7280", marginTop:4 }}>{m.note}</div>
-          <div style={{ fontSize:11, color:"#9ca3af" }}>{m.warehouse_name} · {new Date(m.created_date||m.created).toLocaleDateString("vi-VN")}</div>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8, marginTop:6 }}>
+            <div style={{ fontSize:11, color:"#9ca3af" }}>
+              {m.warehouse_name} · {new Date(m.created_date||m.created).toLocaleDateString("vi-VN")}
+            </div>
+            {sent ? (
+              <span style={{ fontSize:11, fontWeight:800, color:"#059669", background:"#ecfdf5",
+                border:"1px solid #a7f3d0", borderRadius:99, padding:"2px 9px", flexShrink:0 }}>✅ Đã gửi NCC</span>
+            ) : (
+              <button onClick={() => setRmaItem(m)}
+                style={{ fontSize:12, fontWeight:800, color:"#4f46e5", background:"#eef2ff",
+                  border:"1.5px solid #c7d2fe", borderRadius:9, padding:"5px 12px", cursor:"pointer", flexShrink:0 }}>
+                Trả NCC →
+              </button>
+            )}
+          </div>
         </div>
-      ))}
+        );
+      })}
 
-      {/* Phần RMA — Trả hàng NCC chính thức (tạo phiếu, theo dõi đổi trả/hoàn tiền) */}
-      <div style={{ height:10, background:"transparent" }} />
-      <RMAPage user={user} />
+      {/* Tạo phiếu RMA từ đúng dòng LK lỗi (điền sẵn LK, SL, NCC) */}
+      {rmaItem && (
+        <CreateRMAModal
+          user={user}
+          suppliers={suppliers}
+          spareParts={parts}
+          prefill={{ part_name: rmaItem.part_name, sku: rmaItem.sku,
+                     qty: Math.abs(rmaItem.qty_change || 1),
+                     supplier_name: (rmaItem.note||"").match(/NCC:\s*([^|]+)/)?.[1]?.trim() || "",
+                     note: rmaItem.note || "" }}
+          onClose={() => setRmaItem(null)}
+          onCreated={async () => {
+            const it = rmaItem;
+            setRmaItem(null);
+            try { await Move.update(it.id, { note: `${it.note || ""} → Đã gửi NCC (RMA)` }); } catch {}
+            loadList();
+          }}
+        />
+      )}
+      </>)}
     </div>
   );
 }
@@ -2120,7 +2168,7 @@ export function WhLedgerPage({ user }) {
 export function WhDefectPage({ user }) {
   const [whList, setWhList] = useState([]);
   useEffect(()=>{ WH.list({limit:100}).then(d=>setWhList(d||[])).catch(()=>{}); },[]);
-  return (<><WhPageHeader icon="⚠️" title="LK lỗi / RMA" subtitle="Linh kiện lỗi & Trả hàng NCC" /><DefectTab user={user} warehouses={whList} /></>);
+  return (<><WhPageHeader icon="⚠️" title="LK lỗi / Trả NCC" subtitle="Bước 1: ghi nhận linh kiện lỗi — Bước 2: gửi trả NCC (RMA)" /><DefectTab user={user} warehouses={whList} /></>);
 }
 export function WhShippingPage({ user }) {
   return (<><WhPageHeader icon="🚚" title="Vận đơn" subtitle="Nhận hàng NCC · Giao bán · Trả bảo hành" /><ShippingTab user={user} /></>);

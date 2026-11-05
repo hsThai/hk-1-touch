@@ -184,7 +184,7 @@ export function renderSalesPages(page, user, can) {
       )}
       {page === "rma" && user && (can && !can("stock_import","view")
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
-        : <Suspense fallback={<Loading />}><RMAPage user={user} /></Suspense>
+        : <Suspense fallback={<Loading />}><RMAPage user={user} readOnly /></Suspense>
       )}
       {page === "cash_journal" && user && (can && !can("cash_journal","view")
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
