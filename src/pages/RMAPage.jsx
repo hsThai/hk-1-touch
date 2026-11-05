@@ -22,6 +22,28 @@ function fmtDate(s) {
 }
 function nowStamp() { return new Date().toISOString().replace("T", " ").split(".")[0]; }
 
+// Lấy dòng tồn kho của 1 linh kiện — truy vấn server-side theo part_id HOẶC sku
+async function fetchLedgerRows(part) {
+  const esc = (v) => String(v || "").replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const conds = [];
+  if (part?.id)  conds.push(`part_id="${esc(part.id)}"`);
+  if (part?.sku) conds.push(`sku="${esc(part.sku)}"`);
+  if (!conds.length) return [];
+  const rows = await StockLedger.filter(conds.join(" || "), { limit: 300 }).catch(() => []);
+  return rows || [];
+}
+
+function pickLedger(rows, warehouseId) {
+  const list = rows || [];
+  const inWh = warehouseId ? list.filter(l => l.warehouse_id === warehouseId) : [];
+  const positive = inWh.find(l => Number(l.qty_on_hand) > 0)
+    || list.find(l => Number(l.qty_on_hand) > 0)
+    || inWh[0] || list[0] || null;
+  const qty = (inWh.length ? inWh : (positive ? [positive] : []))
+    .reduce((a, l) => a + (Number(l.qty_on_hand) || 0), 0);
+  return { row: positive, qty };
+}
+
 const STATUS = {
   sent:      { bg:"#dbeafe", color:"#2563eb", label:"📦 Đã gửi NCC" },
   settled:   { bg:"#d1fae5", color:"#059669", label:"✅ NCC đã xử lý" },
@@ -47,6 +69,7 @@ export function CreateRMAModal({ user, suppliers, spareParts, prefill, warehouse
   const [imports,    setImports]    = useState([]);
   const [importItems,setImportItems]= useState([]);
   const [saving,     setSaving]     = useState(false);
+  const [stockNow,   setStockNow]   = useState(null);
   const [err,        setErr]        = useState("");
 
   // Ghép NCC / LK theo tên khi được điền sẵn từ dòng "LK lỗi"
@@ -55,6 +78,15 @@ export function CreateRMAModal({ user, suppliers, spareParts, prefill, warehouse
     setSupplierId(s => s || (suppliers || []).find(x => (x.name||"").trim().toLowerCase() === String(prefill.supplier_name||"").trim().toLowerCase())?.id || "");
     setPartId(p => p || (spareParts || []).find(x => (x.name||"").trim().toLowerCase() === String(prefill.part_name||"").trim().toLowerCase())?.id || "");
   }, [prefill, suppliers, spareParts]);
+
+  // Tồn kho hiện có của linh kiện (để hiện ngay trên form)
+  useEffect(() => {
+    let alive = true;
+    if (!partId) { setStockNow(null); return; }
+    const p = (spareParts || []).find(x => x.id === partId);
+    fetchLedgerRows(p).then(rows => { if (alive) setStockNow(pickLedger(rows, warehouseId).qty); }).catch(() => {});
+    return () => { alive = false; };
+  }, [partId, warehouseId, spareParts]);
 
   const supplier = (suppliers || []).find(s => s.id === supplierId);
   const part     = (spareParts || []).find(p => p.id === partId);
@@ -166,11 +198,8 @@ export function CreateRMAModal({ user, suppliers, spareParts, prefill, warehouse
       const code = "RMA-" + new Date().toISOString().slice(2,10).replace(/-/g,"") + "-" + String(Date.now()).slice(-4);
 
       // 1) Tồn kho hiện tại của linh kiện (ưu tiên kho của dòng LK lỗi)
-      const ledgers = await StockLedger.filter(`part_id="${part.id}"`, { limit:200 }).catch(()=>[]);
-      const ledger = (ledgers||[]).find(l => warehouseId && l.warehouse_id === warehouseId)
-                  || (ledgers||[]).find(l => Number(l.qty_on_hand) > 0)
-                  || (ledgers||[])[0] || null;
-      const before = Number(ledger?.qty_on_hand) || 0;
+      const { row: ledger, qty: stockQty } = pickLedger(await fetchLedgerRows(part), warehouseId);
+      const before = stockQty;
       if (q > before) {
         if (!confirm(`⚠️ Số lượng trả (${q}) lớn hơn tồn hiện có (${before}) của "${part.name}".\nVẫn tiếp tục ghi phiếu?`)) {
           setSaving(false); return;
@@ -310,7 +339,13 @@ export function CreateRMAModal({ user, suppliers, spareParts, prefill, warehouse
 
         <div style={{ display:"flex", gap:10 }}>
           <div style={{ flex:1 }}>
-            <label style={LBL}>Số lượng *</label>
+            <label style={LBL}>
+              Số lượng *
+              {stockNow !== null && (
+                <span style={{ marginLeft:8, fontSize:11.5, fontWeight:700,
+                  color: stockNow > 0 ? "#059669" : "#dc2626" }}>· tồn kho: {stockNow}</span>
+              )}
+            </label>
             <input type="number" min={1} value={qty} onChange={e => setQty(e.target.value)} style={INP} />
           </div>
           <div style={{ flex:1 }}>
@@ -402,8 +437,7 @@ export default function RMAPage({ user, readOnly = false }) {
     try {
       const q = Number(ticket.qty) || 0;
       // Cộng lại tồn kho
-      const ledgers = await StockLedger.filter(`part_id="${ticket.part_id}"`, { limit:200 }).catch(()=>[]);
-      const ledger = (ledgers||[]).find(l => l.warehouse_id === ticket.warehouse_id) || (ledgers||[])[0];
+      const { row: ledger } = pickLedger(await fetchLedgerRows({ id: ticket.part_id, sku: ticket.sku }), ticket.warehouse_id);
       if (ledger) {
         const before = Number(ledger.qty_on_hand) || 0;
         await StockMovement.create({
