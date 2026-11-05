@@ -145,6 +145,11 @@ function makeCollection(collectionName) {
     },
 
     async filter(query = {}, options = {}) {
+      // Cho phép truyền thẳng chuỗi filter PocketBase (vd: `part_id="x" || sku="y"`)
+      if (typeof query === "string") {
+        const raw = query.trim();
+        return this.list({ filter: raw, ...options });
+      }
       // Build PocketBase filter string
       // Hỗ trợ suffix: _gt, _gte, _lt, _lte, _like, _neq
       const parts = Object.entries(query).map(([k, v]) => {
