@@ -123,7 +123,6 @@ class ErrorBoundary extends React.Component {
           <div style={{ color:"#fff", fontWeight:800, fontSize:18, marginBottom:8 }}>Ứng dụng gặp lỗi</div>
           <div style={{ color:"#c7d2fe", fontSize:13, textAlign:"center", marginBottom:20, fontFamily:"monospace", background:"rgba(255,255,255,.1)", padding:12, borderRadius:10, maxWidth:400, wordBreak:"break-all" }}>
             {this.state.error?.message || String(this.state.error)}
-            {this.state.error?.stack ? <pre style={{ whiteSpace:"pre-wrap", textAlign:"left", fontSize:9, marginTop:10, maxHeight:180, overflow:"auto" }}>{String(this.state.error.stack).slice(0,1200)}</pre> : null}
           </div>
           <button onClick={() => { this.setState({error:null}); window.location.reload(); }}
             style={{ background:"#4f46e5", color:"#fff", border:"none", borderRadius:12, padding:"12px 28px", fontSize:16, fontWeight:700, cursor:"pointer"}}>

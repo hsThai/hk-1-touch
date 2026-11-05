@@ -33,6 +33,9 @@ async function fetchLedgerRows(part) {
   return rows || [];
 }
 
+// Tên NCC của 1 nguồn nhập (chịu được dữ liệu cũ thiếu trường)
+const originName = (o) => String(o?.supplier_name || o?.name || "");
+
 function pickLedger(rows, warehouseId) {
   const list = rows || [];
   const inWh = warehouseId ? list.filter(l => l.warehouse_id === warehouseId) : [];
@@ -130,9 +133,10 @@ export function CreateRMAModal({ user, suppliers, spareParts, prefill, warehouse
   const originSuppliers = (() => {
     const seen = new Set(); const out = [];
     partOrigins.forEach(o => {
-      const k = (o.supplier_name||"").trim().toLowerCase();
+      const k = originName(o).trim().toLowerCase();
       if (!k || seen.has(k)) return; seen.add(k);
-      out.push({ name: o.supplier_name, import_code: o.import_code, received_date: o.received_date });
+      out.push({ name: o.supplier_name || "", supplier_name: o.supplier_name || "",
+        import_code: o.import_code || "", received_date: o.received_date || "" });
     });
     return out;
   })();
@@ -155,7 +159,7 @@ export function CreateRMAModal({ user, suppliers, spareParts, prefill, warehouse
     if (!part || !partOrigins.length) return;
     const top = partOrigins[0];
     setSupplierId(id => id || (originSuppliers.length === 1
-      ? ((suppliers||[]).find(x => (x.name||"").trim().toLowerCase() === top.supplier_name.trim().toLowerCase())?.id || "")
+      ? ((suppliers||[]).find(x => (x.name||"").trim().toLowerCase() === originName(top).trim().toLowerCase())?.id || "")
       : id));
   }, [part?.id, allImports.length]);
 
@@ -296,14 +300,14 @@ export function CreateRMAModal({ user, suppliers, spareParts, prefill, warehouse
           {originSuppliers.length > 0 && (
             <optgroup label="✅ NCC đã nhập linh kiện này">
               {originSuppliers.map(o => {
-                const sp = (suppliers||[]).find(x => (x.name||"").trim().toLowerCase() === o.supplier_name.trim().toLowerCase());
+                const sp = (suppliers||[]).find(x => (x.name||"").trim().toLowerCase() === originName(o).trim().toLowerCase());
                 if (!sp) return null;
                 return <option key={"o"+sp.id} value={sp.id}>{sp.name} · {o.import_code}{o.received_date ? " · " + fmtDate(o.received_date) : ""}</option>;
               })}
             </optgroup>
           )}
           <optgroup label="Tất cả nhà cung cấp">
-            {(suppliers||[]).filter(s => !originSuppliers.some(o => o.supplier_name.trim().toLowerCase() === (s.name||"").trim().toLowerCase()))
+            {(suppliers||[]).filter(s => !originSuppliers.some(o => originName(o).trim().toLowerCase() === (s.name||"").trim().toLowerCase()))
               .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </optgroup>
         </select>
