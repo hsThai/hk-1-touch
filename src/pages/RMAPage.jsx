@@ -59,21 +59,80 @@ export function CreateRMAModal({ user, suppliers, spareParts, prefill, warehouse
   const supplier = (suppliers || []).find(s => s.id === supplierId);
   const part     = (spareParts || []).find(p => p.id === partId);
 
-  // Phiếu nhập gốc của NCC đang chọn
+  // Nạp 1 lần toàn bộ phiếu nhập + dòng hàng: để truy "linh kiện này nhập từ NCC nào"
+  const [allImports, setAllImports] = useState([]);
   useEffect(() => {
     let alive = true;
-    if (!supplier) { setImports([]); return; }
     (async () => {
       try {
-        const imps = await StockImport.list({ sort:"-id", limit:200 });
+        const [imps, its] = await Promise.all([
+          StockImport.list({ sort:"-id", limit:300 }).catch(()=>[]),
+          StockImportItem.list({ sort:"-id", limit:1000 }).catch(()=>[]),
+        ]);
         if (!alive) return;
-        setImports((imps || []).filter(i =>
-          (i.supplier_name||"").trim().toLowerCase() === (supplier.name||"").trim().toLowerCase()
-          || i.supplier_id === supplier.id));
-      } catch { if (alive) setImports([]); }
+        setAllImports((imps||[]).map(i => ({ ...i, _items: (its||[]).filter(t => t.import_id === i.id) })));
+      } catch { if (alive) setAllImports([]); }
     })();
     return () => { alive = false; };
-  }, [supplier?.id]);
+  }, []);
+
+  // Nguồn nhập của linh kiện đang chọn (NCC nào · phiếu nào · giá vốn bao nhiêu)
+  const partOrigins = (() => {
+    if (!part) return [];
+    const skuKey  = String(part.sku||"").trim().toLowerCase();
+    const nameKey = String(part.name||"").trim().toLowerCase();
+    const rows = (allImports||[]).map(im => {
+      const line = (im._items||[]).find(t => {
+        const s2 = String(t.sku||"").trim().toLowerCase();
+        const n2 = String(t.name||"").trim().toLowerCase();
+        return (skuKey && s2 && s2 === skuKey) || (nameKey && n2 && n2 === nameKey);
+      });
+      if (!line) return null;
+      return { import_id: im.id, import_code: im.import_code, supplier_name: im.supplier_name || "",
+        received_date: im.received_date || "", qty: Number(line.qty)||0, unit_price: Number(line.unit_price)||0 };
+    }).filter(Boolean);
+    return rows.sort((a,b) => String(b.received_date||"").localeCompare(String(a.received_date||"")));
+  })();
+
+  // Danh sách NCC gợi ý = NCC đã thực sự nhập linh kiện này (mới nhất trước)
+  const originSuppliers = (() => {
+    const seen = new Set(); const out = [];
+    partOrigins.forEach(o => {
+      const k = (o.supplier_name||"").trim().toLowerCase();
+      if (!k || seen.has(k)) return; seen.add(k);
+      out.push({ name: o.supplier_name, import_code: o.import_code, received_date: o.received_date });
+    });
+    return out;
+  })();
+
+  // Danh sách phiếu nhập khả dụng: ưu tiên phiếu CÓ linh kiện này
+  useEffect(() => {
+    if (part) {
+      setImports(partOrigins.map(o => ({ id: o.import_id, import_code: o.import_code,
+        received_date: o.received_date, total_value: 0, supplier_name: o.supplier_name })));
+    } else if (supplier) {
+      setImports((allImports||[]).filter(i =>
+        (i.supplier_name||"").trim().toLowerCase() === (supplier.name||"").trim().toLowerCase() || i.supplier_id === supplier.id));
+    } else {
+      setImports([]);
+    }
+  }, [part?.id, supplier?.id, allImports.length]);
+
+  // Khi đã biết nguồn nhập: tự chọn NCC + phiếu nhập mới nhất (tránh trả nhầm NCC)
+  useEffect(() => {
+    if (!part || !partOrigins.length) return;
+    const top = partOrigins[0];
+    setSupplierId(id => id || (originSuppliers.length === 1
+      ? ((suppliers||[]).find(x => (x.name||"").trim().toLowerCase() === top.supplier_name.trim().toLowerCase())?.id || "")
+      : id));
+  }, [part?.id, allImports.length]);
+
+  // Chọn phiếu nhập gốc từ prefill (dòng LK lỗi đã ghi rõ phiếu)
+  useEffect(() => {
+    if (importId || !prefill?.import_code) return;
+    const hit = partOrigins.find(o => o.import_code === prefill.import_code);
+    if (hit) { setImportId(hit.import_id); setSupplierId(s => s || ((suppliers||[]).find(x => x.name === hit.supplier_name)?.id || s)); }
+  }, [prefill?.import_code, allImports.length]);
 
   // Chọn phiếu nhập → lấy dòng hàng tương ứng để biết giá vốn
   useEffect(() => {
@@ -205,8 +264,25 @@ export function CreateRMAModal({ user, suppliers, spareParts, prefill, warehouse
         <label style={LBL}>Nhà cung cấp *</label>
         <select value={supplierId} onChange={e => { setSupplierId(e.target.value); setImportId(""); }} style={INP}>
           <option value="">— Chọn NCC —</option>
-          {(suppliers||[]).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          {originSuppliers.length > 0 && (
+            <optgroup label="✅ NCC đã nhập linh kiện này">
+              {originSuppliers.map(o => {
+                const sp = (suppliers||[]).find(x => (x.name||"").trim().toLowerCase() === o.supplier_name.trim().toLowerCase());
+                if (!sp) return null;
+                return <option key={"o"+sp.id} value={sp.id}>{sp.name} · {o.import_code}{o.received_date ? " · " + fmtDate(o.received_date) : ""}</option>;
+              })}
+            </optgroup>
+          )}
+          <optgroup label="Tất cả nhà cung cấp">
+            {(suppliers||[]).filter(s => !originSuppliers.some(o => o.supplier_name.trim().toLowerCase() === (s.name||"").trim().toLowerCase()))
+              .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </optgroup>
         </select>
+        {part && originSuppliers.length === 0 && (
+          <div style={{ fontSize:12, color:"#d97706", marginTop:-4, marginBottom:10 }}>
+            Linh kiện này chưa có lịch sử nhập — kiểm tra lại NCC cho đúng.
+          </div>
+        )}
 
         <label style={LBL}>Linh kiện trả lại *</label>
         <select value={partId} onChange={e => setPartId(e.target.value)} style={INP}>
@@ -219,7 +295,7 @@ export function CreateRMAModal({ user, suppliers, spareParts, prefill, warehouse
           <option value="">⚡ Trả nhanh — không theo phiếu nhập</option>
           {imports.map(i => (
             <option key={i.id} value={i.id}>
-              {i.import_code} · {fmtDate(i.received_date || i.created)} · {fmtMoney(i.total_value)}
+              {i.import_code}{i.supplier_name ? " · " + i.supplier_name : ""} · {fmtDate(i.received_date || i.created)}
             </option>
           ))}
         </select>

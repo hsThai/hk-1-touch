@@ -75,6 +75,7 @@ const Catalog  = makeWHCol("product_catalog");
 const Usage    = makeWHCol("spare_part_usages");
 const Notif    = makeWHCol("notifications");
 const Imports  = makeWHCol("stock_imports");
+const ImportItems = makeWHCol("stock_import_items");
 const Count    = makeWHCol("stock_counts");
 const CountItem= makeWHCol("stock_count_items");
 const Supplier = makeWHCol("suppliers");
@@ -1550,13 +1551,56 @@ function DefectTab({ user, warehouses }) {
   const [saving,    setSaving]    = useState(false);
   const [tab,       setTab]       = useState("defect"); // defect | rma
   const [rmaItem,   setRmaItem]   = useState(null);     // LK lỗi đang gửi trả NCC
-  const [form, setForm] = useState({ part_name:"", sku:"", qty:1, reason:"", supplier_name:"", note:"", warehouse_id:"" });
+  const [form, setForm] = useState({ part_name:"", sku:"", qty:1, reason:"", supplier_name:"", note:"", warehouse_id:"",
+    origin_import_id:"", origin_import_code:"", manualSupplier:false });
+  const [imports,  setImports]  = useState([]);   // phiếu nhập (để truy NCC gốc)
+  const [impItems, setImpItems] = useState([]);   // dòng hàng của các phiếu nhập
 
   useEffect(() => {
     Catalog.list({ limit:300 }).then(p=>setParts(p||[])).catch(()=>{});
     Supplier.list({ limit:300 }).then(s=>setSuppliers(s||[])).catch(()=>{});
+    Imports.all({ sort:"-id" }).then(d=>setImports(d||[])).catch(()=>{});
+    ImportItems.all({ sort:"-id" }).then(d=>setImpItems(d||[])).catch(()=>{});
     loadList();
   }, []);
+
+  // ── Truy nguồn nhập của linh kiện: hàng này đã nhập từ NCC nào, phiếu nào, giá bao nhiêu
+  const partOrigins = (() => {
+    const nameKey = (form.part_name||"").trim().toLowerCase();
+    const skuKey  = (form.sku||"").trim().toLowerCase();
+    if (!nameKey && !skuKey) return [];
+    const imById = {};
+    (imports||[]).forEach(i => { imById[i.id] = i; });
+    const rows = (impItems||[]).filter(it => {
+      const s2 = String(it.sku||"").trim().toLowerCase();
+      const n2 = String(it.name||"").trim().toLowerCase();
+      return (skuKey && s2 && s2 === skuKey) || (nameKey && n2 && n2 === nameKey);
+    }).map(it => {
+      const im = imById[it.import_id] || {};
+      return {
+        import_id:     it.import_id,
+        import_code:   im.import_code || it.import_code || "",
+        supplier_name: im.supplier_name || "",
+        received_date: im.received_date || "",
+        qty:           Number(it.qty)||0,
+        unit_price:    Number(it.unit_price)||0,
+      };
+    }).filter(o => o.supplier_name || o.import_code);
+    const seen = new Set();
+    return rows
+      .sort((a,b) => String(b.received_date||"").localeCompare(String(a.received_date||"")))
+      .filter(o => { const k = o.import_id + "|" + o.supplier_name; if (seen.has(k)) return false; seen.add(k); return true; })
+      .slice(0, 6);
+  })();
+
+  // Chưa chọn NCC thủ công thì tự lấy NCC của phiếu nhập gần nhất
+  useEffect(() => {
+    if (form.manualSupplier) return;
+    if (!partOrigins.length) return;
+    const top = partOrigins[0];
+    if (form.supplier_name === top.supplier_name && form.origin_import_code === top.import_code) return;
+    setForm(v => ({ ...v, supplier_name: top.supplier_name, origin_import_id: top.import_id, origin_import_code: top.import_code }));
+  }, [form.part_name, form.sku, imports.length, impItems.length]);
 
   async function loadList() {
     setLoading(true);
@@ -1600,6 +1644,9 @@ function DefectTab({ user, warehouses }) {
 
       await Move.create({
         movement_code: "DEF-"+Date.now(), movement_type:"defect",
+        ref_type: form.origin_import_code ? "stock_import" : "",
+        ref_code: form.origin_import_code || "",
+        ref_id:   form.origin_import_id || "",
         warehouse_id: form.warehouse_id,
         warehouse_name: warehouses.find(w=>w.id===form.warehouse_id)?.name||"",
         part_id: part?.id||"", part_name: form.part_name.trim(), sku: part?.sku||form.sku||"",
@@ -1663,13 +1710,48 @@ function DefectTab({ user, warehouses }) {
               onChange={e=>setForm(v=>({...v,[f.key]:e.target.value}))}
               style={{ width:"100%", border:"1.5px solid #e5e7eb", borderRadius:8, padding:"8px 10px", fontSize:13, marginBottom:8, boxSizing:"border-box" }}/>
           ))}
-          <SupplierNameInput
-            value={form.supplier_name}
-            suppliers={suppliers}
-            placeholder="Nhà cung cấp (gợi ý từ danh sách NCC)..."
-            onChange={(name) => setForm(v => ({ ...v, supplier_name: name }))}
-            style={{ marginBottom:8 }}
-          />
+          {/* Nguồn nhập: hàng này đã nhập từ NCC nào — chọn đúng phiếu để sau này trả đúng NCC + đúng giá vốn */}
+          <div style={{ border:"1px solid #e5e7eb", borderRadius:10, padding:10, marginBottom:8, background:"#fafafa" }}>
+            <div style={{ fontSize:12, fontWeight:700, color:"#374151", marginBottom:6 }}>
+              🔎 Nhập từ nhà cung cấp nào?
+            </div>
+            {partOrigins.length === 0 ? (
+              <div style={{ fontSize:12, color:"#9ca3af", marginBottom:6 }}>
+                Chưa có phiếu nhập nào trong app cho linh kiện này (hàng nhập trước đây ở KiotViet sẽ không tra được).
+                Anh chọn NCC bên dưới, hoặc để trống nếu chưa rõ — sau này bấm “Trả NCC” vẫn sửa lại được.
+              </div>
+            ) : partOrigins.map(o => {
+              const active = (form.origin_import_code||"") === (o.import_code||"") && (form.supplier_name||"") === (o.supplier_name||"");
+              return (
+                <label key={(o.import_id||o.import_code)+o.supplier_name}
+                  style={{ display:"flex", gap:8, alignItems:"flex-start", fontSize:12.5, padding:"6px 8px", borderRadius:8,
+                    background: active ? "#eef2ff" : "#fff", border:`1.5px solid ${active?"#4f46e5":"#e5e7eb"}`, marginBottom:6, cursor:"pointer" }}>
+                  <input type="radio" checked={active} onChange={()=>setForm(v=>({
+                    ...v, supplier_name:o.supplier_name, origin_import_id:o.import_id, origin_import_code:o.import_code, manualSupplier:false,
+                  }))} style={{ marginTop:2 }} />
+                  <span style={{ flex:1 }}>
+                    <b>{o.supplier_name || "—"}</b>
+                    <span style={{ color:"#6b7280" }}> · {o.import_code || "phiếu nhập"}{o.received_date ? ` · ${String(o.received_date).slice(0,10)}` : ""}
+                      {o.qty ? ` · nhập ${o.qty}` : ""}{o.unit_price ? ` · ${Number(o.unit_price).toLocaleString("vi-VN")}đ/cái` : ""}</span>
+                  </span>
+                </label>
+              );
+            })}
+            <label style={{ display:"flex", gap:8, alignItems:"center", fontSize:12.5, padding:"4px 8px", cursor:"pointer" }}>
+              <input type="radio" checked={!!form.manualSupplier} onChange={()=>setForm(v=>({ ...v, manualSupplier:true, origin_import_id:"", origin_import_code:"" }))} />
+              <span>NCC khác / không rõ phiếu nhập</span>
+            </label>
+            {(form.manualSupplier || partOrigins.length === 0) && (
+              <div style={{ marginTop:6 }}>
+                <SupplierNameInput
+                  value={form.supplier_name}
+                  suppliers={suppliers}
+                  placeholder="Nhà cung cấp..."
+                  onChange={(name) => setForm(v => ({ ...v, supplier_name: name, manualSupplier:true }))}
+                />
+              </div>
+            )}
+          </div>
           <input type="number" placeholder="Số lượng *" value={form.qty} min={1}
             onChange={e=>setForm(v=>({...v,qty:+e.target.value}))}
             style={{ width:"100%", border:"1.5px solid #e5e7eb", borderRadius:8, padding:"8px 10px", fontSize:13, marginBottom:12, boxSizing:"border-box" }}/>
@@ -1737,6 +1819,8 @@ function DefectTab({ user, warehouses }) {
           warehouseId={rmaItem.warehouse_id}
           defectMovementId={rmaItem.id}
           prefill={{ part_name: rmaItem.part_name, sku: rmaItem.sku,
+            supplier_name: (String(rmaItem.note||"").match(/NCC:\s*([^|]+)/)||[])[1]?.trim() || "",
+            import_code: rmaItem.ref_code || "",
                      qty: Math.abs(rmaItem.qty_change || 1),
                      supplier_name: (rmaItem.note||"").match(/NCC:\s*([^|]+)/)?.[1]?.trim() || "",
                      note: rmaItem.note || "" }}
