@@ -1650,11 +1650,16 @@ function DefectTab({ user, warehouses }) {
 
       const defectQty = Math.abs(Number(form.qty)||0);
       let defectQtyBefore = 0;
-      let ledgerRecord = null;
-      if (part) {
-        const ledgers = await Ledger.list({ limit:500 });
-        ledgerRecord = (ledgers||[]).find(x=>x.part_id===part.id && x.warehouse_id===form.warehouse_id);
-        defectQtyBefore = Number(ledgerRecord?.qty_on_hand)||0;
+      let ledgerRowsInWh = [];
+      if (part || form.sku.trim()) {
+        // Truy vấn thẳng server (trước đây chỉ lấy 500 dòng đầu nên dễ ra tồn = 0)
+        const esc = (v) => String(v||"").replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+        const byId  = part?.id ? `part_id="${esc(part.id)}"` : "";
+        const bySku = (part?.sku || form.sku || "").trim();
+        const filter = byId || (bySku ? `sku="${esc(bySku)}"` : "");
+        const ledgers = filter ? await Ledger.list({ filter }) : [];
+        ledgerRowsInWh = (ledgers||[]).filter(x => x.warehouse_id === form.warehouse_id);
+        defectQtyBefore = ledgerRowsInWh.reduce((a,x) => a + (Number(x.qty_on_hand)||0), 0);
         if (defectQty > defectQtyBefore) {
           const proceed = confirm(`⚠️ Số lượng lỗi (${defectQty}) lớn hơn tồn kho hiện có (${defectQtyBefore}) của "${part.name}" tại kho này.\nHệ thống sẽ đưa tồn kho về 0. Vẫn tiếp tục?`);
           if (!proceed) { setSaving(false); return; }
@@ -1684,18 +1689,28 @@ function DefectTab({ user, warehouses }) {
         created_date: new Date().toISOString().replace("T"," ").split(".")[0],
       });
 
-      if (part && ledgerRecord) {
-        await Ledger.update(ledgerRecord.id, {
-          qty_on_hand:   Math.max(0,(ledgerRecord.qty_on_hand||0)-defectQty),
-          qty_available: Math.max(0,(ledgerRecord.qty_available||0)-defectQty),
-        });
+      // Trừ tồn: có thể 1 linh kiện nằm nhiều vị trí trong cùng kho -> trừ lần lượt
+      if (ledgerRowsInWh.length) {
+        let left = defectQty;
+        for (const r of ledgerRowsInWh) {
+          if (left <= 0) break;
+          const have = Number(r.qty_on_hand) || 0;
+          if (have <= 0) continue;
+          const take = Math.min(have, left);
+          await Ledger.update(r.id, {
+            qty_on_hand:   have - take,
+            qty_available: Math.max(0, (Number(r.qty_available)||0) - take),
+          });
+          left -= take;
+        }
       }
 
       logAction(user, "update", "stock_ledger", part?.id||"", `Ghi nhận LK lỗi/trả NCC: ${form.part_name.trim()} x${defectQty} — ${fullNote}`);
 
       alert("✅ Đã ghi nhận");
       setShowAdd(false);
-      setForm({ part_name:"", sku:"", qty:1, reason:"", supplier_name:"", note:"", warehouse_id:"" });
+      setForm({ part_name:"", sku:"", qty:1, reason:"", supplier_name:"", note:"", warehouse_id:"",
+        origin_import_id:"", origin_import_code:"", manualSupplier:false });
       loadList();
     } catch(e) { alert("Lỗi: "+e.message); }
     setSaving(false);
@@ -1745,8 +1760,7 @@ function DefectTab({ user, warehouses }) {
             </div>
             {partOrigins.length === 0 ? (
               <div style={{ fontSize:12, color:"#9ca3af", marginBottom:6 }}>
-                Chưa có phiếu nhập nào trong app cho linh kiện này (hàng nhập trước đây ở KiotViet sẽ không tra được).
-                Anh chọn NCC bên dưới, hoặc để trống nếu chưa rõ — sau này bấm “Trả NCC” vẫn sửa lại được.
+                Chưa có phiếu nhập nào trong app cho linh kiện này.
               </div>
             ) : partOrigins.map(o => {
               const active = (form.origin_import_code||"") === (o.import_code||"") && (form.supplier_name||"") === (o.supplier_name||"");
