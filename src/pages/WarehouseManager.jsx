@@ -1014,6 +1014,14 @@ function TransferTab({ user, toast }) {
   const [items, setItems] = useState([{ part_id:"", part_name:"", sku:"", qty:1, unit_price:0 }]);
   const [detailModal, setDetailModal] = useState(null);
   const [partSuggestions, setPartSuggestions] = useState([]);
+  // Tồn của linh kiện trong KHO XUẤT (hiện chip "Tồn" ngay trong gợi ý)
+  function transferStockOf(p) {
+    const key = String(p?.sku || p?.name || "").trim().toLowerCase();
+    if (!key) return null;
+    const hit = (partSuggestions||[]).find(x =>
+      String(x.sku || x.name || "").trim().toLowerCase() === key);
+    return hit ? Number(hit.qty) : (partSuggestions.length ? 0 : null);
+  }
   // Bề rộng màn hình: PC thì xếp hàng ngang, mobile thì xếp thành thẻ cho dễ nhập
   const [isWide, setIsWide] = useState(typeof window !== "undefined" ? window.innerWidth >= 820 : true);
   useEffect(() => {
@@ -1336,73 +1344,20 @@ function TransferTab({ user, toast }) {
               gridTemplateColumns:isWide?"2fr 1.2fr 1fr 1fr auto":undefined,
               gap:isWide?6:0, alignItems:isWide?"end":undefined,
             }}>
-              <div style={{ position:"relative" }}>
-                {(!isWide || true) && <label style={S.label}>Tên hàng *</label>}
-                <input
-                  style={{ ...S.input, paddingRight: 32 }}
-                  value={dropSearch[i] !== undefined ? dropSearch[i] : item.part_name}
-                  onChange={e => {
-                    setDropSearch(p => ({ ...p, [i]: e.target.value }));
-                    setOpenDrop(i);
-                  }}
-                  onFocus={() => {
-                    setDropSearch(p => ({ ...p, [i]: item.part_name }));
-                    setOpenDrop(i);
-                  }}
-                  onBlur={() => setTimeout(() => setOpenDrop(v => v === i ? -1 : v), 180)}
+              <div>
+                <label style={S.label}>Tên hàng *</label>
+                <PartNameInput
+                  value={item.part_name}
+                  parts={partSuggestions.map(p => ({ id:p.part_id, name:p.name, sku:p.sku, cost_price:p.cost }))}
+                  stockOf={transferStockOf}
                   placeholder="Gõ tên hoặc SKU để tìm linh kiện..."
-                  autoComplete="off"
+                  onChange={(name, p) => setItems(prev => prev.map((x, j) => j !== i ? x : {
+                    ...x,
+                    part_name: name,
+                    sku: p?.sku || x.sku,
+                    unit_price: p?.cost_price || x.unit_price,
+                  }))}
                 />
-                <span style={{ position:"absolute", right:10, top:isWide?30:26, fontSize:12, color:"#9ca3af", pointerEvents:"none" }}>▼</span>
-
-                {/* Gợi ý hàng — danh sách cao hơn, hiện rõ SKU · tồn · giá */}
-                {openDrop === i && (() => {
-                  const q = (dropSearch[i] || "").toLowerCase().trim();
-                  const filtered = partSuggestions.filter(p =>
-                    !q || p.name.toLowerCase().includes(q) || (p.sku||"").toLowerCase().includes(q)
-                  ).slice(0, 40);
-                  if (filtered.length === 0) return null;
-                  return (
-                    <div style={{
-                      position:"absolute", top:"100%", left:0, right:0, zIndex:10000,
-                      background:"#fff", border:"1.5px solid #e5e7eb", borderRadius:12,
-                      boxShadow:"0 12px 32px rgba(0,0,0,.16)", maxHeight:"min(58vh, 440px)", overflowY:"auto",
-                      marginTop:4,
-                    }}>
-                      <div style={{ position:"sticky", top:0, background:"#f8fafc", padding:"6px 12px",
-                        fontSize:11, fontWeight:800, color:"#6b7280", borderBottom:"1px solid #e5e7eb" }}>
-                        {filtered.length} linh kiện{q ? ` khớp "${dropSearch[i]}"` : " trong kho"}
-                      </div>
-                      {filtered.map((p, idx) => (
-                        <div key={idx}
-                          onMouseDown={() => {
-                            setItems(prev => prev.map((x, j) => j !== i ? x : {
-                              ...x,
-                              part_name: p.name,
-                              sku: p.sku || x.sku,
-                              unit_price: p.cost || x.unit_price,
-                            }));
-                            setDropSearch(prev => ({ ...prev, [i]: undefined }));
-                            setOpenDrop(-1);
-                          }}
-                          style={{ padding:"10px 12px", cursor:"pointer", borderBottom:"1px solid #f3f4f6" }}
-                          onMouseEnter={e => e.currentTarget.style.background="#f5f3ff"}
-                          onMouseLeave={e => e.currentTarget.style.background="#fff"}
-                        >
-                          <div style={{ fontWeight:600, fontSize:13, color:"#1e1b4b" }}>{p.name}</div>
-                          <div style={{ fontSize:11, color:"#6b7280", marginTop:3, display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
-                            {p.sku ? <span style={{ fontFamily:"monospace" }}>{p.sku}</span> : null}
-                            <span style={{ padding:"1px 6px", borderRadius:6, fontSize:10.5, fontWeight:800,
-                              background:Number(p.qty)>0?"#ecfdf5":"#fef2f2", color:Number(p.qty)>0?"#059669":"#dc2626" }}>
-                              Tồn: {p.qty}
-                            </span>
-                            <span>{(p.cost||0).toLocaleString("vi")}đ</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()}
               </div>
 
               <div style={{ display:isWide?"block":"grid",
@@ -1492,7 +1447,7 @@ function PartNameInput({ value, onChange, parts=[], placeholder="Tên linh kiệ
     timer.current = setTimeout(async () => {
       try {
         const esc = term.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-        const res = await SparePart.list({ filter: `name~"${esc}" || sku~"${esc}"`, limit: 15 });
+        const res = await SparePart.list({ filter: `name~"${esc}" || sku~"${esc}"`, limit: 30 });
         setRemote(res || []);
       } catch { setRemote([]); }
     }, 250);
@@ -1516,7 +1471,7 @@ function PartNameInput({ value, onChange, parts=[], placeholder="Tên linh kiệ
         <div style={{
           position:"absolute", top:"100%", left:0, right:0, zIndex:10000,
           background:"#fff", border:"1.5px solid #e5e7eb", borderRadius:10,
-          boxShadow:"0 8px 24px rgba(0,0,0,.12)", maxHeight:200, overflowY:"auto", marginTop:2,
+          boxShadow:"0 10px 30px rgba(0,0,0,.16)", maxHeight:"min(56vh, 420px)", overflowY:"auto", marginTop:2,
         }}>
           {filtered.map((p,i) => (
             <div key={i}
@@ -1574,7 +1529,7 @@ function SupplierNameInput({ value, onChange, suppliers=[], placeholder="Nhà cu
         <div style={{
           position:"absolute", top:"100%", left:0, right:0, zIndex:10000,
           background:"#fff", border:"1.5px solid #e5e7eb", borderRadius:10,
-          boxShadow:"0 8px 24px rgba(0,0,0,.12)", maxHeight:200, overflowY:"auto", marginTop:2,
+          boxShadow:"0 10px 30px rgba(0,0,0,.16)", maxHeight:"min(56vh, 420px)", overflowY:"auto", marginTop:2,
         }}>
           {filtered.map((s,i) => (
             <div key={s.id||i}
