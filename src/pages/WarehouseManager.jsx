@@ -1014,6 +1014,13 @@ function TransferTab({ user, toast }) {
   const [items, setItems] = useState([{ part_id:"", part_name:"", sku:"", qty:1, unit_price:0 }]);
   const [detailModal, setDetailModal] = useState(null);
   const [partSuggestions, setPartSuggestions] = useState([]);
+  // Bề rộng màn hình: PC thì xếp hàng ngang, mobile thì xếp thành thẻ cho dễ nhập
+  const [isWide, setIsWide] = useState(typeof window !== "undefined" ? window.innerWidth >= 820 : true);
+  useEffect(() => {
+    const onR = () => setIsWide(window.innerWidth >= 820);
+    window.addEventListener("resize", onR);
+    return () => window.removeEventListener("resize", onR);
+  }, []);
   const [openDrop, setOpenDrop] = useState(-1); // index item đang mở dropdown
   const [dropSearch, setDropSearch] = useState({}); // { [i]: "search text" }
 
@@ -1024,12 +1031,22 @@ function TransferTab({ user, toast }) {
 
   useEffect(() => {
     if (!form.from_warehouse_id) { setPartSuggestions([]); return; }
-    Ledger.list({ limit:500 }).then(ledgers => {
-      const filtered = ledgers
-        .filter(l => l.warehouse_id === form.from_warehouse_id && (l.qty_on_hand||0) > 0)
-        .map(l => ({ part_id: l.part_id||"", name: l.part_name||"", sku: l.sku||"", qty: l.qty_on_hand||0, cost: l.cost_price||0 }));
-      setPartSuggestions(filtered);
-    }).catch(() => setPartSuggestions([]));
+    // Truy vấn server-side đúng kho đang xuất (trước đây chỉ lấy 500 dòng đầu nên thiếu hàng)
+    Ledger.filter(`warehouse_id="${form.from_warehouse_id}" && qty_on_hand > 0`, { limit: 3000 })
+      .then(ledgers => {
+        const seen = new Set();
+        const list = (ledgers||[])
+          .map(l => ({ part_id: l.part_id||"", name: l.part_name||"", sku: l.sku||"",
+                       qty: Number(l.qty_on_hand)||0, cost: Number(l.cost_price)||0 }))
+          .filter(p => {
+            const k = (p.sku || p.name || "").trim().toLowerCase();
+            if (!k || seen.has(k)) return false;
+            seen.add(k); return true;
+          })
+          .sort((a,b) => b.qty - a.qty);
+        setPartSuggestions(list);
+      })
+      .catch(() => setPartSuggestions([]));
   }, [form.from_warehouse_id]);
 
   async function load() {
@@ -1312,9 +1329,15 @@ function TransferTab({ user, toast }) {
 
           <div style={{fontWeight:700,fontSize:13,color:"#1e1b4b",marginBottom:8}}>Danh sách hàng chuyển</div>
           {items.map((item,i)=>(
-            <div key={i} style={{display:"grid",gridTemplateColumns:"2fr 1.2fr 1fr 1fr auto",gap:6,marginBottom:6,alignItems:"end"}}>
+            <div key={i} style={{
+              border:"1.5px solid #e5e7eb", borderRadius:12, padding:isWide?0:10, marginBottom:isWide?6:10,
+              background:isWide?"transparent":"#fff",
+              display:isWide?"grid":"block",
+              gridTemplateColumns:isWide?"2fr 1.2fr 1fr 1fr auto":undefined,
+              gap:isWide?6:0, alignItems:isWide?"end":undefined,
+            }}>
               <div style={{ position:"relative" }}>
-                <label style={S.label}>Tên hàng *</label>
+                {(!isWide || true) && <label style={S.label}>Tên hàng *</label>}
                 <input
                   style={{ ...S.input, paddingRight: 32 }}
                   value={dropSearch[i] !== undefined ? dropSearch[i] : item.part_name}
@@ -1327,26 +1350,29 @@ function TransferTab({ user, toast }) {
                     setOpenDrop(i);
                   }}
                   onBlur={() => setTimeout(() => setOpenDrop(v => v === i ? -1 : v), 180)}
-                  placeholder="Gõ để tìm linh kiện..."
+                  placeholder="Gõ tên hoặc SKU để tìm linh kiện..."
                   autoComplete="off"
                 />
-                {/* arrow icon */}
-                <span style={{ position:"absolute", right:10, top:30, fontSize:12, color:"#9ca3af", pointerEvents:"none" }}>▼</span>
+                <span style={{ position:"absolute", right:10, top:isWide?30:26, fontSize:12, color:"#9ca3af", pointerEvents:"none" }}>▼</span>
 
-                {/* Custom dropdown list */}
+                {/* Gợi ý hàng — danh sách cao hơn, hiện rõ SKU · tồn · giá */}
                 {openDrop === i && (() => {
-                  const q = (dropSearch[i] || "").toLowerCase();
+                  const q = (dropSearch[i] || "").toLowerCase().trim();
                   const filtered = partSuggestions.filter(p =>
                     !q || p.name.toLowerCase().includes(q) || (p.sku||"").toLowerCase().includes(q)
-                  ).slice(0, 20);
+                  ).slice(0, 40);
                   if (filtered.length === 0) return null;
                   return (
                     <div style={{
                       position:"absolute", top:"100%", left:0, right:0, zIndex:10000,
-                      background:"#fff", border:"1.5px solid #e5e7eb", borderRadius:10,
-                      boxShadow:"0 8px 24px rgba(0,0,0,.12)", maxHeight:220, overflowY:"auto",
-                      marginTop:2,
+                      background:"#fff", border:"1.5px solid #e5e7eb", borderRadius:12,
+                      boxShadow:"0 12px 32px rgba(0,0,0,.16)", maxHeight:"min(58vh, 440px)", overflowY:"auto",
+                      marginTop:4,
                     }}>
+                      <div style={{ position:"sticky", top:0, background:"#f8fafc", padding:"6px 12px",
+                        fontSize:11, fontWeight:800, color:"#6b7280", borderBottom:"1px solid #e5e7eb" }}>
+                        {filtered.length} linh kiện{q ? ` khớp "${dropSearch[i]}"` : " trong kho"}
+                      </div>
                       {filtered.map((p, idx) => (
                         <div key={idx}
                           onMouseDown={() => {
@@ -1359,18 +1385,18 @@ function TransferTab({ user, toast }) {
                             setDropSearch(prev => ({ ...prev, [i]: undefined }));
                             setOpenDrop(-1);
                           }}
-                          style={{
-                            padding:"10px 14px", cursor:"pointer", borderBottom:"1px solid #f3f4f6",
-                            transition:"background .1s",
-                          }}
+                          style={{ padding:"10px 12px", cursor:"pointer", borderBottom:"1px solid #f3f4f6" }}
                           onMouseEnter={e => e.currentTarget.style.background="#f5f3ff"}
                           onMouseLeave={e => e.currentTarget.style.background="#fff"}
                         >
-                          <div style={{ fontWeight:600, fontSize:13, color:"#1e1b4b", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
-                            {p.name}
-                          </div>
-                          <div style={{ fontSize:11, color:"#6b7280", marginTop:2 }}>
-                            {p.sku ? `SKU: ${p.sku}  •  ` : ""}Tồn: {p.qty}  •  {(p.cost||0).toLocaleString("vi")}đ
+                          <div style={{ fontWeight:600, fontSize:13, color:"#1e1b4b" }}>{p.name}</div>
+                          <div style={{ fontSize:11, color:"#6b7280", marginTop:3, display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+                            {p.sku ? <span style={{ fontFamily:"monospace" }}>{p.sku}</span> : null}
+                            <span style={{ padding:"1px 6px", borderRadius:6, fontSize:10.5, fontWeight:800,
+                              background:Number(p.qty)>0?"#ecfdf5":"#fef2f2", color:Number(p.qty)>0?"#059669":"#dc2626" }}>
+                              Tồn: {p.qty}
+                            </span>
+                            <span>{(p.cost||0).toLocaleString("vi")}đ</span>
                           </div>
                         </div>
                       ))}
@@ -1378,10 +1404,25 @@ function TransferTab({ user, toast }) {
                   );
                 })()}
               </div>
-              <div><label style={S.label}>SKU</label><input style={S.input} value={item.sku} onChange={e=>setItems(p=>p.map((x,j)=>j===i?{...x,sku:e.target.value}:x))} /></div>
-              <div><label style={S.label}>SL *</label><input style={S.input} type="number" min="1" value={item.qty} onChange={e=>setItems(p=>p.map((x,j)=>j===i?{...x,qty:e.target.value}:x))} /></div>
-              <div><label style={S.label}>Đơn giá</label><input style={S.input} type="number" value={item.unit_price} onChange={e=>setItems(p=>p.map((x,j)=>j===i?{...x,unit_price:e.target.value}:x))} /></div>
-              <button onClick={()=>setItems(p=>p.filter((_,j)=>j!==i))} style={{...S.btnSm("#dc2626"),marginBottom:2}}>✕</button>
+
+              <div style={{ display:isWide?"block":"grid",
+                gridTemplateColumns:isWide?undefined:"1.1fr 0.8fr 1fr auto",
+                gap:isWide?0:6, marginTop:isWide?0:8, alignItems:"end" }}>
+                <div>
+                  {!isWide && <label style={S.label}>SKU</label>}
+                  <input style={S.input} value={item.sku} onChange={e=>setItems(p=>p.map((x,j)=>j===i?{...x,sku:e.target.value}:x))} />
+                </div>
+                <div>
+                  <label style={S.label}>SL *</label>
+                  <input style={S.input} type="number" min="1" value={item.qty} onChange={e=>setItems(p=>p.map((x,j)=>j===i?{...x,qty:e.target.value}:x))} />
+                </div>
+                <div>
+                  <label style={S.label}>Đơn giá</label>
+                  <input style={S.input} type="number" value={item.unit_price} onChange={e=>setItems(p=>p.map((x,j)=>j===i?{...x,unit_price:e.target.value}:x))} />
+                </div>
+                <button onClick={()=>setItems(p=>p.filter((_,j)=>j!==i))}
+                  style={{...S.btnSm("#dc2626"), marginBottom:isWide?2:0, height:38, width:isWide?undefined:38, padding:isWide?undefined:0}}>✕</button>
+              </div>
             </div>
           ))}
           <button style={S.btnGhost()} onClick={()=>setItems(p=>[...p,{part_name:"",sku:"",qty:1,unit_price:0}])}>+ Thêm hàng</button>
