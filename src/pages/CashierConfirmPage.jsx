@@ -27,6 +27,7 @@ export default function CashierConfirmPage({ user }) {
   const [tab,setTab]               = useState("pending");
   const [orders,setOrders]         = useState([]);
   const [items,setItems]           = useState({});
+  const [viewing,setViewing]       = useState(null); // đơn đang xem hoá đơn trước khi thu
   const [confirming,setConfirming] = useState(null);
   const [payMethod,setPayMethod]   = useState("");
   const [loading,setLoading]       = useState(false);
@@ -72,6 +73,11 @@ export default function CashierConfirmPage({ user }) {
   const pending  =orders.filter(o=>o.status==="pending_payment");
   // Dùng journal entries làm nguồn truth — chính xác hơn created_date (đơn cũ có thể thiếu field này)
   const doneToday = orders.filter(o => o.status === "completed" && todayPaidIds.has(o.id));
+
+  async function openInvoice(order){
+    setViewing(order);
+    if (!items[order.id]) await loadItems(order.id);
+  }
 
   function openConfirm(order){
     setConfirming(order);
@@ -284,12 +290,17 @@ export default function CashierConfirmPage({ user }) {
               )}
               {/* Nút xác nhận */}
               {isPending&&(
-                <div style={{padding:"10px 16px 14px"}}>
+                <div style={{padding:"10px 16px 14px",display:"flex",gap:10}}>
+                  <button onClick={()=>openInvoice(o)}
+                    style={{flex:"0 0 auto",padding:"13px 16px",borderRadius:12,border:"1.5px solid #059669",
+                      background:"#fff",color:"#047857",fontWeight:800,fontSize:14,cursor:"pointer",whiteSpace:"nowrap"}}>
+                    🧾 Xem hóa đơn
+                  </button>
                   <button onClick={()=>openConfirm(o)} disabled={!canCollect} title={!canCollect?"Bạn không có quyền xác nhận thu tiền":""} style={{opacity:canCollect?1:.45,width:"100%",padding:"13px",borderRadius:12,border:"none",
                     background: o.payment_method==="credit"
                       ? "linear-gradient(135deg,#7c3aed,#6d28d9)"
                       : "linear-gradient(135deg,#059669,#047857)",
-                    color:"#fff",fontWeight:900,fontSize:15,cursor:"pointer",
+                    color:"#fff",fontWeight:900,fontSize:15,cursor:"pointer",flex:1,
                     boxShadow: o.payment_method==="credit"
                       ? "0 4px 12px rgba(124,58,237,.3)"
                       : "0 4px 12px rgba(5,150,105,.3)"}}>
@@ -304,6 +315,95 @@ export default function CashierConfirmPage({ user }) {
           );
         })}
       </div>
+
+      {/* Modal xem hoá đơn trước khi thu tiền */}
+      {viewing && (()=>{
+        const vIts = items[viewing.id] || [];
+        const sumLine = vIts.reduce((a,it)=>a+Number(it.total_price||0),0);
+        const discount = Number(viewing.discount||0);
+        const payable = Number(viewing.total||0) || Math.max(0, sumLine - discount);
+        return (
+          <div style={{position:"fixed",inset:0,zIndex:610,background:"rgba(0,0,0,.55)",display:"flex",
+            alignItems:isPC?"center":"flex-end",justifyContent:"center"}}
+            onClick={e=>e.target===e.currentTarget&&setViewing(null)}>
+            <div style={{background:"#fff",borderRadius:isPC?16:"20px 20px 0 0",width:"100%",maxWidth:480,
+              maxHeight:"88vh",overflowY:"auto",padding:"16px 18px 24px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                <div style={{fontWeight:900,fontSize:16,color:"#1e1b4b"}}>🧾 Hoá đơn {viewing.order_code}</div>
+                <button onClick={()=>setViewing(null)}
+                  style={{border:"none",background:"#f3f4f6",width:30,height:30,borderRadius:"50%",cursor:"pointer",fontSize:15}}>✕</button>
+              </div>
+
+              <div style={{fontSize:13,color:"#374151",lineHeight:1.7,marginBottom:10}}>
+                <div>👤 <b>{viewing.customer_name||"Khách lẻ"}</b>{viewing.customer_phone?" · "+viewing.customer_phone:""}</div>
+                <div style={{color:"#6b7280"}}>🕐 {fmtTime(viewing.created || viewing.created_date || "")}{viewing.seller_name?" · NV bán: "+viewing.seller_name:""}</div>
+                <div style={{color:"#6b7280"}}>💳 {PM_LABELS[viewing.payment_method]||viewing.payment_method||"—"}</div>
+              </div>
+
+              <div style={{border:"1.5px solid #e5e7eb",borderRadius:12,overflow:"hidden",marginBottom:12}}>
+                <div style={{display:"flex",background:"#f9fafb",padding:"8px 12px",fontSize:11.5,fontWeight:800,color:"#6b7280"}}>
+                  <div style={{flex:1}}>Hàng hoá</div>
+                  <div style={{width:44,textAlign:"center"}}>SL</div>
+                  <div style={{width:86,textAlign:"right"}}>Thành tiền</div>
+                </div>
+                {vIts.length===0 && (
+                  <div style={{padding:"14px 12px",fontSize:13,color:"#9ca3af"}}>Đang tải hàng hoá…</div>
+                )}
+                {vIts.map((it,i)=>(
+                  <div key={i} style={{display:"flex",padding:"9px 12px",borderTop:"1px solid #f3f4f6",fontSize:13,alignItems:"flex-start"}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontWeight:600,color:"#1e1b4b"}}>{it.part_name}</div>
+                      <div style={{fontSize:11,color:"#9ca3af"}}>
+                        {it.sku?`SKU ${it.sku} · `:""}{fmtMoney(it.unit_price)}/cái
+                      </div>
+                    </div>
+                    <div style={{width:44,textAlign:"center",fontWeight:700}}>{it.qty}</div>
+                    <div style={{width:86,textAlign:"right",fontWeight:700}}>{fmtMoney(it.total_price)}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{fontSize:13}}>
+                <div style={{display:"flex",justifyContent:"space-between",color:"#6b7280",marginBottom:4}}>
+                  <span>Tiền hàng</span><span>{fmtMoney(sumLine||payable+discount)}</span>
+                </div>
+                {discount>0 && (
+                  <div style={{display:"flex",justifyContent:"space-between",color:"#dc2626",marginBottom:4}}>
+                    <span>Giảm giá</span><span>-{fmtMoney(discount)}</span>
+                  </div>
+                )}
+                <div style={{display:"flex",justifyContent:"space-between",fontWeight:900,fontSize:17,color:"#059669",
+                  borderTop:"1.5px dashed #e5e7eb",paddingTop:8,marginTop:4}}>
+                  <span>Khách phải trả</span><span>{fmtMoney(payable)}</span>
+                </div>
+              </div>
+
+              {(viewing.note||viewing.customer_note) && (
+                <div style={{marginTop:10,fontSize:12.5,color:"#6b7280",background:"#f9fafb",borderRadius:10,padding:"8px 12px"}}>
+                  📝 {viewing.note||viewing.customer_note}
+                </div>
+              )}
+
+              <div style={{display:"flex",gap:10,marginTop:16}}>
+                <button onClick={async()=>{
+                    try{
+                      await printSaleReceiptA5({...viewing, items:vIts});
+                    }catch(e){ alert("Không in được: "+(e.message||e)); }
+                  }}
+                  style={{flex:"0 0 auto",padding:"12px 16px",borderRadius:11,border:"1.5px solid #d1d5db",
+                    background:"#fff",fontWeight:800,fontSize:14,cursor:"pointer"}}>🖨 In</button>
+                <button onClick={()=>{ const o=viewing; setViewing(null); openConfirm(o); }} disabled={!canCollect}
+                  style={{flex:1,padding:"12px 16px",borderRadius:11,border:"none",
+                    background: !canCollect ? "#9ca3af" : (viewing.payment_method==="credit"
+                      ? "linear-gradient(135deg,#7c3aed,#6d28d9)" : "linear-gradient(135deg,#059669,#047857)"),
+                    color:"#fff",fontWeight:900,fontSize:14,cursor:canCollect?"pointer":"not-allowed"}}>
+                  {viewing.payment_method==="credit" ? "📋 Ghi nợ đơn này" : "💰 Thu tiền đơn này"}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Modal xác nhận */}
       {confirming&&(
