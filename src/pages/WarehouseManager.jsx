@@ -1067,6 +1067,34 @@ function TransferTab({ user, toast }) {
     if (form.from_warehouse_id===form.to_warehouse_id) return toast.show("Kho xuất và kho nhận phải khác nhau","error");
     if (items.some(i=>!i.part_name||!i.qty)) return toast.show("Điền đầy đủ thông tin hàng","error");
     const fromWH = warehouses.find(w=>w.id===form.from_warehouse_id);
+
+    // ⛔ Không cho chuyển khi kho xuất đã hết tồn (tồn = 0) hoặc không đủ số lượng
+    {
+      const esc = (v)=>String(v||"").replace(/\\/g,"\\\\").replace(/"/g,'\\"');
+      const need = {};
+      for (const it of items) {
+        const key = String(it.sku || it.part_name || "").trim().toLowerCase();
+        if (!key) continue;
+        if (!need[key]) need[key] = { qty:0, name:it.part_name||"", sku:it.sku||"" };
+        need[key].qty += Number(it.qty)||0;
+      }
+      for (const key of Object.keys(need)) {
+        const g = need[key];
+        const cond = g.sku
+          ? `warehouse_id="${esc(form.from_warehouse_id)}" && (sku="${esc(g.sku)}" || part_name="${esc(g.name)}")`
+          : `warehouse_id="${esc(form.from_warehouse_id)}" && part_name="${esc(g.name)}"`;
+        const rows = await Ledger.filter(cond, { limit: 200 }).catch(()=>[]);
+        const onHand = (rows||[]).reduce((a,r)=>a+(Number(r.qty_on_hand)||0),0);
+        const avail  = (rows||[]).reduce((a,r)=>a+Number(r.qty_available ?? r.qty_on_hand ?? 0),0);
+        if (onHand <= 0) {
+          return toast.show(`⛔ "${g.name}" đã hết tồn trong ${fromWH?.name||"kho xuất"} (tồn = 0) — không thể chuyển`, "error");
+        }
+        if (g.qty > avail) {
+          return toast.show(`⛔ "${g.name}" chỉ còn ${avail} trong ${fromWH?.name||"kho xuất"}, không đủ ${g.qty} để chuyển`, "error");
+        }
+      }
+    }
+
     const toWH   = warehouses.find(w=>w.id===form.to_warehouse_id);
     const totalValue = items.reduce((s,i)=>s+Number(i.qty)*Number(i.unit_price||0),0);
     try {
@@ -1359,6 +1387,26 @@ function TransferTab({ user, toast }) {
                   }))}
                 />
               </div>
+
+              {/* Cảnh báo tồn kho của kho xuất */}
+              {item.part_name && (() => {
+                const st = transferStockOf({ sku:item.sku, name:item.part_name });
+                if (st === null) return null;
+                const q = Number(item.qty)||0;
+                if (st <= 0) return (
+                  <div style={{ marginTop:6, background:"#fef2f2", border:"1.5px solid #fecaca", borderRadius:8,
+                    padding:"6px 10px", fontSize:12.5, fontWeight:700, color:"#dc2626" }}>
+                    ⛔ Kho xuất đã hết tồn (0) — không thể chuyển mặt hàng này
+                  </div>
+                );
+                if (q > st) return (
+                  <div style={{ marginTop:6, background:"#fffbeb", border:"1.5px solid #fde68a", borderRadius:8,
+                    padding:"6px 10px", fontSize:12.5, fontWeight:700, color:"#b45309" }}>
+                    ⚠️ Kho xuất chỉ còn {st}, không đủ {q}
+                  </div>
+                );
+                return null;
+              })()}
 
               <div style={{ display:isWide?"block":"grid",
                 gridTemplateColumns:isWide?undefined:"1.1fr 0.8fr 1fr auto",
