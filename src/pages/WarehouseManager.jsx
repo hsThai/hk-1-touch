@@ -1347,7 +1347,7 @@ function TransferTab({ user, toast }) {
 
       {/* Create modal */}
       {modal && (
-        <Modal title="🔄 Tạo phiếu chuyển kho" onClose={()=>setModal(false)} width={640}>
+        <Modal title="🔄 Tạo phiếu chuyển kho" onClose={()=>setModal(false)} width={820}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
             <Field label="Kho xuất *">
               <select style={S.select} value={form.from_warehouse_id} onChange={e=>setForm(p=>({...p,from_warehouse_id:e.target.value}))}>
@@ -1365,27 +1365,51 @@ function TransferTab({ user, toast }) {
 
           <div style={{fontWeight:700,fontSize:13,color:"#1e1b4b",marginBottom:8}}>Danh sách hàng chuyển</div>
           {items.map((item,i)=>(
-            <div key={i} style={{
-              border:"1.5px solid #e5e7eb", borderRadius:12, padding:isWide?0:10, marginBottom:isWide?6:10,
-              background:isWide?"transparent":"#fff",
-              display:isWide?"grid":"block",
-              gridTemplateColumns:isWide?"2fr 1.2fr 1fr 1fr auto":undefined,
-              gap:isWide?6:0, alignItems:isWide?"end":undefined,
-            }}>
-              <div>
-                <label style={S.label}>Tên hàng *</label>
-                <PartNameInput
-                  value={item.part_name}
-                  parts={partSuggestions.map(p => ({ id:p.part_id, name:p.name, sku:p.sku, cost_price:p.cost }))}
-                  stockOf={transferStockOf}
-                  placeholder="Gõ tên hoặc SKU để tìm linh kiện..."
-                  onChange={(name, p) => setItems(prev => prev.map((x, j) => j !== i ? x : {
-                    ...x,
-                    part_name: name,
-                    sku: p?.sku || x.sku,
-                    unit_price: p?.cost_price || x.unit_price,
-                  }))}
-                />
+            <div key={i} style={{ border:"1.5px solid #e5e7eb", borderRadius:12, padding:10,
+              marginBottom:10, background:isWide?"#fff":"#fff" }}>
+              <div style={{
+                display:isWide?"flex":"block",
+                gap:isWide?8:0, alignItems:"flex-end",
+              }}>
+                <div style={{ flex:isWide?"1 1 260px":undefined, minWidth:0 }}>
+                  <label style={S.label}>Tên hàng *</label>
+                  <PartNameInput
+                    value={item.part_name}
+                    parts={partSuggestions.map(p => ({ id:p.part_id, name:p.name, sku:p.sku, cost_price:p.cost }))}
+                    stockOf={transferStockOf}
+                    placeholder="Gõ tên hoặc SKU để tìm linh kiện..."
+                    onChange={(name, p) => setItems(prev => prev.map((x, j) => j !== i ? x : {
+                      ...x,
+                      part_name: name,
+                      sku: p?.sku || x.sku,
+                      unit_price: p?.cost_price || x.unit_price,
+                    }))}
+                  />
+                </div>
+
+                <div style={{ display:isWide?"flex":"grid",
+                  gridTemplateColumns:isWide?undefined:"1.1fr 0.8fr 1fr auto",
+                  gap:8, marginTop:isWide?0:8, flex:isWide?"0 0 auto":undefined }}>
+                  <div style={{ width:isWide?130:undefined }}>
+                    <label style={S.label}>SKU</label>
+                    <input style={S.input} value={item.sku}
+                      onChange={e=>setItems(p=>p.map((x,j)=>j===i?{...x,sku:e.target.value}:x))} />
+                  </div>
+                  <div style={{ width:isWide?78:undefined }}>
+                    <label style={S.label}>SL *</label>
+                    <input style={S.input} type="number" min="1" value={item.qty}
+                      onChange={e=>setItems(p=>p.map((x,j)=>j===i?{...x,qty:e.target.value}:x))} />
+                  </div>
+                  <div style={{ width:isWide?110:undefined }}>
+                    <label style={S.label}>Đơn giá</label>
+                    <input style={S.input} type="number" value={item.unit_price}
+                      onChange={e=>setItems(p=>p.map((x,j)=>j===i?{...x,unit_price:e.target.value}:x))} />
+                  </div>
+                  <div style={{ display:"flex", alignItems:"flex-end" }}>
+                    <button onClick={()=>setItems(p=>p.filter((_,j)=>j!==i))}
+                      style={{...S.btnSm("#dc2626"), height:38, width:38, padding:0, fontSize:15}}>✕</button>
+                  </div>
+                </div>
               </div>
 
               {/* Cảnh báo tồn kho của kho xuất */}
@@ -1394,38 +1418,19 @@ function TransferTab({ user, toast }) {
                 if (st === null) return null;
                 const q = Number(item.qty)||0;
                 if (st <= 0) return (
-                  <div style={{ marginTop:6, background:"#fef2f2", border:"1.5px solid #fecaca", borderRadius:8,
+                  <div style={{ marginTop:8, background:"#fef2f2", border:"1.5px solid #fecaca", borderRadius:8,
                     padding:"6px 10px", fontSize:12.5, fontWeight:700, color:"#dc2626" }}>
                     ⛔ Kho xuất đã hết tồn (0) — không thể chuyển mặt hàng này
                   </div>
                 );
                 if (q > st) return (
-                  <div style={{ marginTop:6, background:"#fffbeb", border:"1.5px solid #fde68a", borderRadius:8,
+                  <div style={{ marginTop:8, background:"#fffbeb", border:"1.5px solid #fde68a", borderRadius:8,
                     padding:"6px 10px", fontSize:12.5, fontWeight:700, color:"#b45309" }}>
                     ⚠️ Kho xuất chỉ còn {st}, không đủ {q}
                   </div>
                 );
                 return null;
               })()}
-
-              <div style={{ display:isWide?"block":"grid",
-                gridTemplateColumns:isWide?undefined:"1.1fr 0.8fr 1fr auto",
-                gap:isWide?0:6, marginTop:isWide?0:8, alignItems:"end" }}>
-                <div>
-                  {!isWide && <label style={S.label}>SKU</label>}
-                  <input style={S.input} value={item.sku} onChange={e=>setItems(p=>p.map((x,j)=>j===i?{...x,sku:e.target.value}:x))} />
-                </div>
-                <div>
-                  <label style={S.label}>SL *</label>
-                  <input style={S.input} type="number" min="1" value={item.qty} onChange={e=>setItems(p=>p.map((x,j)=>j===i?{...x,qty:e.target.value}:x))} />
-                </div>
-                <div>
-                  <label style={S.label}>Đơn giá</label>
-                  <input style={S.input} type="number" value={item.unit_price} onChange={e=>setItems(p=>p.map((x,j)=>j===i?{...x,unit_price:e.target.value}:x))} />
-                </div>
-                <button onClick={()=>setItems(p=>p.filter((_,j)=>j!==i))}
-                  style={{...S.btnSm("#dc2626"), marginBottom:isWide?2:0, height:38, width:isWide?undefined:38, padding:isWide?undefined:0}}>✕</button>
-              </div>
             </div>
           ))}
           <button style={S.btnGhost()} onClick={()=>setItems(p=>[...p,{part_name:"",sku:"",qty:1,unit_price:0}])}>+ Thêm hàng</button>
@@ -1502,7 +1507,17 @@ function PartNameInput({ value, onChange, parts=[], placeholder="Tên linh kiệ
     return () => { if (timer.current) clearTimeout(timer.current); };
   }, [q]);
 
-  const filtered = remote.length > 0 ? remote : (q ? [] : (parts||[]).slice(0, 15));
+  // Ưu tiên hàng còn tồn trong kho đang chọn, sau đó mới ghép kết quả tìm trong danh mục
+  const term2 = (q || "").toLowerCase().trim();
+  const local = (parts || []).filter(p =>
+    !term2 || String(p.name||"").toLowerCase().includes(term2) || String(p.sku||"").toLowerCase().includes(term2));
+  const merged = [...local];
+  for (const r of (remote || [])) {
+    const k = String(r.sku || r.name || "").trim().toLowerCase();
+    if (merged.some(x => String(x.sku || x.name || "").trim().toLowerCase() === k)) continue;
+    merged.push(r);
+  }
+  const filtered = merged.slice(0, 40);
 
   return (
     <div style={{ position:"relative" }}>
