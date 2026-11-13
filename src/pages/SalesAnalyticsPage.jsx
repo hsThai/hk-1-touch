@@ -7,8 +7,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { SaleOrder, SaleOrderItem, ReturnOrder } from "./pb.jsx";
 import { usePermission } from "./PermissionContext.jsx";
-import * as XLSX from "xlsx";
-import ExportConfirmModal, { buildExcelResult } from "./ExportConfirm.jsx";
+import ExportConfirmModal from "./ExportConfirm.jsx";
 
 function fmtMoney(n) {
   const v = Number(n) || 0;
@@ -247,32 +246,17 @@ export default function SalesAnalyticsPage({ user }) {
     return [r.key, fmtNum(r.orderCount), fmtNum(r.qty), fmtMoney(r.revenue), r.retValue ? "-" + fmtMoney(r.retValue) : "—", fmtMoney(r.net)];
   }
 
-  function exportExcel() {
-    const head = headers.map(h => h[0]);
-    const data = displayed.map(r => {
-      const row = {};
-      const lineItems = [];
-      if (tab === "item") {
-        lineItems.push(r.key, r.name || "—", r.customerCount, r.qty, r.revenue, r.retQty, r.retValue, r.net);
-      } else if (tab === "customer") {
-        lineItems.push(r.name || "—", r.phone || "", r.orderCount, r.qty, r.revenue, r.retQty, r.retValue, r.net);
-      } else if (tab === "seller") {
-        lineItems.push(r.name || "—", r.orderCount, r.qty, r.revenue);
-      } else {
-        lineItems.push(r.key, r.orderCount, r.qty, r.revenue, r.retValue, r.net);
-      }
-      head.forEach((h, i) => { row[h] = lineItems[i]; });
-      return row;
-    });
-    const totalRow = {};
-    head.forEach(h => { totalRow[h] = ""; });
-    totalRow[head[0]] = "TỔNG CỘNG";
-    const ws = XLSX.utils.json_to_sheet(data);
-    XLSX.utils.sheet_add_json(ws, [totalRow], { skipHeader: true, origin: -1 });
-    ws["!cols"] = head.map(h => ({ wch: h === "Tên hàng" || h === "Khách hàng" ? 40 : 16 }));
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Phan tich ban hang");
-    setExportDone(buildExcelResult(wb, `phan-tich-ban-hang_${from}_${to}.xlsx`));
+  async function exportExcel() {
+    try {
+      const { buildSalesAnalyticsXlsx } = await import("../utils/salesAnalyticsExcel.js");
+      const { buffer, fileName } = await buildSalesAnalyticsXlsx({
+        tab, TABS, headers, displayed, totals, from, to, user, fmtMoney, fmtNum,
+      });
+      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      setExportDone({ fileName, url: URL.createObjectURL(blob) });
+    } catch (e) {
+      alert("Không xuất được Excel: " + (e.message || e));
+    }
   }
 
   const chip = (bg, color, text) => (
