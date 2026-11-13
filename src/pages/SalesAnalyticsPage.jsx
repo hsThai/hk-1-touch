@@ -250,7 +250,13 @@ export default function SalesAnalyticsPage({ user }) {
     try {
       const { buildSalesAnalyticsXlsx } = await import("../utils/salesAnalyticsExcel.js");
       const { buffer, fileName } = await buildSalesAnalyticsXlsx({
-        tab, TABS, headers, displayed, totals, from, to, user, fmtMoney, fmtNum,
+        tab,
+        rows: displayed,
+        totals,
+        from, to,
+        user,
+        fmtMoney, fmtNum,
+        tabLabel: TABS.find(t => t.key === tab)?.label || "",
       });
       const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
       setExportDone({ fileName, url: URL.createObjectURL(blob) });
