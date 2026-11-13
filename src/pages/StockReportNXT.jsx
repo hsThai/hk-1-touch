@@ -17,6 +17,17 @@ function getMonthRange(ym) {
   return { from, to };
 }
 
+// Phân loại phát sinh theo loại chứng từ
+const KIND_SALE = ["sale", "sale_out", "export", "out", "issue"];
+const KIND_TRANSFER = ["transfer_in", "transfer_out", "transfer"];
+function classify(mtype, qty) {
+  const t = String(mtype||"").toLowerCase();
+  const dir = Number(qty) < 0 ? "out" : "in";
+  if (KIND_SALE.includes(t)) return "sale_" + (dir === "out" ? "out" : "in");
+  if (KIND_TRANSFER.includes(t)) return t === "transfer_in" ? "transfer_in" : (t === "transfer_out" ? "transfer_out" : "transfer_" + dir);
+  return "other_" + dir;
+}
+
 export default function StockReportNXT({ user }) {
   const { can: canPerm } = usePermission();
   const canExportNXT = !!canPerm("stock_card","export");
@@ -37,6 +48,7 @@ export default function StockReportNXT({ user }) {
   const [summary, setSummary]         = useState({ in:0, out:0, stock:0 });
   const [loading, setLoading]         = useState(true);
   const [search, setSearch]           = useState("");
+  const [kind, setKind]               = useState("all"); // all | sale | transfer | other
   const [selectedItem,  setSelectedItem]  = useState(null);
   const [itemHistory,   setItemHistory]   = useState([]);
   const [histLoading,   setHistLoading]   = useState(false);
@@ -76,17 +88,24 @@ export default function StockReportNXT({ user }) {
       const mvMap = {};
       for (const mv of movements) {
         const key = mv.sku || mv.part_name || mv.id;
-        if (!mvMap[key]) mvMap[key] = { in:0, out:0 };
+        if (!mvMap[key]) mvMap[key] = {
+          in_all:0, out_all:0,
+          sale_in:0, sale_out:0,
+          transfer_in:0, transfer_out:0,
+          other_in:0, other_out:0,
+        };
         const mtype = mv.movement_type || mv.type || "";
         const qty = Number(mv.qty_change || mv.qty || mv.quantity || 0);
-        if (mtype === "import" || mtype === "in"  || mtype === "receive") mvMap[key].in  += Math.abs(qty);
-        if (mtype === "export" || mtype === "out" || mtype === "issue" || mtype === "sale") mvMap[key].out += Math.abs(qty);
+        const abs = Math.abs(qty);
+        const g = classify(mtype, qty);
+        mvMap[key][g] = (mvMap[key][g] || 0) + abs;
+        if (Number(qty) < 0) mvMap[key].out_all += abs; else mvMap[key].in_all += abs;
       }
 
       // Tạo rows
       const result = ledgers.map(l => {
         const key = l.sku || l.part_name || l.id;
-        const mv = mvMap[key] || { in:0, out:0 };
+        const mv = mvMap[key] || {};
         return {
           id:        l.id,
           part_id:   l.part_id || l.id,
@@ -94,8 +113,11 @@ export default function StockReportNXT({ user }) {
           name:      l.part_name || l.name || "—",
           category:  l.category || "",
           unit:      l.unit || "cái",
-          stock_in:  mv.in,
-          stock_out: mv.out,
+          stock_in:  mv.in_all  || 0,
+          stock_out: mv.out_all || 0,
+          sale_in:   mv.sale_in || 0,     sale_out:   mv.sale_out || 0,
+          transfer_in: mv.transfer_in || 0, transfer_out: mv.transfer_out || 0,
+          other_in:  mv.other_in || 0,    other_out:  mv.other_out || 0,
           stock_now: Number(l.qty_on_hand || l.qty_available || 0),
           unit_price:Number(l.cost_price || l.unit_price || 0),
         };
@@ -124,7 +146,12 @@ export default function StockReportNXT({ user }) {
         sort: "-id",
         limit: 200,
       });
-      setItemHistory(hist || []);
+      const list = (hist || []).filter(mv => {
+        if (kind === "all") return true;
+        const g = classify(mv.movement_type || mv.type || "", Number(mv.qty_change||0));
+        return g.startsWith(kind);
+      });
+      setItemHistory(list);
     } catch { setItemHistory([]); }
     setHistLoading(false);
   }
@@ -137,15 +164,13 @@ export default function StockReportNXT({ user }) {
       "Tên hàng": r.name || "",
       "Danh mục": r.category || "",
       "ĐV": r.unit || "",
-      "Nhập tháng": r.stock_in || 0,
-      "Xuất tháng": r.stock_out || 0,
+      ...Object.fromEntries(qtyCols.map(c => [c.label, Number(r[c.key])||0])),
       "Tồn hiện tại": r.stock_now || 0,
       "Đơn giá": r.unit_price || 0,
     }));
     data.push({
       "SKU": "", "Tên hàng": "TỔNG CỘNG", "Danh mục": "", "ĐV": "",
-      "Nhập tháng": displayed.reduce((s2,r) => s2 + (r.stock_in||0), 0),
-      "Xuất tháng": displayed.reduce((s2,r) => s2 + (r.stock_out||0), 0),
+      ...Object.fromEntries(qtyCols.map(c => [c.label, displayed.reduce((s2,r) => s2 + (Number(r[c.key])||0), 0)])),
       "Tồn hiện tại": displayed.reduce((s2,r) => s2 + (r.stock_now||0), 0),
       "Đơn giá": "",
     });
@@ -157,11 +182,33 @@ export default function StockReportNXT({ user }) {
     setExportDone(buildExcelResult(wb, fileName));
   }
 
-  const displayed = rows.filter(r =>
+  const sumBy = (field) => rows.reduce((a,r) => a + (Number(r[field])||0), 0);
+
+  // Bộ lọc phân loại: chỉ giữ mặt hàng có phát sinh đúng loại đang chọn
+  const kindRows = rows.filter(r => {
+    if (kind === "all") return true;
+    if (kind === "sale")     return (r.sale_out||0) > 0 || (r.sale_in||0) > 0;
+    if (kind === "transfer") return (r.transfer_in||0) > 0 || (r.transfer_out||0) > 0;
+    return (r.other_in||0) > 0 || (r.other_out||0) > 0;
+  });
+
+  const displayed = kindRows.filter(r =>
     !search ||
     r.name.toLowerCase().includes(search.toLowerCase()) ||
     r.sku.toLowerCase().includes(search.toLowerCase())
   );
+
+  // Cột số lượng thay đổi theo bộ lọc phân loại
+  const qtyCols = kind === "sale"
+    ? [{ key:"sale_out",   label:"Bán ra",      color:"#dc2626", sign:"-" }]
+    : kind === "transfer"
+    ? [{ key:"transfer_in", label:"Chuyển đến", color:"#059669", sign:"+" },
+       { key:"transfer_out",label:"Chuyển đi",  color:"#1d4ed8", sign:"-" }]
+    : kind === "other"
+    ? [{ key:"other_in",   label:"Nhập khác",   color:"#059669", sign:"+" },
+       { key:"other_out",  label:"Xuất khác",   color:"#dc2626", sign:"-" }]
+    : [{ key:"stock_in",   label:"Nhập tháng",  color:"#059669", sign:"+" },
+       { key:"stock_out",  label:"Xuất tháng",  color:"#dc2626", sign:"-" }];
 
   function SummaryCard({ icon, label, value, bg, color }) {
     return (
@@ -216,11 +263,38 @@ export default function StockReportNXT({ user }) {
         )}
       </div>
 
+      {/* Lọc phân loại phát sinh */}
+      <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:16 }}>
+        {[
+          { k:"all",      label:"Tất cả",      icon:"all_inclusive", color:"#4f46e5" },
+          { k:"sale",     label:"Bán hàng",    icon:"point_of_sale", color:"#dc2626" },
+          { k:"transfer", label:"Điều chuyển", icon:"swap_horiz",    color:"#1d4ed8" },
+          { k:"other",    label:"Khác (lỗi, trả, điều chỉnh)", icon:"more_horiz", color:"#6b7280" },
+        ].map(t => {
+          const active = kind === t.k;
+          return (
+            <button key={t.k} onClick={()=>setKind(t.k)}
+              style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 14px",
+                borderRadius:20, cursor:"pointer", fontSize:13, fontWeight:800,
+                border:`1.5px solid ${active ? t.color : "#e5e7eb"}`,
+                background: active ? t.color : "#fff",
+                color: active ? "#fff" : "#374151" }}>
+              <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:16 }}>{t.icon}</span>
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Summary cards */}
       <div style={{ display:"flex", gap:12, marginBottom:20, flexWrap:"wrap" }}>
-        <SummaryCard icon="📥" label="Tổng nhập tháng" value={summary.in + " sp"}
-          bg="#f0fdf4" color="#059669" />
-        <SummaryCard icon="📤" label="Tổng xuất tháng" value={summary.out + " sp"}
+        {kind !== "sale" && (
+          <SummaryCard icon="📥" label={kind==="transfer" ? "Chuyển đến" : kind==="other" ? "Nhập khác" : "Tổng nhập tháng"}
+            value={(kind==="transfer" ? sumBy("transfer_in") : kind==="other" ? sumBy("other_in") : summary.in) + " sp"}
+            bg="#f0fdf4" color="#059669" />
+        )}
+        <SummaryCard icon="📤" label={kind==="sale" ? "Tổng bán ra" : kind==="transfer" ? "Chuyển đi" : kind==="other" ? "Xuất khác" : "Tổng xuất tháng"}
+          value={(kind==="sale" ? sumBy("sale_out") : kind==="transfer" ? sumBy("transfer_out") : kind==="other" ? sumBy("other_out") : summary.out) + " sp"}
           bg="#fef2f2" color="#dc2626" />
         <SummaryCard icon="📦" label="Tồn hiện tại" value={summary.stock + " sp"}
           bg="#eff6ff" color="#1d4ed8" />
@@ -244,7 +318,8 @@ export default function StockReportNXT({ user }) {
               <tr style={{ background:"#f8fafc" }}>
                 {[
                   ["SKU","left"],["Tên hàng","left"],["ĐV","center"],
-                  ["Nhập tháng","right"],["Xuất tháng","right"],["Tồn hiện tại","right"],
+                  ...qtyCols.map(c => [c.label,"right"]),
+                  ["Tồn hiện tại","right"],
                   ["Đơn giá","right"],["Thẻ kho","center"],
                 ].map(([h, align]) => (
                   <th key={h} style={{ padding:"10px 12px", textAlign:align,
@@ -273,14 +348,15 @@ export default function StockReportNXT({ user }) {
                   <td style={{ padding:"9px 12px", textAlign:"center", color:"#6b7280" }}>
                     {r.unit}
                   </td>
-                  <td style={{ padding:"9px 12px", textAlign:"right",
-                    color: r.stock_in>0 ? "#059669" : "#9ca3af", fontWeight:600 }}>
-                    {r.stock_in > 0 ? `+${r.stock_in}` : "—"}
-                  </td>
-                  <td style={{ padding:"9px 12px", textAlign:"right",
-                    color: r.stock_out>0 ? "#dc2626" : "#9ca3af", fontWeight:600 }}>
-                    {r.stock_out > 0 ? `-${r.stock_out}` : "—"}
-                  </td>
+                  {qtyCols.map(c => {
+                    const v = Number(r[c.key]) || 0;
+                    return (
+                      <td key={c.key} style={{ padding:"9px 12px", textAlign:"right",
+                        color: v > 0 ? c.color : "#9ca3af", fontWeight:600, whiteSpace:"nowrap" }}>
+                        {v > 0 ? `${c.sign}${v}` : "—"}
+                      </td>
+                    );
+                  })}
                   <td style={{ padding:"9px 12px", textAlign:"right",
                     fontWeight:700, color:"#1d4ed8" }}>
                     {r.stock_now}
