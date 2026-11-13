@@ -33,7 +33,7 @@ const RESOURCE_META = {
   stock_export:       { label:"Menu Xuất kho",                   module:"Kho & Vật tư", icon:"outbox", actions:["can_view"] },
   pack_order:         { label:"Menu Soạn hàng & Giao nhận · Soạn hàng", module:"Kho & Vật tư", icon:"inventory", actions:["can_view","can_edit"] },
   ship_order:         { label:"Menu Soạn hàng & Giao nhận · Giao nhận", module:"Kho & Vật tư", icon:"local_shipping", actions:["can_view","can_edit"] },
-  stock_card:         { label:"Menu Thẻ kho (NXT)",              module:"Kho & Vật tư", icon:"assessment", actions:["can_view","can_export"] },
+  stock_card:         { label:"Menu Xuất Nhập Tồn",              module:"Kho & Vật tư", icon:"assessment", actions:["can_view","can_export"] },
   stock_count:        { label:"Menu Kiểm kê kho",                module:"Kho & Vật tư", icon:"fact_check", actions:["can_view","can_create","can_edit","can_approve"] },
   wh_defect:          { label:"Menu LK lỗi / RMA",               module:"Kho & Vật tư", icon:"warning", actions:["can_view","can_create"] },
   wh_shipping:        { label:"Menu Vận đơn",                    module:"Kho & Vật tư", icon:"local_shipping", actions:["can_view"] },
