@@ -4,9 +4,40 @@ import * as XLSX from "xlsx";
 import ExportConfirmModal, { buildExcelResult } from "./ExportConfirm.jsx";
 import { usePermission } from "./PermissionContext.jsx";
 
+const MV_LABELS = {
+  import:      { label: "📥 Nhập kho",      bg: "#dcfce7", color: "#059669" },
+  in:          { label: "📥 Nhập kho",      bg: "#dcfce7", color: "#059669" },
+  receive:     { label: "📥 Nhập kho",      bg: "#dcfce7", color: "#059669" },
+  sale:        { label: "🛒 Bán hàng",      bg: "#fee2e2", color: "#dc2626" },
+  export:      { label: "📤 Xuất kho",      bg: "#fee2e2", color: "#dc2626" },
+  out:         { label: "📤 Xuất kho",      bg: "#fee2e2", color: "#dc2626" },
+  issue:       { label: "📤 Xuất kho",      bg: "#fee2e2", color: "#dc2626" },
+  transfer_in: { label: "🔄 Nhận chuyển",   bg: "#dbeafe", color: "#1d4ed8" },
+  transfer_out:{ label: "🔄 Chuyển đi",     bg: "#ede9fe", color: "#6d28d9" },
+  defect:      { label: "⚠️ Hàng lỗi",      bg: "#fef3c7", color: "#b45309" },
+  rma_out:     { label: "📤 Trả NCC",       bg: "#fee2e2", color: "#b91c1c" },
+  rma_cancel:  { label: "↩️ Huỷ trả NCC",   bg: "#dcfce7", color: "#059669" },
+  return_in:   { label: "↩️ Khách trả",     bg: "#d1fae5", color: "#047857" },
+  adjust:      { label: "⚖️ Điều chỉnh",    bg: "#fef9c3", color: "#ca8a04" },
+  count_adjust:{ label: "⚖️ Kiểm kê",       bg: "#fef9c3", color: "#ca8a04" },
+  combo_pick:  { label: "🎁 Xuất combo",    bg: "#fce7f3", color: "#be185d" },
+};
+function mvInfo(t) {
+  const k = String(t || "").toLowerCase();
+  return MV_LABELS[k] || { label: "• " + (t || "Khác"), bg: "#f3f4f6", color: "#6b7280" };
+}
+
+function fmtNum(n) { return (Number(n) || 0).toLocaleString("vi-VN"); }
+
 function fmtMoney(n) {
   if (!n) return "0đ";
   return Number(n).toLocaleString("vi-VN") + "đ";
+}
+
+function addDays(iso, n) {
+  const [y, m, d] = String(iso).split("-").map(Number);
+  const dt = new Date(y, m - 1, d + n);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
 }
 
 function getMonthRange(ym) {
@@ -67,22 +98,23 @@ export default function StockReportNXT({ user }) {
 
       // Ledger (tồn hiện tại)
       const ledgerFilter = warehouseId !== "all" ? `warehouse_id="${warehouseId}"` : "";
-      const ledgers = await StockLedger.list({
-        filter: ledgerFilter,
-        sort: "part_name",
-        limit: 500,
-      });
+      const ledgers = await StockLedger.listAll({ filter: ledgerFilter, sort: "part_name" });
 
       // Movements trong tháng
       const mvParts = [
         `created_date>="${from}"`,
-        `created_date<="${to} 23:59:59"`,
+        `created_date<="${addDays(to, 1)}"`,
       ];
       if (warehouseId !== "all") mvParts.push(`warehouse_id="${warehouseId}"`);
-      const movements = await StockMovement.list({
+      const movementsAll = await StockMovement.listAll({
         filter: mvParts.join(" && "),
-        limit: 500,
+        sort: "-created_date",
       }).catch(() => []);
+      // Lọc lại theo đúng ngày ở client (dữ liệu có thể ở dạng "YYYY-MM-DD HH:mm:ss" hoặc ISO)
+      const movements = (movementsAll || []).filter(mv => {
+        const d = String(mv.created_date || mv.created || "").slice(0, 10);
+        return d >= from && d <= to;
+      });
 
       // Group movements
       const mvMap = {};
@@ -102,24 +134,40 @@ export default function StockReportNXT({ user }) {
         if (Number(qty) < 0) mvMap[key].out_all += abs; else mvMap[key].in_all += abs;
       }
 
-      // Tạo rows
-      const result = ledgers.map(l => {
+      // Gộp tồn kho theo SKU (khi xem "Tất cả kho", một SKU có thể nằm ở nhiều kho)
+      const ledgerMap = new Map();
+      for (const l of (ledgers || [])) {
         const key = l.sku || l.part_name || l.id;
+        const cur = ledgerMap.get(key);
+        const qty = Number(l.qty_on_hand || l.qty_available || 0);
+        if (!cur) {
+          ledgerMap.set(key, {
+            id: l.id,
+            part_id: l.part_id || l.id,
+            sku: l.sku || "—",
+            name: l.part_name || l.name || "—",
+            category: l.category || "",
+            unit: l.unit || "cái",
+            stock_now: qty,
+            unit_price: Number(l.cost_price || l.unit_price || 0),
+          });
+        } else {
+          cur.stock_now += qty;
+          if (!cur.unit_price) cur.unit_price = Number(l.cost_price || l.unit_price || 0);
+        }
+      }
+
+      // Tạo rows
+      const result = [...ledgerMap.values()].map(l => {
+        const key = l.sku || l.name || l.id;
         const mv = mvMap[key] || {};
         return {
-          id:        l.id,
-          part_id:   l.part_id || l.id,
-          sku:       l.sku || "—",
-          name:      l.part_name || l.name || "—",
-          category:  l.category || "",
-          unit:      l.unit || "cái",
+          ...l,
           stock_in:  mv.in_all  || 0,
           stock_out: mv.out_all || 0,
-          sale_in:   mv.sale_in || 0,     sale_out:   mv.sale_out || 0,
-          transfer_in: mv.transfer_in || 0, transfer_out: mv.transfer_out || 0,
-          other_in:  mv.other_in || 0,    other_out:  mv.other_out || 0,
-          stock_now: Number(l.qty_on_hand || l.qty_available || 0),
-          unit_price:Number(l.cost_price || l.unit_price || 0),
+          sale_in:   mv.sale_in || 0,        sale_out:   mv.sale_out || 0,
+          transfer_in: mv.transfer_in || 0,  transfer_out: mv.transfer_out || 0,
+          other_in:  mv.other_in || 0,       other_out:  mv.other_out || 0,
         };
       });
 
@@ -142,7 +190,7 @@ export default function StockReportNXT({ user }) {
     setHistLoading(true);
     try {
       const hist = await StockMovement.list({
-        filter: `part_id="${item.part_id||item.spare_part_id||item.id}"`,
+        filter: `part_id="${item.part_id||item.spare_part_id||item.id}"${item.sku && item.sku !== "—" ? ` || sku="${item.sku}"` : ""}`,
         sort: "-id",
         limit: 200,
       });
@@ -192,11 +240,13 @@ export default function StockReportNXT({ user }) {
     return (r.other_in||0) > 0 || (r.other_out||0) > 0;
   });
 
-  const displayed = kindRows.filter(r =>
+  const MAX_ROWS = 400;
+  const allDisplayed = kindRows.filter(r =>
     !search ||
     r.name.toLowerCase().includes(search.toLowerCase()) ||
     r.sku.toLowerCase().includes(search.toLowerCase())
   );
+  const displayed = allDisplayed.slice(0, MAX_ROWS);
 
   // Cột số lượng thay đổi theo bộ lọc phân loại
   const qtyCols = kind === "sale"
@@ -301,6 +351,12 @@ export default function StockReportNXT({ user }) {
       </div>
 
       {/* Table */}
+      {!loading && allDisplayed.length > displayed.length && (
+        <div style={{ textAlign:"center", fontSize:12, color:"#9ca3af", marginBottom:8 }}>
+          Đang hiện {MAX_ROWS} trong {fmtNum(allDisplayed.length)} mặt hàng — dùng ô tìm kiếm để lọc tiếp.
+        </div>
+      )}
+
       {loading ? (
         <div style={{ textAlign:"center", padding:40, color:"#9ca3af" }}>⏳ Đang tải...</div>
       ) : displayed.length === 0 ? (
@@ -375,18 +431,21 @@ export default function StockReportNXT({ user }) {
               ))}
             </tbody>
             <tfoot>
-              <tr style={{ background:"#f1f5f9", fontWeight:700 }}>
-                <td colSpan={3} style={{ padding:"10px 12px", color:"#374151" }}>
-                  Tổng ({displayed.length} mặt hàng)
+              <tr style={{ background:"#f1f5f9", borderTop:"2px solid #e2e8f0" }}>
+                <td colSpan={3} style={{ padding:"10px 12px", fontWeight:800, color:"#1e1b4b" }}>
+                  Tổng ({fmtNum(displayed.length)} mặt hàng)
                 </td>
-                <td style={{ padding:"10px 12px", textAlign:"right", color:"#059669" }}>
-                  +{displayed.reduce((s,r)=>s+r.stock_in,0)}
-                </td>
-                <td style={{ padding:"10px 12px", textAlign:"right", color:"#dc2626" }}>
-                  -{displayed.reduce((s,r)=>s+r.stock_out,0)}
-                </td>
-                <td style={{ padding:"10px 12px", textAlign:"right", color:"#1d4ed8" }}>
-                  {displayed.reduce((s,r)=>s+r.stock_now,0)}
+                {qtyCols.map(c => {
+                  const v = displayed.reduce((a, r) => a + (Number(r[c.key]) || 0), 0);
+                  return (
+                    <td key={c.key} style={{ padding:"10px 12px", textAlign:"right", fontWeight:800,
+                      color: v ? c.color : "#9ca3af" }}>
+                      {v ? `${c.sign}${fmtNum(v)}` : "—"}
+                    </td>
+                  );
+                })}
+                <td style={{ padding:"10px 12px", textAlign:"right", fontWeight:800, color:"#1d4ed8" }}>
+                  {fmtNum(displayed.reduce((a, r) => a + (Number(r.stock_now) || 0), 0))}
                 </td>
                 <td />
                 <td />
@@ -440,18 +499,20 @@ export default function StockReportNXT({ user }) {
                           {new Date(h.created_date||h.created).toLocaleDateString("vi-VN")}
                         </td>
                         <td style={{ padding:"8px 10px" }}>
-                          <span style={{
-                            padding:"2px 8px", borderRadius:12, fontSize:11, fontWeight:700,
-                            background: h.movement_type==="in"?"#dcfce7": h.movement_type==="out"?"#fee2e2":"#fef9c3",
-                            color:      h.movement_type==="in"?"#059669": h.movement_type==="out"?"#dc2626":"#ca8a04",
-                          }}>
-                            {h.movement_type==="in"?"📥 Nhập": h.movement_type==="out"?"📤 Xuất":"🔄 Điều chuyển"}
-                          </span>
+                          {(() => {
+                            const info = mvInfo(h.movement_type);
+                            return (
+                              <span style={{
+                                padding:"2px 8px", borderRadius:12, fontSize:11, fontWeight:700,
+                                background: info.bg, color: info.color, whiteSpace:"nowrap",
+                              }}>{info.label}</span>
+                            );
+                          })()}
                         </td>
                         <td style={{ padding:"8px 10px", color:"#6b7280" }}>{h.note || h.reason || "—"}</td>
                         <td style={{ padding:"8px 10px", textAlign:"right", fontWeight:700,
-                          color: h.movement_type==="in"?"#059669":"#dc2626" }}>
-                          {h.movement_type==="in"?"+":"-"}{Math.abs(h.qty_change||h.quantity||0)}
+                          color: Number(h.qty_change||0) < 0 ? "#dc2626" : "#059669" }}>
+                          {Number(h.qty_change||0) < 0 ? "-" : "+"}{Math.abs(Number(h.qty_change||h.quantity||0))}
                         </td>
                         <td style={{ padding:"8px 10px", textAlign:"right", fontWeight:600 }}>
                           {h.qty_after ?? "—"}
