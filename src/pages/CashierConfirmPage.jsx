@@ -305,15 +305,16 @@ export default function CashierConfirmPage({ user, focusOrder, onFocusDone }) {
               {isPending&&(
                 <div style={{padding:"10px 16px 14px",display:"flex",gap:10}}>
                   <button onClick={()=>openInvoice(o)}
-                    style={{flex:"0 0 auto",padding:"13px 16px",borderRadius:12,border:"1.5px solid #059669",
-                      background:"#fff",color:"#047857",fontWeight:800,fontSize:14,cursor:"pointer",whiteSpace:"nowrap"}}>
+                    style={{flex:"0 0 auto",height:46,minHeight:46,padding:"0 16px",borderRadius:12,border:"1.5px solid #059669",
+                      background:"#fff",color:"#047857",fontWeight:900,fontSize:14,cursor:"pointer",whiteSpace:"nowrap",
+                      display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
                     🧾 Xem hóa đơn
                   </button>
-                  <button onClick={()=>openConfirm(o)} disabled={!canCollect} title={!canCollect?"Bạn không có quyền xác nhận thu tiền":""} style={{opacity:canCollect?1:.45,width:"100%",padding:"13px",borderRadius:12,border:"none",
+                  <button onClick={()=>openConfirm(o)} disabled={!canCollect} title={!canCollect?"Bạn không có quyền xác nhận thu tiền":""} style={{opacity:canCollect?1:.45,flex:1,height:46,minHeight:46,padding:"0 14px",borderRadius:12,border:"none",
                     background: o.payment_method==="credit"
                       ? "linear-gradient(135deg,#7c3aed,#6d28d9)"
                       : "linear-gradient(135deg,#059669,#047857)",
-                    color:"#fff",fontWeight:900,fontSize:15,cursor:"pointer",flex:1,
+                    color:"#fff",fontWeight:900,fontSize:14.5,cursor:"pointer",lineHeight:1.1,
                     boxShadow: o.payment_method==="credit"
                       ? "0 4px 12px rgba(124,58,237,.3)"
                       : "0 4px 12px rgba(5,150,105,.3)"}}>

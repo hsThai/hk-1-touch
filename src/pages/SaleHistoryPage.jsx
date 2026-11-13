@@ -87,6 +87,11 @@ function CopyCodeButton({ code, size = 16 }) {
 }
 
 function DetailContent({ detail, detailItems, onClose, user, onCollect, canCollect }) {
+  // Nút hành động: cùng chiều cao, cùng cỡ chữ, chia đều bề ngang
+  const actBtn = { flex:"1 1 0", minWidth:108, height:44, borderRadius:12, fontSize:13.5, fontWeight:800,
+    cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+    whiteSpace:"nowrap", padding:"0 10px", lineHeight:1.1 };
+  const actIcon = { fontFamily:"Material Icons", fontSize:17, lineHeight:1 };
   const sb = statusBadge(detail.status);
   const subtotal = detail.subtotal ?? detailItems.reduce((s,i)=>s+(i.total_price||0),0);
   const [showReturnForm, setShowReturnForm] = useState(false);
@@ -250,28 +255,25 @@ function DetailContent({ detail, detailItems, onClose, user, onCollect, canColle
       </div>
 
       {/* Block 5 — Actions */}
-      <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
+      <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
         {detail.status === "pending_payment" && canCollect && (
           <button onClick={()=>onCollect && onCollect(detail)}
-            style={{ flex:"1 1 130px", height:42, borderRadius:12, border:"none",
-              background:"linear-gradient(135deg,#059669,#047857)", color:"#fff",
-              fontWeight:800, fontSize:13, cursor:"pointer" }}>
-            💰 Thu tiền
+            style={{...actBtn, border:"1.5px solid #047857", background:"linear-gradient(135deg,#059669,#047857)", color:"#fff"}}>
+            <span className="material-icons" style={{...actIcon}}>payments</span>
+            Thu tiền
           </button>
         )}
         {detailItems.length > 0 && (
           <button onClick={()=>reprintOrder(detail, detailItems)}
-            style={{ flex:1, height:42, borderRadius:12, border:"1.5px solid #bfdbfe",
-              background:"#eff6ff", color:"#1d4ed8", fontWeight:800, fontSize:13, cursor:"pointer" }}>
-            🖨️ In lại hóa đơn
+            style={{...actBtn, border:"1.5px solid #bfdbfe", background:"#eff6ff", color:"#1d4ed8"}}>
+            <span className="material-icons" style={{...actIcon}}>print</span>
+            In lại hóa đơn
           </button>
         )}
         {canReturn && (
           <button onClick={()=>setShowReturnForm(true)}
-            style={{ flex:1, height:42, borderRadius:12, border:"1.5px solid #fde68a",
-              background:"#fffbeb", color:"#b45309", fontWeight:800, fontSize:13, cursor:"pointer",
-              display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
-            <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:16 }}>swap_horiz</span>
+            style={{...actBtn, border:"1.5px solid #fde68a", background:"#fffbeb", color:"#b45309"}}>
+            <span className="material-icons" style={{...actIcon}}>swap_horiz</span>
             Đổi Trả
           </button>
         )}
