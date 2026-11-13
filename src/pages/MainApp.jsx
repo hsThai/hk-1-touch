@@ -425,10 +425,11 @@ const MGR_ACCORDIONS = [
     key: "acc_report",
     icon: "bar_chart",
     label: "Báo cáo",
-    pages: ["revenue","report_profit","report_staff","report_debt","stock_nxt"],
+    pages: ["revenue","report_profit","sale_analytics","report_staff","report_debt","stock_nxt"],
     items: [
-      { key:"revenue",       icon:"bar_chart",   label:"Doanh thu" },
-      { key:"report_profit", icon:"trending_up", label:"Lợi nhuận" },
+      { key:"revenue",        icon:"bar_chart",   label:"Doanh thu" },
+      { key:"report_profit",  icon:"trending_up", label:"Lợi nhuận" },
+      { key:"sale_analytics", icon:"insights",    label:"Phân tích bán hàng" },
       { key:"report_staff",  icon:"people",      label:"KPI Nhân viên" },
       { key:"report_debt",   icon:"credit_card", label:"Công nợ khách hàng" },
       { key:"stock_nxt",     icon:"assessment",  label:"Xuất Nhập Tồn" },
@@ -1731,6 +1732,8 @@ function MainAppContent({ onUserChange }) {
       items.push({ key:"wh_export",   icon:"outbox",          label:"Xuất kho" });
     if ((can("pack_order","view") || can("ship_order","view")) && !isManager)
       items.push({ key:"pack_ship",   icon:"inventory",       label:"Soạn hàng & Giao" });
+    if (can("pos_orders","view") && !isManager && !isKtv)
+      items.push({ key:"sale_analytics", icon:"insights",     label:"Phân tích bán hàng" });
     if (can("stock_card","view") && !isManager)
       items.push({ key:"stock_nxt",   icon:"assessment",      label:"Xuất Nhập Tồn" });
     if (can("stock_count","view") && !isManager && !isRoleHome)
@@ -2340,6 +2343,7 @@ function MainAppContent({ onUserChange }) {
     "wh_orders":        { label:"📦 Đơn kho",                 grad:["#0284c7","#0369a1"] },
     "wh_export":        { label:"📤 Xuất kho",                 grad:["#0284c7","#0369a1"] },
     "wh_import":        { label:"📥 Nhập kho",                 grad:["#0284c7","#0369a1"] },
+    "sale_analytics":   { label:"📈 Phân tích bán hàng",       grad:["#4f46e5","#4338ca"] },
     "stock_nxt":        { label:"📊 Báo cáo Nhập-Xuất-Tồn",   grad:["#0284c7","#0369a1"] },
     "stock_count":      { label:"✅ Kiểm kê kho",             grad:["#0284c7","#0369a1"] },
     "purchase_order":   { label:"🛒 Đặt hàng NCC",            grad:["#d97706","#b45309"] },
@@ -2401,6 +2405,7 @@ function MainAppContent({ onUserChange }) {
                   "wh_manager":        "📦 Kho & Vật tư",
                   "wh_ledger":         "📦 Kho & Vật tư",
                   "wh_export":         "📦 Kho & Vật tư",
+                  "sale_analytics":     "📊 Báo cáo",
                   "stock_nxt":          "📦 Kho & Vật tư",
                   "stock_count":        "📦 Kho & Vật tư",
                   "wh_defect":         "📦 Kho & Vật tư",
@@ -2708,7 +2713,8 @@ function MainAppContent({ onUserChange }) {
                     "wh_manager":        "📦 Kho & Vật tư",
                     "wh_ledger":         "📦 Kho & Vật tư",
                     "wh_export":         "📦 Kho & Vật tư",
-                    "stock_nxt":          "📦 Kho & Vật tư",
+                    "sale_analytics":     "📊 Báo cáo",
+                  "stock_nxt":          "📦 Kho & Vật tư",
                     "stock_count":        "📦 Kho & Vật tư",
                     "wh_defect":         "📦 Kho & Vật tư",
                     "wh_shipping":       "📦 Kho & Vật tư",

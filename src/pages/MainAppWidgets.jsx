@@ -16,6 +16,7 @@ export const PAGE_PERMS = {
   combo:           ["combo", "view"],
   revenue:         ["revenue_report", "view"],
   stock_nxt:       ["stock_card", "view"],
+  sale_analytics:  ["pos_orders", "view"],
   expense:         ["expense", "view"],
   rma:             ["stock_import", "view"],
   cash_journal:    ["cash_journal", "view"],
@@ -141,6 +142,7 @@ const ComboPage = lazy(() => import("./ComboPage.jsx").catch(() => ({
   default: () => <div style={{ padding: 40, textAlign: "center", color: "#9ca3af" }}>⚠️ Lỗi tải Combo sản phẩm</div>
 })));
 const RevenueReportPage = lazy(() => import("./RevenueReportPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Doanh thu</div> })));
+const SalesAnalyticsPage = lazy(() => import("./SalesAnalyticsPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Phân tích bán hàng</div> })));
 const StockReportNXT  = lazy(() => import("./StockReportNXT.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Thẻ kho</div> })));
 const IntegrationsPage = lazy(() => import("./IntegrationsPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Tích hợp</div> })));
 const ActionLogPage   = lazy(() => import("./ActionLogPage.jsx").catch(()=>({ default: ()=><div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⚠️ Lỗi tải Nhật ký</div> })));
@@ -173,6 +175,10 @@ export function renderSalesPages(page, user, can) {
       {page === "revenue" && user && (can && !can("revenue_report","view")
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
         : <Suspense fallback={<Loading />}><RevenueReportPage user={user} /></Suspense>
+      )}
+      {page === "sale_analytics" && user && (can && !can("pos_orders","view")
+        ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12}}>lock</span>Bạn không có quyền xem Phân tích bán hàng</div>
+        : <Suspense fallback={<Loading />}><SalesAnalyticsPage user={user} /></Suspense>
       )}
       {page === "stock_nxt" && (can && !can("stock_card","view")
         ? <div style={{padding:60,textAlign:"center",color:"#9ca3af"}}><span className="material-icons" style={{fontSize:64,display:"block",marginBottom:12,color:"#ef4444"}}>lock</span>Không có quyền truy cập</div>
