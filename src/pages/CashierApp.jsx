@@ -493,6 +493,7 @@ export default function CashierApp({ user, onNotif, onQRScan, notifCount=0, forc
     setTab(next);
   }
   const [SaleOrderPage, setSaleOrderPage]             = useState(null);
+  const [collectFocus, setCollectFocus]               = useState(null); // đơn cần thu tiền (từ tab Đơn hàng)
   const [CashierConfirmPage, setCashierConfirmPage]   = useState(null);
   const [SaleHistoryPage, setSaleHistoryPage]         = useState(null);
 
@@ -623,8 +624,12 @@ export default function CashierApp({ user, onNotif, onQRScan, notifCount=0, forc
       {/* Nội dung tab */}
       <div style={{ maxWidth: tab==="shift" ? 900 : "100%", margin:"0 auto", padding: (tab==="sale") ? 0 : "20px 24px 60px" }}>
         {tab === "sale"    && (can("pos_sale","create")||can("pos_sale","edit")) && (SaleOrderPage     ? <SaleOrderPage user={user} />     : <Fallback />)}
-        {tab === "history" && can("pos_orders","view") && (SaleHistoryPage    ? <SaleHistoryPage user={user} />     : <Fallback />)}
-        {tab === "confirm" && can("pos_collect","view") && (CashierConfirmPage ? <CashierConfirmPage user={user} /> : <Fallback />)}
+        {tab === "history" && can("pos_orders","view") && (SaleHistoryPage
+          ? <SaleHistoryPage user={user} onCollect={(o)=>{ setCollectFocus(o); setTab("confirm"); }} />
+          : <Fallback />)}
+        {tab === "confirm" && can("pos_collect","view") && (CashierConfirmPage
+          ? <CashierConfirmPage user={user} focusOrder={collectFocus} onFocusDone={()=>setCollectFocus(null)} />
+          : <Fallback />)}
         {tab === "shift"   && can("pos_reconcile","view") && <ShiftReconcilePage user={user} />}
       </div>
 

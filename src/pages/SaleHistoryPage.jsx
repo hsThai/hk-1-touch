@@ -86,7 +86,7 @@ function CopyCodeButton({ code, size = 16 }) {
   );
 }
 
-function DetailContent({ detail, detailItems, onClose, user }) {
+function DetailContent({ detail, detailItems, onClose, user, onCollect, canCollect }) {
   const sb = statusBadge(detail.status);
   const subtotal = detail.subtotal ?? detailItems.reduce((s,i)=>s+(i.total_price||0),0);
   const [showReturnForm, setShowReturnForm] = useState(false);
@@ -250,7 +250,15 @@ function DetailContent({ detail, detailItems, onClose, user }) {
       </div>
 
       {/* Block 5 — Actions */}
-      <div style={{ display:"flex", gap:10 }}>
+      <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
+        {detail.status === "pending_payment" && canCollect && (
+          <button onClick={()=>onCollect && onCollect(detail)}
+            style={{ flex:"1 1 130px", height:42, borderRadius:12, border:"none",
+              background:"linear-gradient(135deg,#059669,#047857)", color:"#fff",
+              fontWeight:800, fontSize:13, cursor:"pointer" }}>
+            💰 Thu tiền
+          </button>
+        )}
         {detailItems.length > 0 && (
           <button onClick={()=>reprintOrder(detail, detailItems)}
             style={{ flex:1, height:42, borderRadius:12, border:"1.5px solid #bfdbfe",
@@ -291,11 +299,12 @@ function DetailContent({ detail, detailItems, onClose, user }) {
   );
 }
 
-export default function SaleHistoryPage({ user }) {
+export default function SaleHistoryPage({ user, onCollect }) {
   const { can: canPerm } = usePermission();
   const canExportSale = !!canPerm("sale_order","export");
   const [exportDone, setExportDone] = useState(null);
   const canEditOrd = !!canPerm("pos_orders","edit"); // Sửa / Huỷ / Xác nhận đơn nháp
+  const canCollect = !!canPerm("pos_collect","approve"); // Thu tiền đơn chờ thanh toán
   const [orders, setOrders]           = useState([]);
   const [loading, setLoading]         = useState(true);
   const [search, setSearch]           = useState("");
@@ -622,7 +631,7 @@ export default function SaleHistoryPage({ user }) {
             {detail ? (
               <div style={{ background:"#fff", border:"1.5px solid #e5e7eb", borderRadius:20,
                 maxHeight:"calc(100vh - 60px)", overflowY:"auto" }}>
-                <DetailContent detail={detail} detailItems={detailItems} onClose={closeDetail} user={user} />
+                <DetailContent detail={detail} detailItems={detailItems} onClose={closeDetail} user={user} onCollect={onCollect} canCollect={canCollect} />
               </div>
             ) : (
               <div style={{ background:"#f9fafb", borderRadius:16, border:"1.5px dashed #e5e7eb",
@@ -642,7 +651,7 @@ export default function SaleHistoryPage({ user }) {
           <div style={{ background:"#fff", borderRadius:"20px 20px 0 0", width:"100%",
             maxHeight:"90vh", overflowY:"auto" }}
             onClick={e=>e.stopPropagation()}>
-            <DetailContent detail={detail} detailItems={detailItems} onClose={closeDetail} user={user} />
+            <DetailContent detail={detail} detailItems={detailItems} onClose={closeDetail} user={user} onCollect={onCollect} canCollect={canCollect} />
           </div>
         </div>
       )}

@@ -15,7 +15,7 @@ function fmtTime(s){
   return d.toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"})+" "+d.toLocaleDateString("vi-VN");
 }
 
-export default function CashierConfirmPage({ user }) {
+export default function CashierConfirmPage({ user, focusOrder, onFocusDone }) {
   const { can } = usePermission();
   const canCollect = !!can("pos_collect","approve"); // Xác nhận thu tiền
   const [isPC, setIsPC] = useState(() => window.innerWidth >= 900);
@@ -78,6 +78,19 @@ export default function CashierConfirmPage({ user }) {
     setViewing(order);
     if (!items[order.id]) await loadItems(order.id);
   }
+
+  // Đơn được chọn từ tab "Đơn hàng" → mở thẳng hộp thu tiền
+  useEffect(() => {
+    if (!focusOrder) return;
+    const inList = (list||[]).find(o => o.id === focusOrder.id);
+    const target = inList || focusOrder;
+    if (target?.status === "pending_payment" && canCollect) {
+      setTab("pending");
+      openConfirm(target);
+      loadItems(target.id);
+    }
+    onFocusDone && onFocusDone();
+  }, [focusOrder]);
 
   function openConfirm(order){
     setConfirming(order);
