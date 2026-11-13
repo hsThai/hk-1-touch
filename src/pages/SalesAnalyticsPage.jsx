@@ -288,8 +288,8 @@ export default function SalesAnalyticsPage({ user }) {
         {loading && <span style={{ fontSize: 12, color: "#9ca3af" }}>⏳ Đang tải…</span>}
       </div>
 
-      {/* Bộ lọc */}
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12, alignItems: "center" }}>
+      {/* Bộ lọc — hàng 1: ngày + nút nhanh, hàng 2: tìm kiếm + xuất Excel (không còn chồng nhau) */}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8, alignItems: "center" }}>
         <input type="date" value={from} onChange={e => setFrom(e.target.value)}
           style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 14 }} />
         <span style={{ color: "#9ca3af" }}>→</span>
@@ -312,17 +312,21 @@ export default function SalesAnalyticsPage({ user }) {
               background: from === q.f && to === q.t ? "#4f46e5" : "#fff",
               color: from === q.f && to === q.t ? "#fff" : "#374151" }}>{q.l}</button>
         ))}
-        <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center" }}>
+        <div style={{ position: "relative", flex: "1 1 auto", minWidth: 0 }}>
           <span className="material-icons" style={{ fontFamily: "Material Icons", position: "absolute", left: 12,
             top: "50%", transform: "translateY(-50%)", fontSize: 18, color: "#9ca3af" }}>search</span>
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder={tab === "customer" ? "Tìm khách hàng, số điện thoại…" : "Tìm SKU hoặc tên hàng…"}
-            style={{ width: "100%", padding: "9px 12px 9px 44px", borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 14 }} />
+            style={{ width: "100%", boxSizing: "border-box", padding: "9px 12px 9px 44px",
+              borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 14 }} />
         </div>
         {canExport && (
           <button onClick={exportExcel}
-            style={{ padding: "9px 14px", borderRadius: 8, border: "none", background: "#059669", color: "#fff",
-              fontWeight: 800, fontSize: 13.5, cursor: "pointer", whiteSpace: "nowrap" }}>⬇️ Xuất Excel</button>
+            style={{ flex: "0 0 auto", padding: "9px 14px", borderRadius: 8, border: "none", background: "#059669",
+              color: "#fff", fontWeight: 800, fontSize: 13.5, cursor: "pointer", whiteSpace: "nowrap" }}>⬇️ Xuất Excel</button>
         )}
       </div>
 
