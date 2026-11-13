@@ -382,7 +382,7 @@ const MGR_ACCORDIONS = [
       { key:"wh_import",   icon:"move_to_inbox",  label:"Nhập kho" },
       { key:"wh_export",   icon:"outbox",         label:"Xuất kho" },
       { key:"pack_ship",   icon:"inventory",       label:"Soạn hàng & Giao nhận" },
-      { key:"stock_nxt",   icon:"assessment",     label:"Thẻ kho (NXT)" },
+      { key:"stock_nxt",   icon:"assessment",     label:"Xuất Nhập Tồn" },
       { key:"stock_count", icon:"fact_check",     label:"Kiểm kê kho" },
       { key:"wh_defect",   icon:"warning",        label:"LK lỗi / RMA" },
       { key:"wh_shipping", icon:"local_shipping", label:"Vận đơn" },
@@ -425,12 +425,13 @@ const MGR_ACCORDIONS = [
     key: "acc_report",
     icon: "bar_chart",
     label: "Báo cáo",
-    pages: ["revenue","report_profit","report_staff","report_debt"],
+    pages: ["revenue","report_profit","report_staff","report_debt","stock_nxt"],
     items: [
       { key:"revenue",       icon:"bar_chart",   label:"Doanh thu" },
       { key:"report_profit", icon:"trending_up", label:"Lợi nhuận" },
       { key:"report_staff",  icon:"people",      label:"KPI Nhân viên" },
       { key:"report_debt",   icon:"credit_card", label:"Công nợ khách hàng" },
+      { key:"stock_nxt",     icon:"assessment",  label:"Xuất Nhập Tồn" },
     ],
   },
   {
@@ -1680,7 +1681,7 @@ function MainAppContent({ onUserChange }) {
         { key:"wh_manager",     icon:"warehouse",              label:"Thiết lập kho",    perm:["warehouse_mgr","view"] },
         { key:"wh_ledger",      icon:"inventory_2",            label:"Tồn kho",          perm:["stock_ledger","view"] },
         { key:"combo",          icon:"redeem",                 label:"Combo sản phẩm",   perm:["combo","view"] },
-        { key:"stock_nxt",      icon:"assessment",             label:"Thẻ kho (NXT)",    perm:["stock_card","view"] },
+        { key:"stock_nxt",      icon:"assessment",             label:"Xuất Nhập Tồn",    perm:["stock_card","view"] },
         { key:"stock_count",    icon:"fact_check",             label:"Kiểm kê kho",      perm:["stock_count","view"] },
         { key:"wh_defect",      icon:"warning",                label:"LK lỗi / RMA",     perm:["wh_defect","view"] },
         { key:"wh_shipping",    icon:"local_shipping",         label:"Vận đơn",          perm:["wh_shipping","view"] },
@@ -1731,7 +1732,7 @@ function MainAppContent({ onUserChange }) {
     if ((can("pack_order","view") || can("ship_order","view")) && !isManager)
       items.push({ key:"pack_ship",   icon:"inventory",       label:"Soạn hàng & Giao" });
     if (can("stock_card","view") && !isManager)
-      items.push({ key:"stock_nxt",   icon:"assessment",      label:"Thẻ kho (NXT)" });
+      items.push({ key:"stock_nxt",   icon:"assessment",      label:"Xuất Nhập Tồn" });
     if (can("stock_count","view") && !isManager && !isRoleHome)
       items.push({ key:"stock_count", icon:"fact_check", label:"Kiểm kê kho" });
     if (can("stock_import","view") && !isManager)
