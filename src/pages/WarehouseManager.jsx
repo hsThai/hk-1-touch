@@ -8,6 +8,7 @@ import { ProductThumb } from "./ProductThumb.jsx";
 import { getPbUrl, getAuth, logAction } from "./pb.jsx";
 import { exportSheet, buildConditions, dayStamp } from "../utils/excelExport.js";
 import { usePermission } from "./PermissionContext.jsx";
+import { HintDot, HintArea } from "../components/HintSystem.jsx";
 import StockCountPage from "./StockCountPage.jsx";
 import PurchaseOrderPage from "./PurchaseOrderPage.jsx";
 import RMAPage, { CreateRMAModal } from "./RMAPage.jsx";
@@ -1349,13 +1350,13 @@ function TransferTab({ user, toast }) {
       {modal && (
         <Modal title="🔄 Tạo phiếu chuyển kho" onClose={()=>setModal(false)} width={820}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
-            <Field label="Kho xuất *">
+            <Field label={<>Kho xuất * <HintDot page="wh_manager" id="transfer" /></>}>
               <select style={S.select} value={form.from_warehouse_id} onChange={e=>setForm(p=>({...p,from_warehouse_id:e.target.value}))}>
                 <option value="">-- Chọn kho xuất --</option>
                 {warehouses.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}
               </select>
             </Field>
-            <Field label="Kho nhận *">
+            <Field label={<>Kho nhận * <HintDot page="wh_manager" id="transfer" /></>}>
               <select style={S.select} value={form.to_warehouse_id} onChange={e=>setForm(p=>({...p,to_warehouse_id:e.target.value}))}>
                 <option value="">-- Chọn kho nhận --</option>
                 {warehouses.filter(w=>w.id!==form.from_warehouse_id).map(w=><option key={w.id} value={w.id}>{w.name}</option>)}
@@ -1363,7 +1364,10 @@ function TransferTab({ user, toast }) {
             </Field>
           </div>
 
-          <div style={{fontWeight:700,fontSize:13,color:"#1e1b4b",marginBottom:8}}>Danh sách hàng chuyển</div>
+          <div style={{fontWeight:700,fontSize:13,color:"#1e1b4b",marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
+            Danh sách hàng chuyển
+            <HintDot page="wh_manager" id="transfer_item" />
+          </div>
           {items.map((item,i)=>(
             <div key={i} style={{ border:"1.5px solid #e5e7eb", borderRadius:12, padding:10,
               marginBottom:10, background:isWide?"#fff":"#fff" }}>
@@ -1396,12 +1400,12 @@ function TransferTab({ user, toast }) {
                       onChange={e=>setItems(p=>p.map((x,j)=>j===i?{...x,sku:e.target.value}:x))} />
                   </div>
                   <div style={{ width:isWide?78:undefined }}>
-                    <label style={S.label}>SL *</label>
+                    <label style={S.label}>SL * <HintDot page="wh_manager" id="transfer_qty" size={14} /></label>
                     <input style={S.input} type="number" min="1" value={item.qty}
                       onChange={e=>setItems(p=>p.map((x,j)=>j===i?{...x,qty:e.target.value}:x))} />
                   </div>
                   <div style={{ width:isWide?110:undefined }}>
-                    <label style={S.label}>Đơn giá</label>
+                    <label style={S.label}>Đơn giá <HintDot page="wh_manager" id="transfer_price" size={14} /></label>
                     <input style={S.input} type="number" value={item.unit_price}
                       onChange={e=>setItems(p=>p.map((x,j)=>j===i?{...x,unit_price:e.target.value}:x))} />
                   </div>

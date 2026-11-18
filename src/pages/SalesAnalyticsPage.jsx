@@ -7,6 +7,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { SaleOrder, SaleOrderItem, ReturnOrder } from "./pb.jsx";
 import { usePermission } from "./PermissionContext.jsx";
+import { HintDot } from "../components/HintSystem.jsx";
 import ExportConfirmModal from "./ExportConfirm.jsx";
 
 function fmtMoney(n) {
@@ -275,6 +276,7 @@ export default function SalesAnalyticsPage({ user }) {
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
         <span className="material-icons" style={{ fontFamily: "Material Icons", fontSize: 24, color: "#4f46e5" }}>insights</span>
         <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#1e1b4b" }}>Phân tích bán hàng</h2>
+        <HintDot page="sale_analytics" id="item" />
         {loading && <span style={{ fontSize: 12, color: "#9ca3af" }}>⏳ Đang tải…</span>}
       </div>
 
@@ -291,6 +293,7 @@ export default function SalesAnalyticsPage({ user }) {
             background: onlyPaid ? "#047857" : "#fff", color: onlyPaid ? "#fff" : "#374151" }}>
           {onlyPaid ? "✓ " : ""}Chỉ đơn đã thu
         </button>
+        <HintDot page="sale_analytics" id="paid" size={14} />
         {[
           { l: "Hôm nay", f: today, t: today },
           { l: "7 ngày", f: addDays(today, -6), t: today },

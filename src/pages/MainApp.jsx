@@ -82,6 +82,7 @@ import LoginPage, { showSystemNotif, requestNotifPermission } from "./LoginV2";
 import { PermissionProvider, usePermission } from "./PermissionContext.jsx";
 import ChangePassword from "./ChangePassword";
 import { useBeforeUnloadGuard, LeaveConfirm } from "../utils/unsavedGuard.jsx";
+import { HelpButton } from "../components/HintSystem.jsx";
 import { renderReportPages, renderPurchaseNccPages, renderSalesPages, renderSetupPages, renderMobilePages, PAGE_PERMS } from "./MainAppWidgets.jsx";
 import * as XLSX from "xlsx";
 import ExportConfirmModal, { buildExcelResult } from "./ExportConfirm.jsx";
@@ -2520,6 +2521,7 @@ function MainAppContent({ onUserChange }) {
                       justifyContent:"center", cursor:"pointer" }}>
                     <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:22,lineHeight:1}}>qr_code_scanner</span>
                   </button>
+                  <HelpButton page={page} />
                 </div>
               </div>
             );
@@ -2681,6 +2683,7 @@ function MainAppContent({ onUserChange }) {
           </button>
         </div>
         <button onClick={() => setShowSmartScan(true)} style={{ background:"none", border:"none", color:"#fff", fontSize:22, cursor:"pointer", padding:4 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:24,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>qr_code_scanner</span></button>
+        <HelpButton page={page} style={{ background:"none", width:"auto", height:"auto", fontSize:22 }} />
 
       </div>
 

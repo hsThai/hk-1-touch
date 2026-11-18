@@ -1,6 +1,7 @@
 // CashierConfirmPage.jsx — Trang xác nhận thu tiền cho Thu ngân
 // HK One Touch
 import React, { useState, useEffect } from "react";
+import { HintDot } from "../components/HintSystem.jsx";
 import { SaleOrder, SaleOrderItem, CashJournal, DebtVoucher, getLocalDate, getPbUrl, getAuth, logAction, notifyRoles, sortNewestFirst, receiveReturnStock } from "./pb.jsx";
 import { printSaleReceiptA5 } from "../utils/printClient.js";
 import { usePermission } from "./PermissionContext.jsx";
@@ -196,7 +197,8 @@ export default function CashierConfirmPage({ user, focusOrder, onFocusDone }) {
   return (
     <div style={{paddingBottom:20}}>
       {/* Windows-style tabs */}
-      <div style={{display:"flex",background:"#f0fdf4",padding:"8px 8px 0",gap:4}}>
+      <div style={{display:"flex",alignItems:"center",gap:4,background:"#f0fdf4",padding:"8px 8px 0"}}>
+        <HintDot page="cashier_home" id="collect" />
         {CONFIRM_TABS.map(t => {
           const active = tab === t.key;
           return (
@@ -310,6 +312,7 @@ export default function CashierConfirmPage({ user, focusOrder, onFocusDone }) {
                       display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
                     🧾 Xem hóa đơn
                   </button>
+                  <HintDot page="cashier_home" id="invoice" size={14} />
                   <button onClick={()=>openConfirm(o)} disabled={!canCollect} title={!canCollect?"Bạn không có quyền xác nhận thu tiền":""} style={{opacity:canCollect?1:.45,flex:1,height:46,minHeight:46,padding:"0 14px",borderRadius:12,border:"none",
                     background: o.payment_method==="credit"
                       ? "linear-gradient(135deg,#7c3aed,#6d28d9)"

@@ -3,6 +3,7 @@ import { Warehouse, StockLedger, StockMovement } from "./pb.jsx";
 import * as XLSX from "xlsx";
 import ExportConfirmModal, { buildExcelResult } from "./ExportConfirm.jsx";
 import { usePermission } from "./PermissionContext.jsx";
+import { HintDot } from "../components/HintSystem.jsx";
 
 const MV_LABELS = {
   import:      { label: "📥 Nhập kho",      bg: "#dcfce7", color: "#059669" },
@@ -282,12 +283,14 @@ export default function StockReportNXT({ user }) {
         <h2 style={{ margin:0, fontSize:18, fontWeight:800, color:"#1e1b4b" }}>
           Báo cáo Nhập - Xuất - Tồn
         </h2>
+        <HintDot page="stock_nxt" id="month" />
       </div>
 
       {/* Filters */}
       <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 }}>
         <input type="month" value={ym} onChange={e => setYm(e.target.value)}
           style={{ padding:"8px 12px", borderRadius:8, border:"1px solid #e5e7eb", fontSize:14 }} />
+        <HintDot page="stock_nxt" id="warehouse" size={14} />
         <select value={warehouseId} onChange={e => setWarehouseId(e.target.value)}
           style={{ padding:"8px 12px", borderRadius:8, border:"1px solid #e5e7eb",
             fontSize:14, minWidth:140 }}>
