@@ -329,6 +329,28 @@ function usePageGuard(page, can) {
 // để nút Menu sáng lên nhất quán, tránh trạng thái không nút nào active khi ở trang phụ.
 const MAIN_TAB_PAGES = ["my_tasks", "new", "tasks", "board", "cashier_home", "pack_ship", "wh_home"];
 
+// ── Làm việc đa tab trên PC ───────────────────────────────
+// Mỗi trang có URL riêng (?p=<page>[&t=<tab>]) để mở tab mới / F5 vẫn đúng trang.
+function pageUrl(pageKey, extra = {}) {
+  const u = new URL(window.location.href);
+  const q = new URLSearchParams();
+  q.set("p", pageKey);
+  if (extra.t) q.set("t", extra.t);
+  if (extra.o) q.set("o", extra.o);
+  u.search = q.toString();
+  u.hash = "";
+  return u.toString();
+}
+function openPageInNewTab(pageKey, extra = {}) {
+  window.open(pageUrl(pageKey, extra), "_blank", "noopener");
+}
+function readPageFromUrl() {
+  try {
+    const q = new URLSearchParams(window.location.search);
+    return { page: q.get("p") || "", tab: q.get("t") || "", order: q.get("o") || "" };
+  } catch { return { page: "", tab: "", order: "" }; }
+}
+
 const MGR_ACCORDIONS = [
   {
     key: "acc_overview",
@@ -540,7 +562,7 @@ function MainAppContent({ onUserChange }) {
   };
   const users = users_raw;
   const [dataLoading, setDataLoading] = useState(true);
-  const [page, setPageRaw] = useState("board");
+  const [page, setPageRaw] = useState(() => readPageFromUrl().page || "board");
   // Chặn rời trang khi đang làm dở (chưa lưu) — hỏi lại trước khi đổi trang
   const unsavedItems = useBeforeUnloadGuard();
   const [pendingPage, setPendingPage] = useState(null);
@@ -554,9 +576,33 @@ function MainAppContent({ onUserChange }) {
     setPendingPage(null);
     if (t !== null && t !== undefined) setPageRaw(t);
   }
+  // Mở đúng đơn khi vào bằng link có ?o=<mã đơn> (tab mới)
+  const urlOrderRef = useRef("");
+  useEffect(() => {
+    if (urlOrderRef.current) return;
+    const code = readPageFromUrl().order;
+    if (!code || !(orders || []).length) return;
+    const found = orders.find(o => o.order_code === code || o.id === code);
+    if (found) { urlOrderRef.current = code; setSelectedOrderSync(found); }
+  }, [orders]);
+
+  // Giữ URL khớp trang đang xem → mở tab mới / F5 vẫn đúng trang
+  useEffect(() => {
+    try {
+      const u = new URL(window.location.href);
+      const q = new URLSearchParams(u.search);
+      if (q.get("p") !== page) {
+        q.set("p", page);
+        if (dashboardTab && dashboardTab !== "overview") q.set("t", dashboardTab); else q.delete("t");
+        u.search = q.toString();
+        window.history.replaceState(null, "", u.toString());
+      }
+    } catch {}
+  }, [page, dashboardTab]);
+
   // openAccordion: key của accordion đang mở, hoặc null
   const [openAccordion, setOpenAccordion] = useState("acc_overview");
-  const [dashboardTab, setDashboardTab] = useState("overview");
+  const [dashboardTab, setDashboardTab] = useState(() => readPageFromUrl().tab || "overview");
   const [search, setSearch] = useState("");
   const [dashboardFilter, setDashboardFilter] = useState(null); // "active"|"done"|"needs_reassign"|null
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -1435,7 +1481,9 @@ function MainAppContent({ onUserChange }) {
       sales:        "my_tasks",
       team_leader:  "my_tasks",
     };
-    setPage(DEFAULT_PAGE_MAP[u.role] || "board");
+    // Nếu URL có ?p=... (mở tab mới / F5) thì giữ đúng trang đó
+    const urlPage = readPageFromUrl().page;
+    if (!urlPage) setPage(DEFAULT_PAGE_MAP[u.role] || "board");
   }} loggedOut={loggedOut} />;
   if (user.must_change_password) return <ChangePassword user={user} forceChange={true} onSuccess={() => setUser(u => ({...u, must_change_password: false}))} />;
 
@@ -1851,9 +1899,11 @@ function MainAppContent({ onUserChange }) {
                       ? (page === sub.key.split("__")[0] && dashboardTab === sub.key.split("__")[1])
                       : page === sub.key;
                     return (
-                      <button key={`${acc.key}-${sub.key}`}
-                        onClick={() => {
+                      <div key={`${acc.key}-${sub.key}`} style={{ position:"relative" }}>
+                      <button
+                        onClick={(e) => {
                           const [basePg, subT] = sub.key.split("__");
+                          if (e.ctrlKey || e.metaKey) { openPageInNewTab(basePg, { t: subT }); return; }
                           setPage(basePg);
                           if (subT) setDashboardTab(subT);
                           else if (basePg === "dashboard") setDashboardTab("overview");
@@ -1877,8 +1927,23 @@ function MainAppContent({ onUserChange }) {
                           style={{fontSize:14,fontFamily:"Material Icons",lineHeight:1}}>
                           {sub.icon}
                         </span>
-                        {sub.label}
+                        <span style={{ flex:1 }}>{sub.label}</span>
                       </button>
+                      {isPC && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const [basePg, subT] = sub.key.split("__");
+                            openPageInNewTab(basePg, { t: subT });
+                          }}
+                          title="Mở trong tab mới (hoặc Ctrl/⌘ + bấm)"
+                          style={{ position:"absolute", right:4, top:"50%", transform:"translateY(-50%)",
+                            background:"transparent", border:"none", cursor:"pointer", padding:2,
+                            color:"rgba(255,255,255,.35)", lineHeight:1 }}>
+                          <span className="material-icons" style={{fontSize:14,fontFamily:"Material Icons"}}>open_in_new</span>
+                        </button>
+                      )}
+                      </div>
                     );
                   })}
                 </div>
@@ -2450,10 +2515,15 @@ function MainAppContent({ onUserChange }) {
                     </div>
                   )}
                   <button
-                    onClick={() => {
+                    onClick={(e) => {
+                      if (e.ctrlKey || e.metaKey) { openPageInNewTab(item.key); return; }
                       setPage(item.key);
                       if(["board","tasks","ktv_home","rec_home"].includes(item.key)) setDashboardFilter(null);
                     }}
+                    onAuxClick={(e) => {
+                      if (e.button === 1) { e.preventDefault(); openPageInNewTab(item.key); }
+                    }}
+                    title="Ctrl/⌘ + bấm hoặc bấm chuột giữa để mở tab mới"
                     style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px",
                       borderRadius:10, border:"none", textAlign:"left", cursor:"pointer",
                       background: active ? "rgba(255,255,255,.15)" : "transparent",

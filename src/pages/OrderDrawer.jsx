@@ -861,6 +861,20 @@ function OrderDrawer({ order, onClose, currentUser, onUpdate, users, onShowQR, o
               {printing ? "Đang in..." : "In Phiếu"}
             </button>
             <button onClick={onClose} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:34, height:34, borderRadius:"50%", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>close</span></button>
+            <button
+              onClick={() => {
+                const u = new URL(window.location.href);
+                const q = new URLSearchParams();
+                q.set("p", "tasks");
+                q.set("o", order.order_code || order.id);
+                u.search = q.toString(); u.hash = "";
+                window.open(u.toString(), "_blank", "noopener");
+              }}
+              title="Mở đơn này trong tab mới"
+              style={{ background:"rgba(255,255,255,.2)", border:"none", color:"#fff", width:34, height:34,
+                borderRadius:"50%", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,lineHeight:1}}>open_in_new</span>
+            </button>
           </div>
         </div>
         {/* Tabs */}
