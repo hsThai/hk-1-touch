@@ -25,3 +25,9 @@ html, body {
   width: 100%;
   min-height: 100%;
 }
+
+/* Ô nhập số lượng trong giỏ hàng POS: cho gõ số, ẩn mũi tên tăng/giảm */
+input.qty-input::-webkit-outer-spin-button,
+input.qty-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input.qty-input { -moz-appearance: textfield; appearance: textfield; }
+input.qty-input:focus { outline: none; border-color: #059669 !important; box-shadow: 0 0 0 3px rgba(5,150,105,.15); }

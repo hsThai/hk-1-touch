@@ -342,6 +342,7 @@ export default function SaleOrderPage({ user }) {
     if (!canCreate) { showToast("⛔ Bạn không có quyền tạo đơn bán", "err"); return; }
     if (!custName.trim()) { showToast("⚠️ Vui lòng nhập tên khách hàng!"); return; }
     if (cart.length===0) { showToast("⚠️ Giỏ hàng trống!"); return; }
+    if (cart.some(i => !Number(i.qty) || Number(i.qty) < 1)) { showToast("⚠️ Số lượng phải từ 1 trở lên!"); return; }
     if (!payMethod)       { showToast("⚠️ Chưa chọn hình thức thanh toán!"); return; }
     if (deliveryType !== "pickup" && !deliveryAddress.trim()) { showToast("⚠️ Vui lòng nhập địa chỉ giao hàng!"); return; }
     setSubmitting(true);
@@ -796,7 +797,26 @@ export default function SaleOrderPage({ user }) {
                   fontWeight:900, fontSize:12, cursor:"pointer", lineHeight:1, flexShrink:0 }}>i</button>
               <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                 <button onClick={()=>updateQty(idx,-1)} style={{ width:32, height:32, borderRadius:8, border:"1.5px solid #e5e7eb", background:"#f9fafb", cursor:"pointer", fontWeight:900, fontSize:16 }}>−</button>
-                <span style={{ fontWeight:800, fontSize:15, minWidth:24, textAlign:"center" }}>{item.qty}</span>
+                <input
+                  className="qty-input"
+                  type="number" inputMode="numeric" min="1"
+                  max={item.stock_max || undefined}
+                  value={item.qty}
+                  onChange={e => {
+                    const v = e.target.value;
+                    setCart(prev => prev.map((x,j) => j===idx
+                      ? { ...x, qty: v === "" ? "" : Math.max(0, Math.floor(Number(v) || 0)) }
+                      : x));
+                  }}
+                  onFocus={e => e.target.select()}
+                  onBlur={() => setCart(prev => prev.map((x,j) => j===idx
+                    ? { ...x, qty: Math.min(Math.max(1, Math.floor(Number(x.qty) || 1)), Number(x.stock_max) || 999999) }
+                    : x))}
+                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }}
+                  style={{ width:58, height:32, textAlign:"center", fontWeight:800, fontSize:15,
+                    border:"1.5px solid #d1d5db", borderRadius:8, padding:0, color:"#111827",
+                    background:"#fff" }}
+                />
                 <button onClick={()=>updateQty(idx,+1)} style={{ width:32, height:32, borderRadius:8, border:"1.5px solid #e5e7eb", background:"#f9fafb", cursor:"pointer", fontWeight:900, fontSize:16 }}>+</button>
               </div>
               <div style={{ fontWeight:800, fontSize:14, color:"#059669", minWidth:72, textAlign:"right" }}>{fmtMoney(item.qty*item.unit_price)}</div>
