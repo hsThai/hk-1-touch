@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Warehouse, StockLedger, StockMovement } from "./pb.jsx";
+import { Warehouse, StockLedger, StockMovement, logAction } from "./pb.jsx";
 import * as XLSX from "xlsx";
 import ExportConfirmModal, { buildExcelResult } from "./ExportConfirm.jsx";
 import { usePermission } from "./PermissionContext.jsx";
@@ -229,6 +229,8 @@ export default function StockReportNXT({ user }) {
     XLSX.utils.book_append_sheet(wb, ws, "NXT " + ym);
     const fileName = `bao-cao-nxt_${ym}_${warehouseId === "all" ? "tat-ca-kho" : whName.replace(/\s+/g,"-").toLowerCase()}.xlsx`;
     setExportDone(buildExcelResult(wb, fileName));
+    logAction(user, "export", "stock_card", "",
+      `Xuất Excel Nhập-Xuất-Tồn kỳ ${ym} — ${whName} — bộ lọc ${kind === "all" ? "Tất cả" : kind === "sale" ? "Bán hàng" : kind === "transfer" ? "Điều chuyển" : "Khác"} — ${displayed.length} mặt hàng`);
   }
 
   const sumBy = (field) => rows.reduce((a,r) => a + (Number(r[field])||0), 0);

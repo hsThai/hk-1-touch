@@ -5,7 +5,7 @@
  * Nguồn: sale_orders (đơn đã thu) + sale_order_items + return_orders (phiếu trả).
  */
 import React, { useEffect, useMemo, useState } from "react";
-import { SaleOrder, SaleOrderItem, ReturnOrder } from "./pb.jsx";
+import { SaleOrder, SaleOrderItem, ReturnOrder, logAction } from "./pb.jsx";
 import { usePermission } from "./PermissionContext.jsx";
 import { HintDot } from "../components/HintSystem.jsx";
 import ExportConfirmModal from "./ExportConfirm.jsx";
@@ -261,6 +261,8 @@ export default function SalesAnalyticsPage({ user }) {
       });
       const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
       setExportDone({ fileName, url: URL.createObjectURL(blob) });
+      logAction(user, "export", "sale_analytics", "",
+        `Xuất Excel Phân tích bán hàng — ${TABS.find(t => t.key === tab)?.label || tab} — ${from} → ${to} — ${displayed.length} dòng`);
     } catch (e) {
       alert("Không xuất được Excel: " + (e.message || e));
     }

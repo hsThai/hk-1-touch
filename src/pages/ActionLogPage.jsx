@@ -91,6 +91,10 @@ const ACTION_LABEL = {
   toggle_template:     "Bật/tắt mẫu in",
   update_settings:     "Cập nhật cài đặt",
   save_config:         "Lưu cấu hình",
+  export:              "Xuất Excel báo cáo",
+  share:               "Chia sẻ đơn",
+  cancel_transfer:     "Huỷ phiếu chuyển kho",
+  confirm_transfer:    "Xác nhận nhận chuyển kho",
 };
 
 // ── Nhãn đối tượng dễ hiểu (tiếng Việt) ──────────────────────
@@ -124,10 +128,15 @@ const TARGET_LABEL = {
   warehouse:         "Kho",
   warehouse_zone:    "Khu vực kho",
   warehouse_location:"Vị trí kệ",
+  stock_card:         "Báo cáo Xuất Nhập Tồn",
+  sale_analytics:     "Báo cáo Phân tích bán hàng",
+  report_revenue:     "Báo cáo doanh thu",
+  report:             "Báo cáo",
 };
 
 const ACTION_COLOR = {
   create:         { bg:"#dcfce7", color:"#15803d" },
+  export:         { bg:"#e0e7ff", color:"#4338ca" },
   create_order:   { bg:"#dcfce7", color:"#15803d" },
   create_staff:   { bg:"#dcfce7", color:"#15803d" },
   create_sale:    { bg:"#dcfce7", color:"#15803d" },

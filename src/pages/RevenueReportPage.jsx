@@ -1,6 +1,6 @@
 /* RevenueReportPage.jsx — Báo cáo doanh thu */
 import React, { useState, useEffect, useMemo } from "react";
-import { RepairOrder, SaleOrder, SaleOrderItem, Expense, StockImport, StockExportRequest, CashJournal } from "./pb.jsx";
+import { RepairOrder, SaleOrder, SaleOrderItem, Expense, StockImport, StockExportRequest, CashJournal, logAction } from "./pb.jsx";
 import * as XLSX from "xlsx";
 import { exportSheet, buildConditions, dayStamp } from "../utils/excelExport.js";
 
@@ -857,6 +857,8 @@ export default function RevenueReportPage({ user }) {
         return w + 2;
       }),
     });
+    logAction(user, "export", "report_revenue", "",
+      `Xuất Excel doanh thu — ${sheetName} — kỳ ${period}`);
   }
 
   const SUMMARY_CARDS = [
