@@ -576,6 +576,21 @@ function MainAppContent({ onUserChange }) {
     setPendingPage(null);
     if (t !== null && t !== undefined) setPageRaw(t);
   }
+  // openAccordion: key của accordion đang mở, hoặc null
+  const [openAccordion, setOpenAccordion] = useState("acc_overview");
+  const [dashboardTab, setDashboardTab] = useState(() => readPageFromUrl().tab || "overview");
+  const [search, setSearch] = useState("");
+  const [dashboardFilter, setDashboardFilter] = useState(null); // "active"|"done"|"needs_reassign"|null
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const selectedOrderRef = useRef(null); // track để poll có thể sync drawer
+  // Helper: set cả state lẫn ref cùng lúc
+  const setSelectedOrderSync = (valOrFn) => {
+    setSelectedOrder(prev => {
+      const next = typeof valOrFn === 'function' ? valOrFn(prev) : valOrFn;
+      selectedOrderRef.current = next;
+      return next;
+    });
+  };
   // Mở đúng đơn khi vào bằng link có ?o=<mã đơn> (tab mới)
   const urlOrderRef = useRef("");
   useEffect(() => {
@@ -600,21 +615,6 @@ function MainAppContent({ onUserChange }) {
     } catch {}
   }, [page, dashboardTab]);
 
-  // openAccordion: key của accordion đang mở, hoặc null
-  const [openAccordion, setOpenAccordion] = useState("acc_overview");
-  const [dashboardTab, setDashboardTab] = useState(() => readPageFromUrl().tab || "overview");
-  const [search, setSearch] = useState("");
-  const [dashboardFilter, setDashboardFilter] = useState(null); // "active"|"done"|"needs_reassign"|null
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const selectedOrderRef = useRef(null); // track để poll có thể sync drawer
-  // Helper: set cả state lẫn ref cùng lúc
-  const setSelectedOrderSync = (valOrFn) => {
-    setSelectedOrder(prev => {
-      const next = typeof valOrFn === 'function' ? valOrFn(prev) : valOrFn;
-      selectedOrderRef.current = next;
-      return next;
-    });
-  };
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   // Focus 1 đơn hàng cụ thể khi bấm thông báo soạn hàng/giao hàng (pack_ship)
