@@ -479,12 +479,12 @@ function MainAppContent({ onUserChange }) {
   const bp = useBreakpoint();
   const isPC = bp === "pc";
   // Phiên đăng nhập dùng chung cho MỌI tab: lưu user vào localStorage
+  // Phiên đăng nhập dùng chung cho MỌI tab (staff dùng mật khẩu nội bộ nên KHÔNG phụ thuộc token)
   const [user, setUser] = useState(() => {
     try {
       const raw = localStorage.getItem("hk_session_user");
-      const token = localStorage.getItem("pb_token");
-      if (raw && token) return JSON.parse(raw);
-      return null;
+      const u = raw ? JSON.parse(raw) : null;
+      return (u && u.id) ? u : null;
     } catch { return null; }
   });
   const role = user?.role || "";
@@ -495,6 +495,13 @@ function MainAppContent({ onUserChange }) {
       else localStorage.removeItem("hk_session_user");
     } catch {}
   };
+  // Luôn giữ phiên trong localStorage để tab mới dùng lại
+  useEffect(() => {
+    try {
+      if (user?.id) localStorage.setItem("hk_session_user", JSON.stringify(user));
+    } catch {}
+  }, [user?.id, user?.role, user?.is_leader]);
+
   // Tab khác đăng xuất → tab này cũng thoát theo
   useEffect(() => {
     const onStorage = (e) => {
@@ -3162,7 +3169,14 @@ function MainAppContent({ onUserChange }) {
 function MainAppInner() {
   const bp = useBreakpoint();
   const isPC = bp === "pc";
-  const [user, setUser] = useState(null);
+  // Khôi phục phiên từ localStorage để tab mới không phải đăng nhập lại
+  const [user, setUser] = useState(() => {
+    try {
+      const raw = localStorage.getItem("hk_session_user");
+      const u = raw ? JSON.parse(raw) : null;
+      return (u && u.id) ? u : null;
+    } catch { return null; }
+  });
   return (
     <PermissionProvider user={user}>
       <MainAppContent onUserChange={setUser} />
