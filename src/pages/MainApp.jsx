@@ -478,8 +478,35 @@ function MainAppContent({ onUserChange }) {
   const { can } = usePermission();
   const bp = useBreakpoint();
   const isPC = bp === "pc";
-  const [user, setUser] = useState(null);
+  // Phiên đăng nhập dùng chung cho MỌI tab: lưu user vào localStorage
+  const [user, setUser] = useState(() => {
+    try {
+      const raw = localStorage.getItem("hk_session_user");
+      const token = localStorage.getItem("pb_token");
+      if (raw && token) return JSON.parse(raw);
+      return null;
+    } catch { return null; }
+  });
   const role = user?.role || "";
+  // Lưu / xoá phiên đăng nhập để tab mới không phải đăng nhập lại
+  const persistUser = (u) => {
+    try {
+      if (u) localStorage.setItem("hk_session_user", JSON.stringify(u));
+      else localStorage.removeItem("hk_session_user");
+    } catch {}
+  };
+  // Tab khác đăng xuất → tab này cũng thoát theo
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key === "hk_session_user" && !e.newValue) { setUser(null); onUserChange?.(null); }
+      if (e.key === "hk_session_user" && e.newValue) {
+        try { setUser(JSON.parse(e.newValue)); } catch {}
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
   const ordersRef = useRef([]); // luôn giữ latest orders snapshot
   const usersRef  = useRef([]); // luôn giữ latest users snapshot
   const kanbanScrollRef = useRef(null); // persist scroll qua re-render
@@ -1450,12 +1477,14 @@ function MainAppContent({ onUserChange }) {
   );
   const doLogout = () => {
     if (user) logAction(user, "logout", "auth", user.id, `Đăng xuất: ${user.full_name||user.name||""}`);
+    persistUser(null);
     setUser(null);
     onUserChange?.(null);
     setLoggedOut(true);
     setSidebarOpen && setSidebarOpen(false);
   };
   if (!user) return <LoginPage onLogin={u => {
+    persistUser(u);
     setUser(u);
     onUserChange?.(u);
     setLoggedOut(false);
