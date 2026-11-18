@@ -438,49 +438,91 @@ export default function SaleOrderPage({ user }) {
           } catch {}
           continue;
         }
-        try { await SparePart.update(item.part_id, { stock_qty: Math.max(0, item.stock_max - item.qty) }); } catch {}
-        // Update StockLedger (thẻ kho)
-        let ledgerBefore = 0;
-        let ledgerId = "";
-        let ledgerWhId = "";
-        let ledgerWhName = "";
+        // ── Trừ tồn: CHỈ trừ ở kho bán được (Kho BH), không trừ Kho 16 hay kho khác
+        let ledgers = [];
         try {
-          const ledgers = await StockLedger.list({ filter:`part_id="${item.part_id}"`, limit:5 }).catch(()=>[]);
-          if (ledgers && ledgers[0]) {
-            const l = ledgers[0];
-            ledgerBefore = Number(l.qty_on_hand)||0;
-            ledgerId = l.id;
-            ledgerWhId = l.warehouse_id||"";
-            ledgerWhName = l.warehouse_name||"";
-            const newOnHand = Math.max(0, ledgerBefore - Number(item.qty));
-            const newReserved = Number(l.qty_reserved)||0;
+          ledgers = await StockLedger.list({ filter:`part_id="${item.part_id}"`, limit:20 }).catch(()=>[]) || [];
+        } catch { ledgers = []; }
+        const sellableLedgers = ledgers.filter(l => (sellWhIds || []).includes(l.warehouse_id));
+        const deductRows = (sellableLedgers.length ? sellableLedgers : ledgers)
+          .slice()
+          .sort((a, b) => (Number(b.qty_on_hand)||0) - (Number(a.qty_on_hand)||0));
+
+        let remaining = Number(item.qty) || 0;
+        let movementWhId = "", movementWhName = "", firstBefore = 0, totalAfter = 0;
+
+        for (const l of deductRows) {
+          if (remaining <= 0) break;
+          const onHand = Number(l.qty_on_hand) || 0;
+          const take = Math.min(onHand, remaining);
+          if (take <= 0) { totalAfter += onHand; continue; }
+          const newOnHand = onHand - take;
+          const newReserved = Number(l.qty_reserved) || 0;
+          if (!movementWhId) {
+            movementWhId = l.warehouse_id || "";
+            movementWhName = l.warehouse_name || "";
+            firstBefore = onHand;
+          }
+          try {
             await StockLedger.update(l.id, {
               qty_on_hand: newOnHand,
               qty_available: Math.max(0, newOnHand - newReserved),
               last_movement_at: new Date().toISOString(),
             });
-          }
-        } catch(e) { console.warn("Lỗi update ledger:", e.message); }
-        // Ghi StockMovement với đầy đủ thông tin
+          } catch (e) { console.warn("Lỗi update ledger:", e.message); }
+          try {
+            await StockMovement.create({
+              movement_code:  "SL-" + Date.now() + "-" + Math.floor(Math.random()*900+100),
+              movement_type:  "sale",
+              created_date:   new Date().toISOString().replace("T"," ").split(".")[0],
+              warehouse_id:   l.warehouse_id || "",
+              warehouse_name: l.warehouse_name || "",
+              part_id:        item.part_id,
+              part_name:      item.part_name,
+              sku:            item.sku || "",
+              qty_before:     onHand,
+              qty_change:     -take,
+              qty_after:      newOnHand,
+              unit_price:     item.unit_price,
+              ref_type:       "sale_order",
+              ref_code:       orderCode,
+              created_by_name:user.full_name || user.name || "",
+            });
+          } catch (e) { console.warn("Lỗi ghi movement:", e.message); }
+          l.qty_on_hand = newOnHand;
+          remaining -= take;
+        }
+
+        // Bán vượt tồn (hiếm): vẫn ghi nhận để thẻ kho khớp đơn
+        if (remaining > 0) {
+          try {
+            await StockMovement.create({
+              movement_code:  "SL-" + Date.now() + "-" + Math.floor(Math.random()*900+100),
+              movement_type:  "sale",
+              created_date:   new Date().toISOString().replace("T"," ").split(".")[0],
+              warehouse_id:   movementWhId,
+              warehouse_name: movementWhName,
+              part_id:        item.part_id,
+              part_name:      item.part_name,
+              sku:            item.sku || "",
+              qty_before:     firstBefore,
+              qty_change:     -remaining,
+              qty_after:      0,
+              unit_price:     item.unit_price,
+              ref_type:       "sale_order",
+              ref_code:       orderCode,
+              note:           "Bán vượt tồn kho bán được",
+              created_by_name:user.full_name || user.name || "",
+            });
+          } catch {}
+        }
+
+        // Cập nhật lại tồn tổng trong danh mục = tổng tồn các kho (không dùng số cũ trên máy)
         try {
-          await StockMovement.create({
-            movement_code:  "SL-" + Date.now() + "-" + Math.floor(Math.random()*900+100),
-            movement_type:  "sale",
-            created_date:   new Date().toISOString().replace("T"," ").split(".")[0],
-            warehouse_id:   ledgerWhId,
-            warehouse_name: ledgerWhName,
-            part_id:        item.part_id,
-            part_name:      item.part_name,
-            sku:            item.sku || "",
-            qty_before:     ledgerBefore,
-            qty_change:     -item.qty,
-            qty_after:      Math.max(0, ledgerBefore - Number(item.qty)),
-            unit_price:     item.unit_price,
-            ref_type:       "sale_order",
-            ref_code:       orderCode,
-            created_by_name:user.full_name || user.name || "",
-          });
-        } catch(e) { console.warn("Lỗi ghi movement:", e.message); }
+          const fresh = await StockLedger.list({ filter:`part_id="${item.part_id}"`, limit:20 }).catch(()=>[]) || [];
+          const sum = fresh.reduce((t, l) => t + (Number(l.qty_on_hand)||0), 0);
+          await SparePart.update(item.part_id, { stock_qty: sum });
+        } catch (e) { console.warn("Lỗi đồng bộ tồn danh mục:", e.message); }
       }
 
       // Bước 4: Ghi kế toán — ĐÃ CHUYỂN sang CashierConfirmPage (Thu ngân xác nhận thu tiền mới ghi)
