@@ -314,6 +314,7 @@ export default function SaleHistoryPage({ user, onCollect }) {
   const [filterStatus, setFilterStatus] = useState("all");
   const [dateFrom, setDateFrom]       = useState("");
   const [dateTo, setDateTo]           = useState("");
+  const urlOrderOpened = React.useRef(false);
   const [detail, setDetail]           = useState(null);
   const [detailItems, setDetailItems] = useState([]);
   const [isPC, setIsPC]               = React.useState(window.innerWidth >= 1024);
@@ -332,9 +333,28 @@ export default function SaleHistoryPage({ user, onCollect }) {
   }, []);
 
   // Mở thẳng chi tiết đơn khi được chuyển từ nút quét QR (mã đơn lưu ở sessionStorage)
+  // Mở đơn trong tab mới: ?p=sale_history&o=<mã đơn>
+  function openOrderInNewTab(o) {
+    try {
+      const u = new URL(window.location.href);
+      const q = new URLSearchParams();
+      q.set("p", "sale_order");
+      q.set("o", o.order_code || o.id);
+      u.search = q.toString(); u.hash = "";
+      window.open(u.toString(), "_blank", "noopener");
+    } catch {}
+  }
+
   async function openRequestedOrder() {
     let code = null;
     try { code = sessionStorage.getItem("open_sale_order"); sessionStorage.removeItem("open_sale_order"); } catch {}
+    if (!code) {
+      // Tab mới mở bằng link có ?o=<mã đơn>
+      try {
+        const urlCode = new URLSearchParams(window.location.search).get("o");
+        if (urlCode && !urlOrderOpened.current) { urlOrderOpened.current = true; code = urlCode; }
+      } catch {}
+    }
     if (!code) return;
     try {
       const esc = String(code).replace(/"/g, '\\"');
@@ -469,6 +489,14 @@ export default function SaleHistoryPage({ user, onCollect }) {
             background:sb.bg, color:sb.color }}>
             {sb.label}
           </span>
+          <button
+            onClick={(e) => { e.stopPropagation(); openOrderInNewTab(o); }}
+            title="Mở đơn này trong tab mới"
+            style={{ marginLeft:"auto", background:"#f3f4f6", border:"1px solid #e5e7eb",
+              borderRadius:8, width:28, height:28, cursor:"pointer", color:"#4f46e5",
+              display:"flex", alignItems:"center", justifyContent:"center", padding:0, flexShrink:0 }}>
+            <span className="material-icons" style={{ fontFamily:"Material Icons", fontSize:16, lineHeight:1 }}>open_in_new</span>
+          </button>
         </div>
         {/* Row 2 */}
         <div style={{ fontSize:13, color:"#374151", marginBottom:3 }}>
