@@ -1,5 +1,6 @@
 /* SaleOrderPage.jsx — POS bán hàng lẻ */
 import React, { useState, useEffect, useRef } from "react";
+import { loadCatalogForSearch, searchProducts, normalizeVN } from "../utils/productSearch.js";
 import { ProductThumb } from "./ProductThumb.jsx";
 import { SparePart, SaleOrder, SaleOrderItem, StockMovement, StockLedger, AppSettings, Customer , DebtVoucher, CashJournal, logAction, notifyRoles, sortNewestFirst, getPbUrl } from "./pb.jsx";
 import { previewSaleReceipt } from "../utils/printClient.js";
@@ -279,30 +280,53 @@ export default function SaleOrderPage({ user }) {
     return info?.others || [];
   }
 
+  // ── Tìm hàng: dùng chỉ mục danh mục tải sẵn để tìm theo từ, bỏ dấu, không cần đúng thứ tự
+  const [catalogIdx, setCatalogIdx] = useState(null);
+  const [idxPct, setIdxPct] = useState(0);
+
+  useEffect(() => {
+    let alive = true;
+    loadCatalogForSearch((pct) => { if (alive) setIdxPct(pct); })
+      .then(idx => { if (alive) setCatalogIdx(idx); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
   useEffect(() => {
     if (searchTimer.current) clearTimeout(searchTimer.current);
-    if (!search.trim()) { setSearchRes([]); return; }
+    const q = search.trim();
+    if (!q) { setSearchRes([]); return; }
+
     searchTimer.current = setTimeout(async () => {
+      // 1) Ghép combo theo cùng cách chuẩn hoá
+      const qn = normalizeVN(q);
+      const comboHits = (combos || []).filter(c => {
+        const nn = normalizeVN(c.name);
+        return qn.split(" ").filter(Boolean).every(t => nn.includes(t));
+      }).map(c => ({ id: c.id, name: c.name, sku: c.sku, price: c.price || 0,
+        stock_qty: Number(c.stock_qty || 0), _combo: true }));
+
+      // 2) Tìm trong danh mục đã tải (chính xác, không phụ thuộc dấu/thứ tự)
+      if (catalogIdx) {
+        const local = searchProducts(catalogIdx, q, { limit: 30 });
+        setSearchRes([...comboHits, ...local]);
+        loadStockInfo(local);
+        return;
+      }
+
+      // 3) Chưa tải xong danh mục → tìm tạm trên server
       try {
-        // Tìm trực tiếp trên server (PocketBase `~` = LIKE, không phân biệt hoa/thường)
-        // thay vì chỉ lấy 200 bản ghi đầu rồi lọc tay — trước đây bỏ sót hàng nếu
-        // tổng SKU > 200 (vd tìm "mk" chỉ ra 3/nhiều chục mục chứa "mk" thực tế).
-        const q = search.trim().replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+        const qq = q.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
         const found = await SparePart.list({
-          filter: `is_active=true && (name~"${q}" || sku~"${q}")`,
+          filter: `is_active=true && (name~"${qq}" || sku~"${qq}")`,
           sort: "-stock_qty",
           limit: 30,
         });
-        const ql = q.toLowerCase();
-        const comboHits = (combos || []).filter(c =>
-          (c.name || "").toLowerCase().includes(ql) || (c.sku || "").toLowerCase().includes(ql)
-        ).map(c => ({ id: c.id, name: c.name, sku: c.sku, price: c.price || 0,
-          stock_qty: Number(c.stock_qty || 0), _combo: true }));
         setSearchRes([...comboHits, ...(found || [])]);
         loadStockInfo(found || []);
-      } catch { setSearchRes([]); }
-    }, 300);
-  }, [search, combos]);
+      } catch { setSearchRes(comboHits); }
+    }, 250);
+  }, [search, combos, catalogIdx]);
 
   function addToCart(part) {
     const avail = part._combo ? Number(part.stock_qty || 0) : sellableQty(part);
@@ -692,6 +716,24 @@ export default function SaleOrderPage({ user }) {
     border:"2px solid #d1fae5", background:"#f0fdf4",
     boxShadow:"0 1px 4px rgba(5,150,105,.08)"}} />
         </div>
+        {/* Danh mục đang tải lần đầu */}
+        {search.trim() && !catalogIdx && (
+          <div style={{ marginTop:6, fontSize:12, color:"#6b7280", display:"flex", alignItems:"center", gap:6 }}>
+            <span>⏳ Đang tải danh mục để tìm chính xác</span>
+            <div style={{ flex:1, maxWidth:140, height:5, background:"#e5e7eb", borderRadius:4, overflow:"hidden" }}>
+              <div style={{ width:`${Math.max(5, idxPct)}%`, height:"100%", background:"#059669" }} />
+            </div>
+            <span>{Math.round(idxPct)}%</span>
+          </div>
+        )}
+        {/* Gợi ý không có kết quả */}
+        {search.trim() && catalogIdx && searchRes.length === 0 && (
+          <div style={{ position:"absolute", top:48, left:0, right:0, background:"#fff", border:"1.5px solid #e5e7eb",
+            borderRadius:12, zIndex:50, boxShadow:"0 8px 24px rgba(0,0,0,.12)", padding:"14px 16px",
+            fontSize:13, color:"#6b7280" }}>
+            Không tìm thấy hàng nào khớp “<b>{search.trim()}</b>”. Thử gõ ngắn hơn (ví dụ “mk 14p”) hoặc gõ mã SKU.
+          </div>
+        )}
         {searchRes.length > 0 && (
           <div style={{ position:"absolute", top:48, left:0, right:0, background:"#fff", border:"1.5px solid #e5e7eb",
             borderRadius:12, zIndex:50, boxShadow:"0 8px 24px rgba(0,0,0,.12)", maxHeight:320, overflowY:"auto" }}>
