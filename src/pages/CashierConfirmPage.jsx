@@ -2,7 +2,7 @@
 // HK One Touch
 import React, { useState, useEffect } from "react";
 import { HintDot } from "../components/HintSystem.jsx";
-import { SaleOrder, SaleOrderItem, CashJournal, DebtVoucher, getLocalDate, getPbUrl, getAuth, logAction, notifyRoles, sortNewestFirst, receiveReturnStock } from "./pb.jsx";
+import { SaleOrder, SaleOrderItem, CashJournal, DebtVoucher, getLocalDate, getPbUrl, getAuth, logAction, notifyRoles, sortNewestFirst, receiveReturnStock, issueExchangeStock } from "./pb.jsx";
 import { printSaleReceiptA5 } from "../utils/printClient.js";
 import { usePermission } from "./PermissionContext.jsx";
 
@@ -180,6 +180,13 @@ export default function CashierConfirmPage({ user, focusOrder, onFocusDone }) {
       receiveReturnStock(r, user).then(res2 => {
         if (res2.ok) logAction(user, "return_stock_in", "return_order", r.id,
           `Nhập ${res2.count} mặt hàng trả về vào ${res2.warehouse} — đơn ${r.code}`);
+        // Đổi/bảo hành sang hàng khác → xuất hàng đổi cho khách
+        if (r.return_type === "exchange" || r.return_type === "warranty") {
+          return issueExchangeStock(r, user);
+        }
+      }).then(res3 => {
+        if (res3?.ok) logAction(user, "exchange_out", "return_order", r.id,
+          `Xuất ${res3.count} ${res3.part?.name || r.new_product_name} đổi cho khách — đơn ${r.code}`);
       }).catch(()=>{});
       loadOrders();
     }catch(e){ alert("Lỗi: " + (e.message||e)); }

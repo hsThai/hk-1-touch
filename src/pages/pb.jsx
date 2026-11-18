@@ -389,6 +389,99 @@ export async function receiveReturnStock(order, user) {
   }
 }
 
+/**
+ * Xuất kho hàng ĐỔI MỚI cho khách (đổi sang hàng khác hoặc bảo hành đổi mới).
+ * Trừ tồn ở kho bán được (Kho BH) và ghi thẻ kho loại exchange_out.
+ */
+export async function issueExchangeStock(order, user) {
+  try {
+    const sku = order.new_sku || "";
+    const name = order.new_product_name || "";
+    const qty = Math.abs(Number(order.new_qty || 0)) || 0;
+    if (!name || qty <= 0) return { ok: false, reason: "Chưa chọn hàng đổi mới" };
+
+    const { token } = getAuth();
+    const H = () => ({ "Content-Type": "application/json", ...(token ? { Authorization: token } : {}) });
+    const q = (str) => encodeURIComponent(str);
+    const getJSON = async (url) => {
+      try { const r = await fetch(url, { headers: H() }); return r.ok ? await r.json() : { items: [] }; }
+      catch { return { items: [] }; }
+    };
+
+    // 1) Tìm mặt hàng đổi mới trong danh mục
+    let part = null;
+    if (sku) {
+      const esc = String(sku).replace(/'/g, "\\'");
+      const pr = await getJSON(`${getPbUrl()}/api/collections/product_catalog/records?perPage=1&filter=${q(`(sku='${esc}')`)}`);
+      part = pr.items?.[0] || null;
+    }
+    if (!part && name) {
+      const esc = String(name).replace(/'/g, "\\'");
+      const pr = await getJSON(`${getPbUrl()}/api/collections/product_catalog/records?perPage=1&filter=${q(`(name='${esc}')`)}`);
+      part = pr.items?.[0] || null;
+    }
+    if (!part) return { ok: false, reason: "Không tìm thấy hàng đổi mới trong danh mục" };
+
+    // 2) Kho bán được: Kho BH (nếu không có thì lấy kho đầu tiên có tồn)
+    const whs = await getJSON(`${getPbUrl()}/api/collections/warehouses/records?perPage=50&filter=${q("(is_active=true)")}`);
+    const sellable = (whs.items || []).filter(w => {
+      const code = (w.code || "").toUpperCase().replace(/[_-]/g, "");
+      return code === "KHOBH" || /kho\s*bh/i.test(w.name || "");
+    });
+
+    const ledgersRes = await getJSON(`${getPbUrl()}/api/collections/stock_ledgers/records?perPage=20&filter=${q(`(part_id='${part.id}')`)}`);
+    let ledgers = ledgersRes.items || [];
+    const sellIds = sellable.map(w => w.id);
+    const sellableLedgers = ledgers.filter(l => sellIds.includes(l.warehouse_id));
+    const rows = (sellableLedgers.length ? sellableLedgers : ledgers)
+      .slice().sort((a, b) => (Number(b.qty_on_hand) || 0) - (Number(a.qty_on_hand) || 0));
+    if (!rows.length) return { ok: false, reason: `Chưa có tồn kho cho ${part.name}` };
+
+    // 3) Trừ tồn lần lượt
+    let remaining = qty, deducted = 0;
+    for (const l of rows) {
+      if (remaining <= 0) break;
+      const onHand = Number(l.qty_on_hand) || 0;
+      const take = Math.min(onHand, remaining);
+      if (take <= 0) continue;
+      const after = onHand - take;
+      await fetch(`${getPbUrl()}/api/collections/stock_ledgers/records/${l.id}`, {
+        method: "PATCH", headers: H(),
+        body: JSON.stringify({ qty_on_hand: after, qty_available: Math.max(0, after - (Number(l.qty_reserved) || 0)), last_movement_at: new Date().toISOString() }),
+      });
+      await fetch(`${getPbUrl()}/api/collections/stock_movements/records`, {
+        method: "POST", headers: H(),
+        body: JSON.stringify({
+          movement_code: "EX" + Date.now().toString().slice(-9) + Math.floor(Math.random() * 90 + 10),
+          movement_type: "exchange_out",
+          warehouse_id: l.warehouse_id, warehouse_name: l.warehouse_name,
+          part_id: part.id, part_name: part.name, sku: part.sku || "",
+          qty_before: onHand, qty_change: -take, qty_after: after,
+          unit_price: Number(order.new_unit_price || part.price || 0),
+          ref_type: "return", ref_id: order.id, ref_code: order.code,
+          note: `Hàng đổi mới cho khách — đơn đổi trả ${order.code || ""} (${order.return_type || ""})`,
+          created_by_id: user?.id || "", created_by_name: user?.name || user?.full_name || "",
+        }),
+      });
+      remaining -= take; deducted += take;
+    }
+
+    // 4) Đồng bộ tồn tổng trong danh mục
+    try {
+      const fresh = await getJSON(`${getPbUrl()}/api/collections/stock_ledgers/records?perPage=20&filter=${q(`(part_id='${part.id}')`)}`);
+      const sum = (fresh.items || []).reduce((t, l) => t + (Number(l.qty_on_hand) || 0), 0);
+      await fetch(`${getPbUrl()}/api/collections/product_catalog/records/${part.id}`, {
+        method: "PATCH", headers: H(), body: JSON.stringify({ stock_qty: sum }),
+      });
+    } catch {}
+
+    if (deducted <= 0) return { ok: false, reason: `Kho BH đã hết ${part.name}` };
+    return { ok: true, count: deducted, part, short: Math.max(0, remaining) };
+  } catch (e) {
+    return { ok: false, reason: e.message };
+  }
+}
+
 export async function notifyRoles(roles, { title, message, order, type = "assign", excludeId = "" }) {
   try {
     const staff = await Staff.filter({ is_active: true });

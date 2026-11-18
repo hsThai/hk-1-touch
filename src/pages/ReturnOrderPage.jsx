@@ -3,7 +3,8 @@
  * @version 2026-06-01-v1
  */
 import React, { useState, useEffect } from "react";
-import { CashJournal, getPbUrl, getAuth, logAction, notifyRoles, Notification, Staff, receiveReturnStock } from "./pb.jsx";
+import { loadCatalogForSearch, searchProducts } from "../utils/productSearch.js";
+import { CashJournal, getPbUrl, getAuth, logAction, notifyRoles, Notification, Staff, receiveReturnStock, issueExchangeStock } from "./pb.jsx";
 import { usePermission } from "./PermissionContext.jsx";
 
 function fmtMoney(n) { return (n||0).toLocaleString("vi-VN") + "đ"; }
@@ -47,6 +48,19 @@ const ADMIN_ROLES = ["owner","admin","manager","team_leader","cashier"];
 export function ReturnForm({ user, onSave, onClose, initialData, orderItems, editRecord }) {
   const items = orderItems || [];
   const multiItem = items.length > 1; // chỉ hiện checklist khi đơn có NHIỀU hàng
+  // Danh mục để chọn hàng đổi mới (hàng khác vẫn đổi được, bù chênh lệch)
+  const [catalogIdx, setCatalogIdx] = useState(null);
+  const [newPick, setNewPick] = useState(null);   // {id,sku,name,price,stock_qty}
+  const [newQty, setNewQty] = useState(1);
+  const [newPrice, setNewPrice] = useState(0);
+  const [diffManual, setDiffManual] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    loadCatalogForSearch(() => {}).then(idx => { if (alive) setCatalogIdx(idx); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
   const [form, setForm] = useState(() => {
     const base = {
       code:           genCode(),
@@ -60,6 +74,10 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems, edi
       refund_method:  "cash",
       return_stock:   "warranty",
       new_product_name: "",
+      new_sku:         "",
+      new_qty:         1,
+      new_unit_price:  0,
+      exchange_total:  0,
       price_diff:     0,
       warranty_end_date: "",
       assigned_tech:  "",
@@ -543,50 +561,136 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems, edi
           </select>
         </div>
 
-        {/* Đổi sản phẩm mới / Bảo hành đổi mới */}
+        {/* Đổi sản phẩm mới / Bảo hành đổi mới — cho đổi SANG HÀNG KHÁC, bù chênh lệch */}
         {(form.return_type === "exchange" || form.return_type === "warranty") && (
-          <div style={{ marginBottom:12, position:"relative" }}>
-            <label style={{ fontSize:12, color:"#6b7280", fontWeight:600 }}>
-              {form.return_type === "exchange" ? "Sản phẩm đổi mới *" : "Sản phẩm bảo hành đổi mới *"}
+          <div style={{ marginBottom:12, background:"#f8fafc", border:"1.5px solid #e5e7eb", borderRadius:12, padding:"12px 12px 10px" }}>
+            <label style={{ fontSize:12.5, color:"#1e1b4b", fontWeight:800 }}>
+              {form.return_type === "exchange" ? "Hàng đổi cho khách *" : "Hàng bảo hành đổi mới *"}
+              <span style={{ fontWeight:500, color:"#6b7280" }}> — chọn hàng khác cũng được</span>
             </label>
-            <input
-              value={form.new_product_name}
-              onChange={e => { partField.current = "new_product_name"; setPartSearch(e.target.value); set("new_product_name", e.target.value); setShowPartDrop(true); }}
-              onFocus={() => { partField.current = "new_product_name"; }}
-              onBlur={() => setTimeout(() => setShowPartDrop(false), 180)}
-              placeholder="Nhập tên linh kiện / dịch vụ để gợi ý..."
-              style={{ ...INP, marginTop:4 }} />
-            {showPartDrop && partSuggs.length > 0 && partField.current === "new_product_name" && (
-              <div style={{ position:"absolute", top:"100%", left:0, right:0, zIndex:100, background:"#fff",
-                border:"1.5px solid #e5e7eb", borderRadius:10, boxShadow:"0 8px 24px rgba(0,0,0,.12)", overflow:"hidden", marginTop:2 }}>
-                {partSuggs.map(pt => (
-                  <div key={pt.id} onMouseDown={() => { set("new_product_name", pt.name||""); setPartSearch(pt.name||""); setNewPartStock(Number(pt.stock_qty||0)); setPartSuggs([]); setShowPartDrop(false); }}
-                    style={{ padding:"9px 14px", cursor:"pointer", borderBottom:"1px solid #f3f4f6" }}>
-                    <div style={{ fontWeight:700, fontSize:13, color:"#1e1b4b" }}>{pt.name}</div>
-                    <div style={{ fontSize:11, color:"#6b7280" }}>{pt.sku && `SKU: ${pt.sku} · `}{pt.price ? fmtMoney(pt.price) : ""}</div>
-                    <div style={{ fontSize:11, fontWeight:700, color: Number(pt.stock_qty||0) > 0 ? "#059669" : "#dc2626" }}>
-                      📦 Tồn kho: {Number(pt.stock_qty||0)}
+
+            {/* Ô tìm hàng đổi mới */}
+            <div style={{ position:"relative", marginTop:6 }}>
+              <input
+                value={partField.current === "new_product_name" ? partSearch : (form.new_product_name || "")}
+                onChange={e => {
+                  partField.current = "new_product_name";
+                  setPartSearch(e.target.value);
+                  set("new_product_name", e.target.value);
+                  set("new_sku", "");
+                  setNewPick(null);
+                  setShowPartDrop(true);
+                }}
+                onFocus={() => { partField.current = "new_product_name"; setPartSearch(form.new_product_name || ""); }}
+                onBlur={() => setTimeout(() => setShowPartDrop(false), 180)}
+                placeholder="Gõ tên hoặc SKU (không cần dấu, không cần đúng thứ tự)…"
+                style={{ ...INP }} />
+
+              {showPartDrop && partField.current === "new_product_name" && (
+                <div style={{ position:"absolute", top:"100%", left:0, right:0, zIndex:100, background:"#fff",
+                  border:"1.5px solid #e5e7eb", borderRadius:10, boxShadow:"0 8px 24px rgba(0,0,0,.12)",
+                  overflowY:"auto", maxHeight:260, marginTop:2 }}>
+                  {(catalogIdx
+                    ? searchProducts(catalogIdx, partSearch || form.new_product_name || "", { limit: 20 })
+                    : (partSuggs || [])
+                  ).map(pt => (
+                    <div key={pt.id}
+                      onMouseDown={() => {
+                        setNewPick({ id: pt.id, sku: pt.sku || "", name: pt.name || "", price: Number(pt.price || 0), stock_qty: Number(pt.stock_qty || 0) });
+                        set("new_product_name", pt.name || "");
+                        set("new_sku", pt.sku || "");
+                        set("new_unit_price", Number(pt.price || 0));
+                        setNewPrice(Number(pt.price || 0));
+                        setNewQty(q => q || 1);
+                        setPartSearch(pt.name || "");
+                        setNewPartStock(Number(pt.stock_qty || 0));
+                        setShowPartDrop(false);
+                      }}
+                      style={{ padding:"9px 14px", cursor:"pointer", borderBottom:"1px solid #f3f4f6" }}>
+                      <div style={{ fontWeight:700, fontSize:13, color:"#1e1b4b" }}>{pt.name}</div>
+                      <div style={{ fontSize:11, color:"#6b7280" }}>
+                        {pt.sku && `SKU: ${pt.sku} · `}{pt.price ? fmtMoney(pt.price) : ""}
+                      </div>
+                      <div style={{ fontSize:11, fontWeight:700, color: Number(pt.stock_qty||0) > 0 ? "#059669" : "#dc2626" }}>
+                        📦 Tồn: {Number(pt.stock_qty||0)}
+                      </div>
                     </div>
+                  ))}
+                  {catalogIdx && searchProducts(catalogIdx, partSearch || form.new_product_name || "", { limit: 1 }).length === 0 && (
+                    <div style={{ padding:"12px 14px", fontSize:12.5, color:"#6b7280" }}>
+                      Không tìm thấy hàng khớp. Gõ ngắn hơn hoặc dùng mã SKU.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Số lượng + đơn giá hàng đổi */}
+            <div style={{ display:"flex", gap:8, marginTop:8 }}>
+              <div style={{ width:88 }}>
+                <label style={{ fontSize:11.5, color:"#6b7280", fontWeight:600 }}>SL</label>
+                <input type="number" min="1" value={newQty}
+                  onChange={e => setNewQty(Math.max(1, Number(e.target.value)||1))}
+                  style={{ ...INP, marginTop:3, padding:"0 8px", textAlign:"center" }} />
+              </div>
+              <div style={{ flex:1 }}>
+                <label style={{ fontSize:11.5, color:"#6b7280", fontWeight:600 }}>Đơn giá hàng đổi (đ)</label>
+                <input type="number" value={newPrice}
+                  onChange={e => { const v = Number(e.target.value)||0; setNewPrice(v); set("new_unit_price", v); }}
+                  style={{ ...INP, marginTop:3 }} />
+              </div>
+            </div>
+
+            {/* Chênh lệch tự tính */}
+            {(() => {
+              const returnedValue = (Array.isArray(form.items) && form.items.length
+                ? form.items.reduce((t, i) => t + (Number(i.total_price) || 0), 0)
+                : Number(form.refund_amount) || 0);
+              const newTotal = newQty * newPrice;
+              const diff = newTotal - returnedValue;
+              return (
+                <div style={{ marginTop:10, background:"#fff", border:"1px solid #e5e7eb", borderRadius:10, padding:"10px 12px" }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:12.5, color:"#374151", marginBottom:3 }}>
+                    <span>Hàng khách trả về</span><b>{fmtMoney(returnedValue)}</b>
                   </div>
-                ))}
-              </div>
-            )}
+                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:12.5, color:"#374151", marginBottom:6 }}>
+                    <span>Hàng đổi mới ({newQty} × {fmtMoney(newPrice)})</span><b>{fmtMoney(newTotal)}</b>
+                  </div>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
+                    borderTop:"1px dashed #e5e7eb", paddingTop:6 }}>
+                    <span style={{ fontSize:13, fontWeight:800, color:"#1e1b4b" }}>Chênh lệch</span>
+                    <span style={{ fontSize:15, fontWeight:900, color: diff > 0 ? "#dc2626" : diff < 0 ? "#059669" : "#6b7280" }}>
+                      {diff > 0 ? "Khách trả thêm " + fmtMoney(diff)
+                        : diff < 0 ? "Hoàn lại khách " + fmtMoney(Math.abs(diff))
+                        : "Không chênh lệch"}
+                    </span>
+                  </div>
+
+                  <label style={{ display:"flex", alignItems:"center", gap:6, marginTop:8, fontSize:12, color:"#6b7280" }}>
+                    <input type="checkbox" checked={diffManual}
+                      onChange={e => { setDiffManual(e.target.checked); if (!e.target.checked) set("price_diff", diff); }} />
+                    Tự nhập chênh lệch
+                  </label>
+                  {diffManual && (
+                    <input type="number" value={form.price_diff}
+                      onChange={e => set("price_diff", Number(e.target.value)||0)}
+                      style={{ ...INP, marginTop:4 }} />
+                  )}
+                  {!diffManual && (() => { if (Number(form.price_diff) !== diff) setTimeout(() => set("price_diff", diff), 0); return null; })()}
+                </div>
+              );
+            })()}
+
             {newPartStock !== null && (
-              <div style={{ fontSize:11.5, fontWeight:700, marginTop:4,
-                color: newPartStock > 0 ? "#059669" : "#dc2626" }}>
-                {newPartStock > 0
-                  ? `✅ Còn ${newPartStock} trong kho — đủ hàng để đổi`
-                  : "⛔ HẾT HÀNG trong kho — không đủ để đổi, cần nhập thêm hoặc hẹn khách"}
+              <div style={{ fontSize:11.5, fontWeight:700, marginTop:6, color: newPartStock > 0 && newPartStock >= newQty ? "#059669" : "#dc2626" }}>
+                {newPartStock > 0 && newPartStock >= newQty
+                  ? `✅ Kho BH còn ${newPartStock} — đủ hàng để đổi`
+                  : newPartStock > 0
+                    ? `⚠️ Kho BH chỉ còn ${newPartStock}, chưa đủ ${newQty} — cần nhập thêm hoặc hẹn khách`
+                    : "⛔ Kho BH hết hàng — cần nhập thêm hoặc hẹn khách"}
               </div>
             )}
-            {form.return_type === "exchange" && (
-              <div style={{ marginTop:10 }}>
-                <label style={{ fontSize:12, color:"#6b7280", fontWeight:600 }}>Chênh lệch giá khách trả thêm (đ) — âm nếu hoàn tiền lại</label>
-                <input type="number" value={form.price_diff}
-                  onChange={e=>set("price_diff", Number(e.target.value)||0)}
-                  style={{ ...INP, marginTop:4 }} />
-              </div>
-            )}
+
             {form.return_type === "warranty" && (
               <div style={{ marginTop:10 }}>
                 <label style={{ fontSize:12, color:"#6b7280", fontWeight:600 }}>Ngày hết hạn bảo hành</label>
@@ -596,49 +700,6 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems, edi
                 {originOrder?.warranty_end && <div style={{ fontSize:11, color:"#059669", marginTop:3 }}>✓ Theo đơn gốc: bảo hành đến {originOrder.warranty_end}</div>}
               </div>
             )}
-          </div>
-        )}
-
-        {/* Sửa lại miễn phí — KTV phụ trách + ngày hẹn xong */}
-        {form.return_type === "repair_free" && (
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
-            <div>
-              <label style={{ fontSize:12, color:"#6b7280", fontWeight:600 }}>KTV phụ trách</label>
-              <select value={form.assigned_tech} onChange={e=>set("assigned_tech", e.target.value)}
-                style={{ ...INP, marginTop:4, background:"#fff" }}>
-                <option value="">— Chọn KTV —</option>
-                {techs.map(t => <option key={t.id} value={t.full_name}>{t.full_name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={{ fontSize:12, color:"#6b7280", fontWeight:600 }}>Ngày hẹn xong</label>
-              <input type="date" value={form.promise_date}
-                onChange={e=>set("promise_date", e.target.value)}
-                style={{ ...INP, marginTop:4 }} />
-            </div>
-          </div>
-        )}
-
-        {/* Số tiền hoàn — chỉ khi refund */}
-        {form.return_type === "refund" && (
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
-            <div>
-              <label style={{ fontSize:12, color:"#dc2626", fontWeight:600 }}>Số tiền hoàn lại (đ)</label>
-              <input type="number" min={0} value={form.refund_amount}
-                onChange={e=>set("refund_amount",Number(e.target.value))}
-                style={{ ...INP, marginTop:4, borderColor:"#fca5a5" }} />
-              {originOrder && originOrder.total > 0 && (
-                <div style={{ fontSize:11, color:"#6b7280", marginTop:3 }}>Giá trị đơn gốc: {fmtMoney(originOrder.total)}</div>
-              )}
-            </div>
-            <div>
-              <label style={{ fontSize:12, color:"#6b7280", fontWeight:600 }}>Hình thức hoàn tiền</label>
-              <select value={form.refund_method} onChange={e=>set("refund_method", e.target.value)}
-                style={{ ...INP, marginTop:4, background:"#fff" }}>
-                <option value="cash">💵 Tiền mặt</option>
-                <option value="transfer">🏦 Chuyển khoản</option>
-              </select>
-            </div>
           </div>
         )}
 
@@ -855,6 +916,16 @@ export default function ReturnOrderPage({ user }) {
         if (res2.ok) {
           logAction(user, "return_stock_in", "return_order", r.id,
             `Nhập ${res2.count} mặt hàng trả về vào ${res2.warehouse} — đơn ${r.code}`);
+        }
+        // Đổi/bảo hành sang hàng khác → xuất kho hàng đổi mới cho khách
+        if (r.return_type === "exchange" || r.return_type === "warranty") {
+          const res3 = await issueExchangeStock({ ...r, status: "done" }, user);
+          if (res3.ok) {
+            logAction(user, "exchange_out", "return_order", r.id,
+              `Xuất ${res3.count} ${res3.part?.name || r.new_product_name} đổi cho khách — đơn ${r.code}`);
+          } else if (res3.reason) {
+            alert("⚠️ Chưa xuất được hàng đổi mới: " + res3.reason);
+          }
         }
       }
       setDetail(null);
