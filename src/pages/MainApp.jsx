@@ -2551,6 +2551,7 @@ function MainAppContent({ onUserChange }) {
                       {dividerLabel}
                     </div>
                   )}
+                  <div style={{ position:"relative" }}>
                   <button
                     onClick={(e) => {
                       if (e.ctrlKey || e.metaKey) { openPageInNewTab(item.key); return; }
@@ -2561,7 +2562,7 @@ function MainAppContent({ onUserChange }) {
                       if (e.button === 1) { e.preventDefault(); openPageInNewTab(item.key); }
                     }}
                     title="Ctrl/⌘ + bấm hoặc bấm chuột giữa để mở tab mới"
-                    style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px",
+                    style={{ width:"100%", display:"flex", alignItems:"center", gap:10, padding:"10px 14px",
                       borderRadius:10, border:"none", textAlign:"left", cursor:"pointer",
                       background: active ? "rgba(255,255,255,.15)" : "transparent",
                       color: active ? "#fff" : "rgba(255,255,255,.7)",
@@ -2569,8 +2570,19 @@ function MainAppContent({ onUserChange }) {
                     <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,lineHeight:1}}>
                       {item.icon}
                     </span>
-                    {item.label}
+                    <span style={{ flex:1 }}>{item.label}</span>
                   </button>
+                  {isPC && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); openPageInNewTab(item.key); }}
+                      title="Mở trong tab mới (hoặc Ctrl/⌘ + bấm)"
+                      style={{ position:"absolute", right:6, top:"50%", transform:"translateY(-50%)",
+                        background:"transparent", border:"none", cursor:"pointer", padding:2,
+                        color:"rgba(255,255,255,.4)", lineHeight:1 }}>
+                      <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:16}}>open_in_new</span>
+                    </button>
+                  )}
+                  </div>
                 </React.Fragment>
               );
             });
