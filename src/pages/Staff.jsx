@@ -71,7 +71,7 @@ export default function StaffManager({ currentStaff }) {
           kpi_score: 100,
           note: form.note,
         });
-        logAction(user, "create_staff", "staff", createdStaff.id, `Tạo nhân viên: ${form.full_name} (${form.role})`);
+        logAction(currentStaff, "create_staff", "staff", createdStaff.id, `Tạo nhân viên: ${form.full_name} (${form.role})`);
         showToast("✅ Đã tạo tài khoản " + form.full_name);
       } else {
         const patch = {
@@ -83,7 +83,7 @@ export default function StaffManager({ currentStaff }) {
           note: form.note,
         };
         if (form.password) { patch.password_hash = simpleHash(form.password); patch.must_change_password = true; }
-        logAction(user, "update", "staff", modal.id, `Sửa nhân viên: ${form.full_name} — role: ${form.role}`);
+        logAction(currentStaff, "update", "staff", modal.id, `Sửa nhân viên: ${form.full_name} — role: ${form.role}`);
         await Staff.update(modal.id, patch);
         showToast("✅ Đã cập nhật " + form.full_name);
       }
@@ -95,14 +95,14 @@ export default function StaffManager({ currentStaff }) {
 
   async function toggleActive(s) {
     await Staff.update(s.id, { is_active: !s.is_active });
-    logAction(user, "update", "staff", s.id, `${s.is_active ? "Khóa" : "Mở khóa"} tài khoản: ${s.full_name}`);
+    logAction(currentStaff, "update", "staff", s.id, `${s.is_active ? "Khóa" : "Mở khóa"} tài khoản: ${s.full_name}`);
     showToast(s.is_active ? `🔒 Đã khóa ${s.full_name}` : `🔓 Đã mở khóa ${s.full_name}`);
     load();
   }
 
   async function resetKpi(s) {
     await Staff.update(s.id, { kpi_score: 100 });
-    logAction(user, "update", "staff", s.id, `Reset KPI: ${s.full_name} → 100`);
+    logAction(currentStaff, "update", "staff", s.id, `Reset KPI: ${s.full_name} → 100`);
     showToast(`🔄 Reset KPI ${s.full_name} → 100`);
     load();
   }

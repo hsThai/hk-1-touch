@@ -1,5 +1,6 @@
 /* ReportStaffPage.jsx — KPI Nhân viên — HK One Touch */
 import React, { useState, useEffect, useCallback } from "react";
+import { ViDateInput } from "../components/ViDate.jsx";
 import { RepairOrder, SaleOrder, Staff } from "./pb.jsx";
 
 const fmt  = (n) => (n || 0).toLocaleString("vi-VN");
@@ -133,10 +134,10 @@ export default function ReportStaffPage({ user }) {
         ))}
         {period === "custom" && (
           <>
-            <input type="date" value={customFrom} onChange={e => { setCustomFrom(e.target.value); if(!customTo) setCustomTo(e.target.value); }}
+            <ViDateInput value={customFrom} onChange={e => { setCustomFrom(e.target.value); if(!customTo) setCustomTo(e.target.value); }}
               style={{ padding: "7px 10px", borderRadius: 8, border: "1.5px solid #e5e7eb", fontSize: 13 }} />
             <span style={{ color: "#6b7280" }}>—</span>
-            <input type="date" value={customTo} onChange={e => { setCustomTo(e.target.value); if(!customFrom) setCustomFrom(e.target.value); }}
+            <ViDateInput value={customTo} onChange={e => { setCustomTo(e.target.value); if(!customFrom) setCustomFrom(e.target.value); }}
               style={{ padding: "7px 10px", borderRadius: 8, border: "1.5px solid #e5e7eb", fontSize: 13 }} />
             <button onClick={load} style={{ padding: "7px 16px", borderRadius: 8, background: "#4f46e5", color: "#fff", border: "none", fontWeight: 700, cursor: "pointer" }}>Xem</button>
           </>

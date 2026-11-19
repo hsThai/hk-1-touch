@@ -5,6 +5,7 @@
  * Nguồn: sale_orders (đơn đã thu) + sale_order_items + return_orders (phiếu trả).
  */
 import React, { useEffect, useMemo, useState } from "react";
+import { ViDateInput } from "../components/ViDate.jsx";
 import { SaleOrder, SaleOrderItem, ReturnOrder, logAction } from "./pb.jsx";
 import { usePermission } from "./PermissionContext.jsx";
 import { HintDot } from "../components/HintSystem.jsx";
@@ -284,10 +285,10 @@ export default function SalesAnalyticsPage({ user }) {
 
       {/* Bộ lọc — hàng 1: ngày + nút nhanh, hàng 2: tìm kiếm + xuất Excel (không còn chồng nhau) */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8, alignItems: "center" }}>
-        <input type="date" value={from} onChange={e => setFrom(e.target.value)}
+        <ViDateInput value={from} onChange={e => setFrom(e.target.value)}
           style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 14 }} />
         <span style={{ color: "#9ca3af" }}>→</span>
-        <input type="date" value={to} onChange={e => setTo(e.target.value)}
+        <ViDateInput value={to} onChange={e => setTo(e.target.value)}
           style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 14 }} />
         <button onClick={() => setOnlyPaid(v => !v)}
           style={{ padding: "7px 12px", borderRadius: 20, cursor: "pointer", fontSize: 12.5, fontWeight: 700,

@@ -1,5 +1,6 @@
 /* ExpensePage.jsx — Quản lý chi phí */
 import React, { useState, useEffect } from "react";
+import { ViDateInput, ViMonthInput } from "../components/ViDate.jsx";
 import { Expense, CashJournal , getLocalDate, logAction } from "./pb.jsx";
 import { usePermission } from "./PermissionContext.jsx";
 
@@ -39,6 +40,7 @@ const TH  = { padding:"10px 12px", background:"#f9fafb", fontWeight:800, fontSiz
 const TD  = { padding:"10px 12px", fontSize:13, borderBottom:"1px solid #f3f4f6", verticalAlign:"middle" };
 
 export default function ExpensePage({ user }) {
+  const { can } = usePermission();
 
   const [isPC, setIsPC] = React.useState(window.innerWidth >= 1024);
   React.useEffect(() => {
@@ -74,7 +76,7 @@ export default function ExpensePage({ user }) {
     if (!fAmt || Number(fAmt)<=0) { showToast("⚠️ Vui lòng nhập số tiền hợp lệ"); return; }
     setSubmitting(true);
     try {
-      logAction(user, "add_expense", "expense", "", `Tạo chi phí: ${exp.category||""} — ${exp.amount?.toLocaleString("vi-VN")||""}đ`);
+      logAction(user, "add_expense", "expense", "", `Tạo chi phí: ${fCat||""} — ${Number(fAmt||0).toLocaleString("vi-VN")}đ`);
       const savedExp = await Expense.create({
         expense_code:    genCode(),
         category:        fCat,
@@ -195,7 +197,7 @@ export default function ExpensePage({ user }) {
 
         <div style={{ marginBottom:16 }}>
           <label style={{ fontSize:12, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>Ngày</label>
-          <input type="date" value={fDate} onChange={e=>setFDate(e.target.value)} style={INP} />
+          <ViDateInput value={fDate} onChange={e=>setFDate(e.target.value)} style={INP} />
         </div>
 
         <button onClick={handleSubmit} disabled={submitting}
@@ -209,7 +211,7 @@ export default function ExpensePage({ user }) {
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16 }}>
         <div>
           <label style={{ fontSize:12, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>Lọc theo tháng</label>
-          <input type="month" value={filterMonth} onChange={e=>setFilterMonth(e.target.value)} style={INP} />
+          <ViMonthInput value={filterMonth} onChange={e=>setFilterMonth(e.target.value)} style={INP} />
         </div>
         <div>
           <label style={{ fontSize:12, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>Danh mục</label>

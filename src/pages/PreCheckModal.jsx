@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { ViDateInput } from "../components/ViDate.jsx";
 import { SparePart, StockLedger, getPbUrl } from "./pb.jsx";
 
 // ── Checklist QT1 — Ngoại quan (Tiếp tân) ──────────────────────────
@@ -927,12 +928,12 @@ export function CustomerConfirmModal({ order, users = [], currentUser, onClose, 
                         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6, marginTop:6, background:"#ffedd5", borderRadius:8, padding:6 }}>
                           <div>
                             <div style={{ fontSize:10, fontWeight:800, color:"#9a3412", marginBottom:2 }}>Dự kiến hàng về</div>
-                            <input type="date" value={l.expected_date} onChange={e => updLine(l.key, "expected_date", e.target.value)}
+                            <ViDateInput value={l.expected_date} onChange={e => updLine(l.key, "expected_date", e.target.value)}
                               style={{ width:"100%", height:30, borderRadius:8, border:"1.5px solid #fed7aa", padding:"0 6px", fontSize:11, boxSizing:"border-box", outline:"none" }} />
                           </div>
                           <div>
                             <div style={{ fontSize:10, fontWeight:800, color:"#9a3412", marginBottom:2 }}>Hạn đặt NCC</div>
-                            <input type="date" value={l.po_due_date} onChange={e => updLine(l.key, "po_due_date", e.target.value)}
+                            <ViDateInput value={l.po_due_date} onChange={e => updLine(l.key, "po_due_date", e.target.value)}
                               style={{ width:"100%", height:30, borderRadius:8, border:"1.5px solid #fed7aa", padding:"0 6px", fontSize:11, boxSizing:"border-box", outline:"none" }} />
                           </div>
                         </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { ViDateInput } from "../components/ViDate.jsx";
 import { getPbUrl, getAuth } from "./pb.jsx";
 
 // Chuyển "YYYY-MM-DD" (ngày local của user, giờ VN) -> ISO UTC string khớp định dạng
@@ -253,12 +254,12 @@ export default function ActionLogPage({ user }) {
               border:"1px solid #e5e7eb", fontSize:14 }}
           />
         </div>
-        <input type="date" value={dateFrom}
+        <ViDateInput value={dateFrom}
           onChange={e => { setDateFrom(e.target.value); if(!dateTo) setDateTo(e.target.value); setPage(1); }}
           style={{ padding:"8px 10px", borderRadius:8, border:"1px solid #e5e7eb", fontSize:13 }}
         />
         <span style={{ lineHeight:"34px", color:"#9ca3af", fontSize:13 }}>→</span>
-        <input type="date" value={dateTo}
+        <ViDateInput value={dateTo}
           onChange={e => { setDateTo(e.target.value); if(!dateFrom) setDateFrom(e.target.value); setPage(1); }}
           style={{ padding:"8px 10px", borderRadius:8, border:"1px solid #e5e7eb", fontSize:13 }}
         />

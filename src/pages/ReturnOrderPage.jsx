@@ -3,6 +3,7 @@
  * @version 2026-06-01-v1
  */
 import React, { useState, useEffect } from "react";
+import { ViDateInput } from "../components/ViDate.jsx";
 import { loadCatalogForSearch, searchProducts } from "../utils/productSearch.js";
 import { CashJournal, getPbUrl, getAuth, logAction, notifyRoles, Notification, Staff, receiveReturnStock, issueExchangeStock } from "./pb.jsx";
 import { usePermission } from "./PermissionContext.jsx";
@@ -470,7 +471,7 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems, edi
             )}
           <div>
             <label style={{ fontSize:12, color:"#6b7280", fontWeight:600 }}>Ngày đổi trả</label>
-            <input type="date" value={form.return_date} onChange={e=>set("return_date",e.target.value)}
+            <ViDateInput value={form.return_date} onChange={e=>set("return_date",e.target.value)}
               style={{ ...INP, marginTop:4 }} />
           </div>
         </div>
@@ -694,7 +695,7 @@ export function ReturnForm({ user, onSave, onClose, initialData, orderItems, edi
             {form.return_type === "warranty" && (
               <div style={{ marginTop:10 }}>
                 <label style={{ fontSize:12, color:"#6b7280", fontWeight:600 }}>Ngày hết hạn bảo hành</label>
-                <input type="date" value={form.warranty_end_date}
+                <ViDateInput value={form.warranty_end_date}
                   onChange={e=>set("warranty_end_date", e.target.value)}
                   style={{ ...INP, marginTop:4 }} />
                 {originOrder?.warranty_end && <div style={{ fontSize:11, color:"#059669", marginTop:3 }}>✓ Theo đơn gốc: bảo hành đến {originOrder.warranty_end}</div>}

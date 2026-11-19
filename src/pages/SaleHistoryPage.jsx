@@ -1,5 +1,6 @@
 /* SaleHistoryPage.jsx — Quản lý đơn bán hàng (nâng cấp đầy đủ) */
 import React, { useState, useEffect, lazy, Suspense } from "react";
+import { ViDateInput } from "../components/ViDate.jsx";
 import { SaleOrder, SaleOrderItem, DebtPayment, DebtVoucher, logAction, sortNewestFirst } from "./pb.jsx";
 import { usePermission } from "./PermissionContext.jsx";
 import { printSaleReceiptA5, previewSaleReceipt } from "../utils/printClient.js";
@@ -579,7 +580,7 @@ export default function SaleHistoryPage({ user, onCollect }) {
         <div style={{ display:"flex", gap:8, alignItems:"center" }}>
           <div style={{ flex:1 }}>
             <div style={{ fontSize:11, color:"#9ca3af", marginBottom:3, paddingLeft:2 }}>Từ ngày</div>
-            <input type="date" value={dateFrom} onChange={e=>{
+            <ViDateInput value={dateFrom} onChange={e=>{
                 setDateFrom(e.target.value);
                 if (!dateTo) setDateTo(e.target.value);
               }}
@@ -587,7 +588,7 @@ export default function SaleHistoryPage({ user, onCollect }) {
           </div>
           <div style={{ flex:1 }}>
             <div style={{ fontSize:11, color:"#9ca3af", marginBottom:3, paddingLeft:2 }}>Đến ngày</div>
-            <input type="date" value={dateTo} onChange={e=>{
+            <ViDateInput value={dateTo} onChange={e=>{
                 setDateTo(e.target.value);
                 if (!dateFrom) setDateFrom(e.target.value);
               }}

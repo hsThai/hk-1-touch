@@ -1,5 +1,6 @@
 /* RevenueReportPage.jsx — Báo cáo doanh thu */
 import React, { useState, useEffect, useMemo } from "react";
+import { ViDateInput, ViMonthInput } from "../components/ViDate.jsx";
 import { RepairOrder, SaleOrder, SaleOrderItem, Expense, StockImport, StockExportRequest, CashJournal, logAction } from "./pb.jsx";
 import * as XLSX from "xlsx";
 import { exportSheet, buildConditions, dayStamp } from "../utils/excelExport.js";
@@ -173,7 +174,7 @@ function CashJournalTab() {
     <div style={{ padding:16 }}>
       {/* Filter */}
       <div style={{ display:"flex", gap:8, marginBottom:14, flexWrap:"wrap", alignItems:"center" }}>
-        <input type="month" value={month} onChange={e=>setMonth(e.target.value)}
+        <ViMonthInput value={month} onChange={e=>setMonth(e.target.value)}
           style={{ border:"1.5px solid #e5e7eb", borderRadius:8, padding:"6px 10px", fontSize:13 }}/>
         {[["all","Tất cả"],["receipt","🟢 Thu"],["payment","🔴 Chi"]].map(([k,l])=>(
           <button key={k} onClick={()=>setFilter(k)}
@@ -557,9 +558,9 @@ function ProfitLossTab({ repairOrders, saleOrders, expenses }) {
       </div>
       {period==="custom" && (
         <div style={{ display:"flex", gap:8, marginBottom:12 }}>
-          <input type="date" value={customStart} onChange={e=>{ setCustomStart(e.target.value); if(!customEnd) setCustomEnd(e.target.value); }}
+          <ViDateInput value={customStart} onChange={e=>{ setCustomStart(e.target.value); if(!customEnd) setCustomEnd(e.target.value); }}
             style={{ flex:1, border:"1.5px solid #e5e7eb", borderRadius:8, padding:"6px 10px", fontSize:12 }}/>
-          <input type="date" value={customEnd} onChange={e=>{ setCustomEnd(e.target.value); if(!customStart) setCustomStart(e.target.value); }}
+          <ViDateInput value={customEnd} onChange={e=>{ setCustomEnd(e.target.value); if(!customStart) setCustomStart(e.target.value); }}
             style={{ flex:1, border:"1.5px solid #e5e7eb", borderRadius:8, padding:"6px 10px", fontSize:12 }}/>
         </div>
       )}
@@ -903,11 +904,11 @@ export default function RevenueReportPage({ user }) {
       {/* Custom date range picker */}
       {period==="custom" && (
         <div style={{ display:"flex", gap:8, alignItems:"center", marginBottom:20, flexWrap:"wrap" }}>
-          <input type="date" value={customFrom}
+          <ViDateInput value={customFrom}
             onChange={e=>{ setCustomFrom(e.target.value); if(!customTo) setCustomTo(e.target.value); }}
             style={{ flex:1, minWidth:130, border:"1.5px solid #e5e7eb", borderRadius:10, padding:"8px 10px", fontSize:13 }}/>
           <span style={{ color:"#6b7280" }}>—</span>
-          <input type="date" value={customTo}
+          <ViDateInput value={customTo}
             onChange={e=>{ setCustomTo(e.target.value); if(!customFrom) setCustomFrom(e.target.value); }}
             style={{ flex:1, minWidth:130, border:"1.5px solid #e5e7eb", borderRadius:10, padding:"8px 10px", fontSize:13 }}/>
         </div>

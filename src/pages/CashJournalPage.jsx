@@ -3,6 +3,7 @@
  * @version 2026-05-29-v1
  */
 import React, { useState, useEffect, useMemo } from "react";
+import { ViDateInput, ViMonthInput } from "../components/ViDate.jsx";
 import { CashJournal, logAction } from "./pb.jsx";
 import { exportSheet, buildConditions } from "../utils/excelExport.js";
 import { usePermission } from "./PermissionContext.jsx";
@@ -64,7 +65,7 @@ function ManualEntryModal({ user, onSave, onClose }) {
 
         <div style={{ marginBottom:12 }}>
           <label style={{ fontSize:12, fontWeight:700, color:"#374151", display:"block", marginBottom:4 }}>Ngày</label>
-          <input type="date" value={form.journal_date} onChange={e=>setForm(f=>({...f,journal_date:e.target.value}))}
+          <ViDateInput value={form.journal_date} onChange={e=>setForm(f=>({...f,journal_date:e.target.value}))}
             style={{ width:"100%", height:42, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 12px", fontSize:14, outline:"none", boxSizing:"border-box" }}/>
         </div>
 
@@ -256,7 +257,7 @@ export default function CashJournalPage({ user }) {
 
       {/* Month picker + CSV — cùng hàng */}
       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:16 }}>
-        <input type="month" value={month} onChange={e=>setMonth(e.target.value)}
+        <ViMonthInput value={month} onChange={e=>setMonth(e.target.value)}
           lang="vi"
           style={{ border:"1.5px solid #e5e7eb", borderRadius:10, padding:"6px 10px", fontSize:12, flex:1, boxSizing:"border-box" }}/>
         <button onClick={exportCSV}

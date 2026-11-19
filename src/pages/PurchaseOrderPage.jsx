@@ -1,5 +1,6 @@
 /* PurchaseOrderPage.jsx — Đặt hàng NCC — HK One Touch */
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { ViDateInput } from "../components/ViDate.jsx";
 import { ProductThumb } from "./ProductThumb.jsx";
 import { PurchaseOrder, PurchaseOrderItem, SparePart, Supplier, logAction } from "./pb.jsx";
 import { usePermission } from "./PermissionContext.jsx";
@@ -258,11 +259,11 @@ function POModal({ user, po, onClose, onSaved, allParts }) {
             </div>
             <div>
               <label style={{fontSize:12,fontWeight:600,color:"#6b7280",display:"block",marginBottom:4}}>Ngày đặt</label>
-              <input type="date" value={orderDate} onChange={e=>setOrderDate(e.target.value)} disabled={!canEdit} style={inputStyle(canEdit)} />
+              <ViDateInput value={orderDate} onChange={e=>setOrderDate(e.target.value)} disabled={!canEdit} style={inputStyle(canEdit)} />
             </div>
             <div>
               <label style={{fontSize:12,fontWeight:600,color:"#6b7280",display:"block",marginBottom:4}}>Ngày dự kiến nhận</label>
-              <input type="date" value={expectedDate} onChange={e=>setExpectedDate(e.target.value)} disabled={!canEdit} style={inputStyle(canEdit)} />
+              <ViDateInput value={expectedDate} onChange={e=>setExpectedDate(e.target.value)} disabled={!canEdit} style={inputStyle(canEdit)} />
             </div>
           </div>
           <div style={{marginBottom:14}}>

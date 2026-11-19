@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { ViMonthInput } from "../components/ViDate.jsx";
 import { Warehouse, StockLedger, StockMovement, logAction } from "./pb.jsx";
 import * as XLSX from "xlsx";
 import ExportConfirmModal, { buildExcelResult } from "./ExportConfirm.jsx";
@@ -290,7 +291,7 @@ export default function StockReportNXT({ user }) {
 
       {/* Filters */}
       <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 }}>
-        <input type="month" value={ym} onChange={e => setYm(e.target.value)}
+        <ViMonthInput value={ym} onChange={e => setYm(e.target.value)}
           style={{ padding:"8px 12px", borderRadius:8, border:"1px solid #e5e7eb", fontSize:14 }} />
         <HintDot page="stock_nxt" id="warehouse" size={14} />
         <select value={warehouseId} onChange={e => setWarehouseId(e.target.value)}

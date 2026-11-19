@@ -1,6 +1,7 @@
 /* REBUILD_20260406_1408 */
 /* v4-loginv2-real-db */
 import React, { lazy, Suspense, useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
+import { ViDateInput } from "../components/ViDate.jsx";
 import { RepairChat, Notification, Staff, RepairOrder, Customer, SparePart, StockExportRequest, StockImport, StockImportItem, StockLedger, ActionLog, getPbUrl, getAuth, logHistory, logAction, DebtVoucher, CashJournal } from "./pb.jsx";
 import { uploadFile } from "./pb.jsx";
 import { getNotifSound } from "./notifUtils.js";
@@ -2159,11 +2160,11 @@ function MainAppContent({ onUserChange }) {
           </div>
           <div style={{ flex:1, minWidth:120 }}>
             <div style={{ fontSize:11, color:"#9ca3af", marginBottom:3, paddingLeft:2 }}>Từ ngày</div>
-            <input type="date" value={fltFrom} onChange={e=>setFltFrom(e.target.value)} style={{ height:34, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 8px", fontSize:12.5, outline:"none", background:"#fff", width:"100%", boxSizing:"border-box" }} />
+            <ViDateInput value={fltFrom} onChange={e=>setFltFrom(e.target.value)} style={{ height:34, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 8px", fontSize:12.5, outline:"none", background:"#fff", width:"100%", boxSizing:"border-box" }} />
           </div>
           <div style={{ flex:1, minWidth:120 }}>
             <div style={{ fontSize:11, color:"#9ca3af", marginBottom:3, paddingLeft:2 }}>Đến ngày</div>
-            <input type="date" value={fltTo} onChange={e=>setFltTo(e.target.value)} style={{ height:34, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 8px", fontSize:12.5, outline:"none", background:"#fff", width:"100%", boxSizing:"border-box" }} />
+            <ViDateInput value={fltTo} onChange={e=>setFltTo(e.target.value)} style={{ height:34, borderRadius:10, border:"1.5px solid #e5e7eb", padding:"0 8px", fontSize:12.5, outline:"none", background:"#fff", width:"100%", boxSizing:"border-box" }} />
           </div>
           {(fltStatus || fltFrom || fltTo) && (
             <button onClick={()=>{ setFltStatus(""); setFltFrom(""); setFltTo(""); }}

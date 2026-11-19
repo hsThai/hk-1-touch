@@ -1,5 +1,6 @@
 /* CashierApp.jsx — App 3: Kế toán & Bán hàng lẻ */
 import React, { useState, useEffect } from "react";
+import { ViDateInput } from "../components/ViDate.jsx";
 import { usePermission } from "./PermissionContext.jsx";
 import { useUnsavedList, LeaveConfirm } from "../utils/unsavedGuard.jsx";
 import { RepairOrder, SaleOrder, SaleOrderItem, Expense, CashJournal, ShiftReconcile, DebtVoucher, logAction, getLocalDate, sortNewestFirst } from "./pb.jsx";
@@ -281,7 +282,7 @@ function ShiftReconcilePage({ user }) {
           </div>
         )}
         <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-          <input type="date" value={date} onChange={e=>setDate(e.target.value)}
+          <ViDateInput value={date} onChange={e=>setDate(e.target.value)}
             style={{ flex:1, border:"1.5px solid #e5e7eb", borderRadius:8, padding:"6px 10px", fontSize:13, minWidth:0, boxSizing:"border-box" }}/>
           <button onClick={exportCSV} style={{ background:"#4f46e5", color:"#fff", border:"none", borderRadius:8, padding:"7px 12px", fontSize:13, cursor:"pointer", whiteSpace:"nowrap" }}>
             <span className="material-icons" style={{fontSize:16,fontFamily:"Material Icons",verticalAlign:"middle"}}>download</span> CSV

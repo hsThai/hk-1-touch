@@ -300,6 +300,7 @@ function DeptCard({ dept, staffList }) {
 }
 
 export default function DepartmentPage({ user }) {
+  const { can } = usePermission();
   const isAdmin = !!can("department","edit"); // theo phan quyen
   const [depts,     setDepts]   = useState([]);
   const [staffList, setStaff]   = useState([]);
