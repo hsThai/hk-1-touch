@@ -77,6 +77,7 @@ const MyTasksPage = lazy(() => import("./MyTasksPage.jsx").catch(() => ({ defaul
 import { QRScanModal, IMEIScanModal } from"./QRComponents";
 import SmartScanModal from "./SmartScanModal.jsx";
 import { MediaViewer, AcceptChecklistModal, AcceptTimer, timeAgo, genOrderId, getKpiTimerInfo, STATUS_PB, STATUS_DISPLAY, PRIORITY_PB, PRIORITY_DISPLAY, STATUS_COLS } from "./MediaViewer";
+import GuidePage from "./GuidePage.jsx";
 import { OrderDrawer } from "./OrderDrawer";
 import { NewOrderModal, KPIPage, ProductHistoryModal } from "./OrderForms";
 import LoginPage, { showSystemNotif, requestNotifPermission } from "./LoginV2";
@@ -2588,8 +2589,16 @@ function MainAppContent({ onUserChange }) {
             });
             })()}
           </nav>
+          <button onClick={() => setPage("guide")}
+            style={{ margin:"12px 8px 0", padding:"10px 14px", borderRadius:10, border:"none",
+              background: page==="guide" ? "rgba(255,255,255,.2)" : "rgba(255,255,255,.08)",
+              color:"#e0e7ff", cursor:"pointer", display:"flex", alignItems:"center", gap:10,
+              fontSize:13.5, fontWeight:700, width:"calc(100% - 16px)" }}>
+            <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,lineHeight:1}}>menu_book</span>
+            Hướng dẫn sử dụng
+          </button>
           <button onClick={doLogout}
-            style={{ margin:"12px 8px", padding:"10px 14px", borderRadius:10, border:"none",
+            style={{ margin:"8px 8px 12px", padding:"10px 14px", borderRadius:10, border:"none",
               background:"rgba(239,68,68,.2)", color:"#fca5a5", cursor:"pointer",
               display:"flex", alignItems:"center", gap:10, fontSize:14, fontWeight:700 }}>
             <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,lineHeight:1}}>logout</span>
@@ -2666,6 +2675,9 @@ function MainAppContent({ onUserChange }) {
                 ? <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}><PackingPageLazy user={user} onBack={()=>setPage(isWarehouse?"wh_home":isRoleHome?"role_home":"my_tasks")} focusOrderCode={focusOrderCode} onFocusConsumed={()=>setFocusOrderCode(null)} focusTab={focusPackTab} onFocusTabConsumed={()=>setFocusPackTab(null)} /></Suspense>
                 : <AccessDenied pageName="Soạn hàng & Giao nhận" />)}
               {page==="cashier_home" && (canPOS ? <CashierApp user={user} onNotif={()=>setShowNotif(v=>!v)} onQRScan={()=>setShowSmartScan(true)} notifCount={notifications.length+dbNotifications.length} forceTab={cashierTab} onTabChange={setCashierTab} /> : <AccessDenied pageName="Thu ngân" />)}
+              {page==="guide" && user && (
+                <GuidePage user={user} onGoPage={(k) => setPage(k)} />
+              )}
               {page==="sale_order" && user && can("sale_order","view") && (
                 <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳</div>}>
                   <SaleHistoryPage user={user} />
@@ -2896,6 +2908,13 @@ function MainAppContent({ onUserChange }) {
               })()}
             </div>
             <div style={{ padding:16, borderTop:"1px solid rgba(255,255,255,.15)", display:"flex", flexDirection:"column", gap:8 }}>
+              <button onClick={() => { setPage("guide"); setSidebarOpen(false); }}
+                style={{ width:"100%", padding:14, background:"rgba(255,255,255,.12)", border:"none",
+                  borderRadius:12, color:"#e0e7ff", fontWeight:700, fontSize:14, cursor:"pointer",
+                  display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                <span className="material-icons" style={{fontFamily:"Material Icons",fontSize:20,lineHeight:1}}>menu_book</span>
+                Hướng dẫn sử dụng
+              </button>
               <button onClick={doLogout} style={{ width:"100%", padding:14, background:"rgba(239,68,68,.2)", border:"none", borderRadius:12, color:"#fca5a5", fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}><span className="material-icons" style={{fontFamily:"Material Icons",fontSize:18,verticalAlign:"middle",lineHeight:1,userSelect:"none"}}>logout</span> Đăng xuất</button>
             </div>
           </div>
