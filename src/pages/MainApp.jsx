@@ -2941,6 +2941,11 @@ function MainAppContent({ onUserChange }) {
       <Suspense fallback={<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>⏳ Đang tải...</div>}>
         <div style={{ paddingBottom:72 }}>
         {page==="my_tasks" && <Suspense fallback={<div style={{padding:40}}>⏳</div>}><MyTasksPage user={user} orders={orders} setPage={setPage} onNewOrder={()=>setShowNewOrder(true)} onOpenCashier={(tab)=>{setCashierTab(tab||"");setPage("cashier_home");}} onOpenPackShip={openPackShip} onOrderUpdated={handleTaskOrderUpdated} /></Suspense>}
+        {page==="guide" && user && (
+          <div style={{ padding: "12px 12px 0" }}>
+            <GuidePage user={user} onGoPage={(k) => setPage(k)} />
+          </div>
+        )}
         {page==="ktv_home" && <TechnicianHome user={user} orders={orders} setPage={setPage} />}
         {page==="rec_home" && <ReceptionHome user={user} orders={orders} setPage={setPage} />}
         {page==="board" && (can("repair_board","view") ? <KanbanBoard /> : <AccessDenied pageName="Theo dõi đơn sửa" />)}
