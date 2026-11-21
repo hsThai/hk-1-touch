@@ -121,14 +121,23 @@ export default function GuidePage({ user, onGoPage }) {
                 <div style={{ fontSize: 12, fontWeight: 800, color: "#374151", marginBottom: 6 }}>
                   Ảnh chụp màn hình thực tế
                 </div>
-                <div style={{ border: "1.5px solid #e5e7eb", borderRadius: 12, overflow: "hidden", background: "#f9fafb" }}>
-                  <img src={`/guide/${active.page}.jpg`} alt={active.title}
-                    onError={(e) => { e.currentTarget.style.display = "none"; }}
-                    style={{ width: "100%", display: "block" }} />
-                </div>
-                <div style={{ fontSize: 11.5, color: "#9ca3af", marginTop: 5, fontStyle: "italic" }}>
-                  Các bước đánh số bên dưới tương ứng với các khu vực trên màn hình này.
-                </div>
+                {(active.images && active.images.length
+                  ? active.images
+                  : [{ src: `/guide/${active.page}.jpg`, caption: "Các bước đánh số bên dưới tương ứng với các khu vực trên màn hình này." }]
+                ).map((img, idx) => (
+                  <div key={idx} style={{ marginBottom: 14 }}>
+                    <div style={{ border: "1.5px solid #e5e7eb", borderRadius: 12, overflow: "hidden", background: "#f9fafb" }}>
+                      <img src={img.src} alt={img.caption || active.title}
+                        onError={(e) => { e.currentTarget.parentElement.style.display = "none"; }}
+                        style={{ width: "100%", display: "block" }} />
+                    </div>
+                    {img.caption && (
+                      <div style={{ fontSize: 12, color: "#6b7280", marginTop: 5, lineHeight: 1.5 }}>
+                        <b style={{ color: "#4f46e5" }}>Ảnh {idx + 1}:</b> {img.caption}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
 
