@@ -533,7 +533,11 @@ export default function MyTasksPage({ user, orders = [], setPage, onNewOrder, on
           icon: "warning", title: `${extraData.lowStock} linh kiện sắp hết`,
           subtitle: "Tồn kho ≤ mức tối thiểu",
           badge: "Tồn thấp", badgeColor: "#d97706", urgency: "today",
-          onClick: () => { sessionStorage.setItem("wm_initial_tab","ledger"); setPage("wh_manager"); },
+          // Bấm "Tồn thấp" → mở thẳng Tồn kho để kiểm tra hàng, không mở Quản lý kho
+          onClick: () => {
+            if (can("stock_ledger","view")) setPage("wh_ledger");
+            else { sessionStorage.setItem("wm_initial_tab","ledger"); setPage("wh_manager"); }
+          },
         });
       }
       if (pendingExport.length === 0 && overdueBorrow.length === 0 && pendingImport.length === 0) {
