@@ -320,7 +320,7 @@ function AccessDenied({ pageName }) {
 }
 
 // ── Page guard: kiểm tra quyền trước khi render page ──────
-function usePageGuard(page, can) {
+function checkPageGuard(page, can) {
   if (page === "cashier_home") return ((can("pos_sale","create")||can("pos_sale","edit")) || ["pos_orders","pos_collect","pos_reconcile"].some(r => can(r,"view")));
   const perm = PAGE_PERMS[page];
   if (!perm) return true; // trang không có trong PAGE_PERMS → cho phép (trang nội bộ)
@@ -598,7 +598,7 @@ function MainAppContent({ onUserChange }) {
   };
   const users = users_raw;
   const [dataLoading, setDataLoading] = useState(true);
-  const [page, setPageRaw] = useState(() => readPageFromUrl().page || "my_tasks");
+  const [page, setPageRaw] = useState(() => (readPageFromUrl().order ? readPageFromUrl().page : "") || "my_tasks");
   // Chặn rời trang khi đang làm dở (chưa lưu) — hỏi lại trước khi đổi trang
   const unsavedItems = useBeforeUnloadGuard();
   const [pendingPage, setPendingPage] = useState(null);
@@ -675,9 +675,9 @@ function MainAppContent({ onUserChange }) {
   // ── Set initial page khi user login lần đầu ──────────────
   useEffect(() => {
     if (!user) return;
-    // Mọi vai trò đều bắt đầu ở "Việc của tôi" (trừ khi mở bằng link ?p=...)
-    const urlPage = readPageFromUrl().page;
-    if (!urlPage && page !== "my_tasks") setPageRaw("my_tasks");
+    // Mọi vai trò đều bắt đầu ở "Việc của tôi" (trừ deep link ?o= mở đơn cụ thể)
+    const url = readPageFromUrl();
+    if (!url.order && page !== "my_tasks") setPageRaw("my_tasks");
   }, [user]);
 
   // Auto mở accordion chứa page hiện tại
@@ -1496,31 +1496,9 @@ function MainAppContent({ onUserChange }) {
     setUser(u);
     onUserChange?.(u);
     setLoggedOut(false);
-    // Ưu tiên default_page từ DB role (nếu có), fallback hardcode
-    const DEFAULT_PAGE_MAP = {
-      technician:   "my_tasks",
-      receptionist: "my_tasks",
-      warehouse:    "my_tasks",
-      accountant:   "my_tasks",
-      cashier:      "my_tasks",
-      owner:        "my_tasks",
-      admin:        "my_tasks",
-      manager:      "my_tasks",
-      supervisor:   "my_tasks",
-      hr:           "my_tasks",
-      marketing:    "my_tasks",
-      qa:           "my_tasks",
-      support:      "my_tasks",
-      packer:       "my_tasks",
-      delivery:     "my_tasks",
-      it:           "my_tasks",
-      viewer:       "my_tasks",
-      sales:        "my_tasks",
-      team_leader:  "my_tasks",
-    };
-    // Nếu URL có ?p=... (mở tab mới / F5) thì giữ đúng trang đó
-    const urlPage = readPageFromUrl().page;
-    if (!urlPage) setPage(DEFAULT_PAGE_MAP[u.role] || "my_tasks");
+    // Mọi vai trò đều vào "Việc của tôi" sau đăng nhập (trừ deep link ?o= mở đơn cụ thể)
+    const url = readPageFromUrl();
+    if (!url.order) setPage("my_tasks");
   }} loggedOut={loggedOut} />;
   if (user.must_change_password) return <ChangePassword user={user} forceChange={true} onSuccess={() => setUser(u => ({...u, must_change_password: false}))} />;
 
@@ -1886,7 +1864,7 @@ function MainAppContent({ onUserChange }) {
       <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
         {MGR_ACCORDIONS.filter(acc => {
           // Ẩn accordion nếu không có item nào được phép
-          const visibleItems = acc.items.filter(sub => usePageGuard(sub.key, can));
+          const visibleItems = acc.items.filter(sub => checkPageGuard(sub.key, can));
           return visibleItems.length > 0;
         }).map(acc => {
           const isOpen = openAccordion === acc.key;
@@ -1932,7 +1910,7 @@ function MainAppContent({ onUserChange }) {
               {/* Sub-items */}
               {isOpen && (
                 <div style={{ paddingLeft:12, marginTop:1, marginBottom:2 }}>
-                  {acc.items.filter(sub => usePageGuard(sub.key, can)).map(sub => {
+                  {acc.items.filter(sub => checkPageGuard(sub.key, can)).map(sub => {
                     const isActive = sub.key.includes("__")
                       ? (page === sub.key.split("__")[0] && dashboardTab === sub.key.split("__")[1])
                       : page === sub.key;

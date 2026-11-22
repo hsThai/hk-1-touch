@@ -1,6 +1,6 @@
 // Tự phát hiện bản mới: so sánh build đang chạy với /version.json trên server.
 // Khác nhau → tải lại trang (PWA không còn kẹt bản cũ).
-const CURRENT = typeof __APP_BUILD__ !== "undefined" ? __APP_BUILD__ : "dev";
+const CURRENT = import.meta.env.APP_BUILD || "dev";
 let checking = false;
 
 async function check() {

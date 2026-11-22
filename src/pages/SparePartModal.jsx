@@ -619,8 +619,6 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
 
   function showToast(msg){setToast(msg);setTimeout(()=>setToast(""),4000);}
 
-  if (!order || !currentStaff) return null;
-
   // Tìm TRÊN SERVER toàn bộ catalog (12k+ mặt hàng), không chỉ 200 cái đầu
   useEffect(()=>{
     const term=(search||"").trim();
@@ -637,6 +635,9 @@ export default function SparePartModal({order, currentStaff, onClose, onDone}) {
     },300);
     return ()=>clearTimeout(t);
   },[search]);
+
+  if (!order || !currentStaff) return null;
+
   const filteredParts = searchRes!==null ? searchRes : parts;
   const pendingCount=requests.filter(r=>r.status==="pending").length;
 

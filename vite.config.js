@@ -20,7 +20,7 @@ function versionFilePlugin() {
 
 export default defineConfig({
   plugins: [react(), versionFilePlugin()],
-  define: { __APP_BUILD__: JSON.stringify(BUILD_ID) },
+  define: { 'import.meta.env.APP_BUILD': JSON.stringify(BUILD_ID) },
   server: {
     host: '0.0.0.0',
     port: 3000,
