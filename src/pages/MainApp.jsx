@@ -598,7 +598,7 @@ function MainAppContent({ onUserChange }) {
   };
   const users = users_raw;
   const [dataLoading, setDataLoading] = useState(true);
-  const [page, setPageRaw] = useState(() => readPageFromUrl().page || "board");
+  const [page, setPageRaw] = useState(() => readPageFromUrl().page || "my_tasks");
   // Chặn rời trang khi đang làm dở (chưa lưu) — hỏi lại trước khi đổi trang
   const unsavedItems = useBeforeUnloadGuard();
   const [pendingPage, setPendingPage] = useState(null);
@@ -675,10 +675,9 @@ function MainAppContent({ onUserChange }) {
   // ── Set initial page khi user login lần đầu ──────────────
   useEffect(() => {
     if (!user) return;
-    const isManagerRole = ["manager","admin","owner","supervisor"].includes(role);
-    if (isManagerRole && page === "board") {
-      setPage("dashboard");
-    }
+    // Mọi vai trò đều bắt đầu ở "Việc của tôi" (trừ khi mở bằng link ?p=...)
+    const urlPage = readPageFromUrl().page;
+    if (!urlPage && page !== "my_tasks") setPageRaw("my_tasks");
   }, [user]);
 
   // Auto mở accordion chứa page hiện tại
@@ -1501,7 +1500,7 @@ function MainAppContent({ onUserChange }) {
     const DEFAULT_PAGE_MAP = {
       technician:   "my_tasks",
       receptionist: "my_tasks",
-      warehouse:    "wh_home",
+      warehouse:    "my_tasks",
       accountant:   "my_tasks",
       cashier:      "my_tasks",
       owner:        "my_tasks",
@@ -1521,7 +1520,7 @@ function MainAppContent({ onUserChange }) {
     };
     // Nếu URL có ?p=... (mở tab mới / F5) thì giữ đúng trang đó
     const urlPage = readPageFromUrl().page;
-    if (!urlPage) setPage(DEFAULT_PAGE_MAP[u.role] || "board");
+    if (!urlPage) setPage(DEFAULT_PAGE_MAP[u.role] || "my_tasks");
   }} loggedOut={loggedOut} />;
   if (user.must_change_password) return <ChangePassword user={user} forceChange={true} onSuccess={() => setUser(u => ({...u, must_change_password: false}))} />;
 
@@ -1761,7 +1760,8 @@ function MainAppContent({ onUserChange }) {
     // ── WAREHOUSE — menu riêng, LỌC theo can() (khớp PAGE_PERMS) ──
     if (isWarehouse) {
       const whItems = [
-        { key:"wh_home",        icon:"home",                   label:"Trang chủ" }, // trang nội bộ, luôn hiện
+        { key:"my_tasks",       icon:"task_alt",              label:"Việc của tôi" },
+        { key:"wh_home",        icon:"home",                   label:"Trang chủ kho" }, // trang nội bộ, luôn hiện
         { key:"wh_orders",      icon:"chat",                   label:"Chat đơn",         perm:["repair_order","view"] },
         // ── Kho & Vật tư (nhóm liền mạch, không chèn item khác nhóm) ──
         { key:"wh_export",      icon:"outbox",                 label:"Xuất kho",         perm:["stock_export","view"] },
